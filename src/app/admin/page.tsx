@@ -1715,7 +1715,7 @@ export default function AdminPage() {
                 <p className="text-xs mb-1 font-medium" style={{ color: C.muted }}>קישור RSVP לאורחים:</p>
                 <div className="flex items-center gap-2">
                   <code className="text-xs truncate flex-1" style={{ color: C.dark }}>
-                    {(process.env.NEXT_PUBLIC_BASE_URL || window.location.origin)}/rsvp/[token]
+                    {(process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== "undefined" ? window.location.origin : ""))}/rsvp/[token]
                   </code>
                   <ExternalLink size={12} style={{ color: C.gold, flexShrink: 0 }} />
                 </div>
