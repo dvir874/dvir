@@ -1,41 +1,71 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase-server';
 
-// Temporary diagnostic endpoint — remove before public launch
-// Access: GET /api/debug/env
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-  const report: Record<string, string> = {
-    NEXT_PUBLIC_SUPABASE_URL: url ? `SET (${url.slice(0, 30)}...)` : 'MISSING',
-    SUPABASE_SERVICE_ROLE_KEY: serviceKey
-      ? `SET (${serviceKey.slice(0, 20)}...)`
-      : 'MISSING ← THIS BREAKS ALL API ROUTES',
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: anonKey ? `SET (${anonKey.slice(0, 20)}...)` : 'MISSING',
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey
-      ? `SET (${publishableKey.slice(0, 30)}...)`
-      : 'MISSING',
-    NEXT_PUBLIC_BASE_URL: baseUrl ?? 'MISSING (optional)',
-    NODE_ENV: process.env.NODE_ENV ?? 'unknown',
-  };
+  const hasUrl = url.length > 0;
+  const hasServiceRole = serviceKey.length > 0;
+  const hasAnon = anonKey.length > 0;
 
-  // Try an actual Supabase query
-  let dbStatus = 'not tested';
-  if (url && serviceKey) {
+  // Detailed shape info for each key — never log full secrets
+  const urlPreview = hasUrl ? url : 'MISSING';
+  const serviceKeyType = !hasServiceRole
+    ? 'MISSING'
+    : serviceKey.startsWith('eyJ')
+    ? 'JWT (correct format)'
+    : serviceKey.startsWith('sb_')
+    ? 'WRONG — this is a publishable/anon key, not the service role JWT'
+    : `UNKNOWN FORMAT — first 8 chars: ${serviceKey.slice(0, 8)}`;
+  const anonKeyType = !hasAnon
+    ? 'MISSING'
+    : anonKey.startsWith('eyJ')
+    ? 'JWT format'
+    : anonKey.startsWith('sb_')
+    ? 'publishable key format (sb_publishable_...)'
+    : `UNKNOWN — first 8 chars: ${anonKey.slice(0, 8)}`;
+
+  // Try a real Supabase HTTP request to /rest/v1/ — no SDK needed
+  let supabaseConnectionWorks = false;
+  let supabaseError = '';
+  if (hasUrl && hasServiceRole) {
     try {
-      const supabase = createServerClient();
-      const { error } = await supabase.from('events').select('id').limit(1);
-      dbStatus = error ? `ERROR: ${error.message}` : 'OK — Supabase connected';
+      const res = await fetch(`${url}/rest/v1/events?select=id&limit=1`, {
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+      });
+      const body = await res.text();
+      if (res.ok) {
+        supabaseConnectionWorks = true;
+      } else {
+        supabaseError = `HTTP ${res.status}: ${body.slice(0, 200)}`;
+      }
     } catch (e) {
-      dbStatus = `EXCEPTION: ${String(e)}`;
+      supabaseError = String(e);
     }
   } else {
-    dbStatus = 'SKIPPED — missing URL or service key';
+    supabaseError = 'Skipped — missing URL or service role key';
   }
 
-  return NextResponse.json({ env: report, db: dbStatus });
+  return NextResponse.json({
+    hasUrl,
+    hasAnon,
+    hasServiceRole,
+    supabaseConnectionWorks,
+    // Diagnostic detail (safe — no full key values)
+    detail: {
+      urlPreview,
+      serviceKeyType,
+      anonKeyType,
+      supabaseError: supabaseError || null,
+      nodeEnv: process.env.NODE_ENV,
+    },
+  });
 }
