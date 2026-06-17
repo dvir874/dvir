@@ -44,10 +44,40 @@ export default function Contact() {
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
     setSubmitting(true);
+
+    // Detect referral code from cookie or URL param
+    const refCode = document.cookie.match(/ref_code=([^;]+)/)?.[1]
+      ?? new URLSearchParams(window.location.search).get("ref")
+      ?? null;
+
+    // Detect source from URL params or referrer
+    const urlParams = new URLSearchParams(window.location.search);
+    const utmSource = urlParams.get("utm_source");
+    const source = refCode ? "referral"
+      : utmSource ? utmSource
+      : document.referrer.includes("facebook") ? "facebook"
+      : document.referrer.includes("instagram") ? "instagram"
+      : document.referrer.includes("google") ? "google"
+      : "organic";
+
+    // Save lead to CRM (fire-and-forget — don't block WhatsApp open)
+    fetch("/api/leads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: form.name,
+        phone: form.phone,
+        event_type: form.eventType,
+        wedding_date: form.eventDate || null,
+        notes: form.notes || null,
+        source,
+        ref_code: refCode,
+      }),
+    }).catch(() => {}); // silent — don't block UX on API failure
 
     const text = encodeURIComponent(
       `שלום דביר, הגעתי דרך אתר רגע לפני ואני מעוניין לקבל פרטים על הזמנה דיגיטלית.\n\n` +

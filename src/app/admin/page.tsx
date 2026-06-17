@@ -679,6 +679,13 @@ export default function AdminPage() {
 
         <div className="flex items-center gap-2 flex-wrap mr-auto">
           <a
+            href="/admin/crm"
+            className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
+            style={{ background: "rgba(37,99,235,0.10)", color: "#2563EB" }}
+          >
+            📋 CRM לידים
+          </a>
+          <a
             href="/admin/automation"
             className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
             style={{ background: "rgba(107,123,90,0.10)", color: C.olive }}
@@ -818,6 +825,14 @@ export default function AdminPage() {
             title="רענן"
           >
             <RefreshCw size={14} className={guestsLoading ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={async () => { await fetch("/api/auth/logout", { method: "POST" }); window.location.href = "/admin/login"; }}
+            className="p-2 rounded-xl transition-all hover:opacity-70"
+            style={{ background: "rgba(239,68,68,0.08)", color: "rgba(239,68,68,0.7)" }}
+            title="יציאה"
+          >
+            ↩
           </button>
         </div>
       </header>
