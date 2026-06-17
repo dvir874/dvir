@@ -40,9 +40,11 @@ export async function GET(_request: NextRequest, { params }: Params) {
 export async function POST(request: NextRequest, { params }: Params) {
   const { token } = await params;
   const body = await request.json();
-  const { status, guest_count } = body as {
+  const { status, guest_count, meal_preference, meal_note } = body as {
     status?: string;
     guest_count?: number;
+    meal_preference?: string | null;
+    meal_note?: string | null;
   };
 
   if (!status || !['confirmed', 'declined'].includes(status))
@@ -55,6 +57,8 @@ export async function POST(request: NextRequest, { params }: Params) {
       status,
       guest_count: guest_count ?? 1,
       response_time: new Date().toISOString(),
+      ...(meal_preference !== undefined ? { meal_preference } : {}),
+      ...(meal_note !== undefined ? { meal_note } : {}),
     })
     .eq('rsvp_token', token)
     .select()

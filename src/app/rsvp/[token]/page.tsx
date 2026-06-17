@@ -6,12 +6,22 @@ import { CheckCircle, XCircle, Users, Loader2, AlertCircle } from "lucide-react"
 import { getTheme, type EventTheme } from "@/lib/themes";
 
 type Status = "confirmed" | "declined" | "pending";
+type MealOption = "regular" | "vegetarian" | "vegan" | "mehadrin";
+
+const MEAL_OPTIONS: { value: MealOption; label: string; emoji: string }[] = [
+  { value: "regular", label: "רגיל", emoji: "🍽️" },
+  { value: "vegetarian", label: "צמחוני", emoji: "🥗" },
+  { value: "vegan", label: "טבעוני", emoji: "🌱" },
+  { value: "mehadrin", label: "כשר מהדרין", emoji: "✡️" },
+];
 
 interface GuestInfo {
   id: string;
   name: string;
   guest_count: number;
   status: Status;
+  meal_preference?: string | null;
+  meal_note?: string | null;
 }
 interface EventInfo {
   name: string;
@@ -34,6 +44,8 @@ export default function RsvpPage({
   const [event,      setEvent]      = useState<EventInfo | null>(null);
   const [choice,     setChoice]     = useState<"confirmed" | "declined" | null>(null);
   const [guestCount, setGuestCount] = useState(1);
+  const [meal,       setMeal]       = useState<MealOption | null>(null);
+  const [mealNote,   setMealNote]   = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg,   setErrorMsg]   = useState("");
 
@@ -58,7 +70,12 @@ export default function RsvpPage({
       const res = await fetch(`/api/rsvp/${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: choice, guest_count: guestCount }),
+        body: JSON.stringify({
+          status: choice,
+          guest_count: guestCount,
+          meal_preference: choice === "confirmed" ? (meal ?? "regular") : null,
+          meal_note: choice === "confirmed" && mealNote.trim() ? mealNote.trim() : null,
+        }),
       });
       if (!res.ok) throw new Error("Server error");
       setGuest((g) => g ? { ...g, status: choice, guest_count: guestCount } : g);
@@ -229,6 +246,56 @@ export default function RsvpPage({
               +
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Meal preference */}
+      {choice === "confirmed" && (
+        <div
+          className="rounded-2xl p-5 mb-5"
+          style={{ background: theme.accentBg, border: `1px solid ${theme.accentBorder}` }}
+        >
+          <p
+            className="text-sm font-semibold mb-3"
+            style={{ color: theme.headingColor, fontFamily: "Heebo, sans-serif" }}
+          >
+            העדפת מנה
+          </p>
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            {MEAL_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setMeal(opt.value)}
+                className="py-3 px-3 rounded-xl text-sm font-medium flex items-center gap-2 transition-all"
+                style={{
+                  fontFamily: "Heebo, sans-serif",
+                  background: meal === opt.value
+                    ? `linear-gradient(135deg,${theme.accentColor},${theme.accentColor}cc)`
+                    : theme.cardBg,
+                  color: meal === opt.value ? "white" : theme.accentColor,
+                  border: `1.5px solid ${meal === opt.value ? "transparent" : theme.accentBorder}`,
+                }}
+              >
+                <span>{opt.emoji}</span>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <input
+            type="text"
+            placeholder="הערה למנה (אופציונלי)"
+            value={mealNote}
+            onChange={(e) => setMealNote(e.target.value)}
+            maxLength={120}
+            className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+            style={{
+              fontFamily: "Heebo, sans-serif",
+              background: theme.cardBg,
+              border: `1px solid ${theme.accentBorder}`,
+              color: theme.headingColor,
+            }}
+          />
         </div>
       )}
 

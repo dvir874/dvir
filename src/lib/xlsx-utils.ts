@@ -35,12 +35,21 @@ const STATUS_LABEL: Record<string, string> = {
   pending: 'ממתין',
 };
 
+const MEAL_LABEL: Record<string, string> = {
+  regular: 'רגיל',
+  vegetarian: 'צמחוני',
+  vegan: 'טבעוני',
+  mehadrin: 'כשר מהדרין',
+};
+
 export function generateGuestsXlsx(guests: Guest[]): Buffer {
   const data = guests.map((g) => ({
     'שם': g.name,
     'טלפון': g.phone,
     'סטטוס': STATUS_LABEL[g.status] ?? g.status,
     'מספר מגיעים': g.guest_count,
+    'העדפת מנה': g.meal_preference ? (MEAL_LABEL[g.meal_preference] ?? g.meal_preference) : '',
+    'הערת מנה': g.meal_note ?? '',
     'זמן תגובה': g.response_time
       ? new Date(g.response_time).toLocaleString('he-IL')
       : '',

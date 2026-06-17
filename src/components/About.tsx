@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, Sparkles, Check, Shield, Users, Star, Infinity } from "lucide-react";
+import { Heart, Sparkles, Check, Zap, Star, Infinity } from "lucide-react";
 import FadeIn, { StaggerContainer, staggerItem } from "./FadeIn";
 import { motion } from "framer-motion";
 
@@ -17,10 +17,10 @@ const VALUES = [
 /* ─── Stat cards ──────────────────────────────────── */
 const STATS = [
   {
-    value: "600+",
-    label: "ימי מילואים",
-    sub: "במלחמת חרבות ברזל",
-    icon: Shield,
+    value: "עדכון",
+    label: "בזמן אמת",
+    sub: "כל תגובת אורח מתעדכנת מיידית",
+    icon: Zap,
     accent: "#6B7B5A",
   },
   {

@@ -113,4 +113,58 @@ export interface Guest {
   opened_at: string | null;
   rsvp_token: string;
   created_at: string;
+  meal_preference?: string | null;
+  meal_note?: string | null;
+  category?: string | null;
+}
+
+export type MealPreference = 'regular' | 'vegetarian' | 'vegan' | 'mehadrin';
+
+export const MEAL_PREFERENCE_LABEL: Record<string, string> = {
+  regular: 'רגיל',
+  vegetarian: 'צמחוני',
+  vegan: 'טבעוני',
+  mehadrin: 'כשר מהדרין',
+};
+
+export interface SeatingTable {
+  id: string;
+  event_id: string;
+  name: string;
+  capacity: number;
+  type: 'round' | 'rectangular' | 'custom';
+  sort_order: number;
+  created_at: string;
+  assignments?: SeatingAssignment[];
+}
+
+export interface SeatingAssignment {
+  id: string;
+  table_id: string;
+  guest_id: string;
+  event_id: string;
+  created_at: string;
+  guest?: Guest;
+}
+
+export interface BudgetItem {
+  id: string;
+  event_id: string;
+  category: string;
+  description: string;
+  planned_amount: number;
+  actual_amount: number | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface Gift {
+  id: string;
+  event_id: string;
+  guest_id: string | null;
+  guest_name: string;
+  amount: number;
+  notes: string | null;
+  received_at: string | null;
+  created_at: string;
 }

@@ -725,6 +725,35 @@ export default function AdminPage() {
           >
             <Wand2 size={13} /> אשף יצירה
           </a>
+          {/* Wedding Tools dropdown */}
+          <div style={{ position: "relative", display: "inline-block" }} className="group">
+            <button
+              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
+              style={{ background: "rgba(197,164,109,0.18)", color: C.olive }}
+            >
+              ✦ כלי חתונה
+            </button>
+            <div
+              className="absolute left-0 mt-1 rounded-xl overflow-hidden shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-150 z-50"
+              style={{ background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.25)", minWidth: 160, top: "100%" }}
+            >
+              {[
+                { href: "/admin/seating", label: "סידור הושבה", emoji: "🪑" },
+                { href: "/admin/budget", label: "ניהול תקציב", emoji: "💰" },
+                { href: "/admin/gifts", label: "מעקב מתנות", emoji: "🎁" },
+              ].map((item) => (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className="flex items-center gap-2 px-4 py-3 text-xs hover:bg-amber-50 transition-colors"
+                  style={{ color: C.dark, textDecoration: "none", fontFamily: "Heebo, sans-serif" }}
+                >
+                  <span>{item.emoji}</span>
+                  {item.label}
+                </a>
+              ))}
+            </div>
+          </div>
           <button
             onClick={() => setShowCreate((s) => !s)}
             className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
@@ -1343,7 +1372,7 @@ export default function AdminPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ background: "rgba(197,164,109,0.07)", borderBottom: `1px solid ${C.borderS}` }}>
-                      {["שם","טלפון","סטטוס","מוזמנים","זמן תגובה","נפתח","פעולות"].map((h) => (
+                      {["שם","טלפון","סטטוס","מוזמנים","מנה","זמן תגובה","נפתח","פעולות"].map((h) => (
                         <th key={h} className="text-right px-4 py-3 font-semibold text-xs" style={{ color: C.muted }}>
                           {h}
                         </th>
@@ -1390,6 +1419,12 @@ export default function AdminPage() {
                           </select>
                         </td>
                         <td className="px-4 py-3 text-center" style={{ color: C.dark }}>{g.guest_count}</td>
+                        <td className="px-4 py-3 text-xs" style={{ color: C.muted }}>
+                          {g.meal_preference
+                            ? ({ regular: "🍽️ רגיל", vegetarian: "🥗 צמחוני", vegan: "🌱 טבעוני", mehadrin: "✡️ מהדרין" }[g.meal_preference] ?? g.meal_preference)
+                            : "—"}
+                          {g.meal_note && <span title={g.meal_note} style={{ marginRight: 4, opacity: 0.5 }}>📝</span>}
+                        </td>
                         <td className="px-4 py-3 text-xs" style={{ color: C.muted }}>
                           {g.response_time
                             ? new Date(g.response_time).toLocaleString("he-IL", {
