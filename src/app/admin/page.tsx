@@ -1379,8 +1379,8 @@ export default function AdminPage() {
                             onChange={(e) => handleStatusChange(g.id, e.target.value as GuestStatus)}
                             className="rounded-lg px-2.5 py-1 text-xs font-medium outline-none cursor-pointer"
                             style={{
-                              background: STATUS_COLOR[g.status].bg,
-                              color: STATUS_COLOR[g.status].color,
+                              background: (STATUS_COLOR[g.status] ?? STATUS_COLOR.pending).bg,
+                              color: (STATUS_COLOR[g.status] ?? STATUS_COLOR.pending).color,
                               border: "none",
                             }}
                           >
