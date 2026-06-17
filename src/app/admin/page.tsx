@@ -367,21 +367,39 @@ export default function AdminPage() {
   /* ── Data fetching ──────────────────────────────── */
   useEffect(() => {
     fetch("/api/events")
-      .then((r) => r.json())
-      .then((data: Event[]) => {
-        setEvents(data ?? []);
-        if (data?.length) setSelectedEventId(data[0].id);
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok || !Array.isArray(data)) {
+          // Diagnostic: log the actual server error so it appears in Vercel logs
+          console.error("[admin] /api/events error", r.status, JSON.stringify(data));
+          setLoading(false);
+          return;
+        }
+        setEvents(data);
+        if (data.length) setSelectedEventId(data[0].id);
         else setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        console.error("[admin] /api/events fetch failed", err);
+        setLoading(false);
+      });
   }, []);
 
   const fetchGuests = useCallback((eventId: string) => {
     setGuestsLoading(true);
     fetch(`/api/guests?event_id=${eventId}`)
-      .then((r) => r.json())
-      .then((data: Guest[]) => setGuests(data ?? []))
-      .catch(() => setGuests([]))
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok || !Array.isArray(data)) {
+          console.error("[admin] /api/guests error", r.status, JSON.stringify(data));
+          return;
+        }
+        setGuests(data);
+      })
+      .catch((err) => {
+        console.error("[admin] /api/guests fetch failed", err);
+        setGuests([]);
+      })
       .finally(() => { setGuestsLoading(false); setLoading(false); });
   }, []);
 
@@ -397,9 +415,18 @@ export default function AdminPage() {
     if (activeTab !== "command-center") return;
     setOverviewLoading(true);
     fetch("/api/manager/overview")
-      .then((r) => r.json())
-      .then((d: EventSummary[]) => setOverview(d ?? []))
-      .catch(() => setOverview([]))
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok || !Array.isArray(data)) {
+          console.error("[admin] /api/manager/overview error", r.status, JSON.stringify(data));
+          return;
+        }
+        setOverview(data);
+      })
+      .catch((err) => {
+        console.error("[admin] /api/manager/overview fetch failed", err);
+        setOverview([]);
+      })
       .finally(() => setOverviewLoading(false));
   }, [activeTab]);
 

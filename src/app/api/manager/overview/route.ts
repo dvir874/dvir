@@ -6,6 +6,10 @@ import type { EventSummary }     from '@/lib/types';
 export type { EventSummary };
 
 export async function GET() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('[api/overview] Missing env vars — NEXT_PUBLIC_SUPABASE_URL:', !!process.env.NEXT_PUBLIC_SUPABASE_URL, 'SUPABASE_SERVICE_ROLE_KEY:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+    return NextResponse.json({ error: 'Server misconfiguration: missing Supabase env vars' }, { status: 500 });
+  }
   const supabase = createServerClient();
   const now = Date.now();
 
