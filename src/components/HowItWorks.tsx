@@ -8,23 +8,23 @@ const steps = [
   {
     number: "01",
     icon: Users,
-    title: "שולחים רשימת מוזמנים",
+    title: "הזמנות ואישורי הגעה",
     description:
-      "מעבירים לנו את הרשימה בכל פורמט שנוח לכם — אקסל, וואטסאפ, רשימה ידנית. אנחנו מסדרים הכל.",
+      "הזמנה דיגיטלית אישית לכל אורח. תגובות מגיעות ישירות ללוח הבקרה שלכם — ללא מרדפים בוואטסאפ.",
   },
   {
     number: "02",
     icon: Zap,
-    title: "אנחנו מנהלים הכל",
+    title: "ניהול מלא של האירוע",
     description:
-      "שולחים הזמנות דיגיטליות אישיות, עוקבים אחרי תגובות, שולחים תזכורות לממתינים — הכל בלעדיכם.",
+      "הושבה לפי שולחנות, מעקב תקציב, רישום מתנות, רשימת משימות — הכל במסך אחד, זמין מכל מכשיר.",
   },
   {
     number: "03",
     icon: BarChart2,
-    title: "תראו תמונת מצב בזמן אמת",
+    title: "לוח בקרה זוגי בזמן אמת",
     description:
-      "לוח בקרה אישי: מי אישר, מי מחכה, כמה אנשים מגיעים. הכל נגיש עד יום האירוע.",
+      "שניכם רואים את אותה תמונה עדכנית: מי מגיע, כמה תקציב נשאר, מה עדיין פתוח. עד יום האירוע.",
   },
 ];
 
@@ -42,12 +42,12 @@ export default function HowItWorks() {
       <div className="container-max mx-auto relative z-10">
         <FadeIn className="text-center mb-12">
           <p className="text-gold text-xs tracking-[0.22em] mb-3 uppercase" style={{ fontFamily: "Heebo, sans-serif" }}>
-            תהליך פשוט וקל
+            מערכת ניהול חתונה מלאה
           </p>
-          <h2 className="section-title">איך זה עובד?</h2>
+          <h2 className="section-title">הכל במקום אחד</h2>
           <div className="gold-divider" />
           <p className="section-subtitle">
-            שלושה צעדים — ואתם שקטים עד יום האירוע
+            מההזמנה הראשונה ועד יום החתונה — אתם בשליטה מלאה
           </p>
         </FadeIn>
 
@@ -65,15 +65,32 @@ export default function HowItWorks() {
           </StaggerContainer>
         </div>
 
-        <FadeIn delay={0.3} className="text-center mt-12">
-          <div
-            className="inline-flex items-center gap-3 px-6 py-3 rounded-xl"
-            style={{ background: "rgba(197,164,109,0.10)", border: "1px solid rgba(197,164,109,0.28)" }}
-          >
-            <span className="text-lg">💬</span>
-            <p className="text-dark/65 text-sm" style={{ fontFamily: "Heebo, sans-serif" }}>
-              כל התהליך מתנהל בנוחות דרך וואטסאפ — בלי אפליקציות, בלי סיסמאות
-            </p>
+        {/* Feature chips */}
+        <FadeIn delay={0.3} className="mt-12">
+          <div className="flex flex-wrap justify-center gap-2.5">
+            {[
+              "✉️ הזמנות דיגיטליות",
+              "✅ אישורי הגעה",
+              "💬 תזכורות בוואטסאפ",
+              "🪑 תכנון הושבה",
+              "💰 מעקב תקציב",
+              "🎁 רישום מתנות",
+              "📋 משימות תכנון",
+              "📊 לוח בקרה זוגי",
+            ].map((chip) => (
+              <div
+                key={chip}
+                className="px-4 py-2 rounded-full text-sm"
+                style={{
+                  background: "rgba(197,164,109,0.10)",
+                  border: "1px solid rgba(197,164,109,0.28)",
+                  color: "rgba(51,51,51,0.70)",
+                  fontFamily: "Heebo, sans-serif",
+                }}
+              >
+                {chip}
+              </div>
+            ))}
           </div>
         </FadeIn>
       </div>

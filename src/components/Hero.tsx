@@ -19,14 +19,14 @@ const G = {
   shadow:    "0 20px 60px rgba(197,164,109,0.10), 0 4px 20px rgba(0,0,0,0.05)",
 };
 
-/* ─── Real product features only ─── */
+/* ─── Platform capabilities ─── */
 const BULLETS = [
-  "הזמנה שמשאירה רושם מהרגע הראשון",
-  "כל פרטי האירוע נגישים לכל אורח",
-  "תדעו בדיוק מי מגיע ומי לא ענה",
-  "לא תצטרכו לרדוף אחרי מוזמנים",
-  "עיצוב שמספר את הסיפור שלכם",
-  "ליווי אישי מהתחלה ועד הסוף",
+  "ניהול אורחים ואישורי הגעה",
+  "תזכורות אוטומטיות בוואטסאפ",
+  "תכנון הושבה לפי שולחנות",
+  "מעקב תקציב ומתנות",
+  "רשימת משימות לתכנון",
+  "לוח בקרה זוגי בזמן אמת",
 ];
 
 /* ─── Activity feed — RSVP confirmations and reminders only ─── */
@@ -365,7 +365,7 @@ export default function Hero() {
             <div className="flex items-center gap-3 mb-6">
               <span className="w-10 h-px bg-gradient-to-l from-gold to-transparent" />
               <span className="text-gold text-xs tracking-[0.22em] uppercase" style={{ fontFamily: "Heebo, sans-serif" }}>
-                הזמנות דיגיטליות מעוצבות · אישורי הגעה בוואטסאפ
+                מרכז השליטה לחתונה שלכם
               </span>
               <span className="w-10 h-px bg-gradient-to-r from-gold to-transparent" />
             </div>
@@ -374,7 +374,7 @@ export default function Hero() {
               className="text-4xl md:text-5xl xl:text-[3.1rem] font-bold text-dark leading-[1.25] mb-5"
               style={{ fontFamily: "Frank Ruhl Libre, serif" }}
             >
-              מההזמנה ועד לאישור ההגעה —
+              מנהלים את כל החתונה
               <br />
               <span className="shimmer-text">במקום אחד</span>
             </h1>
@@ -383,9 +383,9 @@ export default function Hero() {
               className="text-base md:text-lg leading-[1.85] max-w-lg mb-7"
               style={{ color: "rgba(51,51,51,0.60)", fontFamily: "Heebo, sans-serif", fontWeight: 300 }}
             >
-              הזמנה שמרשימה, דף אירוע שהאורחים אוהבים,
+              אורחים, הושבה, תקציב, מתנות, ומשימות — הכל בלוח בקרה אחד.
               <br className="hidden md:block" />
-              ואישורי הגעה שמגיעים אליכם — בלי לרדוף אחרי אף אחד.
+              ההזמנה היא רק ההתחלה.
             </p>
 
             <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 mb-9 w-full max-w-sm" style={{ fontFamily: "Heebo, sans-serif" }}>

@@ -745,9 +745,10 @@ export default function AdminPage() {
               style={{ background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.25)", minWidth: 160, top: "100%" }}
             >
               {[
-                { href: "/admin/seating", label: "סידור הושבה", emoji: "🪑" },
-                { href: "/admin/budget", label: "ניהול תקציב", emoji: "💰" },
-                { href: "/admin/gifts", label: "מעקב מתנות", emoji: "🎁" },
+                { href: "/admin/seating",   label: "סידור הושבה",   emoji: "🪑" },
+                { href: "/admin/budget",    label: "ניהול תקציב",   emoji: "💰" },
+                { href: "/admin/gifts",     label: "מעקב מתנות",    emoji: "🎁" },
+                { href: "/admin/reminders", label: "תזכורות RSVP",  emoji: "📨" },
               ].map((item) => (
                 <a
                   key={item.href}

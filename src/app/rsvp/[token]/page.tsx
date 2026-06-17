@@ -100,6 +100,27 @@ export default function RsvpPage({
 
   if (screen === "done") {
     const confirmed = guest?.status === "confirmed";
+
+    // Build Google Calendar link
+    const calUrl = (() => {
+      if (!event?.date) return null;
+      const d     = new Date(event.date);
+      const ymd   = (dt: Date) => dt.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+      const start = ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 19, 0, 0));
+      const end   = ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 0));
+      const params = new URLSearchParams({
+        action: "TEMPLATE", text: event.name,
+        dates: `${start}/${end}`,
+        details: event.address ?? "",
+        location: event.address ?? "",
+      });
+      return `https://calendar.google.com/calendar/render?${params.toString()}`;
+    })();
+
+    const wazeUrl = event?.address
+      ? `https://waze.com/ul?q=${encodeURIComponent(event.address)}&navigate=yes`
+      : null;
+
     return (
       <Shell theme={theme}>
         <div className="text-center">
@@ -123,10 +144,39 @@ export default function RsvpPage({
               : "חבל שלא תוכלו להגיע — נשמח לראותכם בפעם אחרת 💛"}
           </p>
           {event && (
-            <p className="text-xs mt-4" style={{ color: theme.accentColor, fontFamily: "Heebo, sans-serif" }}>
+            <p className="text-xs mt-3" style={{ color: theme.accentColor, fontFamily: "Heebo, sans-serif" }}>
               {event.name} · {formattedDate}
             </p>
           )}
+
+          {/* Calendar + Waze — shown only for confirmed guests */}
+          {confirmed && (calUrl || wazeUrl) && (
+            <div className="mt-6 flex flex-col gap-2.5 max-w-xs mx-auto">
+              {calUrl && (
+                <a
+                  href={calUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-sm font-medium transition-all duration-200 hover:opacity-90"
+                  style={{ background: theme.accentBg, color: theme.accentColor, border: `1px solid ${theme.accentColor}33`, fontFamily: "Heebo, sans-serif" }}
+                >
+                  📅 הוסיפו ליומן Google
+                </a>
+              )}
+              {wazeUrl && (
+                <a
+                  href={wazeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-sm font-medium transition-all duration-200 hover:opacity-90"
+                  style={{ background: "rgba(34,197,94,0.10)", color: "#16a34a", border: "1px solid rgba(34,197,94,0.25)", fontFamily: "Heebo, sans-serif" }}
+                >
+                  🚗 נווטו לאולם — Waze
+                </a>
+              )}
+            </div>
+          )}
+
           <div className="w-16 h-px mx-auto mt-6"
             style={{ background: `linear-gradient(90deg,transparent,${theme.accentColor},transparent)` }} />
         </div>
