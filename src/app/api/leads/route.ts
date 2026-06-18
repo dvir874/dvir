@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
   try {
     const dateStr   = wedding_date ? ` | חתונה: ${wedding_date}` : '';
     const sourceStr = source && source !== 'unknown' ? ` | ${source}` : '';
-    await fetch('https://ntfy.sh/ragalifnei-leads', {
+    await fetch('https://ntfy.sh/regalifnei-leads', {
       method: 'POST',
       headers: {
         'Title': '✦ פנייה חדשה מהאתר!',
