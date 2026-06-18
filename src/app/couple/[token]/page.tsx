@@ -47,7 +47,6 @@ const VENDOR_CATEGORIES = [
   { key: "catering",     label: "קייטרינג",      emoji: "🍽️" },
   { key: "flowers",      label: "פרחים",         emoji: "💐" },
   { key: "dress",        label: "שמלה / חליפה",  emoji: "👗" },
-  { key: "rabbi",        label: "רב / קלציה",    emoji: "📜" },
   { key: "rabbi",        label: "רב",             emoji: "📜" },
   { key: "venue",        label: "אולם",           emoji: "🏛️" },
 ];
