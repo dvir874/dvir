@@ -74,7 +74,7 @@ export default function WeddingGallery() {
             <h2 className="section-title">גלריית הזמנות חתונה</h2>
             <div className="gold-divider" />
             <p className="section-subtitle">
-              מבחר הזמנות דיגיטליות בעיצוב אישי
+              מבחר עיצובי הזמנות בהתאמה אישית לכל אירוע
             </p>
           </FadeIn>
 

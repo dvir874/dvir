@@ -69,7 +69,7 @@ export default function Logo({ size = "md", inverted = false }: LogoProps) {
           className={`${s.sub} tracking-widest mt-0.5`}
           style={{ color: goldColor, fontFamily: "Heebo, sans-serif", letterSpacing: "0.12em" }}
         >
-          הזמנות דיגיטליות
+          ניהול חתונה
         </div>
       </div>
     </div>

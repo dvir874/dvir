@@ -4,7 +4,7 @@ import { Check, X } from "lucide-react";
 import FadeIn from "./FadeIn";
 
 const rows = [
-  { label: "שליחת הזמנות דיגיטליות אישיות",   them: false, us: true  },
+  { label: "ניהול הזמנות, אורחים ואישורי הגעה", them: false, us: true  },
   { label: "מעקב אישורי הגעה בזמן אמת",        them: false, us: true  },
   { label: "תזכורות אוטומטיות בוואטסאפ",       them: false, us: true  },
   { label: "תכנון הושבה לפי שולחנות",          them: false, us: true  },

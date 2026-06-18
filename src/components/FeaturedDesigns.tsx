@@ -28,7 +28,7 @@ const APPS = [
 
 /* ─── Real product modules — exactly what we provide ─── */
 const MODULES = [
-  "הזמנה דיגיטלית מעוצבת",
+  "הזמנה ודף אירוע מעוצבים",
   "דף אירוע אישי",
   "אישורי הגעה בוואטסאפ",
   "תזכורות אוטומטיות",

@@ -57,7 +57,7 @@ export default function Footer() {
               className="text-white/40 text-xs leading-relaxed mb-6 max-w-[200px]"
               style={{ fontFamily: "Heebo, sans-serif" }}
             >
-              הזמנות דיגיטליות מעוצבות בהתאמה אישית לכל אירוע מיוחד.
+              כל החתונה שלכם במקום אחד — עם ליווי אישי מהרגע הראשון.
             </p>
             {/* Social / contact icons */}
             <div className="flex gap-3">

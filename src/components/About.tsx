@@ -6,12 +6,12 @@ import { motion } from "framer-motion";
 
 /* ─── Values list ─────────────────────────────────── */
 const VALUES = [
-  "יחס אישי לכל לקוח",
-  "זמינות גבוהה וליווי לאורך התהליך",
-  "התאמה מלאה לסגנון האירוע",
-  "ירידה לפרטים הקטנים",
-  "מחויבות לאיכות",
-  "שירות מכל הלב",
+  "הכל במקום אחד — ללא אקסל ווצאפ",
+  "אישורי הגעה אוטומטיים ועם מעקב",
+  "תכנון הושבה ללא כאב ראש",
+  "מעקב תקציב ומתנות בזמן אמת",
+  "לוח בקרה משותף לשניכם",
+  "ליווי אישי לאורך כל הדרך",
 ];
 
 /* ─── Stat cards ──────────────────────────────────── */
@@ -49,25 +49,23 @@ const STATS = [
 /* ─── Story paragraphs ────────────────────────────── */
 const STORY = [
   <>
-    את ״רגע לפני״ הקמתי מתוך אהבה לעיצוב, יצירתיות וטכנולוגיה, ומתוך רצון לעזור
-    לאנשים להפוך את הרגעים החשובים בחייהם למיוחדים כבר מהרגע הראשון.
+    תכנון חתונה יכול להיות אחד הדברים היפים בחיים — אבל לרוב הוא הופך לרשימות
+    אינסופיות בווצאפ, אקסלים שמתפרקים, ושיחות טלפון שלא נגמרות.
   </>,
   <>
-    אני מאמין שהזמנה היא הרבה יותר מפרטי האירוע — היא הרושם הראשוני, ההתרגשות
-    הראשונה וההצצה הראשונה למה שמצפה לאורחים.
+    את ״רגע לפני״ בניתי כדי לשנות בדיוק את זה. פלטפורמה שמרכזת את הכל — אורחים,
+    הושבה, תקציב, מתנות, משימות — ומאפשרת לכם להתמקד ברגעים שחשובים באמת.
   </>,
   <>
-    מאז פרוץ מלחמת חרבות ברזל שירתתי למעלה מ‑600 ימי מילואים. לצד השירות המשמעותי,
-    המשכתי לפתח את ״רגע לפני״ מתוך אמונה שגם בתקופות מאתגרות חשוב ליצור רגעים של
-    שמחה, משפחה ואהבה.
+    אני מאמין שכל זוג ראוי לתכנן את חתונתו ברוגע, בבהירות ועם תחושה שמישהו מלווה
+    אותם לאורך הדרך. לא רק כלי — ליווי אמיתי.
   </>,
   <>
-    התקופה הזו חיזקה בי ערכים של אחריות, מחויבות, אמינות, התמדה וירידה לפרטים —
-    ערכים שמלווים אותי היום בכל הזמנה שאני יוצר ובכל לקוח שאני מלווה.
+    כל לקוח מקבל יחס אישי, ירידה לפרטים, וזמינות לאורך כל התהליך — מהרגע הראשון
+    ועד אחרי שהאורח האחרון יוצא מהאולם.
   </>,
   <>
-    המטרה שלי היא להעניק לכל זוג, משפחה או חוגג חוויה אישית, מקצועית ומרגשת, עם
-    עיצוב שמותאם בדיוק עבורם.
+    כי ״רגע לפני״ הוא לא רק שם. זה ההבטחה שלנו — שכשמגיע הרגע, כל פרט כבר טופל.
   </>,
 ];
 
@@ -104,15 +102,15 @@ export default function About() {
             className="text-gold text-xs tracking-[0.22em] mb-3 uppercase"
             style={{ fontFamily: "Heebo, sans-serif" }}
           >
-            הסיפור שלנו
+            למה רגע לפני
           </p>
-          <h2 className="section-title">קצת עליי</h2>
+          <h2 className="section-title">תכנון חתונה — בלי כאב ראש</h2>
           <div className="gold-divider" />
           <p
             className="text-xl md:text-2xl font-light text-olive mt-2"
             style={{ fontFamily: "Frank Ruhl Libre, serif" }}
           >
-            נעים להכיר, אני דביר
+            כל מה שצריך, במקום אחד
           </p>
         </FadeIn>
 
@@ -152,7 +150,7 @@ export default function About() {
                 className="text-gold text-[10px] tracking-[0.2em] uppercase mb-4"
                 style={{ fontFamily: "Heebo, sans-serif" }}
               >
-                הערכים שמובילים אותי
+                מה מקבלים איתנו
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-6">
                 {VALUES.map((v) => (
@@ -507,26 +505,30 @@ function CoupleVisual() {
         ))}
       </motion.div>
 
-      {/* Floating founder badge */}
-      <div
+      {/* Calm floating badge — bottom left */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ delay: 0.45, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
         className="absolute -bottom-5 -left-5 rounded-2xl px-5 py-3 shadow-xl flex items-center gap-2.5"
         style={{
           background: "linear-gradient(135deg,#6B7B5A,#4A5E3A)",
           animation: "float 4.5s ease-in-out 1s infinite",
         }}
       >
-        <Sparkles size={16} color="rgba(255,255,255,0.7)" />
+        <Sparkles size={15} color="rgba(255,255,255,0.7)" />
         <div>
           <p className="text-white text-xs font-semibold" style={{ fontFamily: "Heebo, sans-serif" }}>
-            דביר — מייסד רגע לפני
+            ניהול מלא של החתונה
           </p>
-          <p className="text-white/50 text-[10px]" style={{ fontFamily: "Heebo, sans-serif" }}>
-            עיצוב אישי מ‑₪70
+          <p className="text-white/55 text-[10px]" style={{ fontFamily: "Heebo, sans-serif" }}>
+            הכל במקום אחד
           </p>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Calm badge — top right */}
+      {/* Personal touch pill — top right */}
       <motion.div
         initial={{ opacity: 0, x: 12 }}
         whileInView={{ opacity: 1, x: 0 }}
@@ -540,7 +542,7 @@ function CoupleVisual() {
       >
         <Heart size={12} color="white" fill="white" />
         <p className="text-white text-[11px] font-semibold" style={{ fontFamily: "Heebo, sans-serif" }}>
-          יחס אישי תמיד
+          ליווי אישי תמיד
         </p>
       </motion.div>
     </div>

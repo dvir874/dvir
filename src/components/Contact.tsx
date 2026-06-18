@@ -80,7 +80,7 @@ export default function Contact() {
     }).catch(() => {}); // silent — don't block UX on API failure
 
     const text = encodeURIComponent(
-      `שלום דביר, הגעתי דרך אתר רגע לפני ואני מעוניין לקבל פרטים על הזמנה דיגיטלית.\n\n` +
+      `שלום דביר, הגעתי דרך אתר רגע לפני ואני מעוניין לקבל פרטים על ניהול החתונה.\n\n` +
       `*שם:* ${form.name}\n` +
       `*טלפון:* ${form.phone}\n` +
       `*סוג אירוע:* ${form.eventType}\n` +

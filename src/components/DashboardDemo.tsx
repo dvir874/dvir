@@ -679,7 +679,7 @@ export default function DashboardDemo() {
             <span className="shimmer-text">ועד ליום האירוע</span>
           </h1>
           <p className="text-base max-w-lg mx-auto" style={{ color: G.darkMuted, fontFamily: "Heebo, sans-serif", fontWeight: 300, lineHeight: 1.85 }}>
-            הצצה לשירות המלא — הזמנה דיגיטלית, דף אירוע, אישורי הגעה ותזכורות
+            הצצה לפלטפורמה — ניהול אורחים, הושבה, תקציב, משימות ואישורי הגעה
           </p>
         </div>
       </div>
