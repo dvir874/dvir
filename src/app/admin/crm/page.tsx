@@ -39,7 +39,15 @@ const SOURCE_LABEL: Record<string, string> = {
   facebook: "פייסבוק", instagram: "אינסטגרם", google: "גוגל",
   organic: "אורגני", referral: "המלצה", whatsapp_direct: "וואטסאפ",
   website_chat: "צ׳אט", unknown: "לא ידוע",
+  // Website CTA sources
+  hero: "פנייה מהאתר — Hero", "demo-cta": "פנייה מהאתר — הדגמה",
+  pricing: "פנייה מהאתר — מחירים", faq: "פנייה מהאתר — שאלות נפוצות",
+  "cta-strip": "פנייה מהאתר — CTA Strip", footer: "פנייה מהאתר — Footer",
+  "wa-button": "פנייה מהאתר — כפתור WA",
 };
+
+const WEBSITE_SOURCES = new Set(["hero", "demo-cta", "pricing", "faq", "cta-strip", "footer", "wa-button"]);
+function isWebsiteLead(source: string) { return WEBSITE_SOURCES.has(source); }
 
 function daysUntil(dateStr: string | null): number | null {
   if (!dateStr) return null;
@@ -59,7 +67,7 @@ export default function CrmPage() {
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState<PipelineStage | "all">("all");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [view, setView] = useState<"kanban" | "list">("kanban");
+  const [view, setView] = useState<"kanban" | "list" | "website">("kanban");
   const [showAddLead, setShowAddLead] = useState(false);
 
   const load = useCallback(async () => {
@@ -95,6 +103,9 @@ export default function CrmPage() {
     return matchSearch && matchStage;
   });
 
+  const websiteLeads = leads.filter((l) => isWebsiteLead(l.source));
+  const newWebsiteLeads = websiteLeads.filter((l) => l.status === "new_lead");
+
   const stats = {
     total: leads.length,
     new: leads.filter((l) => l.status === "new_lead").length,
@@ -102,6 +113,7 @@ export default function CrmPage() {
     convRate: leads.length > 0 ? Math.round((leads.filter((l) => l.status === "won").length / leads.length) * 100) : 0,
     totalValue: leads.filter((l) => l.status === "won").reduce((s, l) => s + (l.deal_value ?? 0), 0),
     pipeline: leads.filter((l) => !["won","lost"].includes(l.status)).reduce((s, l) => s + (l.deal_value ?? 0), 0),
+    websiteNew: newWebsiteLeads.length,
   };
 
   return (
@@ -115,7 +127,35 @@ export default function CrmPage() {
             </a>
             <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.4rem", fontWeight: 700, margin: 0 }}>CRM — ניהול לידים</h1>
             <div style={{ marginRight: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-              <button onClick={() => setView(view === "kanban" ? "list" : "kanban")} style={{ padding: "0.4rem 0.9rem", borderRadius: 8, border: "1px solid rgba(197,164,109,0.3)", background: "white", fontSize: 12, cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
+              <button
+                onClick={() => setView("website")}
+                style={{
+                  padding: "0.4rem 0.9rem",
+                  borderRadius: 8,
+                  border: `1.5px solid ${view === "website" ? GOLD : "rgba(197,164,109,0.3)"}`,
+                  background: view === "website" ? "rgba(197,164,109,0.12)" : "white",
+                  fontSize: 12,
+                  cursor: "pointer",
+                  fontFamily: "Heebo, sans-serif",
+                  fontWeight: view === "website" ? 700 : 400,
+                  color: view === "website" ? GOLD : DARK,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  position: "relative",
+                }}
+              >
+                🌐 פניות מהאתר
+                {stats.websiteNew > 0 && (
+                  <span style={{ background: "#EF4444", color: "white", borderRadius: "50%", fontSize: 9, width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>
+                    {stats.websiteNew}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setView(view === "kanban" ? "list" : "kanban")}
+                style={{ padding: "0.4rem 0.9rem", borderRadius: 8, border: "1px solid rgba(197,164,109,0.3)", background: "white", fontSize: 12, cursor: "pointer", fontFamily: "Heebo, sans-serif" }}
+              >
                 {view === "kanban" ? "📋 רשימה" : "🗂 קנבן"}
               </button>
               <button onClick={() => setShowAddLead(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "0.5rem 1rem", borderRadius: 10, border: "none", background: `linear-gradient(135deg,${OLIVE},#4A5E3A)`, color: "white", cursor: "pointer", fontSize: 13, fontFamily: "Heebo, sans-serif" }}>
@@ -133,6 +173,7 @@ export default function CrmPage() {
               { label: "המרה", value: `${stats.convRate}%`, color: stats.convRate > 30 ? OLIVE : GOLD },
               { label: "פייפליין פוטנציאלי", value: stats.pipeline ? `₪${stats.pipeline.toLocaleString()}` : "—" },
               { label: "הכנסות שנסגרו", value: stats.totalValue ? `₪${stats.totalValue.toLocaleString()}` : "—", color: OLIVE },
+              { label: "פניות אתר חדשות", value: stats.websiteNew, color: stats.websiteNew > 0 ? "#EF4444" : "rgba(51,51,51,0.35)" },
             ].map((s) => (
               <div key={s.label} style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
                 <span style={{ fontSize: 18, fontWeight: 800, color: s.color ?? DARK, fontFamily: "Frank Ruhl Libre, serif" }}>{s.value}</span>
@@ -182,6 +223,13 @@ export default function CrmPage() {
 
         {loading ? (
           <p style={{ textAlign: "center", padding: "3rem", color: "rgba(51,51,51,0.4)" }}>טוען לידים...</p>
+        ) : view === "website" ? (
+          <WebsiteLeadsView
+            leads={websiteLeads}
+            onStatusChange={changeStatus}
+            onSelect={setSelectedLead}
+            onDelete={deleteLead}
+          />
         ) : filtered.length === 0 ? (
           <EmptyState onAdd={() => setShowAddLead(true)} />
         ) : view === "kanban" ? (
@@ -205,6 +253,128 @@ export default function CrmPage() {
       {showAddLead && (
         <AddLeadModal onClose={() => setShowAddLead(false)} onSaved={() => { setShowAddLead(false); load(); }} />
       )}
+    </div>
+  );
+}
+
+/* ── Website leads view ─────────────────────────────────────────────── */
+function WebsiteLeadsView({ leads, onStatusChange, onSelect, onDelete }: {
+  leads: Lead[];
+  onStatusChange: (id: string, s: PipelineStage) => void;
+  onSelect: (l: Lead) => void;
+  onDelete: (id: string) => void;
+}) {
+  const newLeads = leads.filter((l) => l.status === "new_lead");
+  const activeLeads = leads.filter((l) => !["new_lead","won","lost"].includes(l.status));
+  const closedLeads = leads.filter((l) => ["won","lost"].includes(l.status));
+
+  function Section({ title, items, accent }: { title: string; items: Lead[]; accent?: string }) {
+    if (items.length === 0) return null;
+    return (
+      <div style={{ marginBottom: "1.75rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.75rem" }}>
+          <div style={{ width: 3, height: 18, borderRadius: 2, background: accent ?? GOLD }} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: accent ?? DARK }}>{title}</span>
+          <span style={{ fontSize: 11, color: "rgba(51,51,51,0.4)", background: "rgba(197,164,109,0.1)", padding: "1px 8px", borderRadius: 10 }}>{items.length}</span>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {items.map((lead) => (
+            <WebsiteLeadRow key={lead.id} lead={lead} onStatusChange={onStatusChange} onSelect={onSelect} onDelete={onDelete} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (leads.length === 0) {
+    return (
+      <div style={{ textAlign: "center", padding: "4rem 2rem", color: "rgba(51,51,51,0.4)" }}>
+        <div style={{ fontSize: 36, marginBottom: 12 }}>🌐</div>
+        <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.1rem", color: DARK, marginBottom: 6 }}>אין פניות מהאתר עדיין</p>
+        <p style={{ fontSize: 13 }}>כשזוגות ממלאים טופס באתר — הם יופיעו כאן.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ padding: "0.75rem 1rem", borderRadius: 12, background: "rgba(197,164,109,0.08)", border: "1px solid rgba(197,164,109,0.2)", marginBottom: "1.5rem", display: "flex", gap: 20, flexWrap: "wrap" }}>
+        <div><span style={{ fontSize: 20, fontWeight: 800, fontFamily: "Frank Ruhl Libre, serif", color: GOLD }}>{leads.length}</span><span style={{ fontSize: 11, color: "rgba(51,51,51,0.5)", marginRight: 5 }}>סה"כ פניות</span></div>
+        <div><span style={{ fontSize: 20, fontWeight: 800, fontFamily: "Frank Ruhl Libre, serif", color: "#EF4444" }}>{newLeads.length}</span><span style={{ fontSize: 11, color: "rgba(51,51,51,0.5)", marginRight: 5 }}>חדשות (לא טופלו)</span></div>
+        <div><span style={{ fontSize: 20, fontWeight: 800, fontFamily: "Frank Ruhl Libre, serif", color: OLIVE }}>{closedLeads.filter(l=>l.status==="won").length}</span><span style={{ fontSize: 11, color: "rgba(51,51,51,0.5)", marginRight: 5 }}>נסגרו</span></div>
+      </div>
+      <Section title="חדשות — טרם טופלו" items={newLeads} accent="#EF4444" />
+      <Section title="בתהליך" items={activeLeads} accent="#3B82F6" />
+      <Section title="נסגרו" items={closedLeads} />
+    </div>
+  );
+}
+
+function WebsiteLeadRow({ lead, onStatusChange, onSelect, onDelete }: {
+  lead: Lead;
+  onStatusChange: (id: string, s: PipelineStage) => void;
+  onSelect: (l: Lead) => void;
+  onDelete: (id: string) => void;
+}) {
+  const stage = STAGES.find((s) => s.key === lead.status)!;
+  const days = daysUntil(lead.wedding_date);
+  const createdAgo = Math.round((Date.now() - new Date(lead.created_at).getTime()) / 60_000);
+  const agoLabel = createdAgo < 60 ? `לפני ${createdAgo} דק׳` : createdAgo < 1440 ? `לפני ${Math.round(createdAgo/60)} שע׳` : `לפני ${Math.round(createdAgo/1440)} ימים`;
+
+  return (
+    <div
+      onClick={() => onSelect(lead)}
+      style={{
+        background: lead.status === "new_lead" ? "#FFFDF8" : "#FDFAF5",
+        border: `1.5px solid ${lead.status === "new_lead" ? "rgba(197,164,109,0.5)" : "rgba(197,164,109,0.18)"}`,
+        borderRadius: "0.85rem",
+        padding: "0.85rem 1rem",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        gap: "1rem",
+        position: "relative",
+      }}
+    >
+      {/* Website badge */}
+      <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+        <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(197,164,109,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🌐</div>
+        {lead.status === "new_lead" && (
+          <span style={{ fontSize: 8, fontWeight: 800, color: "#EF4444", background: "rgba(239,68,68,0.1)", padding: "1px 4px", borderRadius: 4 }}>חדש!</span>
+        )}
+      </div>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+          <span style={{ fontWeight: 700, fontSize: 14, color: DARK }}>{lead.name}</span>
+          <span style={{ fontSize: 10, color: "rgba(51,51,51,0.4)" }}>·</span>
+          <span style={{ fontSize: 11, color: GOLD }}>{SOURCE_LABEL[lead.source] ?? lead.source}</span>
+        </div>
+        <div style={{ fontSize: 11, color: "rgba(51,51,51,0.5)", display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <span>📱 {lead.phone}</span>
+          {days !== null && <span>💒 {days > 0 ? `בעוד ${days} ימים` : "עבר"}</span>}
+          <span style={{ color: "rgba(51,51,51,0.35)" }}>{agoLabel}</span>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        <StageSelect value={lead.status} onChange={(s) => { onStatusChange(lead.id, s); }} onClick={(e) => e.stopPropagation()} small />
+        <a
+          href={waLink(lead.phone, lead.name)}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          style={{ width: 32, height: 32, borderRadius: "50%", background: "#22C55E", display: "flex", alignItems: "center", justifyContent: "center", color: "white", textDecoration: "none" }}
+        >
+          <MessageCircle size={15} />
+        </a>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(lead.id); }}
+          style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(239,68,68,0.4)", display: "flex", alignItems: "center" }}
+        >
+          <Trash2 size={13} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -299,6 +469,9 @@ function LeadCard({ lead, onStatusChange, onSelect, onDelete, compact }: {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
           <span style={{ fontWeight: 700, fontSize: 13, color: DARK }}>{lead.name}</span>
+          {isWebsiteLead(lead.source) && (
+            <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 6, background: "rgba(197,164,109,0.18)", color: GOLD }}>🌐 אתר</span>
+          )}
           {lead.ai_score >= 70 && (
             <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 6, background: "rgba(245,158,11,0.15)", color: "#D97706" }}>🔥 חם</span>
           )}

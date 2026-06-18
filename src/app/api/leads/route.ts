@@ -62,6 +62,22 @@ export async function POST(request: NextRequest) {
     metadata: { event_type, wedding_date, guest_count, ref_code },
   });
 
+  // Push notification via ntfy.sh
+  try {
+    const dateStr   = wedding_date ? ` | חתונה: ${wedding_date}` : '';
+    const sourceStr = source && source !== 'unknown' ? ` | ${source}` : '';
+    await fetch('https://ntfy.sh/ragalifnei-leads', {
+      method: 'POST',
+      headers: {
+        'Title': '✦ פנייה חדשה מהאתר!',
+        'Priority': 'high',
+        'Tags': 'wedding,bell',
+        'Content-Type': 'text/plain; charset=utf-8',
+      },
+      body: `👤 ${name.trim()}\n📞 ${phone.trim()}${dateStr}${sourceStr}`,
+    }).catch(() => {});
+  } catch { /* non-blocking */ }
+
   // If came via referral, increment leads count on referral code
   if (ref_code) {
     await supabase
