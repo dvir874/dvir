@@ -256,6 +256,7 @@ export interface SmartAlert {
   title:       string;
   body:        string;
   action:      string | null;
+  key?:        string;
 }
 
 export function generateAlerts(input: ScoreInput): SmartAlert[] {

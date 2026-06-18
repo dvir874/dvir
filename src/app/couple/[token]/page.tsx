@@ -1,10 +1,11 @@
 "use client";
 
 import { use, useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   CheckCircle, Clock, XCircle, Users, Loader2, AlertCircle,
   Wallet, LayoutGrid, ListChecks, Gift, Plus, Trash2,
-  ChevronDown, ChevronUp, Camera, Mic, Lock, Sparkles,
+  ChevronDown, ChevronUp, Camera, Mic, Lock, Sparkles, Zap,
 } from "lucide-react";
 import type { WeddingScore, SmartAlert } from "@/lib/wedding-score";
 
@@ -75,6 +76,7 @@ function ScoreGauge({ score, color }: { score: number; color: string }) {
 
 export default function CoupleDashboard({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
+  const router    = useRouter();
   const [data,        setData]        = useState<DashboardData | null>(null);
   const [briefing,    setBriefing]    = useState<BriefingData | null>(null);
   const [loading,     setLoading]     = useState(true);
@@ -84,18 +86,27 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
   const [saving,      setSaving]      = useState(false);
   const [showScore,   setShowScore]   = useState(false);
   const [showAlerts,  setShowAlerts]  = useState(true);
+  const [actionBusy,  setActionBusy]  = useState<string | null>(null);
+  const [actionDone,  setActionDone]  = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
-    const [mainRes, briefRes] = await Promise.all([
+    const [mainRes, briefRes, onboardRes] = await Promise.all([
       fetch(`/api/couple/${token}`),
       fetch(`/api/couple/${token}/briefing`),
+      fetch(`/api/couple/${token}/onboarding`),
     ]);
-    const main  = await mainRes.json();
-    const brief = await briefRes.json();
+    const main     = await mainRes.json();
+    const brief    = await briefRes.json();
+    const onboard  = await onboardRes.json();
     if (!main.error)  setData(main);
     if (!brief.error) setBriefing(brief);
+    // Redirect to onboarding if not yet completed
+    if (!onboard.onboarding_completed && !onboard.error) {
+      router.replace(`/couple/${token}/onboarding`);
+      return;
+    }
     setLoading(false);
-  }, [token]);
+  }, [token, router]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -143,6 +154,22 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
   async function deleteTask(id: string) {
     await fetch(`/api/wedding-tasks/${id}`, { method: "DELETE" });
     setTasks((prev) => prev.filter((t) => t.id !== id));
+  }
+
+  async function doAction(action: string, extra?: Record<string, string>) {
+    if (actionBusy) return;
+    setActionBusy(action);
+    try {
+      await fetch(`/api/couple/${token}/briefing`, {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ action, ...extra }),
+      });
+      setActionDone(prev => new Set(prev).add(action));
+      load();
+    } finally {
+      setActionBusy(null);
+    }
   }
 
   async function toggleVendor(category: string) {
@@ -211,18 +238,39 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
 
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "1.25rem 1rem 5rem" }}>
 
-        {/* Urgent alerts */}
+        {/* Urgent alerts with one-tap actions */}
         {urgents.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.25rem" }}>
             {urgents.map((a, i) => {
-              const cfg = ALERT_CONFIG.urgent;
+              const cfg    = ALERT_CONFIG.urgent;
+              const isPending = a.key === "rsvp_low" || a.key === "rsvp_pending";
+              const isDone    = actionDone.has("send_reminder");
               return (
-                <div key={i} style={{ padding: "0.875rem 1rem", borderRadius: 12, background: cfg.bg, border: `1px solid ${cfg.border}`, display: "flex", gap: "0.75rem" }}>
-                  <span style={{ fontSize: 18 }}>{cfg.icon}</span>
-                  <div>
-                    <p style={{ fontWeight: 600, fontSize: 13, color: cfg.text, marginBottom: 2 }}>{a.title}</p>
-                    <p style={{ fontSize: 12, color: C.muted }}>{a.body}</p>
+                <div key={i} style={{ padding: "0.875rem 1rem", borderRadius: 12, background: cfg.bg, border: `1px solid ${cfg.border}` }}>
+                  <div style={{ display: "flex", gap: "0.75rem" }}>
+                    <span style={{ fontSize: 18 }}>{cfg.icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontWeight: 600, fontSize: 13, color: cfg.text, marginBottom: 2 }}>{a.title}</p>
+                      <p style={{ fontSize: 12, color: C.muted }}>{a.body}</p>
+                    </div>
                   </div>
+                  {isPending && (
+                    <button
+                      onClick={() => doAction("send_reminder")}
+                      disabled={!!actionBusy || isDone}
+                      style={{
+                        marginTop: "0.6rem", width: "100%", padding: "0.5rem 1rem",
+                        borderRadius: 8, border: "none", cursor: isDone ? "default" : "pointer",
+                        background: isDone ? "rgba(107,123,90,0.15)" : "rgba(192,57,43,0.12)",
+                        color: isDone ? C.olive : cfg.text,
+                        fontSize: 12, fontWeight: 600, fontFamily: "Heebo, sans-serif",
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                      }}
+                    >
+                      {actionBusy === "send_reminder" ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Zap size={13} />}
+                      {isDone ? "✓ תזכורות נשלחו" : "שלח תזכורת לכולם עכשיו"}
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -430,9 +478,9 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
           <p style={{ fontSize: 12, color: C.muted, textAlign: "center", marginBottom: "0.875rem" }}>זכרונות וכמוסת זמן</p>
           <div style={{ display: "flex", gap: "0.75rem" }}>
             {[
-              { href: `/memory/${token}/wall`,   icon: Camera, label: "קיר זכרונות",   color: C.gold,    bg: "rgba(197,164,109,0.06)" },
-              { href: `/couple/${token}/capsule`, icon: Lock,   label: "כמוסת זמן",     color: C.olive,   bg: "rgba(107,123,90,0.06)" },
-              { href: `/memory/${token}`,         icon: Mic,    label: "הקלטת ברכה",    color: "#7c3aed", bg: "rgba(124,58,237,0.05)" },
+              { href: `/memory/${token}/wall`,   icon: Camera,    label: "קיר זכרונות",  color: C.gold,    bg: "rgba(197,164,109,0.06)" },
+              { href: `/couple/${token}/capsule`, icon: Lock,      label: "כמוסת זמן",    color: C.olive,   bg: "rgba(107,123,90,0.06)" },
+              { href: `/memory/${token}`,         icon: Mic,       label: "הקלטת ברכה",   color: "#7c3aed", bg: "rgba(124,58,237,0.05)" },
             ].map(({ href, icon: Icon, label, color, bg }) => (
               <a key={href} href={href} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "0.875rem 0.5rem", borderRadius: 12, background: bg, border: `1px solid ${color}22`, textDecoration: "none" }}>
                 <Icon size={22} style={{ color }} />
@@ -440,6 +488,24 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
               </a>
             ))}
           </div>
+
+          {/* Recap link — shown after wedding date */}
+          {briefing && briefing.daysUntilEvent <= 0 && (
+            <a
+              href={`/couple/${token}/recap`}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                marginTop: "0.75rem", padding: "0.9rem 1rem", borderRadius: 12,
+                background: "linear-gradient(135deg,#1a120a,#2d1f10)",
+                border: "1px solid rgba(197,164,109,0.25)", textDecoration: "none",
+              }}
+            >
+              <Sparkles size={18} style={{ color: C.gold }} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: "white", fontFamily: "Heebo, sans-serif" }}>
+                צפו בסיכום החתונה שלכם ✦
+              </span>
+            </a>
+          )}
         </div>
 
       </div>

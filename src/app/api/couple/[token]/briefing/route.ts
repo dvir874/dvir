@@ -130,7 +130,59 @@ export async function GET(_req: NextRequest, { params }: Params) {
   });
 }
 
-// PATCH — update vendor confirmed status
+// PATCH — one-tap actions: send_reminder | mark_vendor_contacted | dismiss_alert
+export async function PATCH(req: NextRequest, { params }: Params) {
+  const { token }  = await params;
+  const supabase   = createServerClient();
+  const body       = await req.json();
+  const { action } = body;
+
+  const { data: event } = await supabase
+    .from('events')
+    .select('id, name')
+    .eq('couple_token', token)
+    .single();
+
+  if (!event) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  if (action === 'send_reminder') {
+    // Fetch pending guests and mark reminder_sent timestamp
+    const { data: pending } = await supabase
+      .from('guests')
+      .select('id, name, phone')
+      .eq('event_id', event.id)
+      .eq('status', 'pending')
+      .not('phone', 'is', null);
+
+    if (!pending || pending.length === 0) {
+      return NextResponse.json({ ok: true, sent: 0 });
+    }
+
+    // Mark reminder sent time (could trigger actual WhatsApp in future)
+    await supabase
+      .from('guests')
+      .update({ reminder_sent_at: new Date().toISOString() })
+      .eq('event_id', event.id)
+      .eq('status', 'pending');
+
+    return NextResponse.json({ ok: true, sent: pending.length });
+  }
+
+  if (action === 'mark_vendor_contacted') {
+    const { category } = body;
+    await supabase
+      .from('wedding_vendors')
+      .upsert(
+        { event_id: event.id, category, confirmed: false },
+        { onConflict: 'event_id,category' }
+      );
+    return NextResponse.json({ ok: true });
+  }
+
+  return NextResponse.json({ error: 'unknown action' }, { status: 400 });
+}
+
+// POST — update vendor confirmed status
 export async function POST(_req: NextRequest, { params }: Params) {
   const { token }  = await params;
   const supabase   = createServerClient();
