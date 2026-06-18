@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import { WA_URL } from "@/lib/constants";
+import { WA_URL_BUTTON as WA_URL } from "@/lib/constants";
 
 export default function WhatsAppButton() {
   const [visible, setVisible] = useState(false);

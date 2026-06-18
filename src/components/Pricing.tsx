@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Check, MessageCircle } from "lucide-react";
 import FadeIn, { StaggerContainer, staggerItem } from "./FadeIn";
-import { WA_URL } from "@/lib/constants";
+import { WA_URL_PRICING as WA_URL } from "@/lib/constants";
 
 const packages = [
   {

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MessageCircle } from "lucide-react";
-import { WA_URL } from "@/lib/constants";
+import { WA_URL_STRIP as WA_URL } from "@/lib/constants";
 
 export default function CTAStrip() {
   const [visible, setVisible] = useState(false);

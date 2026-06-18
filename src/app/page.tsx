@@ -15,6 +15,7 @@ import CTAStrip from "@/components/CTAStrip";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
+import StickyMobileCTA from "@/components/StickyMobileCTA";
 
 export default function Home() {
   return (
@@ -36,6 +37,7 @@ export default function Home() {
       <Contact />
       <Footer />
       <WhatsAppButton />
+      <StickyMobileCTA />
     </main>
   );
 }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MessageCircle, ArrowLeft, ChevronDown } from "lucide-react";
 import { WA_URL } from "@/lib/constants";
+import LeadForm from "./LeadForm";
 
 /* ─── Design tokens ─── */
 const G = {
@@ -419,7 +420,9 @@ export default function Hero() {
               </a>
             </div>
 
-            <p className="mt-6 text-xs" style={{ color: "rgba(51,51,51,0.38)", fontFamily: "Heebo, sans-serif" }}>
+            <LeadForm source="hero" />
+
+            <p className="mt-4 text-xs" style={{ color: "rgba(51,51,51,0.38)", fontFamily: "Heebo, sans-serif" }}>
               ליווי אישי · מענה תוך שעה · ללא התחייבות
             </p>
           </div>

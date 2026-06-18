@@ -2,7 +2,7 @@
 
 import { MessageCircle, Calendar } from "lucide-react";
 import FadeIn from "./FadeIn";
-import { WA_URL } from "@/lib/constants";
+import { WA_URL_DEMO as WA_URL } from "@/lib/constants";
 
 export default function BookDemoCTA() {
   return (

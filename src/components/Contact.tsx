@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Send, Phone, MessageCircle, Mail, CheckCircle } from "lucide-react";
-import { WA_URL, WA_PHONE, WA_MESSAGE, PHONE_DISPLAY, PHONE_HREF, EMAIL } from "@/lib/constants";
+import { WA_URL_FOOTER as WA_URL, WA_PHONE, PHONE_DISPLAY, PHONE_HREF, EMAIL } from "@/lib/constants";
 
 const EVENT_TYPES = [
   "חתונה", "אירוסין", "חינה", "בר מצווה", "בת מצווה",
