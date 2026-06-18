@@ -364,6 +364,12 @@ export default function AdminPage() {
   const [approvalMap,     setApprovalMap]     = useState<Record<string, ApprovalRequest | null>>({});
   const [approvalCreating, setApprovalCreating] = useState(false);
 
+  // Delete event
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteGuestCount, setDeleteGuestCount] = useState<number | null>(null);
+
   /* ── Data fetching ──────────────────────────────── */
   useEffect(() => {
     fetch("/api/events")
@@ -503,6 +509,34 @@ export default function AdminPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
+  }
+
+  async function handleDeleteEvent() {
+    if (!selectedEventId) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/events/${selectedEventId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const d = await res.json();
+        alert(`שגיאה: ${d.error}`);
+        return;
+      }
+      setEvents((prev) => prev.filter((e) => e.id !== selectedEventId));
+      setSelectedEventId(null);
+      setGuests([]);
+      setShowDeleteModal(false);
+      setDeleteConfirmText("");
+      setDeleteGuestCount(null);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  function openDeleteModal() {
+    if (!selectedEventId) return;
+    setDeleteGuestCount(guests.length);
+    setDeleteConfirmText("");
+    setShowDeleteModal(true);
   }
 
   async function handleStatusChange(guestId: string, status: GuestStatus) {
@@ -827,6 +861,16 @@ export default function AdminPage() {
           >
             <RefreshCw size={14} className={guestsLoading ? "animate-spin" : ""} />
           </button>
+          {selectedEventId && (
+            <button
+              onClick={openDeleteModal}
+              className="p-2 rounded-xl transition-all hover:opacity-70"
+              style={{ background: "rgba(239,68,68,0.08)", color: "rgba(239,68,68,0.7)" }}
+              title="מחק אירוע"
+            >
+              🗑
+            </button>
+          )}
           <button
             onClick={async () => { await fetch("/api/auth/logout", { method: "POST" }); window.location.href = "/admin/login"; }}
             className="p-2 rounded-xl transition-all hover:opacity-70"
@@ -932,6 +976,100 @@ export default function AdminPage() {
               </button>
               <button
                 onClick={() => setShowCreate(false)}
+                className="flex-1 py-3 rounded-xl font-semibold text-sm"
+                style={{ background: "rgba(51,51,51,0.07)", color: C.muted, fontFamily: "Heebo, sans-serif" }}
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete event confirmation modal ─────────── */}
+      {showDeleteModal && selectedEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div
+            className="w-full max-w-md rounded-3xl p-6"
+            style={{ background: C.ivory, border: "1.5px solid rgba(239,68,68,0.25)", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}
+          >
+            {/* Icon + title */}
+            <div className="flex flex-col items-center text-center mb-5">
+              <div className="text-4xl mb-3">⚠️</div>
+              <h3 className="text-lg font-bold mb-1" style={{ color: "#DC2626", fontFamily: "Frank Ruhl Libre, serif" }}>
+                מחיקת אירוע
+              </h3>
+              <p className="text-sm" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>
+                פעולה זו אינה הפיכה
+              </p>
+            </div>
+
+            {/* Event info */}
+            <div
+              className="rounded-2xl p-4 mb-4 text-sm text-right"
+              style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", fontFamily: "Heebo, sans-serif" }}
+            >
+              <div className="font-semibold mb-2" style={{ color: C.dark }}>{selectedEvent.name}</div>
+              <div style={{ color: C.muted }}>
+                {deleteGuestCount !== null && deleteGuestCount > 0
+                  ? `${deleteGuestCount} אורחים ייימחקו`
+                  : "אין אורחים רשומים"}
+              </div>
+            </div>
+
+            {/* What will be deleted */}
+            <div
+              className="rounded-2xl p-4 mb-5 text-xs text-right"
+              style={{ background: "rgba(0,0,0,0.03)", border: `1px solid ${C.border}`, fontFamily: "Heebo, sans-serif", color: C.muted }}
+            >
+              <div className="font-medium mb-2" style={{ color: C.dark }}>מה יימחק לצמיתות:</div>
+              <div className="flex flex-col gap-1">
+                {["כל האורחים ופעילותם", "סידור הושבה", "ספקים ומשימות", "תקציב ומתנות", "זיכרונות וקפסולות", "כל נתוני האירוע"].map((item) => (
+                  <div key={item} className="flex items-center gap-2 justify-end">
+                    <span>{item}</span>
+                    <span style={{ color: "#DC2626" }}>✕</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Confirm input */}
+            <div className="mb-5">
+              <label
+                className="block text-xs mb-2 font-medium text-right"
+                style={{ color: C.dark, fontFamily: "Heebo, sans-serif" }}
+              >
+                הקלד <strong>מחק</strong> לאישור
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="מחק"
+                autoFocus
+                className="w-full rounded-xl px-4 py-3 text-sm text-right outline-none"
+                style={{ background: "white", border: "1.5px solid rgba(239,68,68,0.3)", color: C.dark, fontFamily: "Heebo, sans-serif" }}
+              />
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={handleDeleteEvent}
+                disabled={deleteConfirmText !== "מחק" || deleting}
+                className="flex-1 py-3 rounded-xl font-semibold text-sm transition-all"
+                style={{
+                  background: deleteConfirmText === "מחק" ? "#DC2626" : "rgba(239,68,68,0.25)",
+                  color: "white",
+                  fontFamily: "Heebo, sans-serif",
+                  cursor: deleteConfirmText === "מחק" && !deleting ? "pointer" : "not-allowed",
+                }}
+              >
+                {deleting ? "מוחק..." : "מחק לצמיתות"}
+              </button>
+              <button
+                onClick={() => { setShowDeleteModal(false); setDeleteConfirmText(""); }}
+                disabled={deleting}
                 className="flex-1 py-3 rounded-xl font-semibold text-sm"
                 style={{ background: "rgba(51,51,51,0.07)", color: C.muted, fontFamily: "Heebo, sans-serif" }}
               >
