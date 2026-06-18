@@ -42,12 +42,12 @@ export default function HowItWorks() {
       <div className="container-max mx-auto relative z-10">
         <FadeIn className="text-center mb-12">
           <p className="text-gold text-xs tracking-[0.22em] mb-3 uppercase" style={{ fontFamily: "Heebo, sans-serif" }}>
-            מערכת ניהול חתונה מלאה
+            איך זה עובד
           </p>
-          <h2 className="section-title">הכל במקום אחד</h2>
+          <h2 className="section-title">פשוט, אישי, מלא</h2>
           <div className="gold-divider" />
           <p className="section-subtitle">
-            מההזמנה הראשונה ועד יום החתונה — אתם בשליטה מלאה
+            מההזמנה הראשונה ועד יום החתונה — אנחנו לצדכם בכל שלב
           </p>
         </FadeIn>
 
@@ -69,6 +69,7 @@ export default function HowItWorks() {
         <FadeIn delay={0.3} className="mt-12">
           <div className="flex flex-wrap justify-center gap-2.5">
             {[
+              "💌 Save The Date",
               "✉️ הזמנות דיגיטליות",
               "✅ אישורי הגעה",
               "💬 תזכורות בוואטסאפ",
@@ -77,6 +78,7 @@ export default function HowItWorks() {
               "🎁 רישום מתנות",
               "📋 משימות תכנון",
               "📊 לוח בקרה זוגי",
+              "🎙️ קיר זיכרונות",
             ].map((chip) => (
               <div
                 key={chip}

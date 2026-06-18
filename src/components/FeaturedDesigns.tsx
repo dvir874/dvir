@@ -57,15 +57,15 @@ export default function FeaturedDesigns() {
         {/* Header */}
         <div className="text-center mb-14">
           <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: G.goldMuted, fontFamily: "Heebo, sans-serif" }}>
-            לפני ואחרי
+            עיצובי הזמנות
           </p>
           <h2 className="section-title mb-3" style={{ fontFamily: "Frank Ruhl Libre, serif" }}>
-            היום — 5 כלים נפרדים.{" "}
-            <span style={{ color: G.goldMuted }}>איתנו — שירות אחד.</span>
+            ההזמנה היא הרגע הראשון{" "}
+            <span style={{ color: G.goldMuted }}>שבו האורחים מרגישים אתכם.</span>
           </h2>
           <div className="gold-divider" />
           <p className="section-subtitle text-base" style={{ fontFamily: "Heebo, sans-serif" }}>
-            אנחנו עושים את הכל עבורכם — עיצוב, דף אירוע, אישורי הגעה ותזכורות.
+            כל הזמנה מעוצבת מאפס עבורכם — ואחריה, כל ניהול האירוע ממשיך באותה פלטפורמה.
           </p>
         </div>
 

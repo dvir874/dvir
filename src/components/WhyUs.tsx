@@ -1,37 +1,37 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Palette, MessageCircle, Layers, RefreshCcw } from "lucide-react";
+import { ShieldCheck, MessageCircle, LayoutDashboard, HeartHandshake } from "lucide-react";
 import FadeIn, { StaggerContainer, staggerItem } from "./FadeIn";
 
 
 const cards = [
   {
-    icon: Palette,
-    title: "עיצוב אישי לכל זוג",
+    icon: LayoutDashboard,
+    title: "הכל במקום אחד",
     description:
-      "לא תבניות — כל הזמנה מעוצבת מאפס עבורכם. אנחנו מקשיבים לכם ובונים עיצוב שמספר את הסיפור שלכם.",
+      "אורחים, הושבה, תקציב, מתנות, משימות ולוח בקרה זוגי — בלי אקסלים, בלי WhatsApp כאוטי, בלי להרגיש שאתם מנהלי פרויקט.",
     accent: "#C5A46D",
   },
   {
     icon: MessageCircle,
-    title: "מענה ישיר בוואטסאפ",
+    title: "ליווי אישי לאורך כל הדרך",
     description:
-      "כל התהליך מתנהל בוואטסאפ — נוח, אישי ומהיר. אין מיילים, אין המתנות ארוכות.",
+      "לא מערכת שמשאירים אתכם לבד איתה — אנחנו כאן, בוואטסאפ, עונים לשאלות ומסייעים בכל שלב מרגע ההרשמה ועד יום החתונה.",
     accent: "#6B7B5A",
   },
   {
-    icon: Layers,
-    title: "התאמה מלאה לסגנון האירוע",
+    icon: ShieldCheck,
+    title: "שקט נפשי שבוע לפני",
     description:
-      "חתונה, חינה, בר מצווה או יום הולדת — כל אירוע מקבל עיצוב שמתאים בדיוק לאופי שלו.",
+      "יודעים בדיוק כמה מגיעים, מי יושב איפה, ומה עדיין פתוח — כדי שתוכלו להגיע ליום הגדול רגועים, נינוחים ונוכחים ברגע.",
     accent: "#C5A46D",
   },
   {
-    icon: RefreshCcw,
-    title: "תיקונים עד לאישור סופי",
+    icon: HeartHandshake,
+    title: "מותאם לכל סוג אירוע",
     description:
-      "לא מרוצים? נשנה. ושוב. עד שתגידו 'בדיוק זה'. כל התיקונים כלולים במחיר.",
+      "חתונה, חינה, אירוסין, בר מצווה, בת מצווה, ברית ואירועי משפחה — כל אירוע מקבל ניהול מדויק ועיצוב הזמנה שמספר את הסיפור שלכם.",
     accent: "#6B7B5A",
   },
 ];
@@ -52,7 +52,7 @@ export default function WhyUs() {
           <h2 className="section-title">למה לבחור ברגע לפני?</h2>
           <div className="gold-divider" />
           <p className="section-subtitle">
-            אנחנו לא מוכרים הזמנות — אנחנו יוצרים את הרגע הראשון שבו האורחים מרגישים את האירוע שלכם
+            טכנולוגיה חכמה עם ליווי אישי — כדי שתוכלו להיות נוכחים ברגעים שחשובים באמת
           </p>
         </FadeIn>
 

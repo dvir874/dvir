@@ -67,15 +67,15 @@ export default function CTAStrip() {
             className="text-3xl md:text-4xl xl:text-5xl font-bold text-white mb-4 leading-snug"
             style={{ fontFamily: "Frank Ruhl Libre, serif" }}
           >
-            יש לכם רעיון להזמנה?
+            מוכנים להתחיל לנשום?
           </h2>
           <p
             className="text-white/65 text-base md:text-lg mb-10 max-w-md mx-auto leading-relaxed"
             style={{ fontFamily: "Heebo, sans-serif", fontWeight: 300 }}
           >
-            בואו נבנה אותה יחד —
+            שלחו הודעה ונבנה יחד את תוכנית ניהול החתונה שלכם —
             <br className="hidden sm:block" />
-            עיצוב אישי שמספר את הסיפור שלכם
+            בלי התחייבות, עם ליווי אישי מהרגע הראשון
           </p>
 
           <a
@@ -90,14 +90,14 @@ export default function CTAStrip() {
             }}
           >
             <MessageCircle size={20} strokeWidth={2} />
-            שלחו הודעה בוואטסאפ
+            בואו נדבר בוואטסאפ
           </a>
 
           <p
             className="mt-5 text-white/35 text-xs"
             style={{ fontFamily: "Heebo, sans-serif" }}
           >
-            מחיר החל מ-₪70 · נחזור אליכם בהקדם האפשרי
+            ליווי אישי · מענה תוך שעה · ללא התחייבות
           </p>
         </div>
       </div>

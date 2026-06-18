@@ -23,22 +23,22 @@ const G = {
 const BULLETS = [
   "ניהול אורחים ואישורי הגעה",
   "תזכורות אוטומטיות בוואטסאפ",
-  "תכנון הושבה לפי שולחנות",
-  "מעקב תקציב ומתנות",
-  "רשימת משימות לתכנון",
-  "לוח בקרה זוגי בזמן אמת",
+  "תכנון הושבה חכם לפי שולחנות",
+  "מעקב תקציב ומתנות בזמן אמת",
+  "רשימת משימות לכל שלב בתכנון",
+  "ליווי אישי מהתחלה ועד הסוף",
 ];
 
-/* ─── Activity feed — RSVP confirmations and reminders only ─── */
+/* ─── Activity feed ─── */
 const FEED = [
-  { text: "משפחת כהן אישרה הגעה",  sub: "3 אורחים",     color: "#6B7B5A", delta: 3 },
-  { text: "נשלחה תזכורת בוואטסאפ", sub: "ל-23 ממתינים", color: "#C5A46D", delta: 0 },
-  { text: "אור לוי אישר הגעה",      sub: "1 אורח",       color: "#6B7B5A", delta: 1 },
-  { text: "שרה לוי אישרה הגעה",     sub: "2 אורחים",     color: "#6B7B5A", delta: 2 },
-  { text: "נשלחה תזכורת שנייה",     sub: "ל-15 ממתינים", color: "#C5A46D", delta: 0 },
-  { text: "משפחת ברק אישרה הגעה",   sub: "4 אורחים",     color: "#6B7B5A", delta: 4 },
-  { text: "נשלחה תזכורת אחרונה",    sub: "ל-9 ממתינים",  color: "#C5A46D", delta: 0 },
-  { text: "דן כהן אישר הגעה",       sub: "1 אורח",       color: "#6B7B5A", delta: 1 },
+  { text: "משפחת כהן אישרה הגעה",     sub: "3 אורחים",          color: "#6B7B5A", delta: 3 },
+  { text: "נשלחה תזכורת בוואטסאפ",   sub: "ל-23 ממתינים",      color: "#C5A46D", delta: 0 },
+  { text: "סידור שולחנות הושלם",       sub: "28 שולחנות",         color: "#6B7B5A", delta: 1 },
+  { text: "משימה הושלמה",              sub: "תשלום לצלם",          color: "#6B7B5A", delta: 0 },
+  { text: "ציון מוכנות עודכן",         sub: "87 / 100 ✦",         color: "#C5A46D", delta: 0 },
+  { text: "משפחת ברק אישרה הגעה",     sub: "4 אורחים",           color: "#6B7B5A", delta: 4 },
+  { text: "5 ברכות קוליות התקבלו",    sub: "מקיר הזיכרונות",     color: "#C5A46D", delta: 0 },
+  { text: "דן כהן אישר הגעה",         sub: "1 אורח",             color: "#6B7B5A", delta: 1 },
 ];
 
 function FloatingBadge({ children, className, delay }: {
@@ -365,7 +365,7 @@ export default function Hero() {
             <div className="flex items-center gap-3 mb-6">
               <span className="w-10 h-px bg-gradient-to-l from-gold to-transparent" />
               <span className="text-gold text-xs tracking-[0.22em] uppercase" style={{ fontFamily: "Heebo, sans-serif" }}>
-                מרכז השליטה לחתונה שלכם
+                ניהול חתונה מלא · ליווי אישי
               </span>
               <span className="w-10 h-px bg-gradient-to-r from-gold to-transparent" />
             </div>
@@ -374,18 +374,18 @@ export default function Hero() {
               className="text-4xl md:text-5xl xl:text-[3.1rem] font-bold text-dark leading-[1.25] mb-5"
               style={{ fontFamily: "Frank Ruhl Libre, serif" }}
             >
-              מנהלים את כל החתונה
+              תגיעו לחתונה שלכם
               <br />
-              <span className="shimmer-text">במקום אחד</span>
+              <span className="shimmer-text">רגועים ונינוחים</span>
             </h1>
 
             <p
               className="text-base md:text-lg leading-[1.85] max-w-lg mb-7"
               style={{ color: "rgba(51,51,51,0.60)", fontFamily: "Heebo, sans-serif", fontWeight: 300 }}
             >
-              אורחים, הושבה, תקציב, מתנות, ומשימות — הכל בלוח בקרה אחד.
+              אנחנו מנהלים את הלוגיסטיקה — אתם נהנים מהדרך.
               <br className="hidden md:block" />
-              ההזמנה היא רק ההתחלה.
+              אורחים, הושבה, תקציב, מתנות ומשימות — הכל במקום אחד.
             </p>
 
             <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 mb-9 w-full max-w-sm" style={{ fontFamily: "Heebo, sans-serif" }}>
@@ -420,7 +420,7 @@ export default function Hero() {
             </div>
 
             <p className="mt-6 text-xs" style={{ color: "rgba(51,51,51,0.38)", fontFamily: "Heebo, sans-serif" }}>
-              מחיר החל מ-<span className="text-gold font-semibold text-sm">₪70</span> · כולל ליווי אישי
+              ליווי אישי · מענה תוך שעה · ללא התחייבות
             </p>
           </div>
 

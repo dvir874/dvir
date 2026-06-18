@@ -21,16 +21,16 @@ export default function Home() {
     <main className="relative">
       <Header />
       <Hero />
-      <FeaturedDesigns />
-      <EventCategories />
-      <Gallery />
       <WhyUs />
       <HowItWorks />
       <ComparisonSection />
       <DashboardDemo />
+      <FeaturedDesigns />
+      <EventCategories />
+      <Gallery />
+      <About />
       <Pricing />
       <BookDemoCTA />
-      <About />
       <FAQ />
       <CTAStrip />
       <Contact />

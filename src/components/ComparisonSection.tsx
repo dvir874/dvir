@@ -4,13 +4,15 @@ import { Check, X } from "lucide-react";
 import FadeIn from "./FadeIn";
 
 const rows = [
-  { label: "שליחת הזמנות אישיות",        them: false, us: true  },
-  { label: "מעקב תגובות בזמן אמת",       them: false, us: true  },
-  { label: "תזכורות אוטומטיות לממתינים", them: false, us: true  },
-  { label: "לוח בקרה לזוג",              them: false, us: true  },
-  { label: "ספירת מגיעים מדויקת",        them: false, us: true  },
-  { label: "ניהול ידני ב-WhatsApp / אקסל", them: true, us: false },
-  { label: "חרדה לפני האירוע",           them: true,  us: false },
+  { label: "שליחת הזמנות דיגיטליות אישיות",   them: false, us: true  },
+  { label: "מעקב אישורי הגעה בזמן אמת",        them: false, us: true  },
+  { label: "תזכורות אוטומטיות בוואטסאפ",       them: false, us: true  },
+  { label: "תכנון הושבה לפי שולחנות",          them: false, us: true  },
+  { label: "מעקב תקציב ומתנות",               them: false, us: true  },
+  { label: "לוח בקרה זוגי משותף",              them: false, us: true  },
+  { label: "ליווי אישי לאורך כל התהליך",       them: false, us: true  },
+  { label: "ניהול ידני ב-WhatsApp ואקסל",      them: true,  us: false },
+  { label: "לחץ ובלבול שבוע לפני האירוע",      them: true,  us: false },
 ];
 
 export default function ComparisonSection() {
@@ -32,12 +34,12 @@ export default function ComparisonSection() {
             למה רגע לפני?
           </p>
           <h2 className="section-title">
-            במקומות אחרים — 5 שירותים נפרדים
-            <span className="block mt-1" style={{ color: "#C5A46D" }}>אצלנו — שירות אחד</span>
+            ניהול חתונה בלי רגע לפני
+            <span className="block mt-1" style={{ color: "#C5A46D" }}>לעומת ניהול עם רגע לפני</span>
           </h2>
           <div className="gold-divider" />
           <p className="section-subtitle">
-            עיצוב ההזמנה, אישורי ההגעה, התזכורות והמעקב — הכל במקום אחד.
+            כל מה שצריך לניהול החתונה — בלוח בקרה אחד, עם ליווי אישי לאורך כל הדרך.
           </p>
         </FadeIn>
 
@@ -111,7 +113,7 @@ export default function ComparisonSection() {
                 fontFamily: "Heebo, sans-serif",
               }}
             >
-              הזוגות שלנו מגיעים לאירוע רגועים — כי הם יודעים בדיוק מי מגיע
+              הזוגות שלנו מגיעים לאירוע רגועים — כי אנחנו טיפלנו בכל השאר
             </div>
           </div>
         </FadeIn>

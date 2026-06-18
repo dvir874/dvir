@@ -27,14 +27,14 @@ export default function BookDemoCTA() {
             className="text-2xl md:text-3xl font-bold text-white mb-3"
             style={{ fontFamily: "Frank Ruhl Libre, serif" }}
           >
-            קבלו הדגמה אישית — בחינם
+            ראו את הפלטפורמה בפעולה — בחינם
           </h2>
           <div className="w-14 h-px mx-auto mb-5" style={{ background: "rgba(197,164,109,0.5)" }} />
           <p
             className="text-sm text-white/65 max-w-md mx-auto mb-8 leading-relaxed"
             style={{ fontFamily: "Heebo, sans-serif" }}
           >
-            נראה לכם בדיוק איך עובד לוח הבקרה, נענה על כל שאלה, ונבנה ביחד תוכנית מותאמת לאירוע שלכם
+            נראה לכם בדיוק איך לוח הבקרה עובד, נענה על כל שאלה, ונבין יחד מה האירוע שלכם צריך — בלי שום התחייבות
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">

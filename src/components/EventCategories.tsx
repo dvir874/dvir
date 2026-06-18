@@ -82,10 +82,10 @@ export default function EventCategories() {
           >
             לכל אירוע
           </p>
-          <h2 className="section-title">סוגי האירועים</h2>
+          <h2 className="section-title">לכל אירוע — ניהול והזמנה</h2>
           <div className="gold-divider" />
           <p className="section-subtitle">
-            לחצו על קטגוריה כדי לראות את כל העיצובים שלה
+            חתונה, חינה, בר מצווה, בת מצווה, ברית ועוד — כל אירוע מקבל ניהול מלא ועיצוב הזמנה ייחודי
           </p>
         </FadeIn>
 
