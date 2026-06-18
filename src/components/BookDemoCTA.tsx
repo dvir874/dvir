@@ -54,9 +54,9 @@ export default function BookDemoCTA() {
               ראו את הדשבורד האמיתי
             </a>
 
-              onClick={() => document.querySelector("#contact")?.scrollIntoView({ behavior: "smooth" })}
             <a
               href={WA_URL}
+              target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 hover:scale-105 active:scale-95"
               style={{
