@@ -25,6 +25,20 @@ export default function LeadForm({ source = "hero" }: { source?: string }) {
     if (!name.trim() || !phone.trim()) return;
     setState("loading");
 
+    // Normalize date to YYYY-MM-DD for Supabase DATE column
+    let normalizedDate: string | null = null;
+    if (date.trim()) {
+      const d = date.trim();
+      // Handle DD.MM.YYYY or DD/MM/YYYY → YYYY-MM-DD
+      const dotMatch = d.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/);
+      if (dotMatch) {
+        normalizedDate = `${dotMatch[3]}-${dotMatch[2].padStart(2,"0")}-${dotMatch[1].padStart(2,"0")}`;
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+        normalizedDate = d; // already YYYY-MM-DD
+      }
+      // If unrecognized format — skip (don't send garbage)
+    }
+
     try {
       const res = await fetch("/api/leads", {
         method:  "POST",
@@ -32,7 +46,7 @@ export default function LeadForm({ source = "hero" }: { source?: string }) {
         body: JSON.stringify({
           name:         name.trim(),
           phone:        phone.trim(),
-          wedding_date: date || null,
+          wedding_date: normalizedDate,
           source,
         }),
       });
@@ -127,7 +141,7 @@ export default function LeadForm({ source = "hero" }: { source?: string }) {
           />
           <input
             type="text"
-            placeholder="תאריך החתונה (אופציונלי)"
+            placeholder="תאריך החתונה — למשל 24.08.2026"
             value={date}
             onChange={e => setDate(e.target.value)}
             className="w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all duration-200"
