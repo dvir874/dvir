@@ -3,512 +3,446 @@
 import { use, useEffect, useState, useCallback } from "react";
 import {
   CheckCircle, Clock, XCircle, Users, Loader2, AlertCircle,
-  TrendingUp, Heart, Wallet, LayoutGrid, ListChecks, Gift,
-  Plus, Trash2,
+  Wallet, LayoutGrid, ListChecks, Gift, Plus, Trash2,
+  ChevronDown, ChevronUp, Camera, Mic, Lock, Sparkles,
 } from "lucide-react";
+import type { WeddingScore, SmartAlert } from "@/lib/wedding-score";
 
 const C = {
   cream:  "#F6F1E8",
   ivory:  "#FDFAF5",
   gold:   "#C5A46D",
-  goldL:  "#D4BC8A",
   olive:  "#6B7B5A",
   dark:   "#333333",
   muted:  "rgba(51,51,51,0.55)",
   border: "rgba(197,164,109,0.22)",
-  cardBg: "rgba(255,255,255,0.85)",
 };
 
-/* ── Types ──────────────────────────────────────────── */
-interface EventInfo  { id: string; name: string; date: string; address?: string | null }
-interface Stats      { total: number; confirmed: number; declined: number; pending: number; attendees: number; responseRate: number }
-interface Budget     { planned: number; actual: number; remaining: number; itemCount: number }
-interface Seating    { totalSeats: number; assignedSeats: number; tableCount: number }
-interface Tasks      { total: number; completed: number }
+interface EventInfo    { id: string; name: string; date: string; address?: string | null; client_name?: string | null }
+interface Stats        { total: number; confirmed: number; declined: number; pending: number; attendees: number; responseRate: number }
+interface Budget       { planned: number; actual: number; remaining: number; itemCount: number }
+interface Seating      { totalSeats: number; assignedSeats: number; tableCount: number }
+interface Tasks        { total: number; completed: number }
 interface GiftsSummary { total: number; count: number }
+interface DashboardData { event: EventInfo; stats: Stats; budget: Budget; seating: Seating; tasks: Tasks; gifts: GiftsSummary }
+interface WeddingTask  { id: string; title: string; category: string; completed: boolean; due_date?: string | null }
 
-interface WeddingTask {
-  id: string; title: string; category: string;
-  completed: boolean; due_date?: string | null;
+interface BriefingData {
+  greeting:       string;
+  phase:          string;
+  phaseLabel:     string;
+  phaseMessage:   string;
+  daysUntilEvent: number;
+  eventName:      string;
+  score:          WeddingScore;
+  alerts:         SmartAlert[];
+  keyFacts:       string[];
 }
 
-interface DashboardData {
-  event:    EventInfo;
-  stats:    Stats;
-  budget:   Budget;
-  seating:  Seating;
-  tasks:    Tasks;
-  gifts:    GiftsSummary;
+const VENDOR_CATEGORIES = [
+  { key: "photographer", label: "צלם",          emoji: "📸" },
+  { key: "videographer", label: "צלם וידאו",    emoji: "🎬" },
+  { key: "dj",           label: "DJ / תזמורת",  emoji: "🎵" },
+  { key: "catering",     label: "קייטרינג",      emoji: "🍽️" },
+  { key: "flowers",      label: "פרחים",         emoji: "💐" },
+  { key: "dress",        label: "שמלה / חליפה",  emoji: "👗" },
+  { key: "rabbi",        label: "רב / קלציה",    emoji: "📜" },
+  { key: "venue",        label: "אולם",           emoji: "🏛️" },
+];
+
+const ALERT_CONFIG: Record<string, { bg: string; border: string; text: string; icon: string }> = {
+  urgent:    { bg: "rgba(192,57,43,0.06)",  border: "rgba(192,57,43,0.25)",  text: "#C0392B", icon: "🚨" },
+  important: { bg: "rgba(197,164,109,0.08)",border: "rgba(197,164,109,0.3)", text: "#A07840", icon: "⚠️" },
+  suggested: { bg: "rgba(107,123,90,0.06)", border: "rgba(107,123,90,0.2)",  text: "#4A7C3F", icon: "💡" },
+  info:      { bg: "rgba(107,123,90,0.05)", border: "rgba(107,123,90,0.15)", text: "#6B7B5A", icon: "✅" },
+};
+
+function fmt(n: number) { return n.toLocaleString("he-IL"); }
+
+function ScoreGauge({ score, color }: { score: number; color: string }) {
+  const r = 54, circ = 2 * Math.PI * r;
+  return (
+    <svg width="140" height="140" viewBox="0 0 140 140" style={{ flexShrink: 0 }}>
+      <circle cx="70" cy="70" r={r} fill="none" stroke="rgba(197,164,109,0.15)" strokeWidth="10" />
+      <circle cx="70" cy="70" r={r} fill="none" stroke={color} strokeWidth="10"
+        strokeDasharray={`${(score / 100) * circ} ${circ}`} strokeLinecap="round"
+        transform="rotate(-90 70 70)" style={{ transition: "stroke-dasharray 1s ease" }} />
+      <text x="70" y="65" textAnchor="middle" style={{ fontSize: 32, fontWeight: 700, fill: color, fontFamily: "Frank Ruhl Libre, serif" }}>{score}</text>
+      <text x="70" y="85" textAnchor="middle" style={{ fontSize: 11, fill: "rgba(51,51,51,0.5)", fontFamily: "Heebo, sans-serif" }}>/ 100</text>
+    </svg>
+  );
 }
 
-/* ── Formatting helpers ─────────────────────────────── */
-function fmt(n: number) {
-  return n.toLocaleString("he-IL");
-}
-
-/* ── Main page ──────────────────────────────────────── */
 export default function CoupleDashboard({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
-  const [data,    setData]    = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState(false);
-  const [tasks,   setTasks]   = useState<WeddingTask[]>([]);
-  const [newTask, setNewTask] = useState("");
-  const [addingTask, setAddingTask] = useState(false);
-  const [taskLoading, setTaskLoading] = useState(false);
+  const [data,        setData]        = useState<DashboardData | null>(null);
+  const [briefing,    setBriefing]    = useState<BriefingData | null>(null);
+  const [loading,     setLoading]     = useState(true);
+  const [tasks,       setTasks]       = useState<WeddingTask[]>([]);
+  const [vendors,     setVendors]     = useState<Record<string, boolean>>({});
+  const [newTask,     setNewTask]     = useState("");
+  const [saving,      setSaving]      = useState(false);
+  const [showScore,   setShowScore]   = useState(false);
+  const [showAlerts,  setShowAlerts]  = useState(true);
 
-  const load = useCallback(() => {
-    fetch(`/api/couple/${token}`)
-      .then((r) => r.json())
-      .then((d) => { if (d.error) setError(true); else setData(d); })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+  const load = useCallback(async () => {
+    const [mainRes, briefRes] = await Promise.all([
+      fetch(`/api/couple/${token}`),
+      fetch(`/api/couple/${token}/briefing`),
+    ]);
+    const main  = await mainRes.json();
+    const brief = await briefRes.json();
+    if (!main.error)  setData(main);
+    if (!brief.error) setBriefing(brief);
+    setLoading(false);
   }, [token]);
 
   useEffect(() => { load(); }, [load]);
 
-  // Load tasks once we have event id
   useEffect(() => {
     if (!data?.event?.id) return;
-    setTaskLoading(true);
     fetch(`/api/wedding-tasks?event_id=${data.event.id}`)
       .then((r) => r.json())
-      .then((d) => Array.isArray(d) && setTasks(d))
-      .finally(() => setTaskLoading(false));
+      .then((d) => Array.isArray(d) && setTasks(d));
+    fetch(`/api/wedding-vendors?event_id=${data.event.id}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d)) {
+          const map: Record<string, boolean> = {};
+          d.forEach((v: { category: string; confirmed: boolean }) => { map[v.category] = v.confirmed; });
+          setVendors(map);
+        }
+      });
   }, [data?.event?.id]);
 
-  const toggleTask = async (task: WeddingTask) => {
-    const updated = !task.completed;
-    setTasks((prev) => prev.map((t) => t.id === task.id ? { ...t, completed: updated } : t));
+  async function toggleTask(task: WeddingTask) {
+    setTasks((prev) => prev.map((t) => t.id === task.id ? { ...t, completed: !t.completed } : t));
     await fetch(`/api/wedding-tasks/${task.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ completed: updated }),
+      body: JSON.stringify({ completed: !task.completed }),
     });
-  };
+    load();
+  }
 
-  const addTask = async () => {
+  async function addTask() {
     if (!newTask.trim() || !data?.event?.id) return;
-    setAddingTask(true);
-    try {
-      const res = await fetch("/api/wedding-tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event_id: data.event.id, title: newTask.trim(), category: "general" }),
-      });
-      const created = await res.json();
-      if (created.id) { setTasks((p) => [...p, created]); setNewTask(""); }
-    } finally { setAddingTask(false); }
-  };
+    setSaving(true);
+    await fetch("/api/wedding-tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event_id: data.event.id, title: newTask.trim(), category: "general" }),
+    });
+    setNewTask("");
+    const res = await fetch(`/api/wedding-tasks?event_id=${data.event.id}`);
+    const d   = await res.json();
+    if (Array.isArray(d)) setTasks(d);
+    setSaving(false);
+  }
 
-  const deleteTask = async (id: string) => {
-    setTasks((p) => p.filter((t) => t.id !== id));
+  async function deleteTask(id: string) {
     await fetch(`/api/wedding-tasks/${id}`, { method: "DELETE" });
-  };
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+  }
 
-  if (loading) return <Shell><CenterSpin /></Shell>;
-  if (error || !data) return <Shell><NotFound /></Shell>;
+  async function toggleVendor(category: string) {
+    const next = !vendors[category];
+    setVendors((p) => ({ ...p, [category]: next }));
+    await fetch(`/api/couple/${token}/briefing`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category, confirmed: next }),
+    });
+    load();
+  }
+
+  if (loading) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.cream }}>
+      <Loader2 size={32} style={{ color: C.gold, animation: "spin 1s linear infinite" }} />
+    </div>
+  );
+
+  if (!data) return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: C.cream, gap: "1rem" }}>
+      <AlertCircle size={40} style={{ color: C.gold }} />
+      <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.25rem", color: C.dark }}>הקישור אינו תקין</p>
+    </div>
+  );
 
   const { event, stats, budget, seating, gifts } = data;
-  const daysLeft = Math.ceil((new Date(event.date).getTime() - Date.now()) / 86_400_000);
-  const formattedDate = new Date(event.date).toLocaleDateString("he-IL", {
-    weekday: "long", day: "numeric", month: "long", year: "numeric",
-  });
-
-  const completedTasks = tasks.filter((t) => t.completed).length;
-  const taskPct  = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
-  const budgetPct = budget.planned > 0 ? Math.min(100, Math.round((budget.actual / budget.planned) * 100)) : 0;
-  const seatingPct = seating.totalSeats > 0 ? Math.round((seating.assignedSeats / seating.totalSeats) * 100) : 0;
-
-  // Wedding health
-  const healthScore = Math.round(
-    (stats.responseRate * 0.4) +
-    (taskPct * 0.3) +
-    (seatingPct * 0.2) +
-    (budget.itemCount > 0 ? 10 : 0)
-  );
-  const healthTier = healthScore >= 75 ? "green" : healthScore >= 45 ? "yellow" : "red";
-  const HEALTH = {
-    green:  { label: "הכל על המסלול ✅",         color: C.olive,              bg: "rgba(107,123,90,0.10)"  },
-    yellow: { label: "יש כמה דברים לטפל בהם 🟡", color: "#A07840",            bg: "rgba(197,164,109,0.12)" },
-    red:    { label: "דורש תשומת לב מיידית 🔴",  color: "rgb(190,50,50)",     bg: "rgba(200,50,50,0.08)"   },
-  };
+  const daysLeft   = briefing?.daysUntilEvent ?? Math.max(0, Math.ceil((new Date(event.date).getTime() - Date.now()) / 86_400_000));
+  const taskPct    = tasks.length > 0 ? Math.round((tasks.filter(t => t.completed).length / tasks.length) * 100) : 0;
+  const seatingPct = stats.attendees > 0 ? Math.round((seating.assignedSeats / stats.attendees) * 100) : 0;
+  const score      = briefing?.score;
+  const alerts     = briefing?.alerts ?? [];
+  const urgents    = alerts.filter(a => a.severity === "urgent");
+  const others     = alerts.filter(a => a.severity !== "urgent");
 
   return (
-    <Shell>
-      {/* ── Event hero ───────────────────────────── */}
-      <div className="text-center mb-8">
-        <p className="text-xs tracking-[0.25em] uppercase mb-2" style={{ color: C.gold, fontFamily: "Heebo, sans-serif" }}>
-          מרכז ניהול החתונה
-        </p>
-        <h1 className="text-3xl md:text-4xl font-bold mb-2" style={{ color: C.dark, fontFamily: "Frank Ruhl Libre, serif" }}>
-          {event.name}
-        </h1>
-        <p className="text-sm" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>{formattedDate}</p>
-        {event.address && (
-          <p className="text-xs mt-1" style={{ color: C.gold, fontFamily: "Heebo, sans-serif" }}>📍 {event.address}</p>
-        )}
-      </div>
+    <div dir="rtl" style={{ minHeight: "100vh", background: `linear-gradient(160deg, #F6F1E8 0%, #EDE6D6 100%)`, fontFamily: "Heebo, sans-serif", color: C.dark }}>
 
-      {/* ── Countdown + health ───────────────────── */}
-      <div className="grid grid-cols-2 gap-3 mb-5">
-        {/* Countdown */}
-        <div
-          className="rounded-2xl p-5 text-center"
-          style={{ background: `linear-gradient(135deg,${C.olive},#4A5E3A)`, boxShadow: "0 8px 24px rgba(107,123,90,0.25)" }}
-        >
-          <p className="text-5xl font-bold text-white leading-none mb-1" style={{ fontFamily: "Frank Ruhl Libre, serif" }}>
-            {daysLeft > 0 ? daysLeft : "🎊"}
+      {/* Morning Briefing Header */}
+      <div style={{ background: "linear-gradient(135deg, #3D2B1F 0%, #5C3D2E 100%)", padding: "2rem 1.5rem 1.75rem", color: "white" }}>
+        <div style={{ maxWidth: 640, margin: "0 auto" }}>
+          <p style={{ fontSize: 11, letterSpacing: "0.25em", textTransform: "uppercase", color: "rgba(197,164,109,0.7)", marginBottom: "0.4rem" }}>
+            {briefing?.phaseLabel ?? "לוח בקרה"}
           </p>
-          <p className="text-white/70 text-xs" style={{ fontFamily: "Heebo, sans-serif" }}>
-            {daysLeft > 0 ? "ימים לחתונה" : "מזל טוב!"}
-          </p>
-        </div>
-        {/* Health */}
-        <div
-          className="rounded-2xl p-5 text-center"
-          style={{ background: HEALTH[healthTier].bg, border: `1px solid ${C.border}` }}
-        >
-          <p className="text-4xl font-bold leading-none mb-1" style={{ color: HEALTH[healthTier].color, fontFamily: "Frank Ruhl Libre, serif" }}>
-            {healthScore}%
-          </p>
-          <p className="text-xs font-medium" style={{ color: HEALTH[healthTier].color, fontFamily: "Heebo, sans-serif" }}>
-            {HEALTH[healthTier].label}
-          </p>
-        </div>
-      </div>
-
-      <GoldDivider />
-
-      {/* ── RSVP stats grid ──────────────────────── */}
-      <SectionTitle icon={<Users size={14} />}>אורחים</SectionTitle>
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        {[
-          { label: "אישרו",    value: stats.confirmed,  color: C.olive,     icon: CheckCircle },
-          { label: "ממתינים", value: stats.pending,    color: "#A07840",   icon: Clock },
-          { label: "לא מגיעים", value: stats.declined, color: "rgba(51,51,51,0.4)", icon: XCircle },
-        ].map(({ label, value, color, icon: Icon }) => (
-          <div key={label} className="rounded-2xl p-4 text-center" style={{ background: C.ivory, border: `1px solid ${C.border}` }}>
-            <Icon size={16} className="mx-auto mb-1.5" style={{ color }} />
-            <p className="text-2xl font-bold" style={{ color: C.dark, fontFamily: "Frank Ruhl Libre, serif" }}>{value}</p>
-            <p className="text-xs" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>{label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* RSVP progress bar */}
-      {stats.total > 0 && (
-        <div className="mb-6">
-          <div className="flex justify-between text-xs mb-1.5" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>
-            <span>אחוז מענה</span>
-            <span className="font-semibold">{stats.responseRate}%</span>
-          </div>
-          <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "rgba(197,164,109,0.15)" }}>
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${stats.responseRate}%`, background: `linear-gradient(90deg,${C.olive},${C.gold})` }}
-            />
-          </div>
-          <div className="flex gap-1.5 mt-2 flex-wrap">
-            {[
-              { label: `${stats.confirmed} אישרו`, color: C.olive },
-              { label: `${stats.pending} ממתינים`, color: C.gold },
-              { label: `${stats.declined} לא מגיעים`, color: "rgba(51,51,51,0.3)" },
-            ].map(({ label, color }) => (
-              <span key={label} className="flex items-center gap-1 text-[11px]" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>
-                <span className="w-2 h-2 rounded-full" style={{ background: color }} />
-                {label}
-              </span>
+          <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1.4rem,5vw,1.8rem)", fontWeight: 700, marginBottom: "0.5rem" }}>
+            {briefing?.greeting ?? event.name}
+          </h1>
+          {briefing?.phaseMessage && (
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.72)", marginBottom: "1.25rem", lineHeight: 1.5 }}>
+              {briefing.phaseMessage}
+            </p>
+          )}
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            {(briefing?.keyFacts ?? [
+              `${stats.confirmed + stats.declined}/${stats.total} ענו`,
+              `${tasks.filter(t => t.completed).length}/${tasks.length} משימות`,
+              `${daysLeft} ימים`,
+            ]).map((fact, i) => (
+              <div key={i} style={{ padding: "0.35rem 0.8rem", borderRadius: 20, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", fontSize: 13, color: "rgba(255,255,255,0.9)" }}>
+                {fact}
+              </div>
             ))}
           </div>
         </div>
-      )}
-
-      <GoldDivider />
-
-      {/* ── Budget + Seating + Gifts ─────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-
-        {/* Budget */}
-        <MiniWidget
-          icon={<Wallet size={16} style={{ color: C.gold }} />}
-          title="תקציב"
-          empty={budget.itemCount === 0}
-          emptyText="לא הוזן תקציב"
-        >
-          {budget.itemCount > 0 && (
-            <>
-              <p className="text-xl font-bold mb-0.5" style={{ color: C.dark, fontFamily: "Frank Ruhl Libre, serif" }}>
-                ₪{fmt(budget.actual)}
-              </p>
-              <p className="text-xs mb-2" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>
-                מתוך ₪{fmt(budget.planned)} מתוכנן
-              </p>
-              <ProgressBar pct={budgetPct} color={budgetPct > 90 ? "rgb(200,80,80)" : budgetPct > 70 ? "#A07840" : C.olive} />
-              <p className="text-xs mt-1.5" style={{ color: budgetPct > 90 ? "rgb(200,80,80)" : C.muted, fontFamily: "Heebo, sans-serif" }}>
-                {budgetPct}% מנוצל
-              </p>
-            </>
-          )}
-        </MiniWidget>
-
-        {/* Seating */}
-        <MiniWidget
-          icon={<LayoutGrid size={16} style={{ color: C.gold }} />}
-          title="הושבה"
-          empty={seating.tableCount === 0}
-          emptyText="לא הוגדרו שולחנות"
-        >
-          {seating.tableCount > 0 && (
-            <>
-              <p className="text-xl font-bold mb-0.5" style={{ color: C.dark, fontFamily: "Frank Ruhl Libre, serif" }}>
-                {seating.assignedSeats}/{seating.totalSeats}
-              </p>
-              <p className="text-xs mb-2" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>
-                מקומות שהוקצו
-              </p>
-              <ProgressBar pct={seatingPct} color={C.olive} />
-              <p className="text-xs mt-1.5" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>
-                {seating.totalSeats - seating.assignedSeats} מקומות פנויים
-              </p>
-            </>
-          )}
-        </MiniWidget>
-
-        {/* Gifts */}
-        <MiniWidget
-          icon={<Gift size={16} style={{ color: C.gold }} />}
-          title="מתנות"
-          empty={gifts.count === 0}
-          emptyText="לא נרשמו מתנות"
-        >
-          {gifts.count > 0 && (
-            <>
-              <p className="text-xl font-bold mb-0.5" style={{ color: C.dark, fontFamily: "Frank Ruhl Libre, serif" }}>
-                ₪{fmt(gifts.total)}
-              </p>
-              <p className="text-xs" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>
-                {gifts.count} מתנות נרשמו
-              </p>
-            </>
-          )}
-        </MiniWidget>
       </div>
 
-      <GoldDivider />
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "1.25rem 1rem 5rem" }}>
 
-      {/* ── Task checklist ───────────────────────── */}
-      <SectionTitle icon={<ListChecks size={14} />}>
-        רשימת משימות
-        <span className="mr-2 text-xs font-normal" style={{ color: C.muted }}>
-          {completedTasks}/{tasks.length} הושלמו
-        </span>
-      </SectionTitle>
-
-      {tasks.length > 0 && (
-        <div className="mb-3">
-          <ProgressBar pct={taskPct} color={C.olive} />
-          <p className="text-xs mt-1" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>{taskPct}% הושלם</p>
-        </div>
-      )}
-
-      {taskLoading ? (
-        <div className="flex justify-center py-6"><Loader2 size={20} className="animate-spin" style={{ color: C.gold }} /></div>
-      ) : (
-        <div className="flex flex-col gap-2 mb-4">
-          {tasks.map((task) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              onToggle={() => toggleTask(task)}
-              onDelete={() => deleteTask(task.id)}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Add task */}
-      <div className="flex gap-2 mb-6">
-        <input
-          value={newTask}
-          onChange={(e) => setNewTask(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && addTask()}
-          placeholder="הוסיפו משימה..."
-          className="flex-1 px-4 py-2.5 rounded-xl border text-sm"
-          style={{ background: C.ivory, border: `1px solid ${C.border}`, color: C.dark, fontFamily: "Heebo, sans-serif" }}
-        />
-        <button
-          onClick={addTask}
-          disabled={addingTask || !newTask.trim()}
-          className="px-4 py-2.5 rounded-xl text-sm font-medium disabled:opacity-40"
-          style={{ background: C.olive, color: "white", fontFamily: "Heebo, sans-serif" }}
-        >
-          {addingTask ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-        </button>
-      </div>
-
-      <GoldDivider />
-
-      {/* ── Attendance forecast ──────────────────── */}
-      {stats.total > 0 && stats.pending > 0 && (
-        <>
-          <SectionTitle icon={<TrendingUp size={14} />}>תחזית נוכחות</SectionTitle>
-          <div className="rounded-2xl p-5 mb-6" style={{ background: C.ivory, border: `1px solid ${C.border}` }}>
-            <div className="grid grid-cols-3 gap-3 text-center">
-              {[
-                { label: "שמרני",  value: Math.round(stats.attendees * 0.85), color: C.muted },
-                { label: "צפוי",   value: stats.attendees + Math.round(stats.pending * 0.55), color: C.olive, large: true },
-                { label: "אופטימי", value: stats.attendees + Math.round(stats.pending * 0.85), color: C.gold },
-              ].map(({ label, value, color, large }) => (
-                <div key={label}>
-                  <p className={`font-bold ${large ? "text-4xl" : "text-2xl"} mb-1`}
-                    style={{ color, fontFamily: "Frank Ruhl Libre, serif" }}>{value}</p>
-                  <p className="text-xs" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>{label}</p>
+        {/* Urgent alerts */}
+        {urgents.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.25rem" }}>
+            {urgents.map((a, i) => {
+              const cfg = ALERT_CONFIG.urgent;
+              return (
+                <div key={i} style={{ padding: "0.875rem 1rem", borderRadius: 12, background: cfg.bg, border: `1px solid ${cfg.border}`, display: "flex", gap: "0.75rem" }}>
+                  <span style={{ fontSize: 18 }}>{cfg.icon}</span>
+                  <div>
+                    <p style={{ fontWeight: 600, fontSize: 13, color: cfg.text, marginBottom: 2 }}>{a.title}</p>
+                    <p style={{ fontSize: 12, color: C.muted }}>{a.body}</p>
+                  </div>
                 </div>
-              ))}
-            </div>
-            <p className="text-center text-xs mt-4" style={{ color: "rgba(51,51,51,0.30)", fontFamily: "Heebo, sans-serif" }}>
-              {stats.attendees} מגיעים בוודאות · {stats.pending} ממתינים עדיין
-            </p>
+              );
+            })}
           </div>
-        </>
-      )}
+        )}
 
-      {/* ── Reassurance footer ───────────────────── */}
-      <div
-        className="rounded-2xl p-4 text-center mt-2"
-        style={{ background: "rgba(197,164,109,0.06)", border: `1px solid ${C.border}` }}
-      >
-        <p className="text-sm" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>
-          💛 כל הנתונים מתעדכנים בזמן אמת
-          <br />
-          <span className="text-xs">אין צורך לרענן — הכל מסונכרן אוטומטית</span>
-        </p>
-      </div>
-    </Shell>
-  );
-}
+        {/* Wedding Success Score */}
+        {score && (
+          <div style={{ background: C.ivory, borderRadius: "1.5rem", border: `1px solid ${C.border}`, marginBottom: "1rem", overflow: "hidden" }}>
+            <button onClick={() => setShowScore(!showScore)}
+              style={{ width: "100%", padding: "1.25rem 1.5rem", display: "flex", alignItems: "center", gap: "1rem", background: "transparent", border: "none", cursor: "pointer", textAlign: "right" }}>
+              <ScoreGauge score={score.total} color={score.tierColor} />
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                  <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, color: C.dark }}>ציון מוכנות</p>
+                  <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: `${score.tierColor}18`, color: score.tierColor }}>
+                    {score.tierLabel}
+                  </span>
+                </div>
+                {score.deltaLabel && (
+                  <p style={{ fontSize: 11, color: (score.delta ?? 0) > 0 ? C.olive : (score.delta ?? 0) < 0 ? "#C0392B" : C.muted, marginBottom: 4 }}>
+                    {(score.delta ?? 0) > 0 ? "↑" : (score.delta ?? 0) < 0 ? "↓" : "→"} {score.deltaLabel}
+                  </p>
+                )}
+                <p style={{ fontSize: 12, color: C.muted, lineHeight: 1.4 }}>{score.headline}</p>
+              </div>
+              {showScore ? <ChevronUp size={18} style={{ color: C.muted, flexShrink: 0 }} /> : <ChevronDown size={18} style={{ color: C.muted, flexShrink: 0 }} />}
+            </button>
+            {showScore && (
+              <div style={{ padding: "0 1.5rem 1.25rem", borderTop: `1px solid ${C.border}` }}>
+                <div style={{ paddingTop: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  {score.components.map((c) => (
+                    <div key={c.key}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <span style={{ fontSize: 13, color: C.dark }}>{c.label}</span>
+                        <span style={{ fontSize: 12, color: C.muted }}>{c.points}/{c.max}</span>
+                      </div>
+                      <div style={{ height: 6, borderRadius: 3, background: "rgba(197,164,109,0.12)", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${c.pct}%`, borderRadius: 3, background: c.pct >= 75 ? C.olive : c.pct >= 40 ? C.gold : "#C0392B", transition: "width 0.8s ease" }} />
+                      </div>
+                      <p style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{c.explanation}</p>
+                      {c.tip && <p style={{ fontSize: 11, color: C.gold, marginTop: 1 }}>→ {c.tip}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
-/* ── Sub-components ──────────────────────────────────── */
+        {/* AI Recommendations */}
+        {others.length > 0 && (
+          <div style={{ marginBottom: "1rem" }}>
+            <button onClick={() => setShowAlerts(!showAlerts)}
+              style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontFamily: "Heebo, sans-serif", fontSize: 13, color: C.muted, padding: "0.25rem 0", marginBottom: "0.5rem" }}>
+              <Sparkles size={13} />המלצות
+              {showAlerts ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+            </button>
+            {showAlerts && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                {others.map((a, i) => {
+                  const cfg = ALERT_CONFIG[a.severity] ?? ALERT_CONFIG.info;
+                  return (
+                    <div key={i} style={{ padding: "0.75rem 1rem", borderRadius: 12, background: cfg.bg, border: `1px solid ${cfg.border}`, display: "flex", gap: "0.65rem" }}>
+                      <span style={{ fontSize: 15 }}>{cfg.icon}</span>
+                      <div>
+                        <p style={{ fontWeight: 600, fontSize: 12, color: cfg.text, marginBottom: 1 }}>{a.title}</p>
+                        <p style={{ fontSize: 11, color: C.muted }}>{a.body}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
-function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen py-8 px-4" style={{ background: `linear-gradient(160deg,#F6F1E8 0%,#EDE6D6 100%)` }}>
-      <div className="max-w-xl mx-auto">
-        <div className="text-center mb-6">
-          <p className="text-xs tracking-[0.3em] uppercase" style={{ color: "rgba(197,164,109,0.6)", fontFamily: "Heebo, sans-serif" }}>
-            רגע לפני
-          </p>
+        {/* RSVP */}
+        <div style={{ background: C.ivory, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", marginBottom: "1rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "1rem" }}>
+            <Users size={16} style={{ color: C.gold }} />
+            <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, margin: 0 }}>אישורי הגעה</h2>
+            <span style={{ marginRight: "auto", fontSize: 12, color: C.muted }}>{stats.responseRate}% ענו</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", marginBottom: "0.875rem" }}>
+            {[
+              { icon: CheckCircle, count: stats.confirmed, label: "מגיעים",    color: C.olive },
+              { icon: Clock,       count: stats.pending,   label: "ממתינים",   color: C.gold },
+              { icon: XCircle,     count: stats.declined,  label: "לא מגיעים", color: "#C0392B" },
+            ].map(({ icon: Icon, count, label, color }) => (
+              <div key={label} style={{ textAlign: "center", padding: "0.75rem 0.5rem", borderRadius: 12, background: `${color}08`, border: `1px solid ${color}25` }}>
+                <Icon size={18} style={{ color, margin: "0 auto 4px" }} />
+                <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.4rem", fontWeight: 700, color, lineHeight: 1 }}>{count}</p>
+                <p style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{label}</p>
+              </div>
+            ))}
+          </div>
+          <div style={{ height: 6, borderRadius: 3, background: "rgba(197,164,109,0.12)", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${stats.responseRate}%`, borderRadius: 3, background: `linear-gradient(90deg, ${C.olive}, ${C.gold})`, transition: "width 0.8s" }} />
+          </div>
+          {stats.attendees > 0 && <p style={{ fontSize: 12, color: C.muted, marginTop: "0.5rem", textAlign: "center" }}>{fmt(stats.attendees)} מגיעים</p>}
         </div>
-        {children}
-        <p className="text-center text-[10px] mt-8" style={{ color: "rgba(51,51,51,0.25)", fontFamily: "Heebo, sans-serif" }}>
-          © רגע לפני · מרכז ניהול חתונה
-        </p>
+
+        {/* Vendors */}
+        <div style={{ background: C.ivory, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", marginBottom: "1rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.875rem" }}>
+            <span style={{ fontSize: 16 }}>🏢</span>
+            <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, margin: 0 }}>ספקים</h2>
+            <span style={{ marginRight: "auto", fontSize: 12, color: C.muted }}>
+              {Object.values(vendors).filter(Boolean).length}/{VENDOR_CATEGORIES.length} אושרו
+            </span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+            {VENDOR_CATEGORIES.map((v) => {
+              const confirmed = !!vendors[v.key];
+              return (
+                <button key={v.key} onClick={() => toggleVendor(v.key)}
+                  style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.65rem 0.875rem", borderRadius: 10, textAlign: "right", border: `1.5px solid ${confirmed ? C.olive : C.border}`, background: confirmed ? "rgba(107,123,90,0.08)" : "transparent", cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
+                  <span style={{ fontSize: 16 }}>{v.emoji}</span>
+                  <span style={{ flex: 1, fontSize: 13, color: C.dark }}>{v.label}</span>
+                  {confirmed
+                    ? <CheckCircle size={14} style={{ color: C.olive, flexShrink: 0 }} />
+                    : <Clock size={14} style={{ color: "rgba(51,51,51,0.25)", flexShrink: 0 }} />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Tasks */}
+        <div style={{ background: C.ivory, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", marginBottom: "1rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.75rem" }}>
+            <ListChecks size={16} style={{ color: C.gold }} />
+            <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, margin: 0 }}>משימות</h2>
+            <span style={{ marginRight: "auto", fontSize: 12, color: C.muted }}>{taskPct}%</span>
+          </div>
+          <div style={{ height: 5, borderRadius: 3, background: "rgba(197,164,109,0.12)", overflow: "hidden", marginBottom: "0.875rem" }}>
+            <div style={{ height: "100%", width: `${taskPct}%`, borderRadius: 3, background: `linear-gradient(90deg, ${C.olive}, ${C.gold})` }} />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginBottom: "0.875rem", maxHeight: 260, overflowY: "auto" }}>
+            {tasks.map((task) => (
+              <div key={task.id} style={{ display: "flex", alignItems: "center", gap: "0.65rem", padding: "0.5rem 0", borderBottom: `1px solid rgba(197,164,109,0.1)` }}>
+                <button onClick={() => toggleTask(task)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}>
+                  {task.completed
+                    ? <CheckCircle size={18} style={{ color: C.olive }} />
+                    : <div style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid rgba(197,164,109,0.4)` }} />}
+                </button>
+                <span style={{ flex: 1, fontSize: 13, color: task.completed ? C.muted : C.dark, textDecoration: task.completed ? "line-through" : "none" }}>{task.title}</span>
+                <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(51,51,51,0.2)", padding: 2, flexShrink: 0 }}>
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <input value={newTask} onChange={(e) => setNewTask(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addTask()}
+              placeholder="הוסף משימה..." style={{ flex: 1, padding: "0.5rem 0.75rem", borderRadius: 8, border: `1px solid ${C.border}`, fontFamily: "Heebo, sans-serif", fontSize: 13, background: "transparent", outline: "none" }} />
+            <button onClick={addTask} disabled={saving || !newTask.trim()}
+              style={{ padding: "0.5rem 0.875rem", borderRadius: 8, border: "none", background: C.gold, color: "white", cursor: "pointer" }}>
+              <Plus size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Budget + Seating + Gifts */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
+          <div style={{ background: C.ivory, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: "0.75rem" }}>
+              <Wallet size={14} style={{ color: C.gold }} />
+              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, margin: 0 }}>תקציב</h3>
+            </div>
+            {budget.itemCount > 0 ? (
+              <>
+                <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.2rem", fontWeight: 700 }}>₪{fmt(budget.actual)}</p>
+                <p style={{ fontSize: 11, color: C.muted }}>מתוך ₪{fmt(budget.planned)}</p>
+                <div style={{ height: 4, borderRadius: 2, background: "rgba(197,164,109,0.12)", overflow: "hidden", marginTop: "0.5rem" }}>
+                  <div style={{ height: "100%", width: `${Math.min(100, budget.planned > 0 ? (budget.actual / budget.planned) * 100 : 0)}%`, background: budget.actual > budget.planned ? "#C0392B" : C.gold }} />
+                </div>
+              </>
+            ) : <p style={{ fontSize: 12, color: C.muted }}>לא הוגדר תקציב</p>}
+          </div>
+
+          <div style={{ background: C.ivory, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: "0.75rem" }}>
+              <LayoutGrid size={14} style={{ color: C.gold }} />
+              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, margin: 0 }}>הושבה</h3>
+            </div>
+            <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.2rem", fontWeight: 700 }}>{seatingPct}%</p>
+            <p style={{ fontSize: 11, color: C.muted }}>{seating.assignedSeats} מתוך {stats.attendees} מוצבים</p>
+            <div style={{ height: 4, borderRadius: 2, background: "rgba(197,164,109,0.12)", overflow: "hidden", marginTop: "0.5rem" }}>
+              <div style={{ height: "100%", width: `${seatingPct}%`, background: seatingPct >= 80 ? C.olive : C.gold }} />
+            </div>
+          </div>
+
+          <div style={{ background: C.ivory, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1rem", gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 8 }}>
+            <Gift size={14} style={{ color: C.gold }} />
+            <h3 style={{ fontSize: "0.8rem", fontWeight: 600, margin: 0 }}>מתנות</h3>
+            <span style={{ marginRight: "auto", fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.1rem", fontWeight: 700 }}>₪{fmt(gifts.total)}</span>
+            <span style={{ fontSize: 12, color: C.muted }}>{gifts.count} מתנות</span>
+          </div>
+        </div>
+
+        {/* Vault/Capsule CTAs */}
+        <div style={{ background: C.ivory, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem" }}>
+          <p style={{ fontSize: 12, color: C.muted, textAlign: "center", marginBottom: "0.875rem" }}>זכרונות וכמוסת זמן</p>
+          <div style={{ display: "flex", gap: "0.75rem" }}>
+            {[
+              { href: `/memory/${token}/wall`,   icon: Camera, label: "קיר זכרונות",   color: C.gold,    bg: "rgba(197,164,109,0.06)" },
+              { href: `/couple/${token}/capsule`, icon: Lock,   label: "כמוסת זמן",     color: C.olive,   bg: "rgba(107,123,90,0.06)" },
+              { href: `/memory/${token}`,         icon: Mic,    label: "הקלטת ברכה",    color: "#7c3aed", bg: "rgba(124,58,237,0.05)" },
+            ].map(({ href, icon: Icon, label, color, bg }) => (
+              <a key={href} href={href} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "0.875rem 0.5rem", borderRadius: 12, background: bg, border: `1px solid ${color}22`, textDecoration: "none" }}>
+                <Icon size={22} style={{ color }} />
+                <span style={{ fontSize: 11, color: C.dark, fontFamily: "Heebo, sans-serif", textAlign: "center" }}>{label}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+
       </div>
-    </div>
-  );
-}
-
-function GoldDivider() {
-  return (
-    <div className="w-full h-px my-5" style={{ background: "linear-gradient(90deg,transparent,rgba(197,164,109,0.35),transparent)" }} />
-  );
-}
-
-function SectionTitle({ children, icon }: { children: React.ReactNode; icon?: React.ReactNode }) {
-  return (
-    <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide mb-3"
-      style={{ color: "rgba(197,164,109,0.85)", fontFamily: "Heebo, sans-serif" }}>
-      {icon}{children}
-    </p>
-  );
-}
-
-function ProgressBar({ pct, color }: { pct: number; color: string }) {
-  return (
-    <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(197,164,109,0.15)" }}>
-      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(100, pct)}%`, background: color }} />
-    </div>
-  );
-}
-
-function MiniWidget({ icon, title, children, empty, emptyText }: {
-  icon: React.ReactNode; title: string; children?: React.ReactNode;
-  empty?: boolean; emptyText?: string;
-}) {
-  return (
-    <div className="rounded-2xl p-4" style={{ background: C.ivory, border: `1px solid ${C.border}` }}>
-      <div className="flex items-center gap-1.5 mb-3">
-        {icon}
-        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(197,164,109,0.85)", fontFamily: "Heebo, sans-serif" }}>
-          {title}
-        </p>
-      </div>
-      {empty ? (
-        <p className="text-xs" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>{emptyText}</p>
-      ) : children}
-    </div>
-  );
-}
-
-function TaskRow({ task, onToggle, onDelete }: {
-  task: WeddingTask; onToggle: () => void; onDelete: () => void;
-}) {
-  return (
-    <div
-      className="flex items-center gap-3 px-4 py-3 rounded-xl group transition-all duration-150"
-      style={{ background: task.completed ? "rgba(107,123,90,0.06)" : C.ivory, border: `1px solid ${C.border}` }}
-    >
-      <button
-        onClick={onToggle}
-        className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all duration-200"
-        style={{
-          background:   task.completed ? C.olive : "transparent",
-          borderColor:  task.completed ? C.olive : C.gold,
-        }}
-      >
-        {task.completed && <CheckCircle size={12} color="white" />}
-      </button>
-      <span
-        className="flex-1 text-sm transition-all duration-200"
-        style={{
-          color:           task.completed ? C.muted : C.dark,
-          textDecoration:  task.completed ? "line-through" : "none",
-          fontFamily:      "Heebo, sans-serif",
-        }}
-      >
-        {task.title}
-      </span>
-      <button
-        onClick={onDelete}
-        className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 p-1 rounded"
-        style={{ color: "rgba(200,80,80,0.5)" }}
-      >
-        <Trash2 size={13} />
-      </button>
-    </div>
-  );
-}
-
-function CenterSpin() {
-  return (
-    <div className="flex flex-col items-center gap-4 py-20">
-      <Loader2 size={32} className="animate-spin" style={{ color: "#C5A46D" }} />
-      <p style={{ color: "rgba(51,51,51,0.45)", fontFamily: "Heebo, sans-serif" }}>טוען…</p>
-    </div>
-  );
-}
-
-function NotFound() {
-  return (
-    <div className="text-center py-20">
-      <AlertCircle size={40} className="mx-auto mb-4" style={{ color: "#C5A46D" }} />
-      <p className="font-semibold mb-1" style={{ color: "#333", fontFamily: "Frank Ruhl Libre, serif" }}>
-        הקישור אינו תקין
-      </p>
-      <p className="text-sm" style={{ color: "rgba(51,51,51,0.55)", fontFamily: "Heebo, sans-serif" }}>
-        פנו אלינו לקבלת הקישור הנכון לאירוע שלכם.
-      </p>
     </div>
   );
 }

@@ -32,11 +32,29 @@ export async function POST(request: NextRequest) {
 }
 
 // GET /api/memory/vault-token?event_id=X
+// GET /api/memory/vault-token?couple_token=X  (lookup by couple token)
 export async function GET(request: NextRequest) {
-  const event_id = new URL(request.url).searchParams.get('event_id');
-  if (!event_id) return NextResponse.json({ error: 'event_id required' }, { status: 400 });
+  const sp           = new URL(request.url).searchParams;
+  const event_id     = sp.get('event_id');
+  const couple_token = sp.get('couple_token');
+  const supabase     = createServerClient();
 
-  const supabase = createServerClient();
+  if (couple_token) {
+    const { data: event } = await supabase
+      .from('events')
+      .select('id')
+      .eq('couple_token', couple_token)
+      .single();
+    if (!event) return NextResponse.json({ token: null });
+    const { data } = await supabase
+      .from('vault_tokens')
+      .select('token')
+      .eq('event_id', event.id)
+      .single();
+    return NextResponse.json({ token: data?.token ?? null });
+  }
+
+  if (!event_id) return NextResponse.json({ error: 'event_id or couple_token required' }, { status: 400 });
   const { data } = await supabase
     .from('vault_tokens')
     .select('token')
