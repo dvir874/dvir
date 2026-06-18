@@ -39,7 +39,7 @@ export default function BookDemoCTA() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <a
-              href={WA_URL}
+              href="/couple/341bf7b1-a2e5-4f60-817f-51472b40edf1"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 hover:scale-105 active:scale-95"
@@ -50,12 +50,14 @@ export default function BookDemoCTA() {
                 boxShadow: "0 4px 20px rgba(197,164,109,0.35)",
               }}
             >
-              <MessageCircle size={16} />
-              שלחו הודעה בוואטסאפ
+              <Calendar size={16} />
+              ראו את הדשבורד האמיתי
             </a>
 
-            <button
               onClick={() => document.querySelector("#contact")?.scrollIntoView({ behavior: "smooth" })}
+            <a
+              href={WA_URL}
+              rel="noopener noreferrer"
               className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 hover:scale-105 active:scale-95"
               style={{
                 background: "rgba(255,255,255,0.12)",
@@ -64,9 +66,9 @@ export default function BookDemoCTA() {
                 fontFamily: "Heebo, sans-serif",
               }}
             >
-              <Calendar size={16} />
-              קבעו שיחת הכרות
-            </button>
+              <MessageCircle size={16} />
+              שלחו הודעה בוואטסאפ
+            </a>
           </div>
 
           <p
