@@ -46,9 +46,7 @@ export default function WhyUs() {
 
       <div className="container-max mx-auto">
         <FadeIn className="text-center mb-10">
-          <p className="text-gold text-xs tracking-[0.22em] mb-3 uppercase" style={{ fontFamily: "Heebo, sans-serif" }}>
-            הגישה שלנו
-          </p>
+          <span className="section-eyebrow">הגישה שלנו</span>
           <h2 className="section-title">למה לבחור ברגע לפני?</h2>
           <div className="gold-divider" />
           <p className="section-subtitle">

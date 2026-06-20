@@ -41,9 +41,7 @@ export default function HowItWorks() {
 
       <div className="container-max mx-auto relative z-10">
         <FadeIn className="text-center mb-12">
-          <p className="text-gold text-xs tracking-[0.22em] mb-3 uppercase" style={{ fontFamily: "Heebo, sans-serif" }}>
-            איך זה עובד
-          </p>
+          <span className="section-eyebrow">איך זה עובד</span>
           <h2 className="section-title">פשוט, אישי, מלא</h2>
           <div className="gold-divider" />
           <p className="section-subtitle">

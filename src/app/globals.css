@@ -35,6 +35,7 @@ body {
 @layer base {
   h1, h2, h3, h4 {
     font-family: 'Frank Ruhl Libre', serif;
+    text-wrap: balance;
   }
 }
 
@@ -51,37 +52,94 @@ body {
     @apply inline-flex items-center gap-2 px-8 py-4 rounded-full font-medium text-white transition-all duration-300
            shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 select-none cursor-pointer;
     background: linear-gradient(135deg, #C5A46D 0%, #D4BC8A 50%, #C5A46D 100%);
+    background-size: 200% 100%;
     font-family: 'Heebo', sans-serif;
   }
   .btn-primary:hover {
-    background: linear-gradient(135deg, #6B7B5A 0%, #4A5E3A 100%);
+    background: linear-gradient(135deg, #A8843A 0%, #C09650 50%, #A8843A 100%);
+    box-shadow: 0 12px 36px rgba(168,132,58,0.32), 0 4px 12px rgba(168,132,58,0.18);
+  }
+  .btn-primary:active {
+    transform: scale(0.97);
   }
 
   .btn-outline {
     @apply inline-flex items-center gap-2 px-8 py-4 rounded-full font-medium transition-all duration-300
-           border-2 border-gold text-gold hover:bg-gold hover:text-white
-           shadow-md hover:shadow-lg hover:scale-105 active:scale-95 select-none cursor-pointer;
+           border-2 select-none cursor-pointer;
+    border-color: #C5A46D;
+    color: #C5A46D;
     font-family: 'Heebo', sans-serif;
+    box-shadow: 0 2px 10px rgba(197,164,109,0.10);
+  }
+  .btn-outline:hover {
+    background: linear-gradient(135deg, #C5A46D 0%, #D4BC8A 100%);
+    color: white;
+    box-shadow: 0 8px 24px rgba(197,164,109,0.28);
+    transform: scale(1.04) translateY(-1px);
+  }
+  .btn-outline:active {
+    transform: scale(0.97);
+  }
+
+  .section-eyebrow {
+    @apply text-xs tracking-[0.24em] uppercase mb-3 block;
+    color: #C5A46D;
+    font-family: 'Heebo', sans-serif;
+    letter-spacing: 0.24em;
   }
 
   .section-title {
     @apply text-3xl md:text-4xl xl:text-5xl font-bold text-dark mb-4;
     font-family: 'Frank Ruhl Libre', serif;
-    line-height: 1.25;
+    line-height: 1.22;
+    text-wrap: balance;
   }
 
   .section-subtitle {
     @apply text-base md:text-lg text-olive mb-10 max-w-xl mx-auto leading-relaxed;
     font-family: 'Heebo', sans-serif;
+    text-wrap: balance;
   }
 
   .gold-divider {
-    @apply w-14 h-0.5 bg-gold mx-auto mb-8;
-    background: linear-gradient(90deg, transparent, #C5A46D, transparent);
+    @apply mx-auto mb-8;
+    position: relative;
+    width: 110px;
+    height: 10px;
+    background:
+      linear-gradient(90deg, transparent 0%, #C5A46D 30%, #D4BC8A 48%, transparent 50%) left / calc(50% - 5px) 1px no-repeat,
+      linear-gradient(90deg, transparent 50%, #D4BC8A 52%, #C5A46D 70%, transparent 100%) right / calc(50% - 5px) 1px no-repeat;
+    background-position-y: center;
+  }
+  .gold-divider::before {
+    content: '✦';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 8px;
+    color: #C5A46D;
+    line-height: 1;
   }
 
   .card-hover {
-    @apply transition-all duration-300 hover:shadow-2xl hover:-translate-y-1;
+    @apply transition-all duration-300 hover:-translate-y-1;
+    transition-property: transform, box-shadow;
+  }
+  .card-hover:hover {
+    box-shadow: 0 16px 44px rgba(197,164,109,0.14), 0 4px 14px rgba(0,0,0,0.05);
+  }
+
+  .card-warm {
+    background: linear-gradient(160deg, #FDFAF5 0%, #F6F1E8 100%);
+    border: 1px solid rgba(197,164,109,0.18);
+    border-radius: 1rem;
+    box-shadow: 0 2px 12px rgba(197,164,109,0.08), 0 1px 4px rgba(0,0,0,0.04);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+  }
+  .card-warm:hover {
+    box-shadow: 0 16px 44px rgba(197,164,109,0.15), 0 4px 14px rgba(0,0,0,0.05);
+    transform: translateY(-4px);
   }
 }
 
@@ -103,8 +161,8 @@ body {
 
 /* Decorative dot pattern */
 .pattern-overlay {
-  background-image: radial-gradient(circle at 1px 1px, rgba(197,164,109,0.07) 1px, transparent 0);
-  background-size: 30px 30px;
+  background-image: radial-gradient(circle at 1px 1px, rgba(197,164,109,0.09) 1px, transparent 0);
+  background-size: 28px 28px;
 }
 
 /* Form inputs */
