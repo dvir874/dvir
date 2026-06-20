@@ -179,25 +179,25 @@ export default function Footer() {
               </li>
             </ul>
 
-            {/* Pricing note */}
+            {/* Promise note */}
             <div
               className="mt-6 px-4 py-3 rounded-xl"
               style={{
-                background: "rgba(197,164,109,0.1)",
-                border: "1px solid rgba(197,164,109,0.2)",
+                background: "rgba(197,164,109,0.08)",
+                border: "1px solid rgba(197,164,109,0.18)",
               }}
             >
               <p
                 className="text-gold text-sm font-semibold"
                 style={{ fontFamily: "Heebo, sans-serif" }}
               >
-                מחיר החל מ-₪70
+                הצעת מחיר אישית
               </p>
               <p
                 className="text-white/35 text-xs mt-0.5"
                 style={{ fontFamily: "Heebo, sans-serif" }}
               >
-                כולל תיקונים עד אישור
+                מותאמת לאירוע ולכמות המוזמנים
               </p>
             </div>
           </div>

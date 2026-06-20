@@ -5,7 +5,7 @@ import { Menu, X } from "lucide-react";
 import Logo from "./Logo";
 
 const navLinks = [
-  { label: "גלריה",       href: "#gallery"       },
+  { label: "למה אנחנו",   href: "#why-us"        },
   { label: "איך זה עובד", href: "#how-it-works"  },
   { label: "מחירים",      href: "#pricing"        },
   { label: "אודות",       href: "#about"          },

@@ -299,26 +299,27 @@ export default function EventPageClient({
         </section>
       )}
 
-      {/* ── RSVP placeholder ───────────────────────── */}
-      <section className="py-16 px-4" style={{ background: theme.bodyBg }}>
-        <div className="max-w-lg mx-auto text-center">
-          <p className="text-xs tracking-[0.22em] uppercase mb-3"
-            style={{ color: theme.accentColor, ...HEEBO }}>
-            אישור הגעה
-          </p>
-          <h2 className="text-3xl font-bold mb-3"
-            style={{ color: theme.headingColor, ...FRANK }}>
-            האם תגיעו?
-          </h2>
-          <p className="text-sm mb-8" style={{ color: theme.mutedColor, ...HEEBO }}>
-            כל אורח יקבל קישור אישי לאישור הגעה
-          </p>
+      {/* ── RSVP note ───────────────────────────────── */}
+      <section className="py-14 px-4" style={{ background: theme.bodyBg }}>
+        <div className="max-w-sm mx-auto text-center">
           <div
-            className="rounded-2xl p-6 text-sm"
-            style={{ background: theme.accentBg, border: `1px solid ${theme.accentBorder}`,
-              color: theme.mutedColor, ...HEEBO }}
+            className="rounded-3xl p-8"
+            style={{ background: theme.cardBg, border: `1px solid ${theme.cardBorder}`, boxShadow: theme.cardShadow }}
           >
-            ✦ טופס אישור ההגעה האישי נשלח ישירות לכל מוזמן
+            <div className="text-3xl mb-4">💌</div>
+            <h2 className="text-xl font-bold mb-2" style={{ color: theme.headingColor, ...FRANK }}>
+              אישור הגעה
+            </h2>
+            <p className="text-sm leading-relaxed" style={{ color: theme.mutedColor, ...HEEBO }}>
+              קישור אישי לאישור הגעה נשלח לכם ישירות בהודעה.
+              <br />
+              לא קיבלתם? פנו לזוג המאושר.
+            </p>
+            <div className="mt-5 pt-4" style={{ borderTop: `1px solid ${theme.cardBorder}` }}>
+              <p className="text-xs" style={{ color: `${theme.accentColor}88`, ...HEEBO }}>
+                ✦ {event.name}
+              </p>
+            </div>
           </div>
         </div>
       </section>

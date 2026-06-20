@@ -17,29 +17,31 @@ const G = {
   borderSoft:"rgba(197,164,109,0.10)",
 };
 
-/* ─── Apps being replaced (honest list) ─── */
+/* ─── Tools being replaced ─── */
 const APPS = [
-  { emoji: "📊", name: "Excel",       sub: "רשימת מוזמנים ידנית"  },
-  { emoji: "💬", name: "WhatsApp",    sub: "אישורי הגעה ידניים"   },
-  { emoji: "🔔", name: "תזכורות",     sub: "תזכורות ידניות"       },
-  { emoji: "📄", name: "PDF / Canva", sub: "עיצוב ההזמנה"         },
-  { emoji: "📧", name: "אימייל",      sub: "עדכונים לאורחים"       },
+  { emoji: "📊", name: "Excel",       sub: "רשימת מוזמנים ידנית"      },
+  { emoji: "💬", name: "WhatsApp",    sub: "אישורי הגעה ידניים"        },
+  { emoji: "🔔", name: "תזכורות",     sub: "תזכורות ידניות"            },
+  { emoji: "📋", name: "Notes / PDF", sub: "רשימות פזורות"             },
+  { emoji: "📧", name: "מיילים",      sub: "עדכונים לספקים ולאורחים"   },
 ];
 
-/* ─── Real product modules — exactly what we provide ─── */
+/* ─── Platform modules — what we actually provide ─── */
 const MODULES = [
-  "הזמנה ודף אירוע מעוצבים",
-  "דף אירוע אישי",
-  "אישורי הגעה בוואטסאפ",
-  "תזכורות אוטומטיות",
+  "דף אירוע אישי + אישורי הגעה",
+  "תזכורות אוטומטיות בוואטסאפ",
+  "תכנון הושבה לפי שולחנות",
+  "מעקב תקציב ומתנות",
+  "לוח משימות לכל שלב",
+  "לוח בקרה זוגי בזמן אמת",
 ];
 
-/* ─── Value statements — no invented numbers ─── */
+/* ─── Value pillars ─── */
 const VALUES = [
-  { icon: "✦", label: "עיצוב אישי",          sub: "כל הזמנה מעוצבת מאפס עבורכם" },
-  { icon: "⚡", label: "תוך 48 שעות",         sub: "מסירה מהירה מרגע השליחה"     },
-  { icon: "✓",  label: "תיקונים עד אישור",    sub: "לא מסיימים עד שאתם מרוצים"   },
-  { icon: "💬", label: "ליווי בוואטסאפ",      sub: "כל התהליך — ישירות בוואטסאפ" },
+  { icon: "🤍", label: "שקט נפשי",          sub: "אתם יודעים מה קורה — תמיד"       },
+  { icon: "⚡", label: "מוכן תוך 48 שעות",  sub: "אנחנו מגדירים, אתם מתחילים"      },
+  { icon: "👫", label: "לשני בני הזוג",      sub: "שניכם רואים הכל, בזמן אמת"       },
+  { icon: "💬", label: "ליווי בוואטסאפ",    sub: "אנחנו כאן לאורך כל הדרך"         },
 ];
 
 export default function FeaturedDesigns() {
@@ -57,15 +59,15 @@ export default function FeaturedDesigns() {
         {/* Header */}
         <div className="text-center mb-14">
           <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: G.goldMuted, fontFamily: "Heebo, sans-serif" }}>
-            עיצובי הזמנות
+            הפלטפורמה שלנו
           </p>
           <h2 className="section-title mb-3" style={{ fontFamily: "Frank Ruhl Libre, serif" }}>
-            ההזמנה היא הרגע הראשון{" "}
-            <span style={{ color: G.goldMuted }}>שבו האורחים מרגישים אתכם.</span>
+            מחליפים 5 כלים נפרדים{" "}
+            <span style={{ color: G.goldMuted }}>בלוח בקרה אחד.</span>
           </h2>
           <div className="gold-divider" />
           <p className="section-subtitle text-base" style={{ fontFamily: "Heebo, sans-serif" }}>
-            כל הזמנה מעוצבת מאפס עבורכם — ואחריה, כל ניהול האירוע ממשיך באותה פלטפורמה.
+            Excel, WhatsApp, תזכורות ידניות — הכל עובר למקום אחד, ואנחנו מגדירים אותו עבורכם.
           </p>
         </div>
 

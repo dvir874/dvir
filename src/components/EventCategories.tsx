@@ -10,43 +10,43 @@ const CATEGORY_CARDS = [
     id:    "wedding"   as GalleryCategory,
     icon:  Heart,
     emoji: "💍",
-    desc:  "הזמנות חתונה יוקרתיות ואישיות",
+    desc:  "ניהול מלא — אורחים, הושבה, תקציב ומתנות",
   },
   {
     id:    "birthday"  as GalleryCategory,
     icon:  Gift,
     emoji: "🎂",
-    desc:  "יום הולדת מתחיל מהזמנה מושלמת",
+    desc:  "ניהול מוזמנים ואישורי הגעה ליום הולדת",
   },
   {
     id:    "barmitzva" as GalleryCategory,
     icon:  BookOpen,
     emoji: "✡️",
-    desc:  "הזמנות בר מצווה מרשימות ומיוחדות",
+    desc:  "ניהול בר מצווה עם לוח בקרה זוגי",
   },
   {
     id:    "batmitzva" as GalleryCategory,
     icon:  Sparkles,
     emoji: "🌟",
-    desc:  "הזמנות בת מצווה עדינות ואלגנטיות",
+    desc:  "ניהול בת מצווה — מהמוזמן הראשון ועד יום האירוע",
   },
   {
     id:    "hina"      as GalleryCategory,
     icon:  Moon,
     emoji: "🌙",
-    desc:  "הזמנות חינה בסגנון מזרחי מרהיב",
+    desc:  "ניהול חינה — אישורי הגעה ותזכורות אוטומטיות",
   },
   {
     id:    "brit"      as GalleryCategory,
     icon:  Baby,
     emoji: "👶",
-    desc:  "הזמנות ברית מילה חגיגיות ומרגשות",
+    desc:  "ניהול ברית מילה עם מעקב מוזמנים",
   },
   {
     id:    "brita"     as GalleryCategory,
     icon:  Flower2,
     emoji: "🌸",
-    desc:  "הזמנות ברית בנות עדינות ויפהפיות",
+    desc:  "ניהול ברית בנות — הכל מסודר, הכל ידוע",
   },
 ];
 
@@ -82,10 +82,10 @@ export default function EventCategories() {
           >
             לכל אירוע
           </p>
-          <h2 className="section-title">לכל אירוע — ניהול והזמנה</h2>
+          <h2 className="section-title">לכל אירוע — ניהול מלא</h2>
           <div className="gold-divider" />
           <p className="section-subtitle">
-            חתונה, חינה, בר מצווה, בת מצווה, ברית ועוד — כל אירוע מקבל ניהול מלא ועיצוב הזמנה ייחודי
+            חתונה, חינה, בר מצווה, בת מצווה, ברית ועוד — כל אירוע מקבל לוח בקרה, אישורי הגעה ותזכורות אוטומטיות
           </p>
         </FadeIn>
 
@@ -190,7 +190,7 @@ export default function EventCategories() {
                         className="text-xs font-semibold"
                         style={{ color: meta.accent, fontFamily: "Heebo, sans-serif" }}
                       >
-                        צפו בעיצובים
+                        ניהול לאירוע זה
                       </span>
                       <span style={{ color: meta.accent }} className="text-xs">←</span>
                     </motion.div>
@@ -237,7 +237,7 @@ export default function EventCategories() {
                     className="text-white/65 text-xs leading-relaxed"
                     style={{ fontFamily: "Heebo, sans-serif" }}
                   >
-                    יש לכם רעיון? נשמח להתאים עיצוב מיוחד
+                    כל אירוע משפחתי — נשמח להתאים ניהול מדויק
                   </p>
                   <motion.p
                     variants={{ idle: { opacity: 0 }, hovered: { opacity: 1 } }}

@@ -108,13 +108,13 @@ export default function RsvpPage({
       const ymd   = (dt: Date) => dt.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
       const start = ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 19, 0, 0));
       const end   = ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 0));
-      const params = new URLSearchParams({
+      const calParams = new URLSearchParams({
         action: "TEMPLATE", text: event.name,
         dates: `${start}/${end}`,
         details: event.address ?? "",
         location: event.address ?? "",
       });
-      return `https://calendar.google.com/calendar/render?${params.toString()}`;
+      return `https://calendar.google.com/calendar/render?${calParams.toString()}`;
     })();
 
     const wazeUrl = event?.address
@@ -123,42 +123,80 @@ export default function RsvpPage({
 
     return (
       <Shell theme={theme}>
-        <div className="text-center">
+        <div className="text-center" style={{ animation: "rsvpFadeUp 0.5s ease both" }}>
+
+          {/* Sparkles row */}
+          {confirmed && (
+            <div className="flex justify-center gap-3 mb-4" style={{ animation: "rsvpFadeUp 0.4s ease 0.1s both" }}>
+              {["✦", "💛", "✦"].map((s, i) => (
+                <span key={i} className="text-base" style={{
+                  color: theme.accentColor,
+                  animation: `float ${2.5 + i * 0.4}s ease-in-out ${i * 0.15}s infinite`,
+                  opacity: i === 1 ? 1 : 0.6,
+                }}>
+                  {s}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Icon */}
           <div
-            className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
-            style={{ background: confirmed ? theme.accentBg : "rgba(197,164,109,0.12)" }}
+            className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-5"
+            style={{
+              background: confirmed
+                ? `radial-gradient(circle, ${theme.accentColor}22 0%, ${theme.accentColor}0a 100%)`
+                : "rgba(197,164,109,0.08)",
+              border: `1.5px solid ${theme.accentColor}44`,
+              animation: "rsvpPop 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.15s both",
+            }}
           >
             {confirmed
-              ? <CheckCircle size={40} style={{ color: theme.accentColor }} />
-              : <XCircle    size={40} style={{ color: theme.accentColor }} />}
+              ? <CheckCircle size={44} style={{ color: theme.accentColor }} strokeWidth={1.5} />
+              : <XCircle    size={44} style={{ color: theme.accentColor }} strokeWidth={1.5} />}
           </div>
+
           <h2
-            className="text-2xl font-bold mb-3"
-            style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif" }}
+            className="text-2xl font-bold mb-2"
+            style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif", lineHeight: 1.3 }}
           >
-            {confirmed ? "תודה על האישור! 🎊" : "קיבלנו את תגובתכם"}
+            {confirmed ? "תודה שאישרתם!" : "קיבלנו את תגובתכם"}
           </h2>
-          <p className="text-sm mb-2" style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif" }}>
+
+          {confirmed && (
+            <p className="text-base font-light mb-1" style={{ color: theme.mutedColor, fontFamily: "Frank Ruhl Libre, serif" }}>
+              מחכים לכם ביום המיוחד 🤍
+            </p>
+          )}
+
+          <p className="text-sm mb-1" style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif" }}>
             {confirmed
-              ? `מחכים לכם — ${guest?.guest_count} אורחים רשומים להגיע`
+              ? `${guest?.guest_count} ${(guest?.guest_count ?? 1) === 1 ? "אורח" : "אורחים"} רשומים להגיע`
               : "חבל שלא תוכלו להגיע — נשמח לראותכם בפעם אחרת 💛"}
           </p>
+
           {event && (
-            <p className="text-xs mt-3" style={{ color: theme.accentColor, fontFamily: "Heebo, sans-serif" }}>
-              {event.name} · {formattedDate}
-            </p>
+            <div className="mt-4 mb-5 py-3 px-4 rounded-2xl"
+              style={{ background: theme.accentBg, border: `1px solid ${theme.accentColor}22` }}>
+              <p className="text-sm font-semibold" style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif" }}>
+                {event.name}
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: theme.accentColor, fontFamily: "Heebo, sans-serif" }}>
+                {formattedDate}
+              </p>
+            </div>
           )}
 
           {/* Calendar + Waze — shown only for confirmed guests */}
           {confirmed && (calUrl || wazeUrl) && (
-            <div className="mt-6 flex flex-col gap-2.5 max-w-xs mx-auto">
+            <div className="flex flex-col gap-2.5" style={{ animation: "rsvpFadeUp 0.4s ease 0.35s both" }}>
               {calUrl && (
                 <a
                   href={calUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-sm font-medium transition-all duration-200 hover:opacity-90"
-                  style={{ background: theme.accentBg, color: theme.accentColor, border: `1px solid ${theme.accentColor}33`, fontFamily: "Heebo, sans-serif" }}
+                  className="flex items-center justify-center gap-2.5 w-full py-3.5 rounded-2xl text-sm font-medium transition-all duration-200 hover:opacity-85 hover:-translate-y-0.5"
+                  style={{ background: theme.accentBg, color: theme.accentColor, border: `1px solid ${theme.accentColor}33`, fontFamily: "Heebo, sans-serif", boxShadow: `0 2px 10px ${theme.accentColor}14` }}
                 >
                   📅 הוסיפו ליומן Google
                 </a>
@@ -168,8 +206,8 @@ export default function RsvpPage({
                   href={wazeUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-sm font-medium transition-all duration-200 hover:opacity-90"
-                  style={{ background: "rgba(34,197,94,0.10)", color: "#16a34a", border: "1px solid rgba(34,197,94,0.25)", fontFamily: "Heebo, sans-serif" }}
+                  className="flex items-center justify-center gap-2.5 w-full py-3.5 rounded-2xl text-sm font-medium transition-all duration-200 hover:opacity-85 hover:-translate-y-0.5"
+                  style={{ background: "rgba(51,204,255,0.08)", color: "#0099CC", border: "1px solid rgba(51,204,255,0.25)", fontFamily: "Heebo, sans-serif" }}
                 >
                   🚗 נווטו לאולם — Waze
                 </a>
@@ -187,18 +225,22 @@ export default function RsvpPage({
   /* ── Form screen ─────────────────────────────────── */
   return (
     <Shell theme={theme}>
-      <div className="text-center mb-2" style={{ color: theme.accentColor }}>✦</div>
-
+      {/* Event header */}
       {event && (
-        <div className="text-center mb-7">
+        <div className="text-center mb-6" style={{ animation: "rsvpFadeUp 0.4s ease both" }}>
+          <div className="flex justify-center gap-2 mb-3" style={{ color: theme.accentColor, opacity: 0.55 }}>
+            <span style={{ fontSize: 10 }}>✦</span>
+            <span style={{ fontSize: 10 }}>✦</span>
+            <span style={{ fontSize: 10 }}>✦</span>
+          </div>
           <p
-            className="text-xs tracking-[0.22em] uppercase mb-2"
+            className="text-[10px] tracking-[0.26em] uppercase mb-2"
             style={{ color: theme.accentColor, fontFamily: "Heebo, sans-serif" }}
           >
             אתם מוזמנים
           </p>
           <h1
-            className="text-3xl font-bold mb-1"
+            className="text-3xl font-bold mb-1.5 leading-tight"
             style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif" }}
           >
             {event.name}
@@ -207,56 +249,62 @@ export default function RsvpPage({
             {formattedDate}
           </p>
           {event.address && (
-            <p className="text-xs mt-1.5" style={{ color: theme.accentColor, fontFamily: "Heebo, sans-serif" }}>
+            <p className="text-xs mt-1" style={{ color: `${theme.accentColor}bb`, fontFamily: "Heebo, sans-serif" }}>
               📍 {event.address}
             </p>
           )}
+          <div className="w-14 h-px mx-auto mt-4"
+            style={{ background: `linear-gradient(90deg,transparent,${theme.accentColor}88,transparent)` }} />
         </div>
       )}
 
-      <div className="w-full h-px mb-7"
-        style={{ background: `linear-gradient(90deg,transparent,${theme.accentBorder},transparent)` }} />
-
+      {/* Greeting */}
       <p
-        className="text-center text-base font-medium mb-6"
-        style={{ color: theme.headingColor, fontFamily: "Heebo, sans-serif" }}
+        className="text-center text-base font-semibold mb-1"
+        style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif", animation: "rsvpFadeUp 0.4s ease 0.08s both" }}
       >
-        שלום {guest?.name}! 🎊<br />
-        <span className="text-sm font-normal" style={{ color: theme.mutedColor }}>
-          האם תוכלו להגיע?
-        </span>
+        שלום {guest?.name} 🤍
+      </p>
+      <p
+        className="text-center text-sm mb-6"
+        style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif", animation: "rsvpFadeUp 0.4s ease 0.12s both" }}
+      >
+        האם תוכלו להגיע לאירוע?
       </p>
 
       {/* Confirm / Decline buttons */}
-      <div className="flex flex-col gap-3 mb-6">
+      <div className="flex flex-col gap-3 mb-6" style={{ animation: "rsvpFadeUp 0.4s ease 0.18s both" }}>
         <button
           onClick={() => { setChoice("confirmed"); setGuestCount(guest?.guest_count ?? 1); }}
-          className="w-full py-4 rounded-2xl font-semibold text-base flex items-center justify-center gap-2.5 transition-all duration-200"
+          className="w-full py-4 rounded-2xl font-semibold text-base flex items-center justify-center gap-2.5 transition-all duration-250"
           style={{
             fontFamily: "Heebo, sans-serif",
             background: choice === "confirmed"
-              ? `linear-gradient(135deg,${theme.accentColor},${theme.accentColor}cc)`
+              ? `linear-gradient(135deg,${theme.accentColor} 0%,${theme.accentColor}dd 100%)`
               : theme.cardBg,
             color: choice === "confirmed" ? "white" : theme.accentColor,
             border: `2px solid ${choice === "confirmed" ? "transparent" : theme.accentBorder}`,
-            boxShadow: choice === "confirmed" ? `0 4px 20px ${theme.accentColor}33` : "none",
+            boxShadow: choice === "confirmed"
+              ? `0 6px 24px ${theme.accentColor}30, 0 2px 8px ${theme.accentColor}18`
+              : `0 1px 4px rgba(0,0,0,0.04)`,
+            transform: choice === "confirmed" ? "scale(1.015)" : "scale(1)",
           }}
         >
-          <CheckCircle size={20} />
+          <CheckCircle size={20} strokeWidth={choice === "confirmed" ? 2 : 1.5} />
           כן, נגיע! 🎉
         </button>
 
         <button
           onClick={() => { setChoice("declined"); setGuestCount(1); }}
-          className="w-full py-4 rounded-2xl font-semibold text-base flex items-center justify-center gap-2.5 transition-all duration-200"
+          className="w-full py-3.5 rounded-2xl font-medium text-sm flex items-center justify-center gap-2 transition-all duration-250"
           style={{
             fontFamily: "Heebo, sans-serif",
-            background: choice === "declined" ? "linear-gradient(135deg,#7A6A5A,#5A4A3A)" : theme.cardBg,
-            color: choice === "declined" ? "white" : theme.mutedColor,
-            border: `2px solid ${choice === "declined" ? "transparent" : theme.cardBorder}`,
+            background: choice === "declined" ? "rgba(90,75,65,0.08)" : "transparent",
+            color: choice === "declined" ? "#7A6A5A" : theme.mutedColor,
+            border: `1.5px solid ${choice === "declined" ? "rgba(90,75,65,0.3)" : theme.cardBorder}`,
           }}
         >
-          <XCircle size={20} />
+          <XCircle size={16} strokeWidth={1.5} />
           לא נוכל להגיע
         </button>
       </div>
