@@ -369,6 +369,13 @@ export default function AdminPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteGuestCount, setDeleteGuestCount] = useState<number | null>(null);
+  const [pendingDeleteEventId, setPendingDeleteEventId] = useState<string | null>(null);
+
+  // Dropdown menus (click-based)
+  const [showEventDropdown, setShowEventDropdown] = useState(false);
+  const [showWeddingTools, setShowWeddingTools] = useState(false);
+  const eventDropdownRef = useRef<HTMLDivElement>(null);
+  const weddingToolsRef  = useRef<HTMLDivElement>(null);
 
   /* ── Data fetching ──────────────────────────────── */
   useEffect(() => {
@@ -435,6 +442,25 @@ export default function AdminPage() {
       })
       .finally(() => setOverviewLoading(false));
   }, [activeTab]);
+
+  /* ── Click-outside / ESC for dropdown menus ─────── */
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (eventDropdownRef.current && !eventDropdownRef.current.contains(e.target as Node))
+        setShowEventDropdown(false);
+      if (weddingToolsRef.current && !weddingToolsRef.current.contains(e.target as Node))
+        setShowWeddingTools(false);
+    }
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") { setShowEventDropdown(false); setShowWeddingTools(false); }
+    }
+    document.addEventListener("mousedown", handleOutside);
+    document.addEventListener("keydown", handleEsc);
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("keydown", handleEsc);
+    };
+  }, []);
 
   /* ── KPIs ───────────────────────────────────────── */
   const total      = guests.length;
@@ -512,31 +538,40 @@ export default function AdminPage() {
   }
 
   async function handleDeleteEvent() {
-    if (!selectedEventId) return;
+    const targetId = pendingDeleteEventId ?? selectedEventId;
+    if (!targetId) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/events/${selectedEventId}`, { method: "DELETE" });
+      const res = await fetch(`/api/events/${targetId}`, { method: "DELETE" });
       if (!res.ok) {
         const d = await res.json();
         alert(`שגיאה: ${d.error}`);
         return;
       }
-      setEvents((prev) => prev.filter((e) => e.id !== selectedEventId));
-      setSelectedEventId(null);
-      setGuests([]);
+      const remaining = events.filter((e) => e.id !== targetId);
+      setEvents(remaining);
+      if (selectedEventId === targetId) {
+        const next = remaining[0] ?? null;
+        setSelectedEventId(next?.id ?? null);
+        setGuests([]);
+      }
       setShowDeleteModal(false);
       setDeleteConfirmText("");
       setDeleteGuestCount(null);
+      setPendingDeleteEventId(null);
     } finally {
       setDeleting(false);
     }
   }
 
-  function openDeleteModal() {
-    if (!selectedEventId) return;
-    setDeleteGuestCount(guests.length);
+  function openDeleteModal(eventId?: string) {
+    const targetId = eventId ?? selectedEventId;
+    if (!targetId) return;
+    setPendingDeleteEventId(targetId);
+    setDeleteGuestCount(targetId === selectedEventId ? guests.length : null);
     setDeleteConfirmText("");
     setShowDeleteModal(true);
+    setShowEventDropdown(false);
   }
 
   async function handleStatusChange(guestId: string, status: GuestStatus) {
@@ -726,18 +761,61 @@ export default function AdminPage() {
           >
             <Zap size={12} /> אוטומציה
           </a>
-          {/* Event selector */}
+          {/* Event selector — custom dropdown with per-event trash */}
           {events.length > 0 && (
-            <select
-              value={selectedEventId ?? ""}
-              onChange={(e) => { setSelectedEventId(e.target.value); setPage(1); }}
-              className="text-sm rounded-xl px-3 py-2 outline-none"
-              style={{ background: C.ivory, border: `1px solid ${C.border}`, color: C.dark }}
-            >
-              {events.map((ev) => (
-                <option key={ev.id} value={ev.id}>{ev.name}</option>
-              ))}
-            </select>
+            <div ref={eventDropdownRef} style={{ position: "relative", display: "inline-block" }}>
+              <button
+                onClick={() => setShowEventDropdown((s) => !s)}
+                className="flex items-center gap-2 text-sm rounded-xl px-3 py-2 outline-none"
+                style={{ background: C.ivory, border: `1px solid ${C.border}`, color: C.dark, minWidth: 140 }}
+              >
+                <span className="truncate max-w-[140px]">
+                  {events.find((e) => e.id === selectedEventId)?.name ?? "בחר אירוע"}
+                </span>
+                <span style={{ opacity: 0.4, fontSize: 10, marginRight: "auto" }}>▾</span>
+              </button>
+              {showEventDropdown && (
+                <div
+                  className="absolute z-50 rounded-xl overflow-hidden shadow-lg"
+                  style={{
+                    top: "calc(100% + 4px)",
+                    right: 0,
+                    background: "#FDFAF5",
+                    border: `1px solid ${C.border}`,
+                    minWidth: 220,
+                    maxHeight: 280,
+                    overflowY: "auto",
+                  }}
+                >
+                  {events.map((ev) => (
+                    <div
+                      key={ev.id}
+                      className="flex items-center gap-2 px-3 py-2.5 transition-colors"
+                      style={{
+                        background: ev.id === selectedEventId ? "rgba(197,164,109,0.10)" : "transparent",
+                        borderBottom: `1px solid rgba(197,164,109,0.10)`,
+                      }}
+                    >
+                      <button
+                        className="flex-1 text-right text-sm truncate"
+                        style={{ color: C.dark, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                        onClick={() => { setSelectedEventId(ev.id); setPage(1); setShowEventDropdown(false); }}
+                      >
+                        {ev.name}
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openDeleteModal(ev.id); }}
+                        title="מחק אירוע"
+                        className="flex-shrink-0 p-1 rounded-lg transition-colors hover:bg-red-50"
+                        style={{ color: "rgba(239,68,68,0.5)", background: "none", border: "none", cursor: "pointer" }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
           {/* Event status changer */}
           {selectedEventId && (
@@ -766,35 +844,39 @@ export default function AdminPage() {
           >
             <Wand2 size={13} /> אשף יצירה
           </a>
-          {/* Wedding Tools dropdown */}
-          <div style={{ position: "relative", display: "inline-block" }} className="group">
+          {/* Wedding Tools dropdown — click-based */}
+          <div ref={weddingToolsRef} style={{ position: "relative", display: "inline-block" }}>
             <button
+              onClick={() => setShowWeddingTools((s) => !s)}
               className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
-              style={{ background: "rgba(197,164,109,0.18)", color: C.olive }}
+              style={{ background: showWeddingTools ? "rgba(197,164,109,0.28)" : "rgba(197,164,109,0.18)", color: C.olive }}
             >
               ✦ כלי חתונה
             </button>
-            <div
-              className="absolute left-0 mt-1 rounded-xl overflow-hidden shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-150 z-50"
-              style={{ background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.25)", minWidth: 160, top: "100%" }}
-            >
-              {[
-                { href: "/admin/seating",   label: "סידור הושבה",   emoji: "🪑" },
-                { href: "/admin/budget",    label: "ניהול תקציב",   emoji: "💰" },
-                { href: "/admin/gifts",     label: "מעקב מתנות",    emoji: "🎁" },
-                { href: "/admin/reminders", label: "תזכורות RSVP",  emoji: "📨" },
-              ].map((item) => (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  className="flex items-center gap-2 px-4 py-3 text-xs hover:bg-amber-50 transition-colors"
-                  style={{ color: C.dark, textDecoration: "none", fontFamily: "Heebo, sans-serif" }}
-                >
-                  <span>{item.emoji}</span>
-                  {item.label}
-                </a>
-              ))}
-            </div>
+            {showWeddingTools && (
+              <div
+                className="absolute rounded-xl overflow-hidden shadow-lg z-50"
+                style={{ background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.25)", minWidth: 160, top: "calc(100% + 4px)", left: 0 }}
+              >
+                {[
+                  { href: "/admin/seating",   label: "סידור הושבה",   emoji: "🪑" },
+                  { href: "/admin/budget",    label: "ניהול תקציב",   emoji: "💰" },
+                  { href: "/admin/gifts",     label: "מעקב מתנות",    emoji: "🎁" },
+                  { href: "/admin/reminders", label: "תזכורות RSVP",  emoji: "📨" },
+                ].map((item) => (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setShowWeddingTools(false)}
+                    className="flex items-center gap-2 px-4 py-3 text-xs hover:bg-amber-50 transition-colors"
+                    style={{ color: C.dark, textDecoration: "none", fontFamily: "Heebo, sans-serif" }}
+                  >
+                    <span>{item.emoji}</span>
+                    {item.label}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
           <button
             onClick={() => setShowCreate((s) => !s)}
@@ -863,7 +945,7 @@ export default function AdminPage() {
           </button>
           {selectedEventId && (
             <button
-              onClick={openDeleteModal}
+              onClick={() => openDeleteModal()}
               className="p-2 rounded-xl transition-all hover:opacity-70"
               style={{ background: "rgba(239,68,68,0.08)", color: "rgba(239,68,68,0.7)" }}
               title="מחק אירוע"
@@ -987,7 +1069,7 @@ export default function AdminPage() {
       )}
 
       {/* ── Delete event confirmation modal ─────────── */}
-      {showDeleteModal && selectedEvent && (
+      {showDeleteModal && (() => { const pendingDeleteEvent = events.find(e => e.id === (pendingDeleteEventId ?? selectedEventId)); return pendingDeleteEvent ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div
             className="w-full max-w-md rounded-3xl p-6"
@@ -1009,7 +1091,7 @@ export default function AdminPage() {
               className="rounded-2xl p-4 mb-4 text-sm text-right"
               style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", fontFamily: "Heebo, sans-serif" }}
             >
-              <div className="font-semibold mb-2" style={{ color: C.dark }}>{selectedEvent.name}</div>
+              <div className="font-semibold mb-2" style={{ color: C.dark }}>{pendingDeleteEvent.name}</div>
               <div style={{ color: C.muted }}>
                 {deleteGuestCount !== null && deleteGuestCount > 0
                   ? `${deleteGuestCount} אורחים ייימחקו`
@@ -1068,7 +1150,7 @@ export default function AdminPage() {
                 {deleting ? "מוחק..." : "מחק לצמיתות"}
               </button>
               <button
-                onClick={() => { setShowDeleteModal(false); setDeleteConfirmText(""); }}
+                onClick={() => { setShowDeleteModal(false); setDeleteConfirmText(""); setPendingDeleteEventId(null); }}
                 disabled={deleting}
                 className="flex-1 py-3 rounded-xl font-semibold text-sm"
                 style={{ background: "rgba(51,51,51,0.07)", color: C.muted, fontFamily: "Heebo, sans-serif" }}
@@ -1078,7 +1160,7 @@ export default function AdminPage() {
             </div>
           </div>
         </div>
-      )}
+      ) : null; })()}
 
       <div className="container-max mx-auto px-4 md:px-8 py-6">
 
