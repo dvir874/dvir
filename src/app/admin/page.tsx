@@ -870,6 +870,7 @@ export default function AdminPage() {
                   { href: "/admin/budget",    label: "ניהול תקציב",   emoji: "💰" },
                   { href: "/admin/gifts",     label: "מעקב מתנות",    emoji: "🎁" },
                   { href: "/admin/reminders", label: "תזכורות RSVP",  emoji: "📨" },
+                  ...(selectedEventId ? [{ href: `/admin/gallery/${selectedEventId}`, label: "גלריית תמונות", emoji: "📸" }] : []),
                 ].map((item) => (
                   <a
                     key={item.href}

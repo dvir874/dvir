@@ -14,10 +14,11 @@ export async function GET(
   const type   = req.nextUrl.searchParams.get('type') as CampaignType | null;
   const sb     = createServerClient();
 
-  const [evRes, tmplRes, guestRes] = await Promise.all([
+  const [evRes, tmplRes, guestRes, albumRes] = await Promise.all([
     sb.from('events').select('id,name,date,address,venue').eq('id', eventId).single(),
     type ? sb.from('message_templates').select('body').eq('event_id', eventId).eq('type', type).maybeSingle() : Promise.resolve({ data: null }),
     sb.from('guests').select('id,name,phone,status').eq('event_id', eventId).eq('status', 'confirmed'),
+    sb.from('gallery_albums').select('public_token').eq('event_id', eventId).maybeSingle(),
   ]);
 
   if (!evRes.data || !type) return NextResponse.json({ error: 'not found' }, { status: 404 });
@@ -30,6 +31,7 @@ export async function GET(
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });
   const wazeLink = event.address ? `https://waze.com/ul?q=${encodeURIComponent(event.address)}` : '';
+  const galleryToken = (albumRes.data as { public_token?: string } | null)?.public_token ?? '[token]';
 
   const sample   = guests[0];
   const rendered = renderTemplate(bodyTpl, {
@@ -41,7 +43,7 @@ export async function GET(
     address:         event.address ?? '',
     event_link:      `${appUrl}/event/${eventId}`,
     navigation_link: wazeLink,
-    gallery_link:    `${appUrl}/gallery/[token]`,
+    gallery_link:    `${appUrl}/gallery/${galleryToken}`,
   });
 
   const links = guests.map((g) => {
