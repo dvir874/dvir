@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'text/plain; charset=utf-8',
       },
       body: `👤 ${name.trim()}\n📞 ${phone.trim()}${dateStr}${sourceStr}`,
+      signal: AbortSignal.timeout(6000),
     });
     if (!ntfyRes.ok) {
       console.error('[ntfy] failed:', ntfyRes.status, await ntfyRes.text().catch(() => ''));
