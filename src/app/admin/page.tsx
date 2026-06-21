@@ -761,6 +761,13 @@ export default function AdminPage() {
           >
             <Zap size={12} /> אוטומציה
           </a>
+          <a
+            href="/admin/automations"
+            className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
+            style={{ background: "rgba(197,164,109,0.14)", color: C.olive }}
+          >
+            <Bell size={12} /> אוטומציות אורחים
+          </a>
           {/* Event selector — custom dropdown with per-event trash */}
           {events.length > 0 && (
             <div ref={eventDropdownRef} style={{ position: "relative", display: "inline-block" }}>
