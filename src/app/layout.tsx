@@ -2,26 +2,51 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "רגע לפני | ניהול חתונה מלא — הזמנות, אורחים, הושבה ותקציב במקום אחד",
-  description:
-    "כל החתונה שלכם במקום אחד — עם ליווי אישי. אישורי הגעה, תזכורות אוטומטיות בוואטסאפ, תכנון הושבה, מעקב תקציב ומתנות, משימות ולוח בקרה זוגי. ניהול חתונה בלי כאב ראש.",
-  keywords:
-    "ניהול חתונה, הזמנות דיגיטליות, אישורי הגעה לחתונה, תכנון הושבה, תזכורות וואטסאפ חתונה, לוח בקרה חתונה, מעקב תקציב חתונה, הזמנה לחתונה, הזמנה לבר מצווה, הזמנה לבת מצווה, הזמנה לחינה, הזמנה לברית, רגע לפני, ניהול אירועים ישראל",
-  authors: [{ name: "רגע לפני" }],
-  metadataBase: new URL("https://ragalifnei.co.il"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://regalifnei.vercel.app'),
+  title: {
+    default: 'רגע לפני — ניהול אורחים חכם לחתונות ואירועים',
+    template: '%s | רגע לפני',
+  },
+  description: 'מערכת ניהול אורחים לחתונות ואירועים — אישורי הגעה, תזכורות אוטומטיות, הושבה, תקציב ומתנות. מוכן תוך 48 שעות. שקט נפשי לכל הדרך.',
+  keywords: [
+    'ניהול אורחים לחתונה',
+    'אישורי הגעה לחתונה',
+    'תזכורות אוטומטיות לאורחים',
+    'ניהול חתונה',
+    'אפליקציה לחתונה',
+    'רשימת מוזמנים לחתונה',
+    'ניהול אירועים',
+    'הושבה לחתונה',
+    'דף אירוע דיגיטלי',
+    'מערכת ניהול חתונה',
+    'ניהול מוזמנים',
+    'אישור הגעה דיגיטלי',
+  ],
+  authors: [{ name: 'רגע לפני' }],
+  creator: 'רגע לפני',
+  publisher: 'רגע לפני',
+  formatDetection: { telephone: true, email: true, address: true },
   openGraph: {
-    title: "רגע לפני | ניהול חתונה מלא עם ליווי אישי",
-    description:
-      "תגיעו לחתונה שלכם רגועים ונינוחים — אנחנו מנהלים את הלוגיסטיקה. הזמנות, אורחים, הושבה, תקציב ומשימות — הכל במקום אחד.",
-    locale: "he_IL",
-    type: "website",
-    siteName: "רגע לפני",
+    type: 'website',
+    locale: 'he_IL',
+    url: process.env.NEXT_PUBLIC_APP_URL ?? 'https://regalifnei.vercel.app',
+    siteName: 'רגע לפני',
+    title: 'רגע לפני — ניהול אורחים חכם לחתונות',
+    description: 'אישורי הגעה, תזכורות אוטומטיות, הושבה ותקציב — הכל במקום אחד. מוכן תוך 48 שעות.',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'רגע לפני — ניהול אורחים לחתונה',
+      },
+    ],
   },
   twitter: {
-    card: "summary_large_image",
-    title: "רגע לפני | ניהול חתונה מלא",
-    description:
-      "תגיעו לחתונה שלכם רגועים — אנחנו מנהלים את הלוגיסטיקה. הזמנות, אורחים, הושבה ותקציב במקום אחד.",
+    card: 'summary_large_image',
+    title: 'רגע לפני — ניהול אורחים חכם לחתונות',
+    description: 'אישורי הגעה, תזכורות אוטומטיות, הושבה ותקציב — הכל במקום אחד.',
+    images: ['/og-image.png'],
   },
   robots: {
     index: true,
@@ -29,13 +54,17 @@ export const metadata: Metadata = {
     googleBot: {
       index: true,
       follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
     },
   },
+  verification: {
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ?? '',
+  },
   alternates: {
-    canonical: "https://ragalifnei.co.il",
+    canonical: process.env.NEXT_PUBLIC_APP_URL ?? 'https://regalifnei.vercel.app',
+    languages: { 'he-IL': process.env.NEXT_PUBLIC_APP_URL ?? 'https://regalifnei.vercel.app' },
   },
 };
 
@@ -104,25 +133,42 @@ export default function RootLayout({
           />
         )}
 
+      </head>
+      <body className="bg-cream text-dark antialiased">
+        {/* JSON-LD: LocalBusiness */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "LocalBusiness",
-              name: "רגע לפני",
-              description:
-                "פלטפורמת ניהול חתונה מלאה עם ליווי אישי — אישורי הגעה, תכנון הושבה, מעקב תקציב, מעקב מתנות, משימות ולוח בקרה זוגי",
-              telephone: "+972533318177",
-              email: "dvir874@gmail.com",
-              address: { "@type": "PostalAddress", addressCountry: "IL" },
-              priceRange: "₪₪",
-              url: "https://ragalifnei.co.il",
+              "name": "רגע לפני",
+              "description": "מערכת ניהול אורחים לחתונות ואירועים — אישורי הגעה, תזכורות אוטומטיות, הושבה ותקציב.",
+              "url": process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app",
+              "telephone": "+972533318177",
+              "priceRange": "$$",
+              "image": `${process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app"}/og-image.png`,
+              "areaServed": { "@type": "Country", "name": "Israel" },
+              "availableLanguage": { "@type": "Language", "name": "Hebrew" },
+              "serviceType": ["ניהול אורחים", "ניהול חתונה", "אישורי הגעה", "תזכורות אוטומטיות"],
+              "sameAs": [],
             }),
           }}
         />
-      </head>
-      <body className="bg-cream text-dark antialiased">{children}</body>
+        {/* JSON-LD: WebSite with SearchAction */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              "name": "רגע לפני",
+              "url": process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app",
+            }),
+          }}
+        />
+        {children}
+      </body>
     </html>
   );
 }
