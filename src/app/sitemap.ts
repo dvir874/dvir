@@ -22,14 +22,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
   ];
 
   const categoryPages: MetadataRoute.Sitemap = CATEGORIES.map((cat) => ({
-    url:             `${BASE}/ניהול-אירועים/${cat}`,
+    url:             `${BASE}/event-type/${cat}`,
     lastModified:    now,
     changeFrequency: 'monthly' as const,
     priority:        0.9,
   }));
 
   const cityPages: MetadataRoute.Sitemap = CITIES.map((city) => ({
-    url:             `${BASE}/ניהול-חתונה/${city}`,
+    url:             `${BASE}/wedding-city/${city}`,
     lastModified:    now,
     changeFrequency: 'monthly' as const,
     priority:        0.8,

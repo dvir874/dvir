@@ -7,8 +7,6 @@ const BASE = process.env.NEXT_PUBLIC_APP_URL ?? 'https://regalifnei.vercel.app';
 const CATEGORY_DATA: Record<string, {
   slug: string;
   he: string;
-  title: string;
-  description: string;
   keywords: string[];
   emoji: string;
   features: string[];
