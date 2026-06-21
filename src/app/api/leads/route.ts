@@ -62,24 +62,27 @@ export async function POST(request: NextRequest) {
     metadata: { event_type, wedding_date, guest_count, ref_code },
   });
 
-  // Push notification via ntfy.sh
+  // Push notification via ntfy.sh (JSON format — supports Unicode/Hebrew correctly)
   try {
-    const dateStr   = wedding_date ? `\n📅 חתונה: ${wedding_date}` : '';
-    const sourceStr = source && source !== 'unknown' ? `\n📍 מקור: ${source}` : '';
+    const dateStr   = wedding_date ? ` | חתונה: ${wedding_date}` : '';
+    const sourceStr = source && source !== 'unknown' ? ` | ${source}` : '';
     const ntfyTopic = process.env.NTFY_TOPIC ?? 'regalifnei-leads';
-    const ntfyRes = await fetch(`https://ntfy.sh/${ntfyTopic}`, {
+    const ntfyRes = await fetch('https://ntfy.sh', {
       method: 'POST',
-      headers: {
-        'Title': '✦ פנייה חדשה מהאתר!',
-        'Priority': 'high',
-        'Tags': 'wedding,bell',
-        'Content-Type': 'text/plain; charset=utf-8',
-      },
-      body: `👤 ${name.trim()}\n📞 ${phone.trim()}${dateStr}${sourceStr}`,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic:    ntfyTopic,
+        title:    'פנייה חדשה מהאתר!',
+        message:  `${name.trim()} | ${phone.trim()}${dateStr}${sourceStr}`,
+        priority: 4,
+        tags:     ['bell'],
+      }),
       signal: AbortSignal.timeout(6000),
     });
     if (!ntfyRes.ok) {
       console.error('[ntfy] failed:', ntfyRes.status, await ntfyRes.text().catch(() => ''));
+    } else {
+      console.log('[ntfy] sent OK for lead', lead.id);
     }
   } catch (ntfyErr) {
     console.error('[ntfy] exception:', ntfyErr);
