@@ -404,7 +404,7 @@ export default function Hero() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-              <a href="/couple/341bf7b1-a2e5-4f60-817f-51472b40edf1" target="_blank" rel="noopener noreferrer" className="btn-primary w-full sm:w-auto justify-center">
+              <a href="/event/demo" target="_blank" rel="noopener noreferrer" className="btn-primary w-full sm:w-auto justify-center">
                 <span>ראו איך זה עובד</span>
                 <ArrowLeft size={17} strokeWidth={2} />
               </a>

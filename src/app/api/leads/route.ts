@@ -64,9 +64,10 @@ export async function POST(request: NextRequest) {
 
   // Push notification via ntfy.sh
   try {
-    const dateStr   = wedding_date ? ` | חתונה: ${wedding_date}` : '';
-    const sourceStr = source && source !== 'unknown' ? ` | ${source}` : '';
-    await fetch('https://ntfy.sh/regalifnei-leads', {
+    const dateStr   = wedding_date ? `\n📅 חתונה: ${wedding_date}` : '';
+    const sourceStr = source && source !== 'unknown' ? `\n📍 מקור: ${source}` : '';
+    const ntfyTopic = process.env.NTFY_TOPIC ?? 'regalifnei-leads';
+    const ntfyRes = await fetch(`https://ntfy.sh/${ntfyTopic}`, {
       method: 'POST',
       headers: {
         'Title': '✦ פנייה חדשה מהאתר!',
@@ -75,8 +76,13 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'text/plain; charset=utf-8',
       },
       body: `👤 ${name.trim()}\n📞 ${phone.trim()}${dateStr}${sourceStr}`,
-    }).catch(() => {});
-  } catch { /* non-blocking */ }
+    });
+    if (!ntfyRes.ok) {
+      console.error('[ntfy] failed:', ntfyRes.status, await ntfyRes.text().catch(() => ''));
+    }
+  } catch (ntfyErr) {
+    console.error('[ntfy] exception:', ntfyErr);
+  }
 
   // If came via referral, increment leads count on referral code
   if (ref_code) {
