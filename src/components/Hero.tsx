@@ -138,10 +138,9 @@ function Dashboard() {
 
       {/* Main card */}
       <div
-        className="relative rounded-3xl overflow-hidden"
-        style={{ background: G.white, border: `1px solid ${G.border}`, boxShadow: G.shadow }}
+        className="relative rounded-2xl overflow-hidden"
+        style={{ background: G.white, border: `1px solid ${G.border}`, boxShadow: "0 4px 24px rgba(0,0,0,0.07), 0 1px 4px rgba(0,0,0,0.04)" }}
       >
-        <div className="h-[3px]" style={{ background: `linear-gradient(90deg,transparent,${G.gold},${G.goldLight},${G.gold},transparent)` }} />
 
         {/* Event header + countdown */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ background: "rgba(197,164,109,0.04)", borderColor: G.borderSoft }}>
@@ -281,7 +280,6 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="h-[2px]" style={{ background: `linear-gradient(90deg,transparent,${G.borderSoft},transparent)` }} />
       </div>
     </div>
   );
@@ -304,15 +302,7 @@ export default function Hero() {
 
   return (
     <section className="relative min-h-screen flex flex-col justify-center overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-[#F6F1E8] via-[#EDE6D6] to-[#F0EBE0]" />
-      <div className="absolute inset-0 pattern-overlay opacity-60" />
-
-      <div ref={parallaxRef} className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-20 right-[8%] w-[500px] h-[500px] rounded-full"
-          style={{ background: "radial-gradient(circle,rgba(197,164,109,0.12) 0%,transparent 70%)" }} />
-        <div className="absolute bottom-10 left-[5%] w-[400px] h-[400px] rounded-full"
-          style={{ background: "radial-gradient(circle,rgba(107,123,90,0.09) 0%,transparent 70%)" }} />
-      </div>
+      <div className="absolute inset-0" style={{ background: "#F6F1E8" }} />
 
 
       <div className="relative z-10 container-max mx-auto px-4 md:px-8 pt-28 pb-20 w-full">
@@ -327,21 +317,13 @@ export default function Hero() {
               transition: "opacity 0.8s ease, transform 0.8s ease",
             }}
           >
-            <div className="flex items-center gap-3 mb-6">
-              <span className="w-10 h-px bg-gradient-to-l from-gold to-transparent" />
-              <span className="text-gold text-xs tracking-[0.22em] uppercase" style={{ fontFamily: "Heebo, sans-serif" }}>
-                ניהול חתונה מלא · ליווי אישי
-              </span>
-              <span className="w-10 h-px bg-gradient-to-r from-gold to-transparent" />
-            </div>
-
             <h1
-              className="text-4xl md:text-5xl xl:text-[3.1rem] font-bold text-dark leading-[1.25] mb-5"
-              style={{ fontFamily: "Frank Ruhl Libre, serif" }}
+              className="text-4xl md:text-5xl xl:text-[3.1rem] font-bold text-dark leading-[1.22] mb-5"
+              style={{ fontFamily: "Frank Ruhl Libre, serif", letterSpacing: "-0.02em" }}
             >
               תגיעו לחתונה שלכם
               <br />
-              <span className="shimmer-text">רגועים ונינוחים</span>
+              <span style={{ color: "#C5A46D" }}>רגועים ונינוחים</span>
             </h1>
 
             <p
@@ -355,14 +337,9 @@ export default function Hero() {
 
             <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 mb-9 w-full max-w-sm" style={{ fontFamily: "Heebo, sans-serif" }}>
               {BULLETS.slice(0, 4).map((b) => (
-                <div key={b} className="flex items-center gap-2">
-                  <span
-                    className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
-                    style={{ background: "linear-gradient(135deg,#C5A46D,#D4BC8A)", color: "white" }}
-                  >
-                    ✓
-                  </span>
-                  <span className="text-sm" style={{ color: "rgba(51,51,51,0.68)" }}>{b}</span>
+                <div key={b} className="flex items-center gap-2.5">
+                  <span className="flex-shrink-0 w-1 h-4 rounded-full" style={{ background: "#C5A46D" }} />
+                  <span className="text-sm" style={{ color: "rgba(51,51,51,0.65)" }}>{b}</span>
                 </div>
               ))}
             </div>
@@ -408,7 +385,7 @@ export default function Hero() {
         onClick={() => document.querySelector("#featured")?.scrollIntoView({ behavior: "smooth" })}
         aria-label="גלול למטה"
         className="absolute bottom-7 left-1/2 -translate-x-1/2"
-        style={{ color: "rgba(197,164,109,0.4)", animation: "float 3s ease-in-out infinite" }}
+        style={{ color: "rgba(197,164,109,0.35)" }}
       >
         <ChevronDown size={28} />
       </button>

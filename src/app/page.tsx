@@ -1,6 +1,5 @@
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
-import TrustBar from "@/components/TrustBar";
 import WhyUs from "@/components/WhyUs";
 import DashboardDemo from "@/components/DashboardDemo";
 import Testimonials from "@/components/Testimonials";
@@ -15,7 +14,6 @@ export default function Home() {
     <main className="relative">
       <Header />
       <Hero />
-      <TrustBar />
       <WhyUs />
       <DashboardDemo />
       <Testimonials />

@@ -61,13 +61,10 @@ export default function WhyUs() {
               <motion.div
                 key={card.title}
                 variants={staggerItem}
-                whileHover={{ y: -5, boxShadow: "0 20px 48px rgba(197,164,109,0.15)" }}
-                transition={{ duration: 0.3 }}
-                className="h-full flex gap-5 p-7 rounded-2xl cursor-default"
+                className="h-full flex gap-5 p-7 rounded-2xl cursor-default transition-shadow duration-300 hover:shadow-[0_8px_32px_rgba(197,164,109,0.12)]"
                 style={{
                   background: "#FDFAF5",
                   border: "1px solid rgba(197,164,109,0.18)",
-                  transition: "box-shadow 0.3s",
                 }}
               >
                 <div

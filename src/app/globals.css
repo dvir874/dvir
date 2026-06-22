@@ -150,14 +150,9 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--olive); }
 
-/* Gold shimmer */
+/* shimmer-text kept for legacy — no longer used in Hero */
 .shimmer-text {
-  background: linear-gradient(90deg, #C5A46D 0%, #F0D898 40%, #D4BC8A 60%, #C5A46D 100%);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: shimmer 3.5s linear infinite;
+  color: #C5A46D;
 }
 
 /* Decorative dot pattern — use sparingly, max 1-2 sections */

@@ -642,19 +642,20 @@ export default function DashboardDemo() {
         style={{ background: "rgba(253,250,245,0.94)", borderColor: "rgba(197,164,109,0.15)", backdropFilter: "blur(12px)" }}
       >
         <div className="container-max mx-auto px-4 md:px-8 py-3.5 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <ArrowRight size={16} style={{ color: G.gold }} />
-            <span className="text-sm font-medium" style={{ color: G.darkMuted, fontFamily: "Heebo, sans-serif" }}>חזרה לאתר</span>
+          <Link href="/" className="flex items-center gap-2 group">
+            <ArrowRight size={16} style={{ color: G.gold }} className="group-hover:translate-x-0.5 transition-transform" />
+            <span className="text-sm font-medium" style={{ color: G.darkMuted, fontFamily: "Heebo, sans-serif" }}>דף הבית</span>
           </Link>
           <p className="text-sm font-bold" style={{ color: G.dark, fontFamily: "Frank Ruhl Libre, serif" }}>
             כך השירות שלנו עובד
           </p>
-          <span
-            className="text-[10px] font-semibold px-3 py-1 rounded-full"
-            style={{ background: "rgba(197,164,109,0.12)", color: G.gold, fontFamily: "Heebo, sans-serif" }}
+          <Link
+            href="/#contact"
+            className="text-xs font-semibold px-3 py-1.5 rounded-full transition-all duration-200 hover:scale-105"
+            style={{ background: G.gold, color: "white", fontFamily: "Heebo, sans-serif" }}
           >
-            הדגמה
-          </span>
+            דברו איתי
+          </Link>
         </div>
       </header>
 
@@ -663,20 +664,14 @@ export default function DashboardDemo() {
         className="relative py-20 px-4 text-center overflow-hidden"
         style={{ background: `linear-gradient(160deg,${G.cream} 0%,${G.creamDeep} 100%)` }}
       >
-        <div className="absolute inset-0 pattern-overlay opacity-40 pointer-events-none" />
         <div className="relative z-10 container-max mx-auto">
-          <div className="flex items-center justify-center gap-4 mb-6">
-            <span className="w-14 h-px" style={{ background: `linear-gradient(90deg,transparent,${G.gold})` }} />
-            <span style={{ color: G.goldMuted }}>✦</span>
-            <span className="w-14 h-px" style={{ background: `linear-gradient(90deg,${G.gold},transparent)` }} />
-          </div>
           <h1
-            className="text-3xl md:text-4xl xl:text-5xl font-bold mb-4 leading-tight"
-            style={{ color: G.dark, fontFamily: "Frank Ruhl Libre, serif" }}
+            className="text-3xl md:text-4xl xl:text-5xl font-bold mb-4"
+            style={{ color: G.dark, fontFamily: "Frank Ruhl Libre, serif", lineHeight: 1.22, letterSpacing: "-0.02em" }}
           >
             מההזמנה הראשונה
             <br />
-            <span className="shimmer-text">ועד ליום האירוע</span>
+            <span style={{ color: G.gold }}>ועד ליום האירוע</span>
           </h1>
           <p className="text-base max-w-lg mx-auto" style={{ color: G.darkMuted, fontFamily: "Heebo, sans-serif", fontWeight: 300, lineHeight: 1.85 }}>
             הצצה לפלטפורמה — ניהול אורחים, הושבה, תקציב, משימות ואישורי הגעה

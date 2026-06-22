@@ -44,7 +44,6 @@ export default function HowItWorks() {
         </FadeIn>
 
         <div className="relative">
-          <div className="hidden lg:block absolute top-12 right-32 left-32 h-px bg-gradient-to-l from-transparent via-gold/40 to-transparent" />
           <StaggerContainer
             className="grid grid-cols-1 sm:grid-cols-3 gap-8 lg:gap-10 max-w-4xl mx-auto"
             staggerDelay={0.14}
