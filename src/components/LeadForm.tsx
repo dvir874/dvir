@@ -68,7 +68,7 @@ export default function LeadForm({ source = "hero" }: { source?: string }) {
         <CheckCircle2 size={22} style={{ color: G.olive }} />
         <div>
           <p className="text-sm font-semibold" style={{ color: G.olive, fontFamily: "Heebo, sans-serif" }}>
-            קיבלנו! נחזור אליכם תוך שעה 🙌
+            קיבלנו! נחזור אליכם תוך 24 שעות
           </p>
           <p className="text-xs mt-0.5" style={{ color: "rgba(107,123,90,0.70)", fontFamily: "Heebo, sans-serif" }}>
             בינתיים תוכלו לחפש אותנו בוואטסאפ

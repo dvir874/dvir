@@ -9,10 +9,10 @@ function waUrl(source: string, message?: string) {
 }
 
 // CTA-specific WhatsApp links — so you know in WhatsApp where each lead came from
-export const WA_URL         = waUrl("hero",       "שלום דביר, הגעתי מה-Hero באתר רגע לפני — אשמח לשמוע פרטים.");
-export const WA_URL_DEMO    = waUrl("demo-cta",   "שלום דביר, ראיתי את ההדגמה ורוצה לשמוע עוד.");
-export const WA_URL_PRICING = waUrl("pricing",    "שלום דביר, ראיתי את החבילות — אשמח לשמוע פרטים.");
-export const WA_URL_FAQ     = waUrl("faq",        "שלום דביר, יש לי שאלה לגבי ניהול החתונה.");
-export const WA_URL_STRIP   = waUrl("cta-strip",  "שלום דביר, ראיתי את האתר ואשמח להתחיל.");
-export const WA_URL_FOOTER  = waUrl("footer",     "שלום דביר, הגעתי מהאתר רגע לפני — אשמח לשמוע פרטים.");
-export const WA_URL_BUTTON  = waUrl("wa-button",  "שלום דביר, הגעתי מהאתר רגע לפני.");
+export const WA_URL         = waUrl("hero",       "שלום דביר, הגעתי מהאתר רגע לפני ואני מעוניין/ת בהצעת מחיר לניהול החתונה שלי.");
+export const WA_URL_DEMO    = waUrl("demo-cta",   "שלום דביר, ראיתי את האתר של רגע לפני — אשמח לקבל הצעת מחיר מותאמת לאירוע שלי.");
+export const WA_URL_PRICING = waUrl("pricing",    "שלום דביר, ראיתי את עמוד המחירים — אשמח לקבל הצעה מותאמת לאירוע שלי.");
+export const WA_URL_FAQ     = waUrl("faq",        "שלום דביר, קראתי את השאלות הנפוצות ויש לי שאלה נוספת לגבי ניהול החתונה.");
+export const WA_URL_STRIP   = waUrl("cta-strip",  "שלום דביר, ראיתי את האתר רגע לפני — אשמח לשמוע על אפשרויות ומחירים.");
+export const WA_URL_FOOTER  = waUrl("footer",     "שלום דביר, הגעתי מהאתר רגע לפני — אשמח לקבל הצעת מחיר.");
+export const WA_URL_BUTTON  = waUrl("wa-button",  "שלום דביר, הגעתי מהאתר רגע לפני ואני מעוניין/ת לשמוע עוד.");

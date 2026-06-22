@@ -27,22 +27,22 @@ export default function BookDemoCTA() {
             className="text-2xl md:text-3xl font-bold text-white mb-3"
             style={{ fontFamily: "Frank Ruhl Libre, serif" }}
           >
-            ראו את הפלטפורמה בפעולה — בחינם
+            קבלו הצעת מחיר תוך 24 שעות
           </h2>
           <div className="w-14 h-px mx-auto mb-5" style={{ background: "rgba(197,164,109,0.5)" }} />
           <p
             className="text-sm text-white/65 max-w-md mx-auto mb-8 leading-relaxed"
             style={{ fontFamily: "Heebo, sans-serif" }}
           >
-            נראה לכם בדיוק איך לוח הבקרה עובד, נענה על כל שאלה, ונבין יחד מה האירוע שלכם צריך — בלי שום התחייבות
+            ספרו לנו על האירוע — ונחזור אליכם עם הצעה מותאמת אישית, בלי התחייבות
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <a
-              href="/dashboard-demo"
+              href={WA_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 hover:scale-105 active:scale-95"
+              className="flex items-center gap-2.5 px-7 py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 hover:scale-105 active:scale-95"
               style={{
                 background: "#C5A46D",
                 color: "white",
@@ -50,24 +50,24 @@ export default function BookDemoCTA() {
                 boxShadow: "0 4px 20px rgba(197,164,109,0.35)",
               }}
             >
-              <Calendar size={16} />
-              ראו את הדשבורד האמיתי
+              <MessageCircle size={16} />
+              שלחו הודעה — נחזור תוך 24 שעות
             </a>
 
             <a
-              href={WA_URL}
+              href="/dashboard-demo"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 hover:scale-105 active:scale-95"
               style={{
-                background: "rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.10)",
                 color: "white",
-                border: "1px solid rgba(255,255,255,0.22)",
+                border: "1px solid rgba(255,255,255,0.20)",
                 fontFamily: "Heebo, sans-serif",
               }}
             >
-              <MessageCircle size={16} />
-              שלחו הודעה בוואטסאפ
+              <Calendar size={16} />
+              ראו את הדשבורד קודם
             </a>
           </div>
 
@@ -75,7 +75,7 @@ export default function BookDemoCTA() {
             className="text-xs mt-5"
             style={{ color: "rgba(255,255,255,0.35)", fontFamily: "Heebo, sans-serif" }}
           >
-            ללא התחייבות · מענה תוך שעה בשעות פעילות
+            מענה אישי · ללא התחייבות · הצעה מותאמת לאירוע שלכם
           </p>
         </FadeIn>
       </div>

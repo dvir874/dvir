@@ -83,7 +83,7 @@ export default function Header() {
                 href="/#contact"
                 className="btn-primary text-sm py-2.5 px-6"
               >
-                דברו איתי
+                קבלו הצעת מחיר
               </Link>
             </nav>
 
@@ -144,7 +144,7 @@ export default function Header() {
               onClick={() => setMenuOpen(false)}
               className="btn-primary w-full justify-center mt-2 text-center"
             >
-              דברו איתי
+              קבלו הצעת מחיר
             </Link>
           </div>
         </div>

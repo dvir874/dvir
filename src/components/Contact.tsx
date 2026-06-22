@@ -109,7 +109,6 @@ export default function Contact() {
       style={{ background: "linear-gradient(160deg,#F6F1E8 0%,#EDE6D6 100%)" }}
     >
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/28 to-transparent" />
-      <div className="absolute inset-0 pattern-overlay opacity-28" />
 
       <div className="container-max mx-auto relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 items-start">
@@ -159,15 +158,15 @@ export default function Contact() {
             {/* Micro trust */}
             <div className="mt-9 grid grid-cols-2 gap-3">
               {[
-                { e: "⚡", t: "מענה מהיר" },
-                { e: "🔄", t: "תיקונים עד אישור" },
-                { e: "💬", t: "שירות בוואטסאפ" },
-                { e: "✨", t: "עיצוב 100% אישי" },
-              ].map((b) => (
-                <div key={b.t} className="flex items-center gap-2 p-3 rounded-xl"
+                "מענה תוך 24 שעות",
+                "ללא התחייבות",
+                "שירות בוואטסאפ",
+                "הצעה אישית לכל אירוע",
+              ].map((t) => (
+                <div key={t} className="flex items-center gap-2 p-3 rounded-xl"
                   style={{ background: "rgba(107,123,90,0.08)", border: "1px solid rgba(107,123,90,0.13)", fontFamily: "Heebo, sans-serif" }}>
-                  <span className="text-sm">{b.e}</span>
-                  <span className="text-dark/60 text-xs">{b.t}</span>
+                  <span className="w-1 h-4 rounded-full flex-shrink-0" style={{ background: "#6B7B5A" }} />
+                  <span className="text-dark/60 text-xs">{t}</span>
                 </div>
               ))}
             </div>
@@ -188,7 +187,7 @@ export default function Contact() {
                       שלחו לדביר פרטים
                     </h3>
                     <p className="text-dark/40 text-sm mt-1" style={{ fontFamily: "Heebo, sans-serif" }}>
-                      ואחזור אליכם בהקדם האפשרי
+                      ואחזור אליכם תוך 24 שעות
                     </p>
                   </div>
 
@@ -308,7 +307,7 @@ function SuccessState({ onReset }: { onReset: () => void }) {
       </h3>
       <p className="text-dark/55 text-sm leading-relaxed mb-8" style={{ fontFamily: "Heebo, sans-serif" }}>
         הפרטים נשלחו בוואטסאפ.<br />
-        דביר יחזור אליכם בהקדם 😊
+        דביר יחזור אליכם תוך 24 שעות.
       </p>
       <button onClick={onReset} className="btn-outline text-sm py-2.5 px-6">שלחו פנייה נוספת</button>
     </div>

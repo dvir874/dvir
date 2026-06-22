@@ -335,35 +335,33 @@ export default function Hero() {
               אורחים, הושבה, תקציב, מתנות ומשימות — הכל במקום אחד.
             </p>
 
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 mb-9 w-full max-w-sm" style={{ fontFamily: "Heebo, sans-serif" }}>
-              {BULLETS.slice(0, 4).map((b) => (
-                <div key={b} className="flex items-center gap-2.5">
-                  <span className="flex-shrink-0 w-1 h-4 rounded-full" style={{ background: "#C5A46D" }} />
-                  <span className="text-sm" style={{ color: "rgba(51,51,51,0.65)" }}>{b}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-              <a href="/event/demo" target="_blank" rel="noopener noreferrer" className="btn-primary w-full sm:w-auto justify-center">
-                <span>ראו איך זה עובד</span>
-                <ArrowLeft size={17} strokeWidth={2} />
-              </a>
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mb-6">
               <a
                 href={WA_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn-outline w-full sm:w-auto justify-center"
+                className="btn-primary w-full sm:w-auto justify-center"
               >
                 <MessageCircle size={17} strokeWidth={2} />
-                שלחו הודעה בוואטסאפ
+                קבלו הצעת מחיר — תוך 24 שעות
+              </a>
+              <a href="/dashboard-demo" target="_blank" rel="noopener noreferrer" className="btn-outline w-full sm:w-auto justify-center">
+                <span>ראו דמו חי</span>
+                <ArrowLeft size={17} strokeWidth={2} />
               </a>
             </div>
 
-            <LeadForm source="hero" />
+            <a
+              href="tel:0533318177"
+              className="flex items-center gap-2 mb-4"
+              style={{ fontFamily: "Heebo, sans-serif" }}
+            >
+              <span className="text-sm font-semibold" style={{ color: "#333" }}>053-3318177</span>
+              <span className="text-xs" style={{ color: "rgba(51,51,51,0.40)" }}>· דביר, זמין עד 22:00</span>
+            </a>
 
-            <p className="mt-4 text-xs" style={{ color: "rgba(51,51,51,0.38)", fontFamily: "Heebo, sans-serif" }}>
-              ליווי אישי · מענה תוך שעה · ללא התחייבות
+            <p className="text-xs" style={{ color: "rgba(51,51,51,0.38)", fontFamily: "Heebo, sans-serif" }}>
+              ללא התחייבות · שירות אישי · מענה מהיר
             </p>
           </div>
 

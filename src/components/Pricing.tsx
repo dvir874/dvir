@@ -24,7 +24,7 @@ const packages = [
     name: "ניהול מלא",
     tagline: "הפתרון המלא לניהול חתונה — מהאורח הראשון ועד יום האירוע.",
     highlight: true,
-    badge: "⭐ הפופולרי ביותר" as string | null,
+    badge: "הפופולרי ביותר" as string | null,
     features: [
       "דף אירוע + אישורי הגעה",
       "תזכורות אוטומטיות בוואטסאפ",
@@ -39,7 +39,7 @@ const packages = [
     name: "ליווי VIP",
     tagline: "הכל, עם ליווי אישי אינטנסיבי — אנחנו מגדירים, מנהלים ומעדכנים בשמכם.",
     highlight: false,
-    badge: "✦ פרימיום" as string | null,
+    badge: "ליווי אינטנסיבי" as string | null,
     features: [
       "כל מה שב'ניהול מלא'",
       "אנחנו מגדירים את המערכת עבורכם",
@@ -145,7 +145,7 @@ export default function Pricing() {
               className="text-xs tracking-[0.18em] uppercase mb-3"
               style={{ color: "rgba(197,164,109,0.75)", fontFamily: "Heebo, sans-serif" }}
             >
-              ✦ הצעת מחיר אישית
+              הצעת מחיר אישית
             </p>
             <h3
               className="text-xl font-bold mb-2"
@@ -159,7 +159,7 @@ export default function Pricing() {
             >
               כמות המוזמנים, סוג האירוע ורמת הליווי הנדרשת — כל אלה משפיעים על המחיר הסופי.
               <br />
-              שלחו לנו כמה פרטים ונחזור אליכם תוך שעה עם הצעה מדויקת.
+              שלחו לנו כמה פרטים ונחזור אליכם תוך 24 שעות עם הצעה מדויקת.
             </p>
           </div>
         </FadeIn>
