@@ -40,7 +40,7 @@ export default function Testimonials() {
             מה אומרים הזוגות
           </h2>
           <p className="section-subtitle">
-            120+ זוגות כבר ניהלו את האירוע שלהם דרך המערכת
+            מה אומרים הזוגות שכבר עברו את התהליך איתנו
           </p>
         </FadeIn>
 

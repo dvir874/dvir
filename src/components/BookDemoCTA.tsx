@@ -39,7 +39,7 @@ export default function BookDemoCTA() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <a
-              href="/couple/341bf7b1-a2e5-4f60-817f-51472b40edf1"
+              href="/dashboard-demo"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 hover:scale-105 active:scale-95"
