@@ -1,16 +1,16 @@
 "use client";
 
 import Logo from "./Logo";
+import Link from "next/link";
 import { Heart, Phone, Mail, MessageCircle } from "lucide-react";
 import { WA_URL, PHONE_DISPLAY, PHONE_HREF, EMAIL } from "@/lib/constants";
 
 const navLinks = [
-  { label: "גלריה", href: "#gallery" },
-  { label: "למה אנחנו", href: "#why-us" },
-  { label: "איך זה עובד", href: "#how-it-works" },
-  { label: "מחירים", href: "#pricing" },
-  { label: "אודות", href: "#about" },
-  { label: "צור קשר", href: "#contact" },
+  { label: "פיצ'רים",     href: "/features"     },
+  { label: "איך זה עובד",  href: "/how-it-works" },
+  { label: "מחירים",       href: "/pricing"       },
+  { label: "שאלות נפוצות", href: "/faq"           },
+  { label: "צור קשר",     href: "/#contact"      },
 ];
 
 const eventTypes = [
@@ -101,13 +101,13 @@ export default function Footer() {
             <ul className="space-y-3">
               {navLinks.map((l) => (
                 <li key={l.href}>
-                  <button
-                    onClick={() => scrollTo(l.href)}
+                  <Link
+                    href={l.href}
                     className="text-white/35 hover:text-gold text-sm transition-colors duration-200"
                     style={{ fontFamily: "Heebo, sans-serif" }}
                   >
                     {l.label}
-                  </button>
+                  </Link>
                 </li>
               ))}
             </ul>

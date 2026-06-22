@@ -35,15 +35,9 @@ export default function HowItWorks() {
       className="section-padding relative overflow-hidden"
       style={{ background: "linear-gradient(160deg, #F6F1E8 0%, #EDE6D6 100%)" }}
     >
-      <div className="absolute inset-0 pattern-overlay opacity-50" />
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent" />
-      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent" />
-
       <div className="container-max mx-auto relative z-10">
         <FadeIn className="text-center mb-12">
-          <span className="section-eyebrow">איך זה עובד</span>
           <h2 className="section-title">פשוט, אישי, מלא</h2>
-          <div className="gold-divider" />
           <p className="section-subtitle">
             מההזמנה הראשונה ועד יום החתונה — אנחנו לצדכם בכל שלב
           </p>
@@ -63,33 +57,30 @@ export default function HowItWorks() {
           </StaggerContainer>
         </div>
 
-        {/* Feature chips */}
         <FadeIn delay={0.3} className="mt-12">
-          <div className="flex flex-wrap justify-center gap-2.5">
+          <div className="flex flex-wrap justify-center gap-2">
             {[
-              "💌 Save The Date",
-              "✉️ הזמנות ואישורי הגעה",
-              "✅ אישורי הגעה",
-              "💬 תזכורות בוואטסאפ",
-              "🪑 תכנון הושבה",
-              "💰 מעקב תקציב",
-              "🎁 רישום מתנות",
-              "📋 משימות תכנון",
-              "📊 לוח בקרה זוגי",
-              "🎙️ קיר זיכרונות",
+              "אישורי הגעה",
+              "תזכורות בוואטסאפ",
+              "תכנון הושבה",
+              "מעקב תקציב",
+              "רישום מתנות",
+              "משימות תכנון",
+              "לוח בקרה זוגי",
+              "גלריית תמונות",
             ].map((chip) => (
-              <div
+              <span
                 key={chip}
-                className="px-4 py-2 rounded-full text-sm"
+                className="px-3.5 py-1.5 rounded-full text-sm"
                 style={{
-                  background: "rgba(197,164,109,0.10)",
-                  border: "1px solid rgba(197,164,109,0.28)",
-                  color: "rgba(51,51,51,0.70)",
+                  background: "rgba(197,164,109,0.08)",
+                  border: "1px solid rgba(197,164,109,0.22)",
+                  color: "rgba(51,51,51,0.60)",
                   fontFamily: "Heebo, sans-serif",
                 }}
               >
                 {chip}
-              </div>
+              </span>
             ))}
           </div>
         </FadeIn>

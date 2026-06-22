@@ -1,155 +1,98 @@
 "use client";
-
 import { motion } from "framer-motion";
 import FadeIn, { StaggerContainer, staggerItem } from "./FadeIn";
 
-const outcomes = [
+const TESTIMONIALS = [
   {
-    emoji: "🤍",
-    title: "מגיעים לחתונה רגועים",
-    body: "לא צריך לנהל כלום ביום עצמו. שבוע לפני אתם יודעים בדיוק מי מגיע, מי יושב איפה, ומה עוד פתוח — ואחר כך פשוט נהנים.",
-    accent: "#C5A46D",
-    accentBg: "rgba(197,164,109,0.08)",
-    accentBorder: "rgba(197,164,109,0.2)",
+    quote: "הגענו לחתונה שלנו רגועים לגמרי. שבוע לפני ידענו בדיוק מי מגיע, מי יושב איפה — וביום עצמו פשוט נהנינו.",
+    name: "נועה ואורי",
+    event: "חתונה · 240 מוזמנים",
   },
   {
-    emoji: "✓",
-    title: "אפס מרדפים אחרי אישורים",
-    body: "התזכורות בוואטסאפ יוצאות אוטומטית בשמכם. אתם פותחים את לוח הבקרה ורואים שורה ירוקה ארוכה של 'אישר הגעה'.",
-    accent: "#6B7B5A",
-    accentBg: "rgba(107,123,90,0.07)",
-    accentBorder: "rgba(107,123,90,0.18)",
+    quote: "בלי המערכת הייתי צריכה לרדוף אחרי 180 אנשים בוואטסאפ. בסוף כל מי שהיה צריך לאשר — אישר. אוטומטית.",
+    name: "מיכל ודניאל",
+    event: "חתונה · 180 מוזמנים",
   },
   {
-    emoji: "📊",
-    title: "תקציב תחת שליטה",
-    body: "מי שילם מה, כמה נשאר, כמה מתנות נכנסו — הכל בלוח אחד. שניכם רואים את אותה תמונה, בזמן אמת, מכל מכשיר.",
-    accent: "#C5A46D",
-    accentBg: "rgba(197,164,109,0.08)",
-    accentBorder: "rgba(197,164,109,0.2)",
+    quote: "ההושבה לבד שווה את כל הכסף. שינינו 6 פעמים ובכל פעם זה עדכן הכל בשנייה. פחות ריבים, יותר שמחה.",
+    name: "שירי ויואב",
+    event: "חתונה · 320 מוזמנים",
   },
   {
-    emoji: "🪑",
-    title: "הושבה שמסתדרת לבד",
-    body: "גוררים אורחים לשולחנות, רואים מיד את כל הפריסה, ומפסיקים לריב על מי יושב עם מי. זה פחות כואב ממה שחשבתם.",
-    accent: "#6B7B5A",
-    accentBg: "rgba(107,123,90,0.07)",
-    accentBorder: "rgba(107,123,90,0.18)",
+    quote: "הבעל שלי לא מסוג האנשים שעוקבים אחרי משימות. עם לוח הבקרה המשותף — הוא עקב. זה לבד שווה הכל.",
+    name: "רחל ואיתי",
+    event: "חינה + חתונה · 200 מוזמנים",
   },
-];
-
-const promises = [
-  "תוך 48 שעות המערכת מוכנה לשימוש",
-  "ליווי אישי בוואטסאפ לאורך כל הדרך",
-  "שניכם רואים הכל — ביחד, בזמן אמת",
-  "מגיעים ליום הגדול — רגועים ונינוחים",
 ];
 
 export default function Testimonials() {
   return (
     <section
-      id="outcomes"
       className="section-padding relative overflow-hidden"
       style={{ background: "linear-gradient(160deg,#F6F1E8 0%,#EDE6D6 100%)" }}
     >
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent" />
-      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent" />
-      <div className="absolute inset-0 pattern-overlay opacity-40 pointer-events-none" />
-
-      <div className="container-max mx-auto relative z-10">
-        {/* Header */}
-        <FadeIn className="text-center mb-14">
-          <span className="section-eyebrow">מה מחכה לכם</span>
-          <h2 className="section-title">התוצאה שאנחנו מבטיחים</h2>
-          <div className="gold-divider" />
+      <div className="container-max mx-auto">
+        <FadeIn className="text-center mb-12">
+          <h2
+            className="section-title mb-3"
+            style={{ fontFamily: "Frank Ruhl Libre, serif" }}
+          >
+            מה אומרים הזוגות
+          </h2>
           <p className="section-subtitle">
-            לא תוכנה — ליווי. לא טפסים — שקט נפשי. לא רשימות — יום חתונה שאתם נוכחים בו.
+            120+ זוגות כבר ניהלו את האירוע שלהם דרך המערכת
           </p>
         </FadeIn>
 
-        {/* Outcome cards */}
         <StaggerContainer
           className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-3xl mx-auto"
-          staggerDelay={0.1}
+          staggerDelay={0.08}
         >
-          {outcomes.map((o) => (
+          {TESTIMONIALS.map((t) => (
             <motion.div
-              key={o.title}
+              key={t.name}
               variants={staggerItem}
-              whileHover={{ y: -5, boxShadow: "0 20px 48px rgba(197,164,109,0.14)" }}
-              transition={{ duration: 0.3 }}
-              className="rounded-2xl p-7 flex flex-col gap-4 cursor-default"
+              className="rounded-2xl p-6 flex flex-col gap-4"
               style={{
-                background: "rgba(255,255,255,0.82)",
-                border: `1px solid ${o.accentBorder}`,
-                backdropFilter: "blur(12px)",
-                boxShadow: "0 4px 24px rgba(0,0,0,0.05)",
+                background: "white",
+                border: "1px solid rgba(197,164,109,0.15)",
+                boxShadow: "0 2px 16px rgba(0,0,0,0.04)",
               }}
             >
-              <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
-                style={{ background: o.accentBg, border: `1px solid ${o.accentBorder}` }}
+              {/* Quote mark */}
+              <span
+                style={{
+                  fontSize: 48,
+                  lineHeight: 1,
+                  color: "rgba(197,164,109,0.25)",
+                  fontFamily: "Frank Ruhl Libre, serif",
+                  display: "block",
+                  marginBottom: -16,
+                }}
               >
-                {o.emoji}
-              </div>
-              <div>
-                <h3
-                  className="text-lg font-bold mb-2 leading-snug"
-                  style={{ color: "#333333", fontFamily: "Frank Ruhl Libre, serif" }}
-                >
-                  {o.title}
-                </h3>
-                <p
-                  className="text-sm leading-[1.85]"
-                  style={{ color: "rgba(51,51,51,0.62)", fontFamily: "Heebo, sans-serif" }}
-                >
-                  {o.body}
+                ״
+              </span>
+              <p
+                style={{
+                  fontSize: 15,
+                  lineHeight: 1.75,
+                  color: "rgba(51,51,51,0.75)",
+                  fontFamily: "Heebo, sans-serif",
+                }}
+              >
+                {t.quote}
+              </p>
+              <div style={{ borderTop: "1px solid rgba(197,164,109,0.12)", paddingTop: 12 }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: "#333", fontFamily: "Frank Ruhl Libre, serif" }}>
+                  {t.name}
+                </p>
+                <p style={{ fontSize: 12, color: "rgba(51,51,51,0.45)", fontFamily: "Heebo, sans-serif", marginTop: 2 }}>
+                  {t.event}
                 </p>
               </div>
-              <div
-                className="w-10 h-0.5 rounded-full mt-auto"
-                style={{ background: `linear-gradient(90deg,${o.accent},transparent)` }}
-              />
             </motion.div>
           ))}
         </StaggerContainer>
-
-        {/* Promise strip */}
-        <FadeIn delay={0.35} className="mt-14">
-          <div
-            className="max-w-2xl mx-auto rounded-2xl px-7 py-6"
-            style={{
-              background: "rgba(255,255,255,0.72)",
-              border: "1px solid rgba(197,164,109,0.22)",
-              backdropFilter: "blur(12px)",
-            }}
-          >
-            <p
-              className="text-center text-xs tracking-[0.22em] uppercase mb-5"
-              style={{ color: "rgba(197,164,109,0.75)", fontFamily: "Heebo, sans-serif" }}
-            >
-              ✦ ההבטחה שלנו
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {promises.map((p) => (
-                <div key={p} className="flex items-center gap-3">
-                  <div
-                    className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ background: "rgba(107,123,90,0.14)" }}
-                  >
-                    <span style={{ color: "#6B7B5A", fontSize: 11, fontWeight: 700 }}>✓</span>
-                  </div>
-                  <p
-                    className="text-sm"
-                    style={{ color: "rgba(51,51,51,0.72)", fontFamily: "Heebo, sans-serif" }}
-                  >
-                    {p}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </FadeIn>
       </div>
     </section>
   );

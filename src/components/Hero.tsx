@@ -136,31 +136,6 @@ function Dashboard() {
   return (
     <div className="relative select-none w-full">
 
-      {/* Floating badges — real stats only */}
-      <FloatingBadge className="-top-4 -right-2 md:-right-8" delay="0.4s">
-        <span className="text-base">✦</span>
-        <div>
-          <p className="text-xs font-semibold" style={{ color: G.dark,      fontFamily: "Heebo, sans-serif" }}>
-            {TOTAL} מוזמנים
-          </p>
-          <p className="text-[10px]"           style={{ color: G.oliveMuted, fontFamily: "Heebo, sans-serif" }}>
-            בדף האירוע
-          </p>
-        </div>
-      </FloatingBadge>
-
-      <FloatingBadge className="-bottom-4 -left-2 md:-left-8" delay="1.1s">
-        <span className="text-base" style={{ color: G.olive }}>✓</span>
-        <div>
-          <p className="text-xs font-semibold" style={{ color: G.olive,     fontFamily: "Heebo, sans-serif" }}>
-            דף אירוע פעיל
-          </p>
-          <p className="text-[10px]"           style={{ color: G.oliveMuted, fontFamily: "Heebo, sans-serif" }}>
-            זמין 24/7
-          </p>
-        </div>
-      </FloatingBadge>
-
       {/* Main card */}
       <div
         className="relative rounded-3xl overflow-hidden"
@@ -339,17 +314,6 @@ export default function Hero() {
           style={{ background: "radial-gradient(circle,rgba(107,123,90,0.09) 0%,transparent 70%)" }} />
       </div>
 
-      {(["top-24 right-6 md:right-14", "top-24 left-6 md:left-14 scale-x-[-1]",
-         "bottom-16 right-6 md:right-14 scale-y-[-1]", "bottom-16 left-6 md:left-14 -scale-x-100 scale-y-[-1]"] as const
-      ).map((pos) => (
-        <div key={pos} className={`absolute ${pos} opacity-20 pointer-events-none`}>
-          <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
-            <path d="M2 2L20 2" stroke="#C5A46D" strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M2 2L2 20" stroke="#C5A46D" strokeWidth="1.5" strokeLinecap="round" />
-            <circle cx="2" cy="2" r="2.5" fill="#C5A46D" />
-          </svg>
-        </div>
-      ))}
 
       <div className="relative z-10 container-max mx-auto px-4 md:px-8 pt-28 pb-20 w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 xl:gap-16 items-center min-h-[calc(100vh-7rem)]">
@@ -390,7 +354,7 @@ export default function Hero() {
             </p>
 
             <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 mb-9 w-full max-w-sm" style={{ fontFamily: "Heebo, sans-serif" }}>
-              {BULLETS.map((b) => (
+              {BULLETS.slice(0, 4).map((b) => (
                 <div key={b} className="flex items-center gap-2">
                   <span
                     className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"

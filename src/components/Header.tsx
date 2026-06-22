@@ -2,22 +2,22 @@
 
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import Logo from "./Logo";
 
 const navLinks = [
-  { label: "למה אנחנו",   href: "#why-us"        },
-  { label: "איך זה עובד", href: "#how-it-works"  },
-  { label: "מחירים",      href: "#pricing"        },
-  { label: "אודות",       href: "#about"          },
-  { label: "צור קשר",    href: "#contact"        },
+  { label: "פיצ'רים",    href: "/features"      },
+  { label: "איך זה עובד", href: "/how-it-works"  },
+  { label: "מחירים",      href: "/pricing"        },
+  { label: "שאלות",       href: "/faq"            },
+  { label: "צור קשר",    href: "/#contact"       },
 ];
 
-const SECTION_IDS = navLinks.map((l) => l.href.slice(1));
-
 export default function Header() {
-  const [scrolled,       setScrolled]       = useState(false);
-  const [menuOpen,       setMenuOpen]       = useState(false);
-  const [activeSection,  setActiveSection]  = useState("");
+  const [scrolled,  setScrolled]  = useState(false);
+  const [menuOpen,  setMenuOpen]  = useState(false);
+  const pathname = usePathname();
 
   /* scroll shadow */
   useEffect(() => {
@@ -26,30 +26,9 @@ export default function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  /* active-section tracking via IntersectionObserver */
-  useEffect(() => {
-    const observers: IntersectionObserver[] = [];
-
-    SECTION_IDS.forEach((id) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      const obs = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) setActiveSection(id);
-        },
-        { rootMargin: "-30% 0px -60% 0px", threshold: 0 }
-      );
-      obs.observe(el);
-      observers.push(obs);
-    });
-
-    return () => observers.forEach((o) => o.disconnect());
-  }, []);
-
-  const handleNavClick = (href: string) => {
-    setMenuOpen(false);
-    const el = document.querySelector(href);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  const isActive = (href: string) => {
+    if (href === "/#contact") return false;
+    return pathname === href || (pathname.startsWith(href) && href !== "/");
   };
 
   return (
@@ -64,26 +43,23 @@ export default function Header() {
         <div className="container-max mx-auto px-4 md:px-8">
           <div className="flex items-center justify-between h-18" style={{ height: "4.5rem" }}>
             {/* Logo */}
-            <button
-              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-              className="focus:outline-none"
-            >
+            <Link href="/" className="focus:outline-none">
               <Logo size="sm" />
-            </button>
+            </Link>
 
             {/* Desktop Nav */}
             <nav className="hidden md:flex items-center gap-7">
               {navLinks.map((link) => {
-                const id = link.href.slice(1);
-                const isActive = activeSection === id;
+                const active = isActive(link.href);
                 return (
-                  <button
+                  <Link
                     key={link.href}
-                    onClick={() => handleNavClick(link.href)}
+                    href={link.href}
+                    onClick={() => setMenuOpen(false)}
                     className="relative text-sm font-medium transition-colors duration-200 py-1 group"
                     style={{
                       fontFamily: "Heebo, sans-serif",
-                      color: isActive ? "#6B7B5A" : "rgba(51,51,51,0.72)",
+                      color: active ? "#C5A46D" : "rgba(51,51,51,0.72)",
                     }}
                   >
                     {link.label}
@@ -91,24 +67,24 @@ export default function Header() {
                     <span
                       className="absolute -bottom-0.5 right-0 h-px transition-all duration-300"
                       style={{
-                        width: isActive ? "100%" : "0%",
+                        width: active ? "100%" : "0%",
                         background: "linear-gradient(90deg,transparent,#C5A46D,transparent)",
                       }}
                     />
                     {/* hover underline (non-active) */}
-                    {!isActive && (
+                    {!active && (
                       <span className="absolute -bottom-0.5 right-0 w-0 h-px bg-gold/50 transition-all duration-300 group-hover:w-full" />
                     )}
-                  </button>
+                  </Link>
                 );
               })}
 
-              <button
-                onClick={() => handleNavClick("#contact")}
+              <Link
+                href="/#contact"
                 className="btn-primary text-sm py-2.5 px-6"
               >
                 דברו איתי
-              </button>
+              </Link>
             </nav>
 
             {/* Mobile menu toggle */}
@@ -144,31 +120,32 @@ export default function Header() {
             <div className="w-14 h-px bg-gradient-to-r from-gold to-transparent" />
             <nav className="flex flex-col gap-1">
               {navLinks.map((link) => {
-                const id = link.href.slice(1);
-                const isActive = activeSection === id;
+                const active = isActive(link.href);
                 return (
-                  <button
+                  <Link
                     key={link.href}
-                    onClick={() => handleNavClick(link.href)}
+                    href={link.href}
+                    onClick={() => setMenuOpen(false)}
                     className="text-right py-3 px-3 rounded-xl font-medium text-base transition-all duration-200"
                     style={{
                       fontFamily: "Heebo, sans-serif",
-                      color: isActive ? "#6B7B5A" : "rgba(51,51,51,0.72)",
-                      background: isActive ? "rgba(107,123,90,0.08)" : "transparent",
-                      borderRight: isActive ? "3px solid #C5A46D" : "3px solid transparent",
+                      color: active ? "#C5A46D" : "rgba(51,51,51,0.72)",
+                      background: active ? "rgba(197,164,109,0.08)" : "transparent",
+                      borderRight: active ? "3px solid #C5A46D" : "3px solid transparent",
                     }}
                   >
                     {link.label}
-                  </button>
+                  </Link>
                 );
               })}
             </nav>
-            <button
-              onClick={() => handleNavClick("#contact")}
-              className="btn-primary w-full justify-center mt-2"
+            <Link
+              href="/#contact"
+              onClick={() => setMenuOpen(false)}
+              className="btn-primary w-full justify-center mt-2 text-center"
             >
               דברו איתי
-            </button>
+            </Link>
           </div>
         </div>
       </div>

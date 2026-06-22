@@ -41,14 +41,11 @@ export default function WhyUs() {
     <section
       id="why-us"
       className="section-padding relative overflow-hidden bg-white"
+      style={{ borderBottom: "1px solid rgba(197,164,109,0.12)" }}
     >
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/25 to-transparent" />
-
       <div className="container-max mx-auto">
         <FadeIn className="text-center mb-10">
-          <span className="section-eyebrow">הגישה שלנו</span>
           <h2 className="section-title">למה לבחור ברגע לפני?</h2>
-          <div className="gold-divider" />
           <p className="section-subtitle">
             טכנולוגיה חכמה עם ליווי אישי — כדי שתוכלו להיות נוכחים ברגעים שחשובים באמת
           </p>
@@ -68,8 +65,9 @@ export default function WhyUs() {
                 transition={{ duration: 0.3 }}
                 className="h-full flex gap-5 p-7 rounded-2xl cursor-default"
                 style={{
-                  background: "linear-gradient(160deg,#FDFAF5 0%,#F6F1E8 100%)",
+                  background: "#FDFAF5",
                   border: "1px solid rgba(197,164,109,0.18)",
+                  transition: "box-shadow 0.3s",
                 }}
               >
                 <div

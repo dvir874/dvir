@@ -93,6 +93,7 @@ body {
     font-family: 'Frank Ruhl Libre', serif;
     line-height: 1.22;
     text-wrap: balance;
+    letter-spacing: -0.02em;
   }
 
   .section-subtitle {
@@ -159,10 +160,10 @@ body {
   animation: shimmer 3.5s linear infinite;
 }
 
-/* Decorative dot pattern */
+/* Decorative dot pattern — use sparingly, max 1-2 sections */
 .pattern-overlay {
-  background-image: radial-gradient(circle at 1px 1px, rgba(197,164,109,0.09) 1px, transparent 0);
-  background-size: 28px 28px;
+  background-image: radial-gradient(circle at 1px 1px, rgba(197,164,109,0.05) 1px, transparent 0);
+  background-size: 32px 32px;
 }
 
 /* Form inputs */
