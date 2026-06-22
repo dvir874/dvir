@@ -157,9 +157,9 @@ export default function Pricing() {
               className="text-sm leading-relaxed"
               style={{ color: "rgba(51,51,51,0.58)", fontFamily: "Heebo, sans-serif" }}
             >
-              כמות המוזמנים, סוג האירוע ורמת הליווי הנדרשת — כל אלה משפיעים על המחיר הסופי.
+              החבילות נעות בין <strong style={{ color: "#333" }}>₪400 ל-₪1,200</strong> — תלוי בכמות המוזמנים ורמת הליווי.
               <br />
-              שלחו לנו כמה פרטים ונחזור אליכם תוך 24 שעות עם הצעה מדויקת.
+              שלחו כמה פרטים ונחזור תוך 24 שעות עם הצעה מדויקת.
             </p>
           </div>
         </FadeIn>

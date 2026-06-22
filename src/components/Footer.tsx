@@ -14,13 +14,13 @@ const navLinks = [
 ];
 
 const eventTypes = [
-  "חתונות",
-  "אירוסין",
-  "חינה",
-  "בר מצווה",
-  "בת מצווה",
-  "ברית ובריתה",
-  "ימי הולדת",
+  { label: "חתונות",      href: "/event-type/wedding"    },
+  { label: "אירוסין",     href: "/event-type/wedding"    },
+  { label: "חינה",        href: "/event-type/hina"       },
+  { label: "בר מצווה",   href: "/event-type/barmitzva"  },
+  { label: "בת מצווה",   href: "/event-type/batmitzva"  },
+  { label: "ברית ובריתה", href: "/event-type/brit"       },
+  { label: "ימי הולדת",  href: "/event-type/birthday"   },
 ];
 
 export default function Footer() {
@@ -123,14 +123,14 @@ export default function Footer() {
             </h4>
             <ul className="space-y-3">
               {eventTypes.map((t) => (
-                <li key={t}>
-                  <button
-                    onClick={() => scrollTo("#gallery")}
+                <li key={t.label}>
+                  <Link
+                    href={t.href}
                     className="text-white/35 hover:text-gold text-sm transition-colors duration-200"
                     style={{ fontFamily: "Heebo, sans-serif" }}
                   >
-                    {t}
-                  </button>
+                    {t.label}
+                  </Link>
                 </li>
               ))}
             </ul>

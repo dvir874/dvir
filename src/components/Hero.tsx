@@ -317,6 +317,10 @@ export default function Hero() {
               transition: "opacity 0.8s ease, transform 0.8s ease",
             }}
           >
+            <p className="text-sm mb-3 font-medium" style={{ color: "#6B7B5A", fontFamily: "Heebo, sans-serif" }}>
+              שלום, אני דביר — מנהל אירועים דיגיטלי
+            </p>
+
             <h1
               className="text-4xl md:text-5xl xl:text-[3.1rem] font-bold text-dark leading-[1.22] mb-5"
               style={{ fontFamily: "Frank Ruhl Libre, serif", letterSpacing: "-0.02em" }}

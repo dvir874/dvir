@@ -16,7 +16,7 @@ export default function Testimonials() {
             className="section-title mb-4"
             style={{ fontFamily: "Frank Ruhl Libre, serif" }}
           >
-            אנחנו בתחילת הדרך
+            מקום לזוג אחד נוסף
           </h2>
           <p
             className="text-base leading-relaxed mb-8"
@@ -25,9 +25,9 @@ export default function Testimonials() {
               fontFamily: "Heebo, sans-serif",
             }}
           >
-            המערכת פעילה ומוכנה — ואנחנו מחפשים את הזוגות הראשונים שיצטרפו.
+            אני עובד עם מספר מצומצם של זוגות בכל פעם — כדי שכל אחד יקבל ליווי אמיתי.
             <br />
-            לקוחות ראשונים מקבלים ליווי אישי מלא, מחיר מיוחד, ועדיפות בכל שאלה.
+            אם החתונה שלכם ב-2026 או 2027 — כדאי לדבר עכשיו.
           </p>
 
           <a
