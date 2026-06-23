@@ -10,13 +10,15 @@ import {
 import type { WeddingScore, SmartAlert } from "@/lib/wedding-score";
 
 const C = {
-  cream:  "#F6F1E8",
+  cream:  "#F2EDE3",
   ivory:  "#FDFAF5",
   gold:   "#C5A46D",
   olive:  "#6B7B5A",
-  dark:   "#333333",
-  muted:  "rgba(51,51,51,0.55)",
-  border: "rgba(197,164,109,0.22)",
+  dark:   "#1C1008",
+  muted:  "rgba(28,16,8,0.45)",
+  border: "rgba(197,164,109,0.18)",
+  card:   "rgba(255,255,255,0.82)",
+  shadow: "0 2px 16px rgba(28,16,8,0.07)",
 };
 
 interface EventInfo    { id: string; name: string; date: string; address?: string | null; client_name?: string | null }
@@ -262,19 +264,27 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
   const others     = alerts.filter(a => a.severity !== "urgent");
 
   return (
-    <div dir="rtl" style={{ minHeight: "100vh", background: `linear-gradient(160deg, #F6F1E8 0%, #EDE6D6 100%)`, fontFamily: "Heebo, sans-serif", color: C.dark }}>
+    <div dir="rtl" style={{ minHeight: "100vh", background: "#F2EDE3", fontFamily: "Heebo, sans-serif", color: C.dark }}>
 
-      {/* Morning Briefing Header */}
-      <div style={{ background: "linear-gradient(135deg, #3D2B1F 0%, #5C3D2E 100%)", padding: "2rem 1.5rem 1.75rem", color: "white" }}>
-        <div style={{ maxWidth: 640, margin: "0 auto" }}>
-          <p style={{ fontSize: 11, letterSpacing: "0.25em", textTransform: "uppercase", color: "rgba(197,164,109,0.7)", marginBottom: "0.4rem" }}>
-            {briefing?.phaseLabel ?? "לוח בקרה"}
+      {/* Header */}
+      <div style={{
+        background: "linear-gradient(160deg, #1C1008 0%, #2E1A0A 60%, #1C1008 100%)",
+        padding: "2.5rem 1.5rem 2rem",
+        color: "white",
+        position: "relative",
+        overflow: "hidden",
+      }}>
+        {/* decorative gold line */}
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent, rgba(197,164,109,0.5), transparent)" }} />
+        <div style={{ maxWidth: 640, margin: "0 auto", position: "relative", zIndex: 1 }}>
+          <p style={{ fontSize: 10, letterSpacing: "0.30em", textTransform: "uppercase", color: "rgba(197,164,109,0.65)", marginBottom: "0.75rem", fontFamily: "Heebo, sans-serif" }}>
+            ✦ {briefing?.phaseLabel ?? "לוח בקרה"}
           </p>
-          <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1.4rem,5vw,1.8rem)", fontWeight: 700, marginBottom: "0.5rem" }}>
+          <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1.6rem,6vw,2.2rem)", fontWeight: 700, marginBottom: "0.4rem", lineHeight: 1.2 }}>
             {briefing?.greeting ?? event.name}
           </h1>
           {briefing?.phaseMessage && (
-            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.72)", marginBottom: "1.25rem", lineHeight: 1.5 }}>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.58)", marginBottom: "1.5rem", lineHeight: 1.6 }}>
               {briefing.phaseMessage}
             </p>
           )}
@@ -284,7 +294,12 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
               `${tasks.filter(t => t.completed).length}/${tasks.length} משימות`,
               `${daysLeft} ימים`,
             ]).map((fact, i) => (
-              <div key={i} style={{ padding: "0.35rem 0.8rem", borderRadius: 20, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", fontSize: 13, color: "rgba(255,255,255,0.9)" }}>
+              <div key={i} style={{
+                padding: "0.3rem 0.85rem", borderRadius: 20,
+                background: "rgba(197,164,109,0.12)",
+                border: "1px solid rgba(197,164,109,0.28)",
+                fontSize: 12, color: "#C5A46D", fontFamily: "Heebo, sans-serif",
+              }}>
                 {fact}
               </div>
             ))}
@@ -295,7 +310,7 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
       {/* Countdown */}
       <CountdownTimer targetDate={event.date} />
 
-      <div style={{ maxWidth: 640, margin: "0 auto", padding: "1.25rem 1rem 5rem" }}>
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "1.5rem 1rem 6rem" }}>
 
         {/* Urgent alerts with one-tap actions */}
         {urgents.length > 0 && (
@@ -408,7 +423,7 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         )}
 
         {/* RSVP */}
-        <div style={{ background: C.ivory, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", marginBottom: "1rem" }}>
+        <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "1rem" }}>
             <Users size={16} style={{ color: C.gold }} />
             <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, margin: 0 }}>אישורי הגעה</h2>
@@ -434,7 +449,7 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         </div>
 
         {/* Vendors */}
-        <div style={{ background: C.ivory, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", marginBottom: "1rem" }}>
+        <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.875rem" }}>
             <span style={{ fontSize: 16 }}>🏢</span>
             <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, margin: 0 }}>ספקים</h2>
@@ -460,7 +475,7 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         </div>
 
         {/* Tasks */}
-        <div style={{ background: C.ivory, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", marginBottom: "1rem" }}>
+        <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.75rem" }}>
             <ListChecks size={16} style={{ color: C.gold }} />
             <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, margin: 0 }}>משימות</h2>
@@ -494,25 +509,15 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
           </div>
         </div>
 
-        {/* Budget + Seating + Gifts */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
-          <div style={{ background: C.ivory, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1rem" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: "0.75rem" }}>
-              <Wallet size={14} style={{ color: C.gold }} />
-              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, margin: 0 }}>תקציב</h3>
-            </div>
-            {budget.itemCount > 0 ? (
-              <>
-                <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.2rem", fontWeight: 700 }}>₪{fmt(budget.actual)}</p>
-                <p style={{ fontSize: 11, color: C.muted }}>מתוך ₪{fmt(budget.planned)}</p>
-                <div style={{ height: 4, borderRadius: 2, background: "rgba(197,164,109,0.12)", overflow: "hidden", marginTop: "0.5rem" }}>
-                  <div style={{ height: "100%", width: `${Math.min(100, budget.planned > 0 ? (budget.actual / budget.planned) * 100 : 0)}%`, background: budget.actual > budget.planned ? "#C0392B" : C.gold }} />
-                </div>
-              </>
-            ) : <p style={{ fontSize: 12, color: C.muted }}>לא הוגדר תקציב</p>}
-          </div>
+        {/* RSVP Visual Counter */}
+        <RsvpCounter stats={stats} />
 
-          <div style={{ background: C.ivory, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1rem" }}>
+        {/* Budget Visual */}
+        <BudgetVisual budget={budget} />
+
+        {/* Seating + Gifts */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
+          <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1rem", boxShadow: C.shadow }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: "0.75rem" }}>
               <LayoutGrid size={14} style={{ color: C.gold }} />
               <h3 style={{ fontSize: "0.8rem", fontWeight: 600, margin: 0 }}>הושבה</h3>
@@ -524,49 +529,223 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
             </div>
           </div>
 
-          <div style={{ background: C.ivory, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1rem", gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 8 }}>
-            <Gift size={14} style={{ color: C.gold }} />
-            <h3 style={{ fontSize: "0.8rem", fontWeight: 600, margin: 0 }}>מתנות</h3>
-            <span style={{ marginRight: "auto", fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.1rem", fontWeight: 700 }}>₪{fmt(gifts.total)}</span>
-            <span style={{ fontSize: 12, color: C.muted }}>{gifts.count} מתנות</span>
+          <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1rem", boxShadow: C.shadow }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: "0.75rem" }}>
+              <Gift size={14} style={{ color: C.gold }} />
+              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, margin: 0 }}>מתנות</h3>
+            </div>
+            <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.2rem", fontWeight: 700 }}>₪{fmt(gifts.total)}</p>
+            <p style={{ fontSize: 11, color: C.muted }}>{gifts.count} מתנות התקבלו</p>
           </div>
         </div>
 
-        {/* Vault/Capsule CTAs */}
-        <div style={{ background: C.ivory, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem" }}>
-          <p style={{ fontSize: 12, color: C.muted, textAlign: "center", marginBottom: "0.875rem" }}>זכרונות וכמוסת זמן</p>
-          <div style={{ display: "flex", gap: "0.75rem" }}>
-            {[
-              { href: `/memory/${token}/wall`,   icon: Camera,    label: "קיר זכרונות",  color: C.gold,    bg: "rgba(197,164,109,0.06)" },
-              { href: `/couple/${token}/capsule`, icon: Lock,      label: "כמוסת זמן",    color: C.olive,   bg: "rgba(107,123,90,0.06)" },
-              { href: `/memory/${token}`,         icon: Mic,       label: "הקלטת ברכה",   color: "#7c3aed", bg: "rgba(124,58,237,0.05)" },
-            ].map(({ href, icon: Icon, label, color, bg }) => (
-              <a key={href} href={href} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "0.875rem 0.5rem", borderRadius: 12, background: bg, border: `1px solid ${color}22`, textDecoration: "none" }}>
-                <Icon size={22} style={{ color }} />
-                <span style={{ fontSize: 11, color: C.dark, fontFamily: "Heebo, sans-serif", textAlign: "center" }}>{label}</span>
-              </a>
-            ))}
+        {/* Venue Map placeholder */}
+        <VenueMap />
+
+        {/* Wedding Day Timeline */}
+        <WeddingTimeline />
+
+        {/* Contact Dvir */}
+        <a
+          href="https://wa.me/972533318177?text=שלום+דביר%2C+יש+לי+שאלה+לגבי+החתונה+שלנו"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "flex", alignItems: "center", gap: "1rem",
+            background: "linear-gradient(135deg, #1a4731 0%, #0f2e1f 100%)",
+            borderRadius: "1.25rem", padding: "1.25rem 1.5rem",
+            boxShadow: "0 4px 20px rgba(37,211,102,0.18)",
+            textDecoration: "none", marginBottom: "0.875rem",
+            border: "1px solid rgba(37,211,102,0.25)",
+          }}
+        >
+          <div style={{ width: 46, height: 46, borderRadius: "50%", background: "#25D366", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 10px rgba(37,211,102,0.4)" }}>
+            <span style={{ fontSize: 22 }}>💬</span>
           </div>
+          <div>
+            <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, color: "white", margin: 0 }}>
+              שאלה? דברו עם דביר
+            </p>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.58)", margin: 0, fontFamily: "Heebo, sans-serif" }}>
+              053-3318177 · מענה תוך 24 שעות
+            </p>
+          </div>
+          <span style={{ marginRight: "auto", fontSize: 18 }}>←</span>
+        </a>
 
-          {/* Recap link — shown after wedding date */}
-          {briefing && briefing.daysUntilEvent <= 0 && (
-            <a
-              href={`/couple/${token}/recap`}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                marginTop: "0.75rem", padding: "0.9rem 1rem", borderRadius: 12,
-                background: "linear-gradient(135deg,#1a120a,#2d1f10)",
-                border: "1px solid rgba(197,164,109,0.25)", textDecoration: "none",
-              }}
-            >
-              <Sparkles size={18} style={{ color: C.gold }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: "white", fontFamily: "Heebo, sans-serif" }}>
-                צפו בסיכום החתונה שלכם ✦
-              </span>
-            </a>
-          )}
+        {/* Recap link — shown after wedding date */}
+        {briefing && briefing.daysUntilEvent <= 0 && (
+          <a
+            href={`/couple/${token}/recap`}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              padding: "0.9rem 1rem", borderRadius: "1.25rem",
+              background: "linear-gradient(135deg,#1a120a,#2d1f10)",
+              border: "1px solid rgba(197,164,109,0.25)", textDecoration: "none",
+              boxShadow: C.shadow,
+            }}
+          >
+            <Sparkles size={18} style={{ color: C.gold }} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: "white", fontFamily: "Heebo, sans-serif" }}>
+              צפו בסיכום החתונה שלכם ✦
+            </span>
+          </a>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+const DEFAULT_TIMELINE = [
+  { time: "15:00", label: "קבלת פנים" },
+  { time: "17:00", label: "חופה וקידושין" },
+  { time: "18:00", label: "ארוחה וריקודים" },
+  { time: "20:30", label: "עוגת חתונה" },
+  { time: "23:00", label: "סיום האירוע" },
+];
+
+function WeddingTimeline() {
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  return (
+    <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "0.875rem" }}>
+      <p style={{ fontSize: 12, color: C.muted, marginBottom: "1rem", fontFamily: "Heebo, sans-serif", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+        🗓 טיימליין יום החתונה
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        {DEFAULT_TIMELINE.map((item, i) => {
+          const [h, m] = item.time.split(":").map(Number);
+          const itemMinutes = h * 60 + m;
+          const next = DEFAULT_TIMELINE[i + 1];
+          const nextMinutes = next ? Number(next.time.split(":")[0]) * 60 + Number(next.time.split(":")[1]) : itemMinutes + 60;
+          const isActive = nowMinutes >= itemMinutes && nowMinutes < nextMinutes;
+          const isPast   = nowMinutes >= nextMinutes;
+          return (
+            <div key={i} style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 20, flexShrink: 0 }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", marginTop: 4, flexShrink: 0, background: isActive ? C.gold : isPast ? C.olive : C.border, boxShadow: isActive ? `0 0 0 3px rgba(197,164,109,0.25)` : "none" }} />
+                {i < DEFAULT_TIMELINE.length - 1 && (
+                  <div style={{ width: 1.5, flex: 1, minHeight: 28, background: isPast ? C.olive : C.border, opacity: isPast ? 0.5 : 0.3, marginTop: 2 }} />
+                )}
+              </div>
+              <div style={{ paddingBottom: i < DEFAULT_TIMELINE.length - 1 ? "0.875rem" : 0 }}>
+                <span style={{ fontSize: 11, color: isActive ? C.gold : C.muted, fontFamily: "Heebo, sans-serif", fontWeight: isActive ? 700 : 400 }}>{item.time}</span>
+                <p style={{ fontSize: 13, color: isPast ? C.muted : C.dark, fontFamily: "Heebo, sans-serif", fontWeight: isActive ? 700 : 400, margin: 0, opacity: isPast ? 0.55 : 1 }}>
+                  {item.label}
+                  {isActive && <span style={{ marginRight: 6, fontSize: 10, background: C.gold, color: "white", padding: "1px 6px", borderRadius: 8, verticalAlign: "middle" }}>עכשיו</span>}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function RsvpCounter({ stats }: { stats: { total: number; confirmed: number; declined: number; pending: number; attendees: number } }) {
+  const total = stats.total || 1;
+  const confirmedPct = Math.round((stats.confirmed / total) * 100);
+  const declinedPct  = Math.round((stats.declined  / total) * 100);
+  const pendingPct   = 100 - confirmedPct - declinedPct;
+
+  return (
+    <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "0.875rem" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <Users size={14} style={{ color: C.gold }} />
+          <h3 style={{ fontSize: "0.8rem", fontWeight: 600, margin: 0 }}>אישורי הגעה</h3>
         </div>
+        <span style={{ fontSize: 11, color: C.muted }}>{stats.confirmed + stats.declined} מתוך {stats.total} ענו</span>
+      </div>
 
+      {/* Bar */}
+      <div style={{ height: 10, borderRadius: 5, overflow: "hidden", display: "flex", marginBottom: "0.875rem", background: "rgba(197,164,109,0.10)" }}>
+        <div style={{ width: `${confirmedPct}%`, background: C.olive, transition: "width 0.8s" }} />
+        <div style={{ width: `${declinedPct}%`, background: "#C0392B", transition: "width 0.8s" }} />
+        <div style={{ width: `${pendingPct}%`, background: "rgba(197,164,109,0.25)", transition: "width 0.8s" }} />
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
+        {[
+          { label: "מגיעים", count: stats.confirmed, color: C.olive },
+          { label: "ממתינים", count: stats.pending, color: C.gold },
+          { label: "לא מגיעים", count: stats.declined, color: "#C0392B" },
+        ].map(({ label, count, color }) => (
+          <div key={label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
+            <span style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.1rem", fontWeight: 700, color: C.dark }}>{count}</span>
+            <span style={{ fontSize: 10, color: C.muted, fontFamily: "Heebo, sans-serif" }}>{label}</span>
+          </div>
+        ))}
+      </div>
+
+      {stats.attendees > 0 && (
+        <p style={{ textAlign: "center", marginTop: "0.75rem", fontSize: 12, color: C.olive, fontFamily: "Heebo, sans-serif", fontWeight: 600 }}>
+          {stats.attendees} אנשים מגיעים ליום הגדול 🎉
+        </p>
+      )}
+    </div>
+  );
+}
+
+function BudgetVisual({ budget }: { budget: { planned: number; actual: number; remaining: number; itemCount: number } }) {
+  if (budget.itemCount === 0) return null;
+  const usedPct = budget.planned > 0 ? Math.min(100, Math.round((budget.actual / budget.planned) * 100)) : 0;
+  const overBudget = budget.actual > budget.planned;
+
+  return (
+    <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "0.875rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: "1rem" }}>
+        <Wallet size={14} style={{ color: C.gold }} />
+        <h3 style={{ fontSize: "0.8rem", fontWeight: 600, margin: 0 }}>תקציב</h3>
+        {overBudget && <span style={{ marginRight: "auto", fontSize: 10, background: "rgba(192,57,43,0.12)", color: "#C0392B", padding: "2px 8px", borderRadius: 8, fontFamily: "Heebo, sans-serif" }}>חריגה!</span>}
+      </div>
+
+      {/* Donut-style */}
+      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        <div style={{ position: "relative", width: 72, height: 72, flexShrink: 0 }}>
+          <svg width="72" height="72" viewBox="0 0 72 72">
+            <circle cx="36" cy="36" r="28" fill="none" stroke="rgba(197,164,109,0.12)" strokeWidth="10" />
+            <circle cx="36" cy="36" r="28" fill="none"
+              stroke={overBudget ? "#C0392B" : C.gold}
+              strokeWidth="10"
+              strokeDasharray={`${usedPct * 1.759} 175.9`}
+              strokeLinecap="round"
+              transform="rotate(-90 36 36)"
+              style={{ transition: "stroke-dasharray 0.8s" }}
+            />
+          </svg>
+          <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, color: overBudget ? "#C0392B" : C.dark }}>
+            {usedPct}%
+          </span>
+        </div>
+        <div style={{ flex: 1 }}>
+          <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.3rem", fontWeight: 700, margin: 0 }}>₪{fmt(budget.actual)}</p>
+          <p style={{ fontSize: 11, color: C.muted, margin: "2px 0 6px" }}>מתוך ₪{fmt(budget.planned)} מתוכנן</p>
+          {!overBudget && <p style={{ fontSize: 11, color: C.olive, margin: 0 }}>₪{fmt(budget.remaining)} נותרו</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VenueMap() {
+  return (
+    <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "0.875rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: "0.875rem" }}>
+        <span style={{ fontSize: 14 }}>🗺️</span>
+        <h3 style={{ fontSize: "0.8rem", fontWeight: 600, margin: 0 }}>מפת האולם</h3>
+      </div>
+      <div style={{ borderRadius: 12, overflow: "hidden", border: `1px solid ${C.border}`, background: "rgba(197,164,109,0.04)", minHeight: 120, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
+        <span style={{ fontSize: 32 }}>🏛️</span>
+        <p style={{ fontSize: 12, color: C.muted, fontFamily: "Heebo, sans-serif", textAlign: "center", margin: 0 }}>
+          מפת האולם תועלה בקרוב<br />
+          <span style={{ fontSize: 11, opacity: 0.7 }}>דביר יעדכן אתכם כשהיא מוכנה</span>
+        </p>
       </div>
     </div>
   );
