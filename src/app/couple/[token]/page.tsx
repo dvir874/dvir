@@ -337,11 +337,6 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
       {/* Countdown */}
       <CountdownTimer targetDate={event.date} />
 
-      {/* Partner profiles */}
-      <PartnerProfiles eventName={event.name} />
-
-      {/* Mood Board */}
-      <MoodBoard token={token} eventId={event.id} />
 
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "1.5rem 1rem 6rem" }}>
 

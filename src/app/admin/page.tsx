@@ -862,12 +862,13 @@ export default function AdminPage() {
           {/* Couple phone quick-dial */}
           {selectedEvent?.client_phone && (
             <a
-              href={`tel:${selectedEvent.client_phone}`}
+              href={`https://wa.me/${selectedEvent.client_phone.replace(/[^0-9]/g,"").replace(/^0/,"972")}`}
+              target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
               style={{ background: "rgba(37,211,102,0.10)", color: "#1A9B4E", textDecoration: "none", direction: "ltr" }}
-              title="התקשר לזוג"
+              title="שלח WhatsApp לזוג"
             >
-              📞 {selectedEvent.client_phone}
+              💬 {selectedEvent.client_phone}
             </a>
           )}
 
@@ -2135,16 +2136,7 @@ export default function AdminPage() {
             TAB: Reminder Recommendations
         ══════════════════════════════════════════════ */}
         {activeTab === "couple-view" && selectedEvent?.couple_token && (
-          <>
-            <CoupleView token={selectedEvent.couple_token} eventName={selectedEvent.name} />
-            <ChatWidget
-              fetchUrl={`/api/admin/chat/${selectedEventId}`}
-              postUrl={`/api/admin/chat/${selectedEventId}`}
-              myRole="admin"
-              accentColor="#C5A46D"
-              label={`צ׳אט עם ${selectedEvent.name}`}
-            />
-          </>
+          <CoupleView token={selectedEvent.couple_token} eventName={selectedEvent.name} />
         )}
         {activeTab === "couple-view" && !selectedEvent?.couple_token && (
           <div className="rounded-2xl p-10 text-center" style={{ background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.22)" }}>
@@ -2609,6 +2601,17 @@ export default function AdminPage() {
         )}
 
       </div>
+
+      {/* Global chat widget — visible whenever an event is selected */}
+      {selectedEventId && (
+        <ChatWidget
+          fetchUrl={`/api/admin/chat/${selectedEventId}`}
+          postUrl={`/api/admin/chat/${selectedEventId}`}
+          myRole="admin"
+          accentColor="#C5A46D"
+          label={`💬 צ׳אט עם ${selectedEvent?.name ?? "הזוג"}`}
+        />
+      )}
     </div>
   );
 }
