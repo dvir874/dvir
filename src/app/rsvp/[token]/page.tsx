@@ -105,7 +105,7 @@ export default function RsvpPage({
     const calUrl = (() => {
       if (!event?.date) return null;
       const d     = new Date(event.date);
-      const ymd   = (dt: Date) => dt.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+      const ymd   = (dt: Date) => dt.toISOString().replace(/-/g, "").replace(/:/g, "").split(".")[0] + "Z";
       const start = ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 19, 0, 0));
       const end   = ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 0));
       const calParams = new URLSearchParams({

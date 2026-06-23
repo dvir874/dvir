@@ -887,12 +887,12 @@ function BlessingCard({ name }: { name: string }) {
 
 const BUDGET_CATS = [
   { key: "venue",        label: "אולם",           color: "#C5A46D" },
-  { key: "catering",     label: "קייטרינג",        color: "#8B6914" },
-  { key: "photographer", label: "צלם",             color: "#6B7B5A" },
-  { key: "dj",           label: "DJ / מוזיקה",    color: "#7C6A52" },
-  { key: "flowers",      label: "פרחים",           color: "#A8866A" },
-  { key: "dress",        label: "שמלה / חליפה",   color: "#9B8B6E" },
-  { key: "other",        label: "אחר",             color: "#B5A090" },
+  { key: "catering",     label: "קייטרינג",        color: "#5BA8A0" },
+  { key: "photographer", label: "צלם",             color: "#7B68C8" },
+  { key: "dj",           label: "DJ / מוזיקה",    color: "#E07B54" },
+  { key: "flowers",      label: "פרחים",           color: "#D4A5C9" },
+  { key: "dress",        label: "שמלה / חליפה",   color: "#6BAF8C" },
+  { key: "other",        label: "אחר",             color: "#E8C84A" },
 ];
 
 interface BudgetItem { id: string; category: string; description: string; planned_amount: number }
