@@ -311,6 +311,17 @@ const STATUS_COLOR: Record<GuestStatus, { bg: string; color: string }> = {
 
 const PAGE_SIZE = 20;
 type Tab = "guests" | "reminders" | "import-export" | "command-center" | "recommendations";
+
+interface CouponRow {
+  id: string;
+  code: string;
+  discount_pct: number;
+  description: string | null;
+  used_by_event_id: string | null;
+  created_at: string;
+  created_by_event?: { name: string } | null;
+  used_by_event?: { name: string } | null;
+}
 type StatusFilter = "all" | GuestStatus;
 
 /* ══════════════════════════════════════════════════════
@@ -370,6 +381,11 @@ export default function AdminPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteGuestCount, setDeleteGuestCount] = useState<number | null>(null);
   const [pendingDeleteEventId, setPendingDeleteEventId] = useState<string | null>(null);
+
+  // Coupons
+  const [coupons,        setCoupons]        = useState<CouponRow[]>([]);
+  const [couponsLoading, setCouponsLoading] = useState(false);
+  const [showCoupons,    setShowCoupons]    = useState(false);
 
   // Dropdown menus (click-based)
   const [showEventDropdown, setShowEventDropdown] = useState(false);
@@ -974,6 +990,43 @@ export default function AdminPage() {
               title="שלח לזוג לבחירת עיצוב"
             >
               <Palette size={13} /> בחירת עיצוב
+            </button>
+          )}
+          {selectedEventId && (
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/coupons", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ created_by_event_id: selectedEventId, discount_pct: 10, description: "הפניית חבר" }),
+                  });
+                  const d = await res.json();
+                  if (!res.ok) throw new Error(d.error);
+                  alert(`קוד הקופון: ${d.code} (${d.discount_pct}% הנחה) - שמור אותו!`);
+                } catch (e: unknown) {
+                  alert("שגיאה ביצירת קופון: " + (e instanceof Error ? e.message : String(e)));
+                }
+              }}
+              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
+              style={{ background: "rgba(197,164,109,0.10)", color: C.gold }}
+              title="צור קופון הפניה"
+            >
+              🎟️ צור קופון
+            </button>
+          )}
+          {selectedEventId && selectedEvent && (
+            <button
+              onClick={() => {
+                const n = encodeURIComponent(selectedEvent.name ?? "");
+                const d = selectedEvent.date ?? "";
+                window.open(`/quote?name=${n}&date=${d}`, "_blank");
+              }}
+              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
+              style={{ background: "rgba(107,123,90,0.10)", color: C.olive }}
+              title="הצעת מחיר"
+            >
+              📄 הצעת מחיר
             </button>
           )}
           {selectedEventId && (
@@ -2301,6 +2354,69 @@ export default function AdminPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Coupons section */}
+                <div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.gold }}>
+                      🎟️ קופונים והנחות
+                    </p>
+                    <button
+                      onClick={async () => {
+                        if (!showCoupons) {
+                          setCouponsLoading(true);
+                          try {
+                            const res = await fetch("/api/coupons");
+                            const data = await res.json();
+                            setCoupons(Array.isArray(data) ? data : []);
+                          } catch { /* ignore */ }
+                          setCouponsLoading(false);
+                        }
+                        setShowCoupons((v) => !v);
+                      }}
+                      className="text-xs px-2.5 py-1 rounded-lg font-medium"
+                      style={{ background: "rgba(197,164,109,0.10)", color: C.gold }}
+                    >
+                      {showCoupons ? "הסתר" : "הצג רשימה"}
+                    </button>
+                  </div>
+                  {showCoupons && (
+                    <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
+                      {couponsLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 size={20} className="animate-spin" style={{ color: C.gold }} />
+                        </div>
+                      ) : coupons.length === 0 ? (
+                        <p className="text-sm text-center py-8" style={{ color: C.muted }}>אין קופונים עדיין</p>
+                      ) : (
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr style={{ background: "rgba(197,164,109,0.08)", borderBottom: `1px solid ${C.border}` }}>
+                              {["קוד", "הנחה", "סטטוס", "נוצר עבור"].map((h) => (
+                                <th key={h} className="text-right px-4 py-2 text-xs font-semibold" style={{ color: C.muted }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {coupons.map((c) => (
+                              <tr key={c.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                                <td className="px-4 py-2.5 font-mono font-bold" style={{ color: C.dark }}>{c.code}</td>
+                                <td className="px-4 py-2.5" style={{ color: C.olive }}>{c.discount_pct}%</td>
+                                <td className="px-4 py-2.5">
+                                  <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                                    style={{ background: c.used_by_event_id ? "rgba(200,60,60,0.10)" : "rgba(107,123,90,0.10)", color: c.used_by_event_id ? "rgb(180,50,50)" : C.olive }}>
+                                    {c.used_by_event_id ? `נוצל — ${c.used_by_event?.name ?? ""}` : "פנוי"}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2.5 text-xs" style={{ color: C.muted }}>{c.created_by_event?.name ?? "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  )}
+                </div>
 
               </div>
             )}

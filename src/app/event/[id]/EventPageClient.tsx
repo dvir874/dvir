@@ -341,6 +341,20 @@ export default function EventPageClient({
         <p className="text-[10px] mt-3" style={{ color: `${theme.footerTextMuted}88`, ...HEEBO }}>
           © {new Date().getFullYear()} רגע לפני · כל הזכויות שמורות
         </p>
+        <div style={{
+          textAlign: "center", padding: "1.5rem",
+          borderTop: "1px solid rgba(197,164,109,0.15)",
+          background: "rgba(197,164,109,0.04)"
+        }}>
+          <a
+            href="https://regalifnei.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: 11, color: "rgba(197,164,109,0.6)", textDecoration: "none", fontFamily: "Heebo, sans-serif", letterSpacing: "0.05em" }}
+          >
+            ✦ נוצר ע״י רגע לפני · הזמנות דיגיטליות לחתונה
+          </a>
+        </div>
       </footer>
     </div>
   );
