@@ -859,6 +859,18 @@ export default function AdminPage() {
               )}
             </div>
           )}
+          {/* Couple phone quick-dial */}
+          {selectedEvent?.client_phone && (
+            <a
+              href={`tel:${selectedEvent.client_phone}`}
+              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
+              style={{ background: "rgba(37,211,102,0.10)", color: "#1A9B4E", textDecoration: "none", direction: "ltr" }}
+              title="התקשר לזוג"
+            >
+              📞 {selectedEvent.client_phone}
+            </a>
+          )}
+
           {/* Event status changer */}
           {selectedEventId && (
             <select
