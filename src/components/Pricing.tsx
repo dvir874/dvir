@@ -8,7 +8,7 @@ import { WA_URL_PRICING as WA_URL } from "@/lib/constants";
 const packages = [
   {
     name: "דף אירוע",
-    tagline: "דף אירוע אישי עם אישורי הגעה — כל האורחים שלכם בלחיצה אחת.",
+    tagline: "דף אירוע אישי עם אישורי הגעה. כל האורחים שלכם בלחיצה אחת.",
     highlight: false,
     badge: null as string | null,
     features: [
@@ -22,7 +22,7 @@ const packages = [
   },
   {
     name: "ניהול מלא",
-    tagline: "הפתרון המלא לניהול חתונה — מהאורח הראשון ועד יום האירוע.",
+    tagline: "הפתרון המלא לניהול חתונה. מהאורח הראשון ועד יום האירוע.",
     highlight: true,
     badge: "הפופולרי ביותר" as string | null,
     features: [
@@ -37,7 +37,7 @@ const packages = [
   },
   {
     name: "ליווי VIP",
-    tagline: "הכל, עם ליווי אישי אינטנסיבי — אנחנו מגדירים, מנהלים ומעדכנים בשמכם.",
+    tagline: "הכל, עם ליווי אישי אינטנסיבי. אנחנו מגדירים, מנהלים ומעדכנים בשמכם.",
     highlight: false,
     badge: "ליווי אינטנסיבי" as string | null,
     features: [
@@ -83,7 +83,7 @@ export default function Pricing() {
           <h2 className="section-title">בחרו את רמת הניהול</h2>
           <div className="gold-divider" />
           <p className="section-subtitle">
-            כל חבילה כוללת הגדרה ראשונית מלאה — אתם מתחילים לעבוד ביום שאחרי
+            כל חבילה כוללת הגדרה ראשונית מלאה. אתם מתחילים לעבוד ביום שאחרי
           </p>
         </FadeIn>
 
@@ -115,7 +115,7 @@ export default function Pricing() {
           </div>
         </FadeIn>
 
-        {/* Cards — 3 column */}
+        {/* Cards. 3 column */}
         <StaggerContainer
           className="grid grid-cols-1 sm:grid-cols-3 gap-5 items-start max-w-4xl mx-auto"
           staggerDelay={0.1}
@@ -157,7 +157,7 @@ export default function Pricing() {
               className="text-sm leading-relaxed"
               style={{ color: "rgba(51,51,51,0.58)", fontFamily: "Heebo, sans-serif" }}
             >
-              החבילות נעות בין <strong style={{ color: "#333" }}>₪400 ל-₪1,200</strong> — תלוי בכמות המוזמנים ורמת הליווי.
+              החבילות נעות בין <strong style={{ color: "#333" }}>₪400 ל-₪1,200</strong>. תלוי בכמות המוזמנים ורמת הליווי.
               <br />
               שלחו כמה פרטים ונחזור תוך 24 שעות עם הצעה מדויקת.
             </p>

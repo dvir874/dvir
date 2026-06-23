@@ -107,7 +107,7 @@ export default function LiveInvitationDemo() {
             <span style={{ color:"#C5A46D" }}>בזמן אמת</span>
           </h2>
           <p style={{ fontFamily:"Heebo, sans-serif", fontSize:14, color:"rgba(28,16,8,0.5)", marginTop:"0.75rem" }}>
-            הקלד שמות ותאריך — ותראה מיד איך זה נראה
+            הקלד שמות ותאריך. ותראה מיד איך זה נראה
           </p>
           </div>
         </FadeIn>
@@ -205,7 +205,7 @@ export default function LiveInvitationDemo() {
               background:"rgba(107,123,90,0.06)", border:"1px solid rgba(107,123,90,0.15)",
             }}>
               <p style={{ fontFamily:"Heebo, sans-serif", fontSize:13, color:"rgba(28,16,8,0.55)", margin:0, lineHeight:1.6 }}>
-                💡 <strong style={{ color:"#6B7B5A" }}>כזה בדיוק</strong> יקבלו האורחים שלך — הזמנה אישית בקישור שנשלח בוואטסאפ. כל לחיצה מגיעה ישר אליך בלוח הבקרה.
+                💡 <strong style={{ color:"#6B7B5A" }}>כזה בדיוק</strong> יקבלו האורחים שלך. הזמנה אישית בקישור שנשלח בוואטסאפ. כל לחיצה מגיעה ישר אליך בלוח הבקרה.
               </p>
             </div>
           </motion.div>
@@ -242,106 +242,185 @@ export default function LiveInvitationDemo() {
               {/* Notch */}
               <div style={{ position:"absolute", top:12, left:"50%", transform:"translateX(-50%)", width:60, height:16, background:"#0d1117", borderRadius:8, zIndex:2 }} />
 
-              {/* Screen */}
+              {/* Screen — full invitation design */}
               <div style={{
-                background:"#F2EDE3", borderRadius:28, height:"100%",
+                borderRadius:28, height:"100%",
                 overflow:"hidden", position:"relative",
+                background:"linear-gradient(160deg, #1C1008 0%, #2E1A0A 55%, #1C1008 100%)",
                 display:"flex", flexDirection:"column",
               }}>
-                {/* Screen status bar */}
-                <div style={{ height:28, background:"rgba(28,16,8,0.04)", display:"flex", alignItems:"flex-end", justifyContent:"center", paddingBottom:4 }}>
-                  <span style={{ fontSize:7, color:"rgba(28,16,8,0.3)", fontFamily:"Heebo, sans-serif" }}>הזמנה דיגיטלית</span>
+                {/* Status bar */}
+                <div style={{ height:28, display:"flex", alignItems:"flex-end", justifyContent:"center", paddingBottom:4, flexShrink:0 }}>
+                  <span style={{ fontSize:7, color:"rgba(197,164,109,0.4)", fontFamily:"Heebo, sans-serif", letterSpacing:"0.15em" }}>הזמנה דיגיטלית</span>
                 </div>
 
-                {/* Invitation card */}
-                <div className="invite-card" style={{
-                  flex:1, margin:"6px 10px 10px",
-                  background:"white",
-                  borderRadius:20, padding:"16px 12px",
-                  display:"flex", flexDirection:"column",
-                  alignItems:"center", justifyContent:"space-between",
-                  border:"1px solid rgba(197,164,109,0.15)",
-                }}>
-                  {/* Top ornament */}
-                  <div style={{ textAlign:"center" }}>
-                    <div style={{ fontSize:20, marginBottom:4 }}>💍</div>
-                    <div style={{ width:40, height:1, background:"rgba(197,164,109,0.4)", margin:"0 auto 8px" }} />
-                    <p style={{ fontFamily:"Heebo, sans-serif", fontSize:7.5, color:"rgba(28,16,8,0.45)", letterSpacing:"0.12em", textTransform:"uppercase" as const }}>
-                      בשמחה רבה מזמינים
+                {/* Decorative corner SVG ornaments */}
+                <svg style={{ position:"absolute", top:30, right:8, opacity:0.18 }} width="40" height="40" viewBox="0 0 40 40" fill="none">
+                  <path d="M2 2 Q20 2 20 20" stroke="#C5A46D" strokeWidth="1"/>
+                  <path d="M2 2 Q2 20 20 20" stroke="#C5A46D" strokeWidth="1"/>
+                  <circle cx="2" cy="2" r="2" fill="#C5A46D"/>
+                  <circle cx="20" cy="20" r="1.5" fill="#C5A46D"/>
+                </svg>
+                <svg style={{ position:"absolute", top:30, left:8, opacity:0.18, transform:"scaleX(-1)" }} width="40" height="40" viewBox="0 0 40 40" fill="none">
+                  <path d="M2 2 Q20 2 20 20" stroke="#C5A46D" strokeWidth="1"/>
+                  <path d="M2 2 Q2 20 20 20" stroke="#C5A46D" strokeWidth="1"/>
+                  <circle cx="2" cy="2" r="2" fill="#C5A46D"/>
+                  <circle cx="20" cy="20" r="1.5" fill="#C5A46D"/>
+                </svg>
+                <svg style={{ position:"absolute", bottom:60, right:8, opacity:0.18, transform:"scaleY(-1)" }} width="40" height="40" viewBox="0 0 40 40" fill="none">
+                  <path d="M2 2 Q20 2 20 20" stroke="#C5A46D" strokeWidth="1"/>
+                  <path d="M2 2 Q2 20 20 20" stroke="#C5A46D" strokeWidth="1"/>
+                  <circle cx="2" cy="2" r="2" fill="#C5A46D"/>
+                </svg>
+                <svg style={{ position:"absolute", bottom:60, left:8, opacity:0.18, transform:"scale(-1,-1)" }} width="40" height="40" viewBox="0 0 40 40" fill="none">
+                  <path d="M2 2 Q20 2 20 20" stroke="#C5A46D" strokeWidth="1"/>
+                  <path d="M2 2 Q2 20 20 20" stroke="#C5A46D" strokeWidth="1"/>
+                  <circle cx="2" cy="2" r="2" fill="#C5A46D"/>
+                </svg>
+
+                {/* Glow orb */}
+                <div style={{ position:"absolute", width:160, height:160, borderRadius:"50%", background:"radial-gradient(circle, rgba(197,164,109,0.12) 0%, transparent 70%)", top:"25%", left:"50%", transform:"translateX(-50%)", pointerEvents:"none" }} />
+
+                {/* Main content */}
+                <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"space-between", padding:"10px 16px 14px", position:"relative", zIndex:1 }}>
+
+                  {/* Top section */}
+                  <div style={{ textAlign:"center", width:"100%" }}>
+                    {/* Hebrew blessing */}
+                    <p style={{ fontFamily:"Frank Ruhl Libre, serif", fontSize:7.5, color:"rgba(197,164,109,0.6)", letterSpacing:"0.2em", margin:"0 0 8px" }}>
+                      ✦ בשעה טובה ומוצלחת ✦
+                    </p>
+                    {/* Thin gold divider */}
+                    <div style={{ display:"flex", alignItems:"center", gap:4, marginBottom:8 }}>
+                      <div style={{ flex:1, height:0.5, background:"linear-gradient(90deg, transparent, rgba(197,164,109,0.5))" }} />
+                      <div style={{ width:3, height:3, borderRadius:"50%", background:"#C5A46D", opacity:0.7 }} />
+                      <div style={{ flex:1, height:0.5, background:"linear-gradient(90deg, rgba(197,164,109,0.5), transparent)" }} />
+                    </div>
+                    <p style={{ fontFamily:"Heebo, sans-serif", fontSize:7, color:"rgba(255,240,200,0.4)", letterSpacing:"0.12em", margin:0 }}>
+                      שמחים להזמין אתכם לאירוע החתונה של
                     </p>
                   </div>
 
-                  {/* Names */}
-                  <div style={{ textAlign:"center", padding:"8px 0" }}>
+                  {/* Names — center piece */}
+                  <div style={{ textAlign:"center" }}>
                     <AnimatePresence mode="wait">
-                      <motion.h1
+                      <motion.div
                         key={`${groomDisplay}-${brideDisplay}`}
-                        initial={{ opacity:0, y:6 }}
-                        animate={{ opacity:1, y:0 }}
-                        exit={{ opacity:0, y:-6 }}
-                        transition={{ duration:0.35 }}
-                        style={{
-                          fontFamily:"Frank Ruhl Libre, serif",
-                          fontSize:"clamp(14px,3vw,18px)",
-                          fontWeight:700, color:"#1C1008",
-                          margin:0, lineHeight:1.35,
-                        }}
+                        initial={{ opacity:0, scale:0.95 }}
+                        animate={{ opacity:1, scale:1 }}
+                        exit={{ opacity:0, scale:1.02 }}
+                        transition={{ duration:0.4 }}
                       >
-                        {groomDisplay}
-                        <br />
-                        <span style={{ fontSize:"0.7em", color:"rgba(197,164,109,0.8)", fontWeight:400 }}>&amp;</span>
-                        <br />
-                        {brideDisplay}
-                      </motion.h1>
+                        <p style={{
+                          fontFamily:"Frank Ruhl Libre, serif",
+                          fontSize:22, fontWeight:700,
+                          color:"#FFF8EC",
+                          margin:0, lineHeight:1.1,
+                          textShadow:"0 0 20px rgba(197,164,109,0.3)",
+                        }}>
+                          {groomDisplay}
+                        </p>
+                        {/* Ampersand ornament */}
+                        <p style={{
+                          fontFamily:"Frank Ruhl Libre, serif",
+                          fontSize:13, color:"#C5A46D",
+                          margin:"3px 0", lineHeight:1,
+                        }}>
+                          &amp;
+                        </p>
+                        <p style={{
+                          fontFamily:"Frank Ruhl Libre, serif",
+                          fontSize:22, fontWeight:700,
+                          color:"#FFF8EC",
+                          margin:0, lineHeight:1.1,
+                          textShadow:"0 0 20px rgba(197,164,109,0.3)",
+                        }}>
+                          {brideDisplay}
+                        </p>
+                      </motion.div>
                     </AnimatePresence>
-                    <div style={{ width:30, height:1.5, background:"linear-gradient(90deg, transparent, #C5A46D, transparent)", margin:"6px auto" }} />
+
+                    {/* Gold ornamental divider */}
+                    <div style={{ margin:"10px auto 0", width:60 }}>
+                      <svg viewBox="0 0 60 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <line x1="0" y1="6" x2="22" y2="6" stroke="url(#g1)" strokeWidth="0.7"/>
+                        <circle cx="30" cy="6" r="3" stroke="#C5A46D" strokeWidth="0.7" fill="none"/>
+                        <circle cx="30" cy="6" r="1" fill="#C5A46D" opacity="0.7"/>
+                        <line x1="38" y1="6" x2="60" y2="6" stroke="url(#g2)" strokeWidth="0.7"/>
+                        <defs>
+                          <linearGradient id="g1" x1="0" y1="0" x2="22" y2="0" gradientUnits="userSpaceOnUse">
+                            <stop stopColor="#C5A46D" stopOpacity="0"/>
+                            <stop offset="1" stopColor="#C5A46D" stopOpacity="0.8"/>
+                          </linearGradient>
+                          <linearGradient id="g2" x1="38" y1="0" x2="60" y2="0" gradientUnits="userSpaceOnUse">
+                            <stop stopColor="#C5A46D" stopOpacity="0.8"/>
+                            <stop offset="1" stopColor="#C5A46D" stopOpacity="0"/>
+                          </linearGradient>
+                        </defs>
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* Date + details */}
+                  <div style={{ textAlign:"center", width:"100%" }}>
                     <AnimatePresence mode="wait">
-                      <motion.p
+                      <motion.div
                         key={dateDisplay}
                         initial={{ opacity:0 }}
                         animate={{ opacity:1 }}
                         exit={{ opacity:0 }}
                         transition={{ duration:0.3 }}
-                        style={{ fontFamily:"Heebo, sans-serif", fontSize:9, color:"rgba(28,16,8,0.55)", margin:0 }}
                       >
-                        {dateDisplay}
-                      </motion.p>
+                        <p style={{
+                          fontFamily:"Frank Ruhl Libre, serif",
+                          fontSize:11, color:"rgba(197,164,109,0.9)",
+                          margin:"0 0 3px", fontWeight:600,
+                        }}>
+                          {dateDisplay || "תאריך החתונה"}
+                        </p>
+                        <p style={{ fontFamily:"Heebo, sans-serif", fontSize:7, color:"rgba(255,240,200,0.35)", margin:0 }}>
+                          אולם האירועים · שעה 19:00
+                        </p>
+                      </motion.div>
                     </AnimatePresence>
+
+                    {/* RSVP button */}
+                    <div style={{ marginTop:10 }}>
+                      <AnimatePresence mode="wait">
+                        {rsvped ? (
+                          <motion.div
+                            key="confirmed"
+                            initial={{ scale:0.85, opacity:0 }}
+                            animate={{ scale:1, opacity:1 }}
+                            style={{
+                              padding:"6px 14px", borderRadius:16,
+                              background:"rgba(107,123,90,0.2)", border:"1px solid rgba(107,123,90,0.4)",
+                              fontFamily:"Heebo, sans-serif", fontSize:8.5, color:"#8BA87A", fontWeight:700,
+                              display:"inline-block",
+                            }}
+                          >
+                            ✓ אישרת הגעה!
+                          </motion.div>
+                        ) : (
+                          <motion.button
+                            key="rsvp"
+                            whileTap={{ scale:0.95 }}
+                            onClick={handleRsvp}
+                            style={{
+                              padding:"7px 22px", borderRadius:20, border:"none", cursor:"pointer",
+                              background:"linear-gradient(135deg, #C5A46D 0%, #9B6E2C 100%)",
+                              color:"white", fontFamily:"Heebo, sans-serif", fontSize:9, fontWeight:700,
+                              boxShadow:"0 4px 16px rgba(197,164,109,0.5)",
+                              letterSpacing:"0.05em",
+                            }}
+                          >
+                            אישור הגעה ←
+                          </motion.button>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   </div>
 
-                  {/* RSVP button */}
-                  <div style={{ width:"100%", textAlign:"center" }}>
-                    <AnimatePresence mode="wait">
-                      {rsvped ? (
-                        <motion.div
-                          key="confirmed"
-                          initial={{ scale:0.8, opacity:0 }}
-                          animate={{ scale:1, opacity:1 }}
-                          style={{
-                            padding:"7px 12px", borderRadius:20,
-                            background:"rgba(107,123,90,0.12)", border:"1px solid rgba(107,123,90,0.3)",
-                            fontFamily:"Heebo, sans-serif", fontSize:9, color:"#6B7B5A", fontWeight:600,
-                          }}
-                        >
-                          ✓ אישרת הגעה!
-                        </motion.div>
-                      ) : (
-                        <motion.button
-                          key="rsvp"
-                          whileTap={{ scale:0.95 }}
-                          onClick={handleRsvp}
-                          style={{
-                            padding:"7px 20px", borderRadius:20, border:"none", cursor:"pointer",
-                            background:"linear-gradient(135deg, #C5A46D, #9B6E2C)",
-                            color:"white", fontFamily:"Heebo, sans-serif", fontSize:9, fontWeight:700,
-                            boxShadow:"0 4px 12px rgba(197,164,109,0.4)",
-                          }}
-                        >
-                          אישור הגעה
-                        </motion.button>
-                      )}
-                    </AnimatePresence>
-                  </div>
                 </div>
               </div>
             </div>

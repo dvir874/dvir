@@ -32,7 +32,7 @@ export default function StickyMobileCTA() {
         }}
       >
         <MessageCircle size={18} strokeWidth={2} />
-        קבלו הצעת מחיר — תוך 24 שעות
+        קבלו הצעת מחיר. תוך 24 שעות
       </a>
     </div>
   );

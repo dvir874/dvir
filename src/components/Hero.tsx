@@ -171,7 +171,7 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* KPI strip — real metrics: guests / confirmed / pending / RSVP rate */}
+        {/* KPI strip. real metrics: guests / confirmed / pending / RSVP rate */}
         <div className="grid grid-cols-4 border-b" style={{ borderColor: G.borderSoft, gap: "1px", background: G.borderSoft }}>
           {[
             { label: "מוזמנים",  val: String(TOTAL),     color: G.dark  },
@@ -236,7 +236,7 @@ function Dashboard() {
             ))}
           </div>
 
-          {/* Activity feed — real events only */}
+          {/* Activity feed. real events only */}
           <div className="w-40 p-3.5 flex-shrink-0">
             <p className="text-[9px] uppercase tracking-widest mb-2.5" style={{ color: G.goldMuted, fontFamily: "Heebo, sans-serif" }}>
               פעילות
@@ -259,7 +259,7 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Footer — real stats only */}
+        {/* Footer. real stats only */}
         <div className="flex items-center gap-4 px-4 py-2.5 border-t" style={{ background: "rgba(197,164,109,0.03)", borderColor: G.borderSoft }}>
           <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full" style={{ background: G.olive }} />
@@ -318,7 +318,7 @@ export default function Hero() {
             }}
           >
             <p className="text-sm mb-3 font-medium" style={{ color: "#6B7B5A", fontFamily: "Heebo, sans-serif" }}>
-              שלום, אני דביר — מנהל אירועים דיגיטלי
+              שלום, אני דביר. מנהל אירועים דיגיטלי
             </p>
 
             <h1
@@ -334,9 +334,9 @@ export default function Hero() {
               className="text-base md:text-lg leading-[1.85] max-w-lg mb-7"
               style={{ color: "rgba(51,51,51,0.60)", fontFamily: "Heebo, sans-serif", fontWeight: 300 }}
             >
-              אנחנו מנהלים את הלוגיסטיקה — אתם נהנים מהדרך.
+              אנחנו מנהלים את הלוגיסטיקה. אתם נהנים מהדרך.
               <br className="hidden md:block" />
-              אורחים, הושבה, תקציב, מתנות ומשימות — הכל במקום אחד.
+              אורחים, הושבה, תקציב, מתנות ומשימות. הכל במקום אחד.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mb-6">
@@ -347,7 +347,7 @@ export default function Hero() {
                 className="btn-primary w-full sm:w-auto justify-center"
               >
                 <MessageCircle size={17} strokeWidth={2} />
-                קבלו הצעת מחיר — תוך 24 שעות
+                קבלו הצעת מחיר. תוך 24 שעות
               </a>
               <a href="/dashboard-demo" target="_blank" rel="noopener noreferrer" className="btn-outline w-full sm:w-auto justify-center">
                 <span>ראו דמו חי</span>

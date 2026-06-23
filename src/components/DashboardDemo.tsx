@@ -7,7 +7,7 @@ import { MessageCircle, ExternalLink, ArrowRight, CheckCircle, Clock, XCircle, M
 import { WA_URL } from "@/lib/constants";
 
 /* ════════════════════════════════════════════════
-   Design tokens — ivory / gold / olive palette
+   Design tokens. ivory / gold / olive palette
 ════════════════════════════════════════════════ */
 const G = {
   cream:      "#F6F1E8",
@@ -54,22 +54,22 @@ function GoldDivider() {
 }
 
 /* ════════════════════════════════════════════════
-   Section 1 — Invitation preview
+   Section 1. Invitation preview
 ════════════════════════════════════════════════ */
 function InvitationSection() {
   return (
     <section className="py-16 px-4">
       <div className="container-max mx-auto">
         <SectionHeader
-          eyebrow="שלב 1 — ההזמנה"
+          eyebrow="שלב 1. ההזמנה"
           title="כך נראית ההזמנה"
-          sub="כל הזמנה מעוצבת מאפס — בסגנון, בצבעים ובאווירה שמדברים עליכם. מקבלים קובץ מוכן לשיתוף בוואטסאפ."
+          sub="כל הזמנה מעוצבת מאפס. בסגנון, בצבעים ובאווירה שמדברים עליכם. מקבלים קובץ מוכן לשיתוף בוואטסאפ."
         />
 
-        {/* Two real invitation designs — light + dark */}
+        {/* Two real invitation designs. light + dark */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
 
-          {/* Light invitation — Noa & Eitan (cream/olive/botanical) */}
+          {/* Light invitation. Noa & Eitan (cream/olive/botanical) */}
           <div
             className="relative rounded-2xl overflow-hidden"
             style={{
@@ -79,7 +79,7 @@ function InvitationSection() {
           >
             <Image
               src="/gallery/wedding/wedding3.png"
-              alt="הזמנת חתונה — עיצוב בהיר אלגנטי"
+              alt="הזמנת חתונה. עיצוב בהיר אלגנטי"
               width={941}
               height={1672}
               className="w-full h-auto"
@@ -97,7 +97,7 @@ function InvitationSection() {
             </div>
           </div>
 
-          {/* Dark invitation — Noam & Adi (black/gold luxury) */}
+          {/* Dark invitation. Noam & Adi (black/gold luxury) */}
           <div
             className="relative rounded-2xl overflow-hidden"
             style={{
@@ -107,7 +107,7 @@ function InvitationSection() {
           >
             <Image
               src="/gallery/wedding/wedding4.png"
-              alt="הזמנת חתונה — עיצוב כהה יוקרתי"
+              alt="הזמנת חתונה. עיצוב כהה יוקרתי"
               width={1024}
               height={1536}
               className="w-full h-auto"
@@ -155,7 +155,7 @@ function InvitationSection() {
             <br />
             לא מצאתם עיצוב שהתאהבתם בו?
             <br />
-            שלחו לנו ב-WhatsApp תמונה, סקיצה או השראה שאהבתם — ואנחנו נעצב עבורכם הזמנה אישית באותו הקו העיצובי, בהתאמה מלאה לאירוע שלכם.
+            שלחו לנו ב-WhatsApp תמונה, סקיצה או השראה שאהבתם. ואנחנו נעצב עבורכם הזמנה אישית באותו הקו העיצובי, בהתאמה מלאה לאירוע שלכם.
           </p>
 
           <div className="flex flex-col items-center gap-2 mb-6 text-sm" style={{ fontFamily: "Heebo, sans-serif" }}>
@@ -170,7 +170,7 @@ function InvitationSection() {
             className="text-sm font-semibold mb-5"
             style={{ color: G.dark, fontFamily: "Heebo, sans-serif" }}
           >
-            שלחו לנו השראה — ואנחנו נהפוך אותה להזמנה שלכם.
+            שלחו לנו השראה. ואנחנו נהפוך אותה להזמנה שלכם.
           </p>
 
           <a
@@ -194,14 +194,14 @@ function InvitationSection() {
 }
 
 /* ════════════════════════════════════════════════
-   Section 2 — Event page preview
+   Section 2. Event page preview
 ════════════════════════════════════════════════ */
 function EventPageSection() {
   return (
     <section className="py-16 px-4" style={{ background: G.white }}>
       <div className="container-max mx-auto">
         <SectionHeader
-          eyebrow="שלב 2 — דף האירוע"
+          eyebrow="שלב 2. דף האירוע"
           title="דף האירוע שלכם"
           sub="האורחים פותחים קישור ורואים את כל פרטי האירוע: ספירת לאחור, ניווט, ואישור הגעה."
         />
@@ -291,7 +291,7 @@ function EventPageSection() {
 }
 
 /* ════════════════════════════════════════════════
-   Section 3 — RSVP tracking example
+   Section 3. RSVP tracking example
 ════════════════════════════════════════════════ */
 const RSVP_GUESTS = [
   { name: "משפחת כהן",      guests: 4, status: "confirmed" as const },
@@ -322,7 +322,7 @@ function RsvpSection() {
     <section className="py-16 px-4" style={{ background: `linear-gradient(160deg,${G.ivory} 0%,${G.cream} 100%)` }}>
       <div className="container-max mx-auto">
         <SectionHeader
-          eyebrow="שלב 3 — אישורי הגעה"
+          eyebrow="שלב 3. אישורי הגעה"
           title="כך אנחנו מרכזים את אישורי ההגעה"
         />
 
@@ -413,7 +413,7 @@ function RsvpSection() {
           </div>
 
           <p className="text-center text-xs mt-4" style={{ color: "rgba(51,51,51,0.38)", fontFamily: "Heebo, sans-serif" }}>
-            * נתונים לדוגמה בלבד — כך נארגן את האישורים עבורכם
+            * נתונים לדוגמה בלבד. כך נארגן את האישורים עבורכם
           </p>
         </div>
       </div>
@@ -422,26 +422,26 @@ function RsvpSection() {
 }
 
 /* ════════════════════════════════════════════════
-   Section 4 — WhatsApp reminder examples
+   Section 4. WhatsApp reminder examples
 ════════════════════════════════════════════════ */
 const REMINDERS = [
   {
     timing: "4 שבועות לפני האירוע",
     label:  "תזכורת ראשונה",
     sent:   "כל המוזמנים שלא אישרו",
-    msg:    "שלום 😊\nהגעתם להזמנה לחתונת נועה ואורי — ואנחנו שמחים!\nעדיין לא אישרתם הגעה?\nלחצו על הקישור ואשרו בקלות:\nraga-lifnei.co.il/noaanduri2026\nנשמח לראותכם! 🤍",
+    msg:    "שלום 😊\nהגעתם להזמנה לחתונת נועה ואורי. ואנחנו שמחים!\nעדיין לא אישרתם הגעה?\nלחצו על הקישור ואשרו בקלות:\nraga-lifnei.co.il/noaanduri2026\nנשמח לראותכם! 🤍",
   },
   {
     timing: "2 שבועות לפני האירוע",
     label:  "תזכורת שנייה",
     sent:   "שעדיין לא הגיבו",
-    msg:    "היי! 👋\nאנחנו ב-14 ימים בלבד מחתונת נועה ואורי 🥂\nאם עוד לא אישרתם הגעה — נשמח מאוד לדעת!\nraga-lifnei.co.il/noaanduri2026\nתודה רבה! 💛",
+    msg:    "היי! 👋\nאנחנו ב-14 ימים בלבד מחתונת נועה ואורי 🥂\nאם עוד לא אישרתם הגעה. נשמח מאוד לדעת!\nraga-lifnei.co.il/noaanduri2026\nתודה רבה! 💛",
   },
   {
     timing: "שבוע לפני האירוע",
     label:  "תזכורת אחרונה",
     sent:   "ממתינים אחרונים",
-    msg:    "האירוע כבר ממש בפתח! 🎉\nחתונת נועה ואורי — 16 אוקטובר, אולם המלכות.\nזו ההזדמנות האחרונה לאשר הגעה:\nraga-lifnei.co.il/noaanduri2026\nמחכים לראותכם! 🤍",
+    msg:    "האירוע כבר ממש בפתח! 🎉\nחתונת נועה ואורי. 16 אוקטובר, אולם המלכות.\nזו ההזדמנות האחרונה לאשר הגעה:\nraga-lifnei.co.il/noaanduri2026\nמחכים לראותכם! 🤍",
   },
 ];
 
@@ -453,9 +453,9 @@ function RemindersSection() {
     <section className="py-16 px-4" style={{ background: G.white }}>
       <div className="container-max mx-auto">
         <SectionHeader
-          eyebrow="שלב 4 — תזכורות"
+          eyebrow="שלב 4. תזכורות"
           title="תזכורות למוזמנים"
-          sub="לכל מי שעוד לא אישר הגעה — שולחים תזכורת אישית ומכובדת בוואטסאפ. בדרך כלל 2–3 תזכורות לאורך התקופה."
+          sub="לכל מי שעוד לא אישר הגעה. שולחים תזכורת אישית ומכובדת בוואטסאפ. בדרך כלל 2–3 תזכורות לאורך התקופה."
         />
 
         <div className="max-w-xl mx-auto">
@@ -510,7 +510,7 @@ function RemindersSection() {
                 <MessageCircle size={16} color="white" />
               </div>
               <div>
-                <p className="text-xs font-semibold" style={{ color: G.dark, fontFamily: "Heebo, sans-serif" }}>רגע לפני — הזמנות</p>
+                <p className="text-xs font-semibold" style={{ color: G.dark, fontFamily: "Heebo, sans-serif" }}>רגע לפני. הזמנות</p>
                 <p className="text-[10px]" style={{ color: G.oliveMuted, fontFamily: "Heebo, sans-serif" }}>מקוון</p>
               </div>
               <span
@@ -547,14 +547,14 @@ function RemindersSection() {
 }
 
 /* ════════════════════════════════════════════════
-   Section 5 — Final event summary
+   Section 5. Final event summary
 ════════════════════════════════════════════════ */
 function SummarySection() {
   return (
     <section className="py-16 px-4" style={{ background: `linear-gradient(160deg,${G.ivory} 0%,${G.cream} 100%)` }}>
       <div className="container-max mx-auto">
         <SectionHeader
-          eyebrow="שלב 5 — סיכום"
+          eyebrow="שלב 5. סיכום"
           title="תמונת מצב לפני האירוע"
           sub="לקראת האירוע, מסכמים עבורכם את כל האישורים ומוסרים את הרשימה המסודרת."
         />
@@ -620,7 +620,7 @@ function SummarySection() {
             style={{ background: "rgba(197,164,109,0.05)", borderTop: `1px solid ${G.borderSoft}` }}
           >
             <p className="text-xs" style={{ color: G.darkMuted, fontFamily: "Heebo, sans-serif" }}>
-              * דוגמה להמחשה בלבד — הנתונים הם פיקטיביים
+              * דוגמה להמחשה בלבד. הנתונים הם פיקטיביים
             </p>
           </div>
         </div>
@@ -674,7 +674,7 @@ export default function DashboardDemo() {
             <span style={{ color: G.gold }}>ועד ליום האירוע</span>
           </h1>
           <p className="text-base max-w-lg mx-auto" style={{ color: G.darkMuted, fontFamily: "Heebo, sans-serif", fontWeight: 300, lineHeight: 1.85 }}>
-            הצצה לפלטפורמה — ניהול אורחים, הושבה, תקציב, משימות ואישורי הגעה
+            הצצה לפלטפורמה. ניהול אורחים, הושבה, תקציב, משימות ואישורי הגעה
           </p>
         </div>
       </div>

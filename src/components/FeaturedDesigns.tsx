@@ -26,7 +26,7 @@ const APPS = [
   { emoji: "📧", name: "מיילים",      sub: "עדכונים לספקים ולאורחים"   },
 ];
 
-/* ─── Platform modules — what we actually provide ─── */
+/* ─── Platform modules. what we actually provide ─── */
 const MODULES = [
   "דף אירוע אישי + אישורי הגעה",
   "תזכורות אוטומטיות בוואטסאפ",
@@ -38,7 +38,7 @@ const MODULES = [
 
 /* ─── Value pillars ─── */
 const VALUES = [
-  { icon: "🤍", label: "שקט נפשי",          sub: "אתם יודעים מה קורה — תמיד"       },
+  { icon: "🤍", label: "שקט נפשי",          sub: "אתם יודעים מה קורה. תמיד"       },
   { icon: "⚡", label: "מוכן תוך 48 שעות",  sub: "אנחנו מגדירים, אתם מתחילים"      },
   { icon: "👫", label: "לשני בני הזוג",      sub: "שניכם רואים הכל, בזמן אמת"       },
   { icon: "💬", label: "ליווי בוואטסאפ",    sub: "אנחנו כאן לאורך כל הדרך"         },
@@ -67,17 +67,17 @@ export default function FeaturedDesigns() {
           </h2>
           <div className="gold-divider" />
           <p className="section-subtitle text-base" style={{ fontFamily: "Heebo, sans-serif" }}>
-            Excel, WhatsApp, תזכורות ידניות — הכל עובר למקום אחד, ואנחנו מגדירים אותו עבורכם.
+            Excel, WhatsApp, תזכורות ידניות. הכל עובר למקום אחד, ואנחנו מגדירים אותו עבורכם.
           </p>
         </div>
 
-        {/* Comparison — LTR so arrow points left→right visually */}
+        {/* Comparison. LTR so arrow points left→right visually */}
         <div dir="ltr" className="grid md:grid-cols-[1fr_56px_1fr] gap-4 items-center mb-16">
 
           {/* Left: scattered tools */}
           <div className="space-y-2.5">
             <p className="text-xs font-semibold uppercase tracking-widest text-center mb-5" style={{ color: G.darkMuted, fontFamily: "Heebo, sans-serif" }}>
-              כיום — 5 כלים נפרדים
+              כיום. 5 כלים נפרדים
             </p>
             {APPS.map((app) => (
               <div
@@ -115,7 +115,7 @@ export default function FeaturedDesigns() {
           {/* Right: one platform */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-center mb-5" style={{ color: G.darkMuted, fontFamily: "Heebo, sans-serif" }}>
-              עם רגע לפני — שירות אחד
+              עם רגע לפני. שירות אחד
             </p>
             <div
               className="rounded-2xl p-5"
@@ -152,7 +152,7 @@ export default function FeaturedDesigns() {
           </div>
         </div>
 
-        {/* Value propositions — no invented numbers */}
+        {/* Value propositions. no invented numbers */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {VALUES.map((v) => (
             <div

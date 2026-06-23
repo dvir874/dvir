@@ -39,7 +39,7 @@ export default function ComparisonSection() {
           </h2>
           <div className="gold-divider" />
           <p className="section-subtitle">
-            כל מה שצריך לניהול החתונה — בלוח בקרה אחד, עם ליווי אישי לאורך כל הדרך.
+            כל מה שצריך לניהול החתונה. בלוח בקרה אחד, עם ליווי אישי לאורך כל הדרך.
           </p>
         </FadeIn>
 
@@ -75,7 +75,7 @@ export default function ComparisonSection() {
                   {row.label}
                 </div>
 
-                {/* "Them" column — ✓ muted when true, ✕ red when false */}
+                {/* "Them" column. ✓ muted when true, ✕ red when false */}
                 <div className="py-3.5 flex justify-center border-r" style={{ borderColor: "rgba(197,164,109,0.10)" }}>
                   {row.them ? (
                     <span className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "rgba(51,51,51,0.06)" }}>
@@ -88,7 +88,7 @@ export default function ComparisonSection() {
                   )}
                 </div>
 
-                {/* "Us" column — ✓ green when true, ✕ red when false */}
+                {/* "Us" column. ✓ green when true, ✕ red when false */}
                 <div className="py-3.5 flex justify-center">
                   {row.us ? (
                     <span className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "rgba(107,123,90,0.12)" }}>
@@ -113,7 +113,7 @@ export default function ComparisonSection() {
                 fontFamily: "Heebo, sans-serif",
               }}
             >
-              הזוגות שלנו מגיעים לאירוע רגועים — כי אנחנו טיפלנו בכל השאר
+              הזוגות שלנו מגיעים לאירוע רגועים. כי אנחנו טיפלנו בכל השאר
             </div>
           </div>
         </FadeIn>

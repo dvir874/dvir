@@ -10,7 +10,7 @@ const CATEGORY_CARDS = [
     id:    "wedding"   as GalleryCategory,
     icon:  Heart,
     emoji: "💍",
-    desc:  "ניהול מלא — אורחים, הושבה, תקציב ומתנות",
+    desc:  "ניהול מלא. אורחים, הושבה, תקציב ומתנות",
   },
   {
     id:    "birthday"  as GalleryCategory,
@@ -28,13 +28,13 @@ const CATEGORY_CARDS = [
     id:    "batmitzva" as GalleryCategory,
     icon:  Sparkles,
     emoji: "🌟",
-    desc:  "ניהול בת מצווה — מהמוזמן הראשון ועד יום האירוע",
+    desc:  "ניהול בת מצווה. מהמוזמן הראשון ועד יום האירוע",
   },
   {
     id:    "hina"      as GalleryCategory,
     icon:  Moon,
     emoji: "🌙",
-    desc:  "ניהול חינה — אישורי הגעה ותזכורות אוטומטיות",
+    desc:  "ניהול חינה. אישורי הגעה ותזכורות אוטומטיות",
   },
   {
     id:    "brit"      as GalleryCategory,
@@ -46,7 +46,7 @@ const CATEGORY_CARDS = [
     id:    "brita"     as GalleryCategory,
     icon:  Flower2,
     emoji: "🌸",
-    desc:  "ניהול ברית בנות — הכל מסודר, הכל ידוע",
+    desc:  "ניהול ברית בנות. הכל מסודר, הכל ידוע",
   },
 ];
 
@@ -82,10 +82,10 @@ export default function EventCategories() {
           >
             לכל אירוע
           </p>
-          <h2 className="section-title">לכל אירוע — ניהול מלא</h2>
+          <h2 className="section-title">לכל אירוע. ניהול מלא</h2>
           <div className="gold-divider" />
           <p className="section-subtitle">
-            חתונה, חינה, בר מצווה, בת מצווה, ברית ועוד — כל אירוע מקבל לוח בקרה, אישורי הגעה ותזכורות אוטומטיות
+            חתונה, חינה, בר מצווה, בת מצווה, ברית ועוד. כל אירוע מקבל לוח בקרה, אישורי הגעה ותזכורות אוטומטיות
           </p>
         </FadeIn>
 
@@ -237,7 +237,7 @@ export default function EventCategories() {
                     className="text-white/65 text-xs leading-relaxed"
                     style={{ fontFamily: "Heebo, sans-serif" }}
                   >
-                    כל אירוע משפחתי — נשמח להתאים ניהול מדויק
+                    כל אירוע משפחתי. נשמח להתאים ניהול מדויק
                   </p>
                   <motion.p
                     variants={{ idle: { opacity: 0 }, hovered: { opacity: 1 } }}

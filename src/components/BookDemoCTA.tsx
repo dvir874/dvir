@@ -34,7 +34,7 @@ export default function BookDemoCTA() {
             className="text-sm text-white/65 max-w-md mx-auto mb-8 leading-relaxed"
             style={{ fontFamily: "Heebo, sans-serif" }}
           >
-            ספרו לנו על האירוע — ונחזור אליכם עם הצעה מותאמת אישית, בלי התחייבות
+            ספרו לנו על האירוע. ונחזור אליכם עם הצעה מותאמת אישית, בלי התחייבות
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -51,7 +51,7 @@ export default function BookDemoCTA() {
               }}
             >
               <MessageCircle size={16} />
-              שלחו הודעה — נחזור תוך 24 שעות
+              שלחו הודעה. נחזור תוך 24 שעות
             </a>
 
             <a

@@ -36,7 +36,7 @@ export default function LeadForm({ source = "hero" }: { source?: string }) {
       } else if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
         normalizedDate = d; // already YYYY-MM-DD
       }
-      // If unrecognized format — skip (don't send garbage)
+      // If unrecognized format. skip (don't send garbage)
     }
 
     try {
@@ -103,7 +103,7 @@ export default function LeadForm({ source = "hero" }: { source?: string }) {
             background:   "rgba(197,164,109,0.05)",
           }}
         >
-          ✦ שמרו לנו מקום — נחזור אליכם תוך שעה
+          ✦ שמרו לנו מקום. נחזור אליכם תוך שעה
         </div>
 
         <div className="p-3 space-y-2">
@@ -141,7 +141,7 @@ export default function LeadForm({ source = "hero" }: { source?: string }) {
           />
           <input
             type="text"
-            placeholder="תאריך החתונה — למשל 24.08.2026"
+            placeholder="תאריך החתונה. למשל 24.08.2026"
             value={date}
             onChange={e => setDate(e.target.value)}
             className="w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all duration-200"
@@ -178,7 +178,7 @@ export default function LeadForm({ source = "hero" }: { source?: string }) {
 
       {state === "error" && (
         <p className="text-xs mt-2 text-center" style={{ color: "#b94040", fontFamily: "Heebo, sans-serif" }}>
-          משהו השתבש — נסו שוב או כתבו לנו בוואטסאפ
+          משהו השתבש. נסו שוב או כתבו לנו בוואטסאפ
         </p>
       )}
     </form>
