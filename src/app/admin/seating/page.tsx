@@ -55,12 +55,15 @@ export default function SeatingPage() {
   const [relType,         setRelType]          = useState("couple");
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const preselect = params.get("event");
     fetch("/api/events")
       .then((r) => r.json())
       .then((d) => {
         if (Array.isArray(d)) {
           setEvents(d.map((e: { id: string; name: string }) => ({ id: e.id, name: e.name })));
-          if (d.length > 0) setEventId(d[0].id);
+          const match = preselect && d.find((e: { id: string }) => e.id === preselect);
+          setEventId(match ? match.id : d[0]?.id ?? null);
         }
       });
   }, []);

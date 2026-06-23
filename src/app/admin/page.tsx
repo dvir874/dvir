@@ -866,10 +866,11 @@ export default function AdminPage() {
                 style={{ background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.25)", minWidth: 160, top: "calc(100% + 4px)", left: 0 }}
               >
                 {[
-                  { href: "/admin/seating",   label: "סידור הושבה",   emoji: "🪑" },
+                  { href: selectedEventId ? `/admin/seating?event=${selectedEventId}` : "/admin/seating", label: "סידור הושבה", emoji: "🪑" },
                   { href: "/admin/budget",    label: "ניהול תקציב",   emoji: "💰" },
                   { href: "/admin/gifts",     label: "מעקב מתנות",    emoji: "🎁" },
                   { href: "/admin/reminders", label: "תזכורות RSVP",  emoji: "📨" },
+                  { href: "/admin/whatsapp",  label: "קמפיין וואטסאפ", emoji: "📲" },
                   ...(selectedEventId ? [{ href: `/admin/gallery/${selectedEventId}`, label: "גלריית תמונות", emoji: "📸" }] : []),
                 ].map((item) => (
                   <a
@@ -929,6 +930,30 @@ export default function AdminPage() {
               title="העתק קישור דף הזוג"
             >
               <Copy size={13} /> קישור לזוג
+            </button>
+          )}
+          {selectedEvent?.couple_token && (
+            <button
+              onClick={async () => {
+                const phone = selectedEvent?.client_phone?.replace(/[^0-9]/g, "").replace(/^0/, "972") ?? "";
+                if (!phone) { alert("אין מספר טלפון שמור לזוג"); return; }
+                try {
+                  const res = await fetch(`/api/couple/${selectedEvent.couple_token}/briefing`);
+                  const brief = await res.json();
+                  const keyFacts: string[] = brief.keyFacts ?? [];
+                  const alerts: { title: string }[] = brief.alerts ?? [];
+                  const base = window.location.origin;
+                  const msg = `שלום! 💛\nעדכון מרגע לפני עבור ${selectedEvent.name}:\n\n${keyFacts.join(" | ")}\n\nפעולות נדרשות:\n${alerts.slice(0, 3).map((a) => `• ${a.title}`).join("\n")}\n\nלדשבורד המלא: ${base}/couple/${selectedEvent.couple_token}`;
+                  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
+                } catch {
+                  alert("שגיאה בשליפת הנתונים");
+                }
+              }}
+              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
+              style={{ background: "rgba(197,164,109,0.10)", color: C.gold }}
+              title="שלח תזכורת לזוג בוואטסאפ"
+            >
+              🔔 תזכורת לזוג
             </button>
           )}
           {selectedEventId && (

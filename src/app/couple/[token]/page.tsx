@@ -268,19 +268,23 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
 
       {/* Header */}
       <div style={{
-        background: "linear-gradient(160deg, #F6F1E8 0%, #EDE6D6 100%)",
+        background: "linear-gradient(150deg, #C5954A 0%, #9B6E2C 50%, #7A5020 100%)",
         padding: "2.25rem 1.5rem 1.75rem",
-        borderBottom: "1px solid rgba(197,164,109,0.20)",
+        borderBottom: "1px solid rgba(0,0,0,0.12)",
+        position: "relative",
+        overflow: "hidden",
       }}>
-        <div style={{ maxWidth: 640, margin: "0 auto" }}>
-          <p style={{ fontSize: 10, letterSpacing: "0.28em", textTransform: "uppercase", color: "rgba(197,164,109,0.75)", marginBottom: "0.6rem", fontFamily: "Heebo, sans-serif" }}>
+        {/* subtle texture overlay */}
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 80% 0%, rgba(255,220,130,0.18) 0%, transparent 60%)", pointerEvents: "none" }} />
+        <div style={{ maxWidth: 640, margin: "0 auto", position: "relative" }}>
+          <p style={{ fontSize: 10, letterSpacing: "0.30em", textTransform: "uppercase", color: "rgba(255,235,180,0.7)", marginBottom: "0.6rem", fontFamily: "Heebo, sans-serif" }}>
             ✦ {briefing?.phaseLabel ?? "לוח בקרה"}
           </p>
-          <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1.8rem,6vw,2.4rem)", fontWeight: 700, marginBottom: "0.35rem", lineHeight: 1.2, color: C.dark }}>
+          <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1.8rem,6vw,2.4rem)", fontWeight: 700, marginBottom: "0.35rem", lineHeight: 1.2, color: "#FFF8EC" }}>
             {briefing?.greeting ?? event.name}
           </h1>
           {briefing?.phaseMessage && (
-            <p style={{ fontSize: 13, color: C.muted, marginBottom: "1.25rem", lineHeight: 1.6 }}>
+            <p style={{ fontSize: 13, color: "rgba(255,240,200,0.75)", marginBottom: "1.25rem", lineHeight: 1.6 }}>
               {briefing.phaseMessage}
             </p>
           )}
@@ -292,9 +296,9 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
             ]).map((fact, i) => (
               <div key={i} style={{
                 padding: "0.3rem 0.85rem", borderRadius: 20,
-                background: "rgba(197,164,109,0.15)",
-                border: "1px solid rgba(197,164,109,0.35)",
-                fontSize: 12, color: "#7A5C20", fontFamily: "Heebo, sans-serif", fontWeight: 500,
+                background: "rgba(0,0,0,0.18)",
+                border: "1px solid rgba(255,220,130,0.30)",
+                fontSize: 12, color: "rgba(255,235,180,0.92)", fontFamily: "Heebo, sans-serif", fontWeight: 500,
               }}>
                 {fact}
               </div>
@@ -508,6 +512,9 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         {/* Blessing */}
         <BlessingCard name={event.name} />
 
+        {/* Smart Recommendations */}
+        <SmartRecommendations tasks={tasks} daysLeft={daysLeft} onComplete={toggleTask} />
+
         {/* RSVP Visual Counter */}
         <RsvpCounter stats={stats} />
 
@@ -517,19 +524,27 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         {/* Gifts Tracker */}
         <GiftsTracker token={token} />
 
-        {/* Seating — only if guests assigned */}
+        {/* Seating */}
         {seating.assignedSeats > 0 && (
-          <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "0.875rem" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: "0.75rem" }}>
-              <LayoutGrid size={14} style={{ color: C.gold }} />
-              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, margin: 0 }}>סידורי הושבה</h3>
+          <a href={`/couple/${token}/seating`} style={{ textDecoration: "none", display: "block", marginBottom: "0.875rem" }}>
+            <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <LayoutGrid size={14} style={{ color: C.gold }} />
+                  <h3 style={{ fontSize: "0.85rem", fontWeight: 600, margin: 0, color: C.dark }}>סידורי הושבה</h3>
+                </div>
+                <span style={{ fontSize: 11, color: C.gold, fontFamily: "Heebo, sans-serif" }}>לצפייה בשולחנות ←</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: "0.4rem" }}>
+                <span style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.4rem", fontWeight: 700, color: C.dark }}>{seatingPct}%</span>
+                <span style={{ fontSize: 12, color: C.muted }}>מוצבים</span>
+              </div>
+              <p style={{ fontSize: 11, color: C.muted, marginBottom: "0.5rem" }}>{seating.assignedSeats} מתוך {stats.attendees} אורחים קיבלו מקום</p>
+              <div style={{ height: 6, borderRadius: 3, background: "rgba(197,164,109,0.12)", overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${seatingPct}%`, background: seatingPct >= 80 ? C.olive : C.gold, transition: "width 0.8s" }} />
+              </div>
             </div>
-            <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.2rem", fontWeight: 700 }}>{seatingPct}%</p>
-            <p style={{ fontSize: 11, color: C.muted }}>{seating.assignedSeats} מתוך {stats.attendees} מוצבים</p>
-            <div style={{ height: 4, borderRadius: 2, background: "rgba(197,164,109,0.12)", overflow: "hidden", marginTop: "0.5rem" }}>
-              <div style={{ height: "100%", width: `${seatingPct}%`, background: seatingPct >= 80 ? C.olive : C.gold }} />
-            </div>
-          </div>
+          </a>
         )}
 
         {/* Wedding Day Timeline — editable */}
@@ -562,6 +577,9 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
           </div>
           <span style={{ marginRight: "auto", fontSize: 18 }}>←</span>
         </a>
+
+        {/* Memory Wall */}
+        <MemorySection token={token} />
 
         {/* Recap link — shown after wedding date */}
         {briefing && briefing.daysUntilEvent <= 0 && (
@@ -968,6 +986,64 @@ function BudgetTracker({ token }: { token: string }) {
 
 // ─── Gifts Tracker ────────────────────────────────────────────────────────────
 
+// ─── Memory Section ───────────────────────────────────────────────────────────
+
+function MemorySection({ token }: { token: string }) {
+  const [vaultToken, setVaultToken] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/couple/${token}/vault`)
+      .then(r => r.json())
+      .then(d => { if (d.vault_token) setVaultToken(d.vault_token); });
+  }, [token]);
+
+  if (!vaultToken) return null;
+
+  async function copyLink() {
+    const url = `${window.location.origin}/memory/${vaultToken}`;
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "0.875rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "1rem" }}>
+        <span style={{ fontSize: 16 }}>📷</span>
+        <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, margin: 0, color: C.dark }}>קיר זיכרונות האירוע</h3>
+      </div>
+      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+        <button
+          onClick={copyLink}
+          style={{
+            flex: 1, minWidth: 140, padding: "0.65rem 1rem", borderRadius: 10,
+            background: copied ? "rgba(107,123,90,0.12)" : "rgba(197,164,109,0.12)",
+            border: `1px solid ${copied ? C.olive : C.border}`,
+            color: copied ? C.olive : C.dark,
+            fontSize: 13, fontWeight: 600, fontFamily: "Heebo, sans-serif", cursor: "pointer",
+          }}
+        >
+          {copied ? "הועתק! ✓" : "שתפו עם האורחים"}
+        </button>
+        <a
+          href={`/memory/${vaultToken}/wall`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            flex: 1, minWidth: 140, padding: "0.65rem 1rem", borderRadius: 10,
+            background: "rgba(28,16,8,0.06)", border: `1px solid ${C.border}`,
+            color: C.dark, fontSize: 13, fontWeight: 600, fontFamily: "Heebo, sans-serif",
+            textDecoration: "none", textAlign: "center" as const,
+          }}
+        >
+          צפו בקיר
+        </a>
+      </div>
+    </div>
+  );
+}
+
 interface GiftItem { id: string; guest_name: string; amount: number; notes?: string }
 
 function GiftsTracker({ token }: { token: string }) {
@@ -1063,6 +1139,135 @@ function GiftsTracker({ token }: { token: string }) {
           style={{ width: "100%", padding: "0.5rem", borderRadius: 8, border: `1px dashed ${C.border}`, background: "transparent", cursor: "pointer", fontSize: 12, color: C.muted, fontFamily: "Heebo, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
           <Plus size={13} /> רשום מתנה שהתקבלה
         </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Smart Recommendations ────────────────────────────────────────────────────
+
+const TASK_PRIORITY: Record<string, number> = {
+  venue: 1, rabbi: 2, photographer: 3, videographer: 4,
+  catering: 5, dj: 6, flowers: 7, dress: 8,
+  music: 9, seating: 10, invitations: 11, other: 99,
+};
+
+function getUrgencyLabel(days: number, dueDate?: string | null): { label: string; color: string } {
+  if (dueDate) {
+    const diff = Math.ceil((new Date(dueDate).getTime() - Date.now()) / 86_400_000);
+    if (diff < 0)  return { label: "באיחור!", color: "#C0392B" };
+    if (diff <= 7) return { label: `${diff} ימים`, color: "#C0392B" };
+    if (diff <= 30) return { label: `עד ${new Date(dueDate).toLocaleDateString("he-IL")}`, color: "#A07840" };
+  }
+  if (days <= 14)  return { label: "דחוף", color: "#C0392B" };
+  if (days <= 45)  return { label: "בקרוב", color: "#A07840" };
+  if (days <= 90)  return { label: "השבועות הקרובים", color: "#6B7B5A" };
+  return { label: "אין דחיפות", color: "rgba(28,16,8,0.35)" };
+}
+
+function SmartRecommendations({
+  tasks,
+  daysLeft,
+  onComplete,
+}: {
+  tasks: WeddingTask[];
+  daysLeft: number;
+  onComplete: (task: WeddingTask) => void;
+}) {
+  const pending = tasks.filter(t => !t.completed);
+  if (pending.length === 0) return null;
+
+  // Sort: overdue → has due_date soon → by category priority
+  const sorted = [...pending].sort((a, b) => {
+    const urgA = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+    const urgB = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+    if (urgA !== urgB) return urgA - urgB;
+    const prioA = TASK_PRIORITY[a.category] ?? 99;
+    const prioB = TASK_PRIORITY[b.category] ?? 99;
+    return prioA - prioB;
+  });
+
+  const recommendations = sorted.slice(0, 4);
+
+  return (
+    <div style={{
+      background: "linear-gradient(135deg, rgba(197,164,109,0.08) 0%, rgba(107,123,90,0.06) 100%)",
+      borderRadius: "1.25rem",
+      border: "1px solid rgba(197,164,109,0.22)",
+      padding: "1.25rem",
+      marginBottom: "0.875rem",
+      boxShadow: C.shadow,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.875rem" }}>
+        <span style={{ fontSize: 18 }}>💡</span>
+        <div>
+          <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, margin: 0, color: C.dark }}>
+            כדאי לטפל עכשיו
+          </h3>
+          <p style={{ fontSize: 11, color: C.muted, margin: 0, fontFamily: "Heebo, sans-serif" }}>
+            המלצות — לא חובה, אבל יעזור
+          </p>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        {recommendations.map((task, i) => {
+          const { label, color } = getUrgencyLabel(daysLeft, task.due_date);
+          return (
+            <div key={task.id} style={{
+              display: "flex", alignItems: "center", gap: 10,
+              background: "rgba(255,255,255,0.7)",
+              borderRadius: 12,
+              padding: "0.6rem 0.75rem",
+              border: "1px solid rgba(197,164,109,0.14)",
+            }}>
+              {/* Priority number */}
+              <div style={{
+                width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+                background: i === 0 ? C.gold : "rgba(197,164,109,0.18)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 11, fontWeight: 700, color: i === 0 ? "white" : C.muted,
+              }}>
+                {i + 1}
+              </div>
+
+              {/* Task name */}
+              <span style={{ flex: 1, fontSize: 13, color: C.dark, fontFamily: "Heebo, sans-serif" }}>
+                {task.title}
+              </span>
+
+              {/* Urgency badge */}
+              <span style={{
+                fontSize: 10, color, fontFamily: "Heebo, sans-serif",
+                padding: "0.15rem 0.5rem", borderRadius: 8,
+                background: `${color}12`, border: `1px solid ${color}30`,
+                whiteSpace: "nowrap",
+              }}>
+                {label}
+              </span>
+
+              {/* Mark done */}
+              <button
+                onClick={() => onComplete(task)}
+                style={{
+                  background: "none", border: `1.5px solid rgba(197,164,109,0.4)`,
+                  borderRadius: "50%", width: 20, height: 20, cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0, color: C.muted,
+                }}
+                title="סמן כבוצע"
+              >
+                <CheckCircle size={12} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {pending.length > 4 && (
+        <p style={{ fontSize: 11, color: C.muted, textAlign: "center", marginTop: "0.75rem", fontFamily: "Heebo, sans-serif" }}>
+          ועוד {pending.length - 4} משימות ברשימה המלאה למטה
+        </p>
       )}
     </div>
   );
