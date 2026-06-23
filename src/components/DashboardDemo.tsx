@@ -642,10 +642,7 @@ export default function DashboardDemo() {
         style={{ background: "rgba(253,250,245,0.94)", borderColor: "rgba(197,164,109,0.15)", backdropFilter: "blur(12px)" }}
       >
         <div className="container-max mx-auto px-4 md:px-8 py-3.5 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group">
-            <ArrowRight size={16} style={{ color: G.gold }} className="group-hover:translate-x-0.5 transition-transform" />
-            <span className="text-sm font-medium" style={{ color: G.darkMuted, fontFamily: "Heebo, sans-serif" }}>דף הבית</span>
-          </Link>
+          <div />
           <p className="text-sm font-bold" style={{ color: G.dark, fontFamily: "Frank Ruhl Libre, serif" }}>
             כך השירות שלנו עובד
           </p>
