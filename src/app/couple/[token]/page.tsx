@@ -268,23 +268,19 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
 
       {/* Header */}
       <div style={{
-        background: "linear-gradient(160deg, #1C1008 0%, #2E1A0A 60%, #1C1008 100%)",
-        padding: "2.5rem 1.5rem 2rem",
-        color: "white",
-        position: "relative",
-        overflow: "hidden",
+        background: "linear-gradient(160deg, #F6F1E8 0%, #EDE6D6 100%)",
+        padding: "2.25rem 1.5rem 1.75rem",
+        borderBottom: "1px solid rgba(197,164,109,0.20)",
       }}>
-        {/* decorative gold line */}
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent, rgba(197,164,109,0.5), transparent)" }} />
-        <div style={{ maxWidth: 640, margin: "0 auto", position: "relative", zIndex: 1 }}>
-          <p style={{ fontSize: 10, letterSpacing: "0.30em", textTransform: "uppercase", color: "rgba(197,164,109,0.65)", marginBottom: "0.75rem", fontFamily: "Heebo, sans-serif" }}>
+        <div style={{ maxWidth: 640, margin: "0 auto" }}>
+          <p style={{ fontSize: 10, letterSpacing: "0.28em", textTransform: "uppercase", color: "rgba(197,164,109,0.75)", marginBottom: "0.6rem", fontFamily: "Heebo, sans-serif" }}>
             ✦ {briefing?.phaseLabel ?? "לוח בקרה"}
           </p>
-          <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1.6rem,6vw,2.2rem)", fontWeight: 700, marginBottom: "0.4rem", lineHeight: 1.2 }}>
+          <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1.8rem,6vw,2.4rem)", fontWeight: 700, marginBottom: "0.35rem", lineHeight: 1.2, color: C.dark }}>
             {briefing?.greeting ?? event.name}
           </h1>
           {briefing?.phaseMessage && (
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.58)", marginBottom: "1.5rem", lineHeight: 1.6 }}>
+            <p style={{ fontSize: 13, color: C.muted, marginBottom: "1.25rem", lineHeight: 1.6 }}>
               {briefing.phaseMessage}
             </p>
           )}
@@ -296,9 +292,9 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
             ]).map((fact, i) => (
               <div key={i} style={{
                 padding: "0.3rem 0.85rem", borderRadius: 20,
-                background: "rgba(197,164,109,0.12)",
-                border: "1px solid rgba(197,164,109,0.28)",
-                fontSize: 12, color: "#C5A46D", fontFamily: "Heebo, sans-serif",
+                background: "rgba(197,164,109,0.15)",
+                border: "1px solid rgba(197,164,109,0.35)",
+                fontSize: 12, color: "#7A5C20", fontFamily: "Heebo, sans-serif", fontWeight: 500,
               }}>
                 {fact}
               </div>
@@ -536,11 +532,8 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
           </div>
         )}
 
-        {/* Venue Map placeholder */}
-        <VenueMap />
-
-        {/* Wedding Day Timeline */}
-        <WeddingTimeline />
+        {/* Wedding Day Timeline — editable */}
+        <TimelineEditor token={token} />
 
         {/* Contact Dvir */}
         <a
@@ -594,50 +587,112 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
   );
 }
 
-const DEFAULT_TIMELINE = [
-  { time: "15:00", label: "קבלת פנים" },
-  { time: "17:00", label: "חופה וקידושין" },
-  { time: "18:00", label: "ארוחה וריקודים" },
-  { time: "20:30", label: "עוגת חתונה" },
-  { time: "23:00", label: "סיום האירוע" },
-];
+interface TimelineItem { time: string; label: string }
 
-function WeddingTimeline() {
+function TimelineEditor({ token }: { token: string }) {
+  const [items,   setItems]   = useState<TimelineItem[]>([]);
+  const [loaded,  setLoaded]  = useState(false);
+  const [open,    setOpen]    = useState(false);
+  const [time,    setTime]    = useState("18:00");
+  const [label,   setLabel]   = useState("");
+  const [saving,  setSaving]  = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/couple/${token}/timeline`)
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) setItems(d); setLoaded(true); });
+  }, [token]);
+
+  async function save(next: TimelineItem[]) {
+    const sorted = [...next].sort((a, b) => a.time.localeCompare(b.time));
+    setItems(sorted);
+    await fetch(`/api/couple/${token}/timeline`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: sorted }),
+    });
+  }
+
+  async function add() {
+    if (!label.trim()) return;
+    setSaving(true);
+    await save([...items, { time, label: label.trim() }]);
+    setLabel(""); setOpen(false); setSaving(false);
+  }
+
+  async function remove(i: number) {
+    await save(items.filter((_, idx) => idx !== i));
+  }
+
   const now = new Date();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
+  if (!loaded) return null;
+
   return (
     <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "0.875rem" }}>
-      <p style={{ fontSize: 12, color: C.muted, marginBottom: "1rem", fontFamily: "Heebo, sans-serif", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-        🗓 טיימליין יום החתונה
-      </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-        {DEFAULT_TIMELINE.map((item, i) => {
-          const [h, m] = item.time.split(":").map(Number);
-          const itemMinutes = h * 60 + m;
-          const next = DEFAULT_TIMELINE[i + 1];
-          const nextMinutes = next ? Number(next.time.split(":")[0]) * 60 + Number(next.time.split(":")[1]) : itemMinutes + 60;
-          const isActive = nowMinutes >= itemMinutes && nowMinutes < nextMinutes;
-          const isPast   = nowMinutes >= nextMinutes;
-          return (
-            <div key={i} style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 20, flexShrink: 0 }}>
-                <div style={{ width: 10, height: 10, borderRadius: "50%", marginTop: 4, flexShrink: 0, background: isActive ? C.gold : isPast ? C.olive : C.border, boxShadow: isActive ? `0 0 0 3px rgba(197,164,109,0.25)` : "none" }} />
-                {i < DEFAULT_TIMELINE.length - 1 && (
-                  <div style={{ width: 1.5, flex: 1, minHeight: 28, background: isPast ? C.olive : C.border, opacity: isPast ? 0.5 : 0.3, marginTop: 2 }} />
-                )}
-              </div>
-              <div style={{ paddingBottom: i < DEFAULT_TIMELINE.length - 1 ? "0.875rem" : 0 }}>
-                <span style={{ fontSize: 11, color: isActive ? C.gold : C.muted, fontFamily: "Heebo, sans-serif", fontWeight: isActive ? 700 : 400 }}>{item.time}</span>
-                <p style={{ fontSize: 13, color: isPast ? C.muted : C.dark, fontFamily: "Heebo, sans-serif", fontWeight: isActive ? 700 : 400, margin: 0, opacity: isPast ? 0.55 : 1 }}>
-                  {item.label}
-                  {isActive && <span style={{ marginRight: 6, fontSize: 10, background: C.gold, color: "white", padding: "1px 6px", borderRadius: 8, verticalAlign: "middle" }}>עכשיו</span>}
-                </p>
-              </div>
-            </div>
-          );
-        })}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+        <p style={{ fontSize: 12, color: C.muted, margin: 0, fontFamily: "Heebo, sans-serif", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>
+          🗓 טיימליין יום החתונה
+        </p>
+        <button onClick={() => setOpen(o => !o)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: C.gold, fontFamily: "Heebo, sans-serif" }}>
+          {open ? "סגור" : "+ הוסף"}
+        </button>
       </div>
+
+      {items.length === 0 && !open && (
+        <p style={{ fontSize: 12, color: C.muted, textAlign: "center", padding: "0.5rem 0" }}>
+          בנו את לוח הזמנים של היום שלכם — מתי קבלת פנים, חופה, ריקודים ועוד
+        </p>
+      )}
+
+      {items.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {items.map((item, i) => {
+            const [h, m] = item.time.split(":").map(Number);
+            const mins = h * 60 + m;
+            const nextMins = i + 1 < items.length
+              ? Number(items[i+1].time.split(":")[0]) * 60 + Number(items[i+1].time.split(":")[1])
+              : mins + 60;
+            const isActive = nowMinutes >= mins && nowMinutes < nextMins;
+            const isPast   = nowMinutes >= nextMins;
+            return (
+              <div key={i} style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 20, flexShrink: 0 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", marginTop: 4, flexShrink: 0, background: isActive ? C.gold : isPast ? C.olive : C.border, boxShadow: isActive ? `0 0 0 3px rgba(197,164,109,0.25)` : "none" }} />
+                  {i < items.length - 1 && (
+                    <div style={{ width: 1.5, flex: 1, minHeight: 28, background: isPast ? C.olive : C.border, opacity: 0.35, marginTop: 2 }} />
+                  )}
+                </div>
+                <div style={{ flex: 1, paddingBottom: i < items.length - 1 ? "0.875rem" : 0 }}>
+                  <span style={{ fontSize: 11, color: isActive ? C.gold : C.muted, fontFamily: "Heebo, sans-serif", fontWeight: isActive ? 700 : 400 }}>{item.time}</span>
+                  <p style={{ fontSize: 13, color: isPast ? C.muted : C.dark, fontFamily: "Heebo, sans-serif", fontWeight: isActive ? 700 : 400, margin: 0, opacity: isPast ? 0.55 : 1 }}>
+                    {item.label}
+                    {isActive && <span style={{ marginRight: 6, fontSize: 10, background: C.gold, color: "white", padding: "1px 6px", borderRadius: 8, verticalAlign: "middle" }}>עכשיו</span>}
+                  </p>
+                </div>
+                <button onClick={() => remove(i)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(0,0,0,0.18)", padding: "4px 2px", flexShrink: 0, marginTop: 2 }}>
+                  <Trash2 size={11} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {open && (
+        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: `1px solid ${C.border}` }}>
+          <input type="time" value={time} onChange={e => setTime(e.target.value)}
+            style={{ width: 90, padding: "0.4rem 0.5rem", borderRadius: 8, border: `1px solid ${C.border}`, fontFamily: "Heebo, sans-serif", fontSize: 13, outline: "none" }} />
+          <input placeholder="שם האירוע (קבלת פנים, חופה...)" value={label} onChange={e => setLabel(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && add()}
+            style={{ flex: 1, padding: "0.4rem 0.6rem", borderRadius: 8, border: `1px solid ${C.border}`, fontFamily: "Heebo, sans-serif", fontSize: 13, outline: "none" }} />
+          <button onClick={add} disabled={saving || !label.trim()}
+            style={{ padding: "0.4rem 0.8rem", borderRadius: 8, background: C.gold, border: "none", color: "white", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+            {saving ? "..." : "הוסף"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -730,23 +785,6 @@ function BudgetVisual({ budget }: { budget: { planned: number; actual: number; r
   );
 }
 
-function VenueMap() {
-  return (
-    <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "0.875rem" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: "0.875rem" }}>
-        <span style={{ fontSize: 14 }}>🗺️</span>
-        <h3 style={{ fontSize: "0.8rem", fontWeight: 600, margin: 0 }}>מפת האולם</h3>
-      </div>
-      <div style={{ borderRadius: 12, overflow: "hidden", border: `1px solid ${C.border}`, background: "rgba(197,164,109,0.04)", minHeight: 120, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
-        <span style={{ fontSize: 32 }}>🏛️</span>
-        <p style={{ fontSize: 12, color: C.muted, fontFamily: "Heebo, sans-serif", textAlign: "center", margin: 0 }}>
-          מפת האולם תועלה בקרוב<br />
-          <span style={{ fontSize: 11, opacity: 0.7 }}>דביר יעדכן אתכם כשהיא מוכנה</span>
-        </p>
-      </div>
-    </div>
-  );
-}
 
 const BLESSINGS = [
   "האהבה שלכם היא המפה, והחתונה היא הצעד הראשון במסע.",
