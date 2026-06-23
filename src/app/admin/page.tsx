@@ -5,7 +5,7 @@ import {
   Users, CheckCircle, Clock, XCircle, Search, Upload, Download,
   Trash2, Copy, MessageCircle, ChevronLeft, ChevronRight,
   Loader2, Plus, ExternalLink, RefreshCw, Percent, Zap,
-  Send, AlertTriangle, Bell, Wand2,
+  Send, AlertTriangle, Bell, Wand2, Palette,
 } from "lucide-react";
 import type { Event, EventSummary, Forecast, Guest, GuestEvent, GuestStatus, HealthScore, EventStatus, ApprovalRequest } from "@/lib/types";
 import { EVENT_STATUS_LABEL, EVENT_STATUS_COLOR } from "@/lib/types";
@@ -929,6 +929,26 @@ export default function AdminPage() {
               title="העתק קישור דף הזוג"
             >
               <Copy size={13} /> קישור לזוג
+            </button>
+          )}
+          {selectedEventId && (
+            <button
+              onClick={() => {
+                const themesUrl = `${window.location.origin}/themes?event=${selectedEventId}`;
+                const phone = selectedEvent?.client_phone?.replace(/[^0-9]/g, "").replace(/^0/, "972") ?? "";
+                if (phone) {
+                  const text = encodeURIComponent(`שלום! 🎉\nהכנתי לכם דף לבחירת עיצוב ההזמנה.\nבחרו את הסגנון שאתם אוהבים ושלחו לי 👇\n${themesUrl}`);
+                  window.open(`https://wa.me/${phone}?text=${text}`, "_blank");
+                } else {
+                  navigator.clipboard.writeText(themesUrl);
+                  alert("קישור הועתק! (אין טלפון שמור לזוג)");
+                }
+              }}
+              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
+              style={{ background: "rgba(197,164,109,0.10)", color: C.gold }}
+              title="שלח לזוג לבחירת עיצוב"
+            >
+              <Palette size={13} /> בחירת עיצוב
             </button>
           )}
           {selectedEventId && (
