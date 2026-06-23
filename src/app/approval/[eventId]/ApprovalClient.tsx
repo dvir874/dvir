@@ -97,14 +97,14 @@ export default function ApprovalClient({
           </div>
         )}
 
-        {/* Invitation preview — embed event page */}
+        {/* Invitation preview — link to event page */}
         <div
           className="rounded-3xl overflow-hidden"
-          style={{ border: `1px solid ${theme.cardBorder}`, boxShadow: theme.cardShadow }}
+          style={{ border: `1px solid ${theme.cardBorder}`, boxShadow: theme.cardShadow, background: theme.cardBg }}
         >
           <div
             className="px-4 py-2.5 flex items-center justify-between"
-            style={{ background: theme.cardBg, borderBottom: `1px solid ${theme.cardBorder}` }}
+            style={{ borderBottom: `1px solid ${theme.cardBorder}` }}
           >
             <span className="text-xs font-medium" style={{ color: theme.mutedColor, ...HEEBO }}>
               תצוגה מקדימה של ההזמנה
@@ -119,12 +119,20 @@ export default function ApprovalClient({
               פתח במסך מלא ↗
             </a>
           </div>
-          <iframe
-            src={`/event/${event.id}`}
-            title="תצוגה מקדימה"
-            className="w-full"
-            style={{ height: "520px", border: "none" }}
-          />
+          <div className="flex flex-col items-center justify-center py-14 gap-4 px-6 text-center">
+            <p className="text-sm" style={{ color: theme.mutedColor, ...HEEBO }}>
+              לחצו על הכפתור כדי לראות את ההזמנה שלכם
+            </p>
+            <a
+              href={`/event/${event.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90"
+              style={{ background: `linear-gradient(135deg,${theme.accentColor},${theme.accentColor}cc)`, ...HEEBO }}
+            >
+              פתח תצוגה מקדימה ↗
+            </a>
+          </div>
         </div>
 
         {/* ── DECISION AREA ── */}
