@@ -267,6 +267,18 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
     <div dir="rtl" style={{ minHeight: "100vh", background: "#F2EDE3", fontFamily: "Heebo, sans-serif", color: C.dark }}>
 
       {/* Header */}
+      <style>{`
+        @keyframes coupleFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+        @keyframes coupleGlow  { 0%,100%{opacity:0.5} 50%{opacity:1} }
+        @keyframes slideCard   { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes shimmerBtn  { 0%{background-position:-200% center} 100%{background-position:200% center} }
+        .couple-card { animation: slideCard 0.5s ease forwards; }
+        .couple-card:nth-child(2){animation-delay:0.08s}
+        .couple-card:nth-child(3){animation-delay:0.16s}
+        .couple-card:nth-child(4){animation-delay:0.24s}
+        .couple-card:nth-child(5){animation-delay:0.32s}
+      `}</style>
+
       <div style={{
         background: "linear-gradient(150deg, #C5954A 0%, #9B6E2C 50%, #7A5020 100%)",
         padding: "2.25rem 1.5rem 1.75rem",
@@ -274,6 +286,9 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         position: "relative",
         overflow: "hidden",
       }}>
+        {/* floating rings */}
+        <div style={{ position:"absolute", width:220, height:220, borderRadius:"50%", border:"1px solid rgba(255,220,130,0.1)", top:-60, left:-60, animation:"coupleFloat 7s ease-in-out infinite", pointerEvents:"none" }} />
+        <div style={{ position:"absolute", width:140, height:140, borderRadius:"50%", border:"1px solid rgba(255,220,130,0.08)", bottom:-40, right:40, animation:"coupleFloat 5s ease-in-out infinite 1.5s", pointerEvents:"none" }} />
         {/* subtle texture overlay */}
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 80% 0%, rgba(255,220,130,0.18) 0%, transparent 60%)", pointerEvents: "none" }} />
         <div style={{ maxWidth: 640, margin: "0 auto", position: "relative" }}>
