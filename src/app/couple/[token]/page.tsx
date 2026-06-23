@@ -60,6 +60,62 @@ const ALERT_CONFIG: Record<string, { bg: string; border: string; text: string; i
 
 function fmt(n: number) { return n.toLocaleString("he-IL"); }
 
+function CountdownTimer({ targetDate }: { targetDate: string }) {
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, done: false });
+
+  useEffect(() => {
+    function calc() {
+      const diff = new Date(targetDate).getTime() - Date.now();
+      if (diff <= 0) { setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, done: true }); return; }
+      const days    = Math.floor(diff / 86_400_000);
+      const hours   = Math.floor((diff % 86_400_000) / 3_600_000);
+      const minutes = Math.floor((diff % 3_600_000) / 60_000);
+      const seconds = Math.floor((diff % 60_000) / 1_000);
+      setTimeLeft({ days, hours, minutes, seconds, done: false });
+    }
+    calc();
+    const id = setInterval(calc, 1000);
+    return () => clearInterval(id);
+  }, [targetDate]);
+
+  if (timeLeft.done) return null;
+
+  const units = [
+    { label: "ימים",    value: timeLeft.days    },
+    { label: "שעות",   value: timeLeft.hours   },
+    { label: "דקות",   value: timeLeft.minutes },
+    { label: "שניות",  value: timeLeft.seconds },
+  ];
+
+  return (
+    <div style={{ background: "rgba(61,43,31,0.06)", borderBottom: "1px solid rgba(197,164,109,0.15)", padding: "1rem 1.5rem" }}>
+      <div style={{ maxWidth: 640, margin: "0 auto" }}>
+        <p style={{ textAlign: "center", fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(197,164,109,0.8)", marginBottom: "0.75rem", fontFamily: "Heebo, sans-serif" }}>
+          ספירה לאחור ליום הגדול
+        </p>
+        <div style={{ display: "flex", justifyContent: "center", gap: "0.75rem" }}>
+          {units.map(({ label, value }) => (
+            <div key={label} style={{ textAlign: "center", minWidth: 56 }}>
+              <div style={{
+                background: "linear-gradient(135deg,#3D2B1F,#5C3D2E)",
+                borderRadius: 12,
+                padding: "0.6rem 0.4rem",
+                marginBottom: "0.3rem",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              }}>
+                <span style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1.3rem,5vw,1.8rem)", fontWeight: 700, color: "#C5A46D", lineHeight: 1 }}>
+                  {String(value).padStart(2, "0")}
+                </span>
+              </div>
+              <span style={{ fontSize: 10, color: "rgba(51,51,51,0.55)", fontFamily: "Heebo, sans-serif" }}>{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ScoreGauge({ score, color }: { score: number; color: string }) {
   const r = 54, circ = 2 * Math.PI * r;
   return (
@@ -235,6 +291,9 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
           </div>
         </div>
       </div>
+
+      {/* Countdown */}
+      <CountdownTimer targetDate={event.date} />
 
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "1.25rem 1rem 5rem" }}>
 
