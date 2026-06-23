@@ -80,9 +80,14 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const alerts = generateAlerts(scoreInput);
   const phase  = getBriefingPhase(daysUntilEvent);
 
-  // Greeting by name
+  // Greeting by time of day
   const coupleName = event.client_name?.trim() || null;
-  const greeting   = coupleName ? `בוקר טוב, ${coupleName} 💛` : "בוקר טוב 💛";
+  const hour = new Date().getHours();
+  const timeGreeting = hour >= 5 && hour < 12 ? "בוקר טוב"
+    : hour >= 12 && hour < 17 ? "צהריים טובים"
+    : hour >= 17 && hour < 21 ? "ערב טוב"
+    : "לילה טוב";
+  const greeting = coupleName ? `${timeGreeting}, ${coupleName} 💛` : `${timeGreeting} 💛`;
 
   // Phase-aware message
   const phaseMessage: Record<typeof phase, string> = {

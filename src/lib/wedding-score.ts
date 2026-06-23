@@ -241,10 +241,10 @@ export function getBriefingPhase(daysUntilEvent: number): BriefingPhase {
 }
 
 export const PHASE_LABELS: Record<BriefingPhase, string> = {
-  planning:      "שלב התכנון",
-  organizing:    "שלב הארגון",
-  accelerating:  "שלב ההאצה",
-  finalizing:    "שלב הסיום",
+  planning:      "תכנון ראשוני",
+  organizing:    "ארגון ואישורים",
+  accelerating:  "פחות מחודש",
+  finalizing:    "סגירת פרטים",
   countdown:     "ספירה לאחור",
   imminent:      "ממש בקרוב!",
 };
