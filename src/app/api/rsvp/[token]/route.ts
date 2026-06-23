@@ -77,5 +77,21 @@ export async function POST(request: NextRequest, { params }: Params) {
       if (all) syncToGoogleSheets(all).catch(console.error);
     });
 
+  // Notify couple via WhatsApp (fire-and-forget)
+  supabase
+    .from('events')
+    .select('name, client_phone, couple_token')
+    .eq('id', updated.event_id)
+    .single()
+    .then(({ data: ev }) => {
+      if (!ev?.client_phone) return;
+      const phone = ev.client_phone.replace(/\D/g, '').replace(/^0/, '972');
+      const emoji = status === 'confirmed' ? '✅' : '❌';
+      const statusHe = status === 'confirmed' ? 'אישר/ה הגעה' : 'סירב/ה';
+      const count = status === 'confirmed' && (guest_count ?? 1) > 1 ? ` (${guest_count} מגיעים)` : '';
+      const msg = `${emoji} ${updated.name} ${statusHe}${count} ל${ev.name}`;
+      fetch(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`).catch(() => {});
+    });
+
   return NextResponse.json({ success: true });
 }

@@ -8,6 +8,7 @@ import {
   ChevronDown, ChevronUp, Camera, Mic, Lock, Sparkles, Zap,
 } from "lucide-react";
 import type { WeddingScore, SmartAlert } from "@/lib/wedding-score";
+import ChatWidget from "@/components/ChatWidget";
 
 const C = {
   cream:  "#F2EDE3",
@@ -277,6 +278,11 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         .couple-card:nth-child(3){animation-delay:0.16s}
         .couple-card:nth-child(4){animation-delay:0.24s}
         .couple-card:nth-child(5){animation-delay:0.32s}
+        @media print {
+          .no-print { display: none !important; }
+          body { background: white !important; }
+          * { box-shadow: none !important; animation: none !important; }
+        }
       `}</style>
 
       <div style={{
@@ -292,9 +298,15 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         {/* subtle texture overlay */}
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 80% 0%, rgba(255,220,130,0.18) 0%, transparent 60%)", pointerEvents: "none" }} />
         <div style={{ maxWidth: 640, margin: "0 auto", position: "relative" }}>
-          <p style={{ fontSize: 10, letterSpacing: "0.30em", textTransform: "uppercase", color: "rgba(255,235,180,0.7)", marginBottom: "0.6rem", fontFamily: "Heebo, sans-serif" }}>
-            ✦ {briefing?.phaseLabel ?? "לוח בקרה"}
-          </p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <p style={{ fontSize: 10, letterSpacing: "0.30em", textTransform: "uppercase", color: "rgba(255,235,180,0.7)", marginBottom: "0.6rem", fontFamily: "Heebo, sans-serif" }}>
+              ✦ {briefing?.phaseLabel ?? "לוח בקרה"}
+            </p>
+            <button onClick={() => window.print()} className="no-print"
+              style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,220,130,0.25)", borderRadius: 10, padding: "0.35rem 0.85rem", color: "rgba(255,235,180,0.8)", fontSize: 12, cursor: "pointer", fontFamily: "Heebo, sans-serif", display: "flex", alignItems: "center", gap: 5 }}>
+              🖨️ הדפסה
+            </button>
+          </div>
           <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1.8rem,6vw,2.4rem)", fontWeight: 700, marginBottom: "0.35rem", lineHeight: 1.2, color: "#FFF8EC" }}>
             {briefing?.greeting ?? event.name}
           </h1>
@@ -595,6 +607,15 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
 
         {/* Memory Wall */}
         <MemorySection token={token} />
+
+        {/* Chat widget */}
+        <ChatWidget
+          fetchUrl={`/api/couple/${token}/chat`}
+          postUrl={`/api/couple/${token}/chat`}
+          myRole="couple"
+          accentColor={C.gold}
+          label="שאלות לצוות רגע לפני"
+        />
 
         {/* Recap link — shown after wedding date */}
         {briefing && briefing.daysUntilEvent <= 0 && (

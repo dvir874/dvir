@@ -17,6 +17,7 @@ import { generateTasks } from "@/lib/automation/task-engine";
 import type { Task }     from "@/lib/automation/task-engine";
 import { THEME_LIST, DEFAULT_THEME_ID } from "@/lib/themes";
 import type { ThemeId }  from "@/lib/themes";
+import ChatWidget from "@/components/ChatWidget";
 
 /* ── Insights engine (deterministic, AI-upgradeable) ── *
  *
@@ -2075,11 +2076,33 @@ export default function AdminPage() {
             TAB: Reminder Recommendations
         ══════════════════════════════════════════════ */}
         {activeTab === "couple-view" && selectedEvent?.couple_token && (
-          <CoupleView token={selectedEvent.couple_token} eventName={selectedEvent.name} />
+          <>
+            <CoupleView token={selectedEvent.couple_token} eventName={selectedEvent.name} />
+            <ChatWidget
+              fetchUrl={`/api/admin/chat/${selectedEventId}`}
+              postUrl={`/api/admin/chat/${selectedEventId}`}
+              myRole="admin"
+              accentColor="#C5A46D"
+              label={`צ׳אט עם ${selectedEvent.name}`}
+            />
+          </>
         )}
         {activeTab === "couple-view" && !selectedEvent?.couple_token && (
           <div className="rounded-2xl p-10 text-center" style={{ background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.22)" }}>
             <p style={{ color: "rgba(51,51,51,0.4)", fontFamily: "Heebo, sans-serif" }}>לאירוע זה אין עדיין קישור זוג</p>
+          </div>
+        )}
+
+        {activeTab === "calendar" && (
+          <AdminCalendar events={events} onSelectEvent={(id) => setSelectedEventId(id)} selectedEventId={selectedEventId} />
+        )}
+
+        {activeTab === "history" && selectedEventId && (
+          <AdminHistory eventId={selectedEventId} />
+        )}
+        {activeTab === "history" && !selectedEventId && (
+          <div className="rounded-2xl p-10 text-center" style={{ background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.22)" }}>
+            <p style={{ color: "rgba(51,51,51,0.4)", fontFamily: "Heebo, sans-serif" }}>בחר אירוע כדי לראות היסטוריה</p>
           </div>
         )}
 
@@ -2587,6 +2610,217 @@ function EventCard({ ev, approvalStatus, onSelect }: { ev: EventSummary; approva
           <p className="text-xs" style={{ color: C.muted }}>נוכחות צפויה</p>
           <p className="text-xl font-bold" style={{ color: C.dark, fontFamily: "Frank Ruhl Libre, serif" }}>{ev.attendees}</p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   ADMIN CALENDAR
+══════════════════════════════════════════════════════ */
+const MONTH_HE = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+const DAY_HE   = ["א","ב","ג","ד","ה","ו","ש"];
+
+function AdminCalendar({ events, onSelectEvent, selectedEventId }: {
+  events: Event[];
+  onSelectEvent: (id: string) => void;
+  selectedEventId: string | null;
+}) {
+  const C2 = { gold:"#C5A46D", dark:"#1C1008", muted:"rgba(28,16,8,0.4)", ivory:"#FDFAF5", border:"rgba(197,164,109,0.22)", olive:"#6B7B5A" };
+  const today = new Date();
+  const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+
+  const year  = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  // Map event dates to day numbers this month
+  const eventsByDay: Record<number, Event[]> = {};
+  events.forEach(ev => {
+    const d = new Date(ev.date);
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      const day = d.getDate();
+      if (!eventsByDay[day]) eventsByDay[day] = [];
+      eventsByDay[day].push(ev);
+    }
+  });
+
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  // Upcoming events list
+  const upcoming = events
+    .filter(ev => new Date(ev.date) >= today)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(0, 8);
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Month navigation */}
+      <div className="flex items-center justify-between">
+        <button onClick={() => setViewDate(new Date(year, month - 1, 1))}
+          className="p-2 rounded-xl" style={{ background: "rgba(197,164,109,0.1)", color: C2.gold }}>
+          <ChevronRight size={18} />
+        </button>
+        <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", color: C2.dark, fontSize: 20, fontWeight: 700 }}>
+          {MONTH_HE[month]} {year}
+        </h2>
+        <button onClick={() => setViewDate(new Date(year, month + 1, 1))}
+          className="p-2 rounded-xl" style={{ background: "rgba(197,164,109,0.1)", color: C2.gold }}>
+          <ChevronLeft size={18} />
+        </button>
+      </div>
+
+      <div className="grid md:grid-cols-[1fr_260px] gap-5">
+        {/* Calendar grid */}
+        <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${C2.border}` }}>
+          {/* Day headers */}
+          <div className="grid grid-cols-7" style={{ background: "rgba(197,164,109,0.08)" }}>
+            {DAY_HE.map(d => (
+              <div key={d} className="text-center py-2 text-xs font-bold" style={{ color: C2.gold }}>{d}</div>
+            ))}
+          </div>
+          {/* Cells */}
+          <div className="grid grid-cols-7" style={{ background: C2.ivory }}>
+            {cells.map((day, i) => {
+              const evs = day ? (eventsByDay[day] ?? []) : [];
+              const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+              return (
+                <div key={i} className="min-h-[70px] p-1.5 border-b border-r"
+                  style={{ borderColor: "rgba(197,164,109,0.1)" }}>
+                  {day && (
+                    <>
+                      <span className="text-xs font-medium flex items-center justify-center w-6 h-6 rounded-full mb-1"
+                        style={{ background: isToday ? C2.gold : "transparent", color: isToday ? "white" : C2.muted }}>
+                        {day}
+                      </span>
+                      {evs.map(ev => (
+                        <button key={ev.id} onClick={() => onSelectEvent(ev.id)}
+                          title={ev.name}
+                          className="w-full text-right text-[10px] px-1.5 py-0.5 rounded-md mb-0.5 truncate"
+                          style={{
+                            background: ev.id === selectedEventId ? C2.gold : "rgba(197,164,109,0.15)",
+                            color: ev.id === selectedEventId ? "white" : C2.dark,
+                            fontFamily: "Heebo, sans-serif",
+                          }}>
+                          {ev.name}
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Upcoming events sidebar */}
+        <div className="rounded-2xl p-4" style={{ background: C2.ivory, border: `1px solid ${C2.border}` }}>
+          <p className="text-xs font-bold mb-3 uppercase tracking-wide" style={{ color: C2.gold }}>אירועים קרובים</p>
+          {upcoming.length === 0 && <p className="text-xs" style={{ color: C2.muted }}>אין אירועים קרובים</p>}
+          {upcoming.map(ev => {
+            const d = new Date(ev.date);
+            const daysLeft = Math.ceil((d.getTime() - today.getTime()) / 86_400_000);
+            return (
+              <button key={ev.id} onClick={() => onSelectEvent(ev.id)}
+                className="w-full text-right mb-3 p-3 rounded-xl transition-all"
+                style={{ background: ev.id === selectedEventId ? "rgba(197,164,109,0.12)" : "white", border: `1px solid ${ev.id === selectedEventId ? C2.gold : "rgba(197,164,109,0.15)"}` }}>
+                <p className="text-sm font-bold truncate" style={{ color: C2.dark, fontFamily: "Frank Ruhl Libre, serif" }}>{ev.name}</p>
+                <p className="text-xs mt-0.5" style={{ color: C2.muted }}>
+                  {d.toLocaleDateString("he-IL", { day:"numeric", month:"long" })}
+                  <span className="mr-2" style={{ color: daysLeft <= 7 ? "rgb(200,60,60)" : daysLeft <= 30 ? "#A07840" : C2.olive }}>
+                    · עוד {daysLeft} ימים
+                  </span>
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   ADMIN HISTORY
+══════════════════════════════════════════════════════ */
+interface ActivityLog { id: string; action: string; details: Record<string,unknown>; created_at: string }
+
+const HISTORY_ACTION_LABEL: Record<string, { label: string; emoji: string }> = {
+  guest_added:       { label: "אורח נוסף",          emoji: "➕" },
+  guest_deleted:     { label: "אורח נמחק",           emoji: "🗑️" },
+  status_changed:    { label: "סטטוס שונה",           emoji: "🔄" },
+  invitation_sent:   { label: "הזמנה נשלחה",         emoji: "📩" },
+  reminder_sent:     { label: "תזכורת נשלחה",        emoji: "🔔" },
+  rsvp_confirmed:    { label: "אישור הגעה התקבל",    emoji: "✅" },
+  rsvp_declined:     { label: "סירוב הגעה",           emoji: "❌" },
+  table_created:     { label: "שולחן נוצר",           emoji: "🪑" },
+  table_deleted:     { label: "שולחן נמחק",           emoji: "🗑️" },
+  guest_assigned:    { label: "אורח הושב",            emoji: "🪑" },
+  event_created:     { label: "אירוע נוצר",           emoji: "🎉" },
+  budget_item_added: { label: "פריט תקציב נוסף",     emoji: "💰" },
+};
+
+function AdminHistory({ eventId }: { eventId: string }) {
+  const C2 = { gold:"#C5A46D", dark:"#1C1008", muted:"rgba(28,16,8,0.4)", ivory:"#FDFAF5", border:"rgba(197,164,109,0.22)", olive:"#6B7B5A" };
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/admin/history/${eventId}`)
+      .then(r => r.ok ? r.json() : [])
+      .then(d => { setLogs(Array.isArray(d) ? d : []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [eventId]);
+
+  if (loading) return <div className="flex justify-center py-16"><Loader2 size={24} className="animate-spin" style={{ color: C2.gold }} /></div>;
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-4">
+        <p className="font-bold" style={{ color: C2.dark, fontFamily: "Frank Ruhl Libre, serif", fontSize: 17 }}>היסטוריית שינויים</p>
+        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(197,164,109,0.12)", color: C2.gold }}>{logs.length} פעולות</span>
+      </div>
+
+      {logs.length === 0 && (
+        <div className="rounded-2xl p-10 text-center" style={{ background: C2.ivory, border: `1px solid ${C2.border}` }}>
+          <p style={{ color: C2.muted, fontFamily: "Heebo, sans-serif" }}>עדיין אין פעולות רשומות לאירוע זה</p>
+          <p className="text-xs mt-1" style={{ color: C2.muted }}>פעולות חדשות יירשמו מעכשיו</p>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-2">
+        {logs.map((log, i) => {
+          const meta = HISTORY_ACTION_LABEL[log.action] ?? { label: log.action, emoji: "•" };
+          const date = new Date(log.created_at);
+          const isToday = date.toDateString() === new Date().toDateString();
+          return (
+            <div key={log.id} className="flex items-start gap-3 p-3 rounded-2xl"
+              style={{ background: i % 2 === 0 ? C2.ivory : "white", border: `1px solid rgba(197,164,109,0.1)` }}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0"
+                style={{ background: "rgba(197,164,109,0.12)" }}>
+                {meta.emoji}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium" style={{ color: C2.dark, fontFamily: "Heebo, sans-serif" }}>{meta.label}</p>
+                {log.details && Object.keys(log.details).length > 0 && (
+                  <p className="text-xs mt-0.5" style={{ color: C2.muted }}>
+                    {Object.entries(log.details).map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                  </p>
+                )}
+              </div>
+              <p className="text-[11px] shrink-0" style={{ color: C2.muted }}>
+                {isToday ? "היום" : date.toLocaleDateString("he-IL", { day:"numeric", month:"short" })}
+                {" "}
+                {date.toLocaleTimeString("he-IL", { hour:"2-digit", minute:"2-digit" })}
+              </p>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
