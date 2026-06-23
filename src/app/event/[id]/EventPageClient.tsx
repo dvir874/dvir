@@ -22,7 +22,9 @@ function buildICS(name: string, date: string, address?: string | null): string {
 function googleCalendarUrl(name: string, date: string, address?: string | null): string {
   const d = new Date(date + "T19:00:00");
   const end = new Date(d.getTime() + 4 * 60 * 60 * 1000);
-  const fmt = (dt: Date) => dt.toISOString().replace(/[-:.Z]/g, "").slice(0, 15) + "Z";
+  // Note: avoid inline regex with brackets — Tailwind scanner mistake
+  const stripForGCal = (dt: Date) => dt.toISOString().replace(/-/g, "").replace(/:/g, "").replace(/\./g, "").replace("Z", "").slice(0, 15) + "Z";
+  const fmt = stripForGCal;
   const params = new URLSearchParams({
     action: "TEMPLATE", text: name,
     dates: `${fmt(d)}/${fmt(end)}`,
