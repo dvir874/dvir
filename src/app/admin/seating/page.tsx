@@ -306,51 +306,24 @@ export default function SeatingPage() {
 
               {loading && <p style={{ textAlign: "center", color: "rgba(51,51,51,0.4)", padding: "2rem" }}>טוען...</p>}
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1rem" }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "1.5rem" }}>
                 {data.tables.map((table) => {
-                  const assigned  = assignmentsByTable(table.id);
-                  const occupancy = assigned.length;
-                  const over      = occupancy > table.capacity;
-                  const typeIcon  = TABLE_TYPES.find((t) => t.value === table.type)?.emoji ?? "⭕";
-
+                  const assigned = assignmentsByTable(table.id);
                   return (
-                    <div key={table.id} style={{ ...CARD, padding: "1rem" }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: 18 }}>{typeIcon}</span>
-                          <span style={{ fontWeight: 600, fontSize: 14 }}>{table.name}</span>
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: 12, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: over ? "rgba(220,38,38,0.1)" : "rgba(107,123,90,0.1)", color: over ? "rgb(220,38,38)" : OLIVE, display: "flex", alignItems: "center", gap: 4 }}>
-                            {over && <AlertTriangle size={11} />}{occupancy}/{table.capacity}
-                          </span>
-                          <button onClick={() => deleteTable(table.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(51,51,51,0.3)", padding: 2 }}>
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: "0.5rem" }}>
-                        {assigned.map((a) => {
-                          const g = guestById(a.guest_id);
-                          const gTags = tagMap[a.guest_id] ?? [];
-                          const tagEmoji = gTags.length > 0 ? (PRESET_TAGS.find((t) => t.value === gTags[0])?.emoji ?? "") : "";
-                          return (
-                            <span key={a.id} onClick={() => assignGuest(a.guest_id, null)} title="לחץ להסרה"
-                              style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 8px", borderRadius: 20, background: "rgba(197,164,109,0.12)", color: DARK, fontSize: 12, cursor: "pointer", border: "1px solid rgba(197,164,109,0.25)" }}>
-                              {tagEmoji && <span>{tagEmoji}</span>}
-                              {g?.name ?? a.guest_id}
-                              <X size={10} />
-                            </span>
-                          );
-                        })}
-                      </div>
-                      {selectedGuest && (
-                        <button onClick={() => assignGuest(selectedGuest, table.id)} disabled={saving}
-                          style={{ width: "100%", padding: "0.5rem", borderRadius: 8, border: `2px dashed ${GOLD}`, background: "rgba(197,164,109,0.06)", color: GOLD, cursor: "pointer", fontSize: 12, fontFamily: "Heebo, sans-serif", marginTop: 4 }}>
-                          ✦ הצב כאן — {guestById(selectedGuest)?.name}
-                        </button>
-                      )}
-                    </div>
+                    <VisualTable
+                      key={table.id}
+                      table={table}
+                      assigned={assigned}
+                      selectedGuest={selectedGuest}
+                      onDrop={(gId) => assignGuest(gId, table.id)}
+                      onAssign={() => selectedGuest && assignGuest(selectedGuest, table.id)}
+                      onDelete={() => deleteTable(table.id)}
+                      onRemoveGuest={(gId) => assignGuest(gId, null)}
+                      guestById={guestById}
+                      tagMap={tagMap}
+                      saving={saving}
+                      selectedGuestName={selectedGuest ? (guestById(selectedGuest)?.name ?? "") : ""}
+                    />
                   );
                 })}
               </div>
@@ -368,13 +341,17 @@ export default function SeatingPage() {
                   <input placeholder="חיפוש..." value={search} onChange={(e) => setSearch(e.target.value)}
                     style={{ width: "100%", padding: "0.5rem 2rem 0.5rem 0.75rem", borderRadius: 8, border: "1px solid rgba(197,164,109,0.25)", fontFamily: "Heebo, sans-serif", fontSize: 13, boxSizing: "border-box" }} />
                 </div>
-                <p style={{ fontSize: 11, color: "rgba(51,51,51,0.4)", marginBottom: "0.5rem" }}>לחץ על אורח לבחירה, אחר כך על שולחן</p>
+                <p style={{ fontSize: 11, color: "rgba(51,51,51,0.4)", marginBottom: "0.5rem" }}>גרור אורח לשולחן, או לחץ לבחירה ואז &quot;הצב כאן&quot;</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 500, overflowY: "auto" }}>
                   {unassignedGuests.map((g) => {
                     const gTags = tagMap[g.id] ?? [];
                     return (
-                      <button key={g.id} onClick={() => setSelectedGuest(selectedGuest === g.id ? null : g.id)}
-                        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.5rem 0.75rem", borderRadius: 8, border: `1.5px solid ${selectedGuest === g.id ? GOLD : "rgba(197,164,109,0.18)"}`, background: selectedGuest === g.id ? "rgba(197,164,109,0.1)" : "transparent", cursor: "pointer", fontFamily: "Heebo, sans-serif", fontSize: 13, color: DARK, textAlign: "right" }}>
+                      <button
+                        key={g.id}
+                        draggable={true}
+                        onDragStart={(e) => e.dataTransfer.setData("guestId", g.id)}
+                        onClick={() => setSelectedGuest(selectedGuest === g.id ? null : g.id)}
+                        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.5rem 0.75rem", borderRadius: 8, border: `1.5px solid ${selectedGuest === g.id ? GOLD : "rgba(197,164,109,0.18)"}`, background: selectedGuest === g.id ? "rgba(197,164,109,0.1)" : "transparent", cursor: "grab", fontFamily: "Heebo, sans-serif", fontSize: 13, color: DARK, textAlign: "right" }}>
                         <div style={{ display: "flex", gap: 3 }}>
                           {gTags.slice(0, 2).map((t) => (
                             <span key={t} title={PRESET_TAGS.find((pt) => pt.value === t)?.label}>
@@ -603,5 +580,208 @@ function Stat({ label, value, color }: { label: string; value: number | string; 
       <p style={{ fontSize: 18, fontWeight: 700, color: color ?? DARK, fontFamily: "Frank Ruhl Libre, serif", lineHeight: 1.2 }}>{value}</p>
       <p style={{ fontSize: 11, color: "rgba(51,51,51,0.5)" }}>{label}</p>
     </div>
+  );
+}
+
+/* ── VisualTable component ───────────────────────────────────── */
+interface VisualTableProps {
+  table: SeatingTable;
+  assigned: SeatingAssignment[];
+  selectedGuest: string | null;
+  onDrop: (guestId: string) => void;
+  onAssign: () => void;
+  onDelete: () => void;
+  onRemoveGuest: (guestId: string) => void;
+  guestById: (id: string) => (Guest & { category?: string | null }) | undefined;
+  tagMap: Record<string, string[]>;
+  saving: boolean;
+  selectedGuestName: string;
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2);
+  return parts[0][0] + parts[parts.length - 1][0];
+}
+
+function VisualTable({ table, assigned, selectedGuest, onDrop, onAssign, onDelete, onRemoveGuest, guestById, saving, selectedGuestName }: VisualTableProps) {
+  const capacity = Math.max(table.capacity, 1);
+  const over = assigned.length > capacity;
+
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); };
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const gId = e.dataTransfer.getData("guestId");
+    if (gId) onDrop(gId);
+  };
+
+  const occupancyLabel = `${assigned.length}/${capacity}`;
+
+  return (
+    <div
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      style={{ position: "relative", display: "inline-flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}
+    >
+      {/* Delete button */}
+      <button
+        onClick={onDelete}
+        title="מחק שולחן"
+        style={{
+          position: "absolute", top: 0, left: 0, zIndex: 10,
+          background: "rgba(255,255,255,0.85)", border: "1px solid rgba(197,164,109,0.3)",
+          borderRadius: "50%", width: 22, height: 22, display: "flex", alignItems: "center",
+          justifyContent: "center", cursor: "pointer", color: "rgba(51,51,51,0.5)", padding: 0,
+        }}
+      >
+        <Trash2 size={11} />
+      </button>
+
+      {/* Occupancy badge */}
+      <span style={{
+        position: "absolute", top: 0, right: 0, zIndex: 10,
+        fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 20,
+        background: over ? "rgba(220,38,38,0.1)" : "rgba(107,123,90,0.1)",
+        color: over ? "rgb(220,38,38)" : OLIVE,
+        border: `1px solid ${over ? "rgba(220,38,38,0.3)" : "rgba(107,123,90,0.25)"}`,
+        display: "flex", alignItems: "center", gap: 3,
+      }}>
+        {over && <AlertTriangle size={9} />}{occupancyLabel}
+      </span>
+
+      {table.type === "round" ? (
+        <RoundTableSVG table={table} assigned={assigned} capacity={capacity} guestById={guestById} onRemoveGuest={onRemoveGuest} />
+      ) : (
+        <RectTableSVG table={table} assigned={assigned} capacity={capacity} guestById={guestById} onRemoveGuest={onRemoveGuest} />
+      )}
+
+      {/* Assign button */}
+      {selectedGuest && (
+        <button
+          onClick={onAssign}
+          disabled={saving}
+          style={{
+            padding: "0.35rem 0.75rem", borderRadius: 8, border: `2px dashed ${GOLD}`,
+            background: "rgba(197,164,109,0.06)", color: GOLD, cursor: "pointer",
+            fontSize: 11, fontFamily: "Heebo, sans-serif", width: "100%",
+          }}
+        >
+          ✦ הצב — {selectedGuestName}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function RoundTableSVG({ table, assigned, capacity, guestById, onRemoveGuest }: {
+  table: SeatingTable;
+  assigned: SeatingAssignment[];
+  capacity: number;
+  guestById: (id: string) => (Guest & { category?: string | null }) | undefined;
+  onRemoveGuest: (guestId: string) => void;
+}) {
+  const cx = 60, cy = 60, tableR = 38, seatR = 9, orbitR = 54;
+  const seats = Array.from({ length: capacity }, (_, i) => {
+    const angle = (i / capacity) * 2 * Math.PI - Math.PI / 2;
+    const x = cx + orbitR * Math.cos(angle);
+    const y = cy + orbitR * Math.sin(angle);
+    const assignment = assigned[i];
+    const guest = assignment ? guestById(assignment.guest_id) : undefined;
+    return { x, y, assignment, guest };
+  });
+
+  return (
+    <svg viewBox="0 0 120 120" width={120} height={120} style={{ overflow: "visible", cursor: "pointer" }}>
+      {/* Table surface */}
+      <circle cx={cx} cy={cy} r={tableR} fill="#FDFAF5" stroke={GOLD} strokeWidth={1.5} />
+      {/* Table name */}
+      <text x={cx} y={cy + 5} textAnchor="middle" fontSize={9} fill={DARK} fontFamily="Frank Ruhl Libre, serif" fontWeight={700}>
+        {table.name}
+      </text>
+      {/* Seats */}
+      {seats.map(({ x, y, assignment, guest }, i) => (
+        <g key={i} onClick={assignment ? () => onRemoveGuest(assignment.guest_id) : undefined} style={{ cursor: assignment ? "pointer" : "default" }}>
+          <circle
+            cx={x} cy={y} r={seatR}
+            fill={guest ? OLIVE : "rgba(197,164,109,0.15)"}
+            stroke={guest ? OLIVE : "rgba(197,164,109,0.3)"}
+            strokeWidth={1}
+          />
+          {guest && (
+            <text x={x} y={y + 3.5} textAnchor="middle" fontSize={6} fill="white" fontFamily="Heebo, sans-serif" fontWeight={600}>
+              {getInitials(guest.name)}
+            </text>
+          )}
+          {assignment && (
+            <title>{guest?.name ?? assignment.guest_id} — לחץ להסרה</title>
+          )}
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function RectTableSVG({ table, assigned, capacity, guestById, onRemoveGuest }: {
+  table: SeatingTable;
+  assigned: SeatingAssignment[];
+  capacity: number;
+  guestById: (id: string) => (Guest & { category?: string | null }) | undefined;
+  onRemoveGuest: (guestId: string) => void;
+}) {
+  const seatR = 8;
+  const rectX = 20, rectY = 25, rectW = 120, rectH = 50;
+  const totalW = rectX * 2 + rectW; // 160
+  const totalH = rectY * 2 + rectH; // 100
+
+  // Distribute seats: top row and bottom row evenly
+  const topCount = Math.ceil(capacity / 2);
+  const botCount = Math.floor(capacity / 2);
+
+  const topSeats = Array.from({ length: topCount }, (_, i) => {
+    const x = rectX + (rectW / (topCount + 1)) * (i + 1);
+    const y = rectY - seatR - 2;
+    const assignment = assigned[i];
+    const guest = assignment ? guestById(assignment.guest_id) : undefined;
+    return { x, y, assignment, guest, idx: i };
+  });
+
+  const botSeats = Array.from({ length: botCount }, (_, i) => {
+    const x = rectX + (rectW / (botCount + 1)) * (i + 1);
+    const y = rectY + rectH + seatR + 2;
+    const assignment = assigned[topCount + i];
+    const guest = assignment ? guestById(assignment.guest_id) : undefined;
+    return { x, y, assignment, guest, idx: topCount + i };
+  });
+
+  const allSeats = [...topSeats, ...botSeats];
+
+  return (
+    <svg viewBox={`0 0 ${totalW} ${totalH}`} width={totalW} height={totalH} style={{ overflow: "visible", cursor: "pointer" }}>
+      {/* Table surface */}
+      <rect x={rectX} y={rectY} width={rectW} height={rectH} rx={8} fill="#FDFAF5" stroke={GOLD} strokeWidth={1.5} />
+      {/* Table name */}
+      <text x={rectX + rectW / 2} y={rectY + rectH / 2 + 5} textAnchor="middle" fontSize={10} fill={DARK} fontFamily="Frank Ruhl Libre, serif" fontWeight={700}>
+        {table.name}
+      </text>
+      {/* Seats */}
+      {allSeats.map(({ x, y, assignment, guest, idx }) => (
+        <g key={idx} onClick={assignment ? () => onRemoveGuest(assignment.guest_id) : undefined} style={{ cursor: assignment ? "pointer" : "default" }}>
+          <circle
+            cx={x} cy={y} r={seatR}
+            fill={guest ? OLIVE : "rgba(197,164,109,0.15)"}
+            stroke={guest ? OLIVE : "rgba(197,164,109,0.3)"}
+            strokeWidth={1}
+          />
+          {guest && (
+            <text x={x} y={y + 3.5} textAnchor="middle" fontSize={5.5} fill="white" fontFamily="Heebo, sans-serif" fontWeight={600}>
+              {getInitials(guest.name)}
+            </text>
+          )}
+          {assignment && (
+            <title>{guest?.name ?? assignment.guest_id} — לחץ להסרה</title>
+          )}
+        </g>
+      ))}
+    </svg>
   );
 }
