@@ -3,6 +3,8 @@ import Hero from "@/components/Hero";
 import WhyUs from "@/components/WhyUs";
 import DashboardDemo from "@/components/DashboardDemo";
 import LiveInvitationDemo from "@/components/LiveInvitationDemo";
+import LiveDashboardWidget from "@/components/LiveDashboardWidget";
+import LiveSeatingWidget from "@/components/LiveSeatingWidget";
 import BookDemoCTA from "@/components/BookDemoCTA";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
@@ -17,6 +19,8 @@ export default function Home() {
       <WhyUs />
       <DashboardDemo />
       <LiveInvitationDemo />
+      <LiveDashboardWidget />
+      <LiveSeatingWidget />
       <BookDemoCTA />
       <Contact />
       <Footer />
