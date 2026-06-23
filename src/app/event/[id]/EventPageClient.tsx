@@ -64,6 +64,38 @@ export default function EventPageClient({
 
   return (
     <div dir="rtl" lang="he" className="min-h-screen" style={{ background: theme.bodyBg }}>
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-16px); }
+        }
+        @keyframes slideInUp {
+          from { opacity: 0; transform: translateY(30px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes glow {
+          0%, 100% { text-shadow: 0 0 20px rgba(197,164,109,0.3); }
+          50% { text-shadow: 0 0 50px rgba(197,164,109,0.7), 0 0 100px rgba(197,164,109,0.2); }
+        }
+        @keyframes shimmerBtn {
+          0% { left: -100%; }
+          100% { left: 120%; }
+        }
+        .rsvp-btn {
+          position: relative; overflow: hidden;
+        }
+        .rsvp-btn::after {
+          content: '';
+          position: absolute; top: 0; left: -100%; width: 60%; height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        }
+        .rsvp-btn:hover::after {
+          animation: shimmerBtn 0.6s ease forwards;
+        }
+        .hero-content {
+          animation: slideInUp 0.9s ease forwards;
+        }
+      `}</style>
 
       {/* ── Preview banner ──────────────────────────── */}
       {isPreview && (
@@ -97,6 +129,28 @@ export default function EventPageClient({
         className="relative min-h-screen flex flex-col items-center justify-center text-center overflow-hidden"
         style={{ background: theme.heroBg, paddingTop: isPreview ? "56px" : "0" }}
       >
+        {/* Floating decorative circles */}
+        <div style={{
+          position: "absolute", width: 220, height: 220, borderRadius: "50%",
+          border: "1px solid rgba(197,164,109,0.12)", top: -60, right: -60,
+          animation: "float 8s ease-in-out infinite", pointerEvents: "none",
+        }} />
+        <div style={{
+          position: "absolute", width: 140, height: 140, borderRadius: "50%",
+          border: "1px solid rgba(197,164,109,0.08)", bottom: 30, left: -40,
+          animation: "float 6s ease-in-out 2s infinite", pointerEvents: "none",
+        }} />
+        <div style={{
+          position: "absolute", width: 80, height: 80, borderRadius: "50%",
+          border: "1px solid rgba(197,164,109,0.1)", top: "30%", left: 20,
+          animation: "float 7s ease-in-out 1s infinite", pointerEvents: "none",
+        }} />
+        <div style={{
+          position: "absolute", width: 60, height: 60, borderRadius: "50%",
+          border: "1px solid rgba(197,164,109,0.07)", bottom: "25%", right: 30,
+          animation: "float 9s ease-in-out 3s infinite", pointerEvents: "none",
+        }} />
+
         {/* Dot grid overlay */}
         <div
           className="absolute inset-0 opacity-[0.04] pointer-events-none"
@@ -127,7 +181,7 @@ export default function EventPageClient({
           </div>
         ))}
 
-        <div className="relative z-10 px-6 max-w-xl mx-auto flex flex-col items-center">
+        <div className="relative z-10 px-6 max-w-xl mx-auto flex flex-col items-center hero-content">
           {/* Badge */}
           <div
             className="mb-7 px-5 py-1.5 rounded-full text-xs font-semibold tracking-[0.2em] uppercase"
@@ -163,7 +217,7 @@ export default function EventPageClient({
             style={{ background: `linear-gradient(90deg,transparent,${theme.heroAccent},transparent)` }} />
 
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold leading-none mb-3"
-            style={{ color: theme.heroNameColor, ...FRANK }}>
+            style={{ color: theme.heroNameColor, ...FRANK, animation: "glow 4s ease-in-out infinite" }}>
             {event.name}
           </h1>
 
