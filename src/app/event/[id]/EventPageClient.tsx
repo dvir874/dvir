@@ -3,8 +3,76 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Calendar, Clock, MapPin, Navigation, Map, ChevronDown, ExternalLink,
+  Calendar, Clock, MapPin, Navigation, Map, ChevronDown, ExternalLink, CalendarPlus,
 } from "lucide-react";
+
+function buildICS(name: string, date: string, address?: string | null): string {
+  const d = new Date(date + "T19:00:00");
+  const end = new Date(d.getTime() + 4 * 60 * 60 * 1000);
+  const fmt = (dt: Date) => dt.toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
+  return [
+    "BEGIN:VCALENDAR", "VERSION:2.0", "BEGIN:VEVENT",
+    `DTSTART:${fmt(d)}`, `DTEND:${fmt(end)}`,
+    `SUMMARY:${name}`,
+    address ? `LOCATION:${address}` : "",
+    "END:VEVENT", "END:VCALENDAR",
+  ].filter(Boolean).join("\r\n");
+}
+
+function googleCalendarUrl(name: string, date: string, address?: string | null): string {
+  const d = new Date(date + "T19:00:00");
+  const end = new Date(d.getTime() + 4 * 60 * 60 * 1000);
+  const fmt = (dt: Date) => dt.toISOString().replace(/[-:.Z]/g, "").slice(0, 15) + "Z";
+  const params = new URLSearchParams({
+    action: "TEMPLATE", text: name,
+    dates: `${fmt(d)}/${fmt(end)}`,
+    ...(address ? { location: address } : {}),
+  });
+  return `https://calendar.google.com/calendar/render?${params}`;
+}
+
+function AddToCalendarButton({ event, theme }: { event: EventData; theme: import("@/lib/themes").EventTheme }) {
+  const [open, setOpen] = useState(false);
+  function downloadICS() {
+    const blob = new Blob([buildICS(event.name, event.date, event.address)], { type: "text/calendar" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = `${event.name}.ics`; a.click();
+    setOpen(false);
+  }
+  return (
+    <div style={{ position: "relative", display: "inline-block" }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: "flex", alignItems: "center", gap: 8, padding: "0.6rem 1.4rem",
+          borderRadius: 50, border: `1.5px solid ${theme.accentColor}55`,
+          background: `${theme.accentColor}10`, color: theme.accentColor,
+          cursor: "pointer", fontFamily: "Heebo, sans-serif", fontSize: 13, fontWeight: 600,
+        }}
+      >
+        <CalendarPlus size={15} /> הוסף ליומן
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute", bottom: "110%", left: "50%", transform: "translateX(-50%)",
+          background: "white", borderRadius: 14, overflow: "hidden", whiteSpace: "nowrap",
+          boxShadow: "0 8px 30px rgba(0,0,0,0.13)", zIndex: 10,
+          border: "1px solid rgba(197,164,109,0.2)",
+        }}>
+          <a href={googleCalendarUrl(event.name, event.date, event.address)} target="_blank" rel="noopener noreferrer"
+            onClick={() => setOpen(false)}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "0.75rem 1.25rem", color: "#1C1008", textDecoration: "none", fontSize: 13, fontFamily: "Heebo, sans-serif" }}>
+            📅 Google Calendar
+          </a>
+          <button onClick={downloadICS}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "0.75rem 1.25rem", width: "100%", background: "none", border: "none", cursor: "pointer", color: "#1C1008", fontSize: 13, fontFamily: "Heebo, sans-serif", borderTop: "1px solid rgba(197,164,109,0.12)" }}>
+            🍎 Apple / Outlook (.ics)
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 import type { EventTheme } from "@/lib/themes";
 
 interface EventData {
@@ -371,10 +439,8 @@ export default function EventPageClient({
               <br />
               לא קיבלתם? פנו לזוג המאושר.
             </p>
-            <div className="mt-5 pt-4" style={{ borderTop: `1px solid ${theme.cardBorder}` }}>
-              <p className="text-xs" style={{ color: `${theme.accentColor}88`, ...HEEBO }}>
-                ✦ {event.name}
-              </p>
+            <div className="mt-5 pt-4 flex justify-center" style={{ borderTop: `1px solid ${theme.cardBorder}` }}>
+              <AddToCalendarButton event={event} theme={theme} />
             </div>
           </div>
         </div>

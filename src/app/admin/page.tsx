@@ -310,7 +310,7 @@ const STATUS_COLOR: Record<GuestStatus, { bg: string; color: string }> = {
 };
 
 const PAGE_SIZE = 20;
-type Tab = "guests" | "reminders" | "import-export" | "command-center" | "recommendations" | "couple-view";
+type Tab = "guests" | "reminders" | "import-export" | "command-center" | "recommendations" | "couple-view" | "calendar" | "history";
 
 interface CouponRow {
   id: string;
@@ -1601,6 +1601,8 @@ export default function AdminPage() {
             ["guests","רשימת אורחים"],
             ["reminders","תזכורות"],
             ["couple-view","👀 מבט הזוג"],
+            ["calendar","📅 לוח שנה"],
+            ["history","🕓 היסטוריה"],
             ["recommendations","מרכז המלצות"],
             ["import-export","ייבוא / ייצוא"],
           ] as [Tab, string][]).map(
