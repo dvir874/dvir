@@ -509,18 +509,24 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
           </div>
         </div>
 
+        {/* Blessing */}
+        <BlessingCard name={event.name} />
+
         {/* RSVP Visual Counter */}
         <RsvpCounter stats={stats} />
 
-        {/* Budget Visual */}
-        <BudgetVisual budget={budget} />
+        {/* Budget Tracker */}
+        <BudgetTracker token={token} />
 
-        {/* Seating + Gifts */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
-          <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1rem", boxShadow: C.shadow }}>
+        {/* Gifts Tracker */}
+        <GiftsTracker token={token} />
+
+        {/* Seating — only if guests assigned */}
+        {seating.assignedSeats > 0 && (
+          <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "0.875rem" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: "0.75rem" }}>
               <LayoutGrid size={14} style={{ color: C.gold }} />
-              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, margin: 0 }}>הושבה</h3>
+              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, margin: 0 }}>סידורי הושבה</h3>
             </div>
             <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.2rem", fontWeight: 700 }}>{seatingPct}%</p>
             <p style={{ fontSize: 11, color: C.muted }}>{seating.assignedSeats} מתוך {stats.attendees} מוצבים</p>
@@ -528,16 +534,7 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
               <div style={{ height: "100%", width: `${seatingPct}%`, background: seatingPct >= 80 ? C.olive : C.gold }} />
             </div>
           </div>
-
-          <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1rem", boxShadow: C.shadow }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: "0.75rem" }}>
-              <Gift size={14} style={{ color: C.gold }} />
-              <h3 style={{ fontSize: "0.8rem", fontWeight: 600, margin: 0 }}>מתנות</h3>
-            </div>
-            <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.2rem", fontWeight: 700 }}>₪{fmt(gifts.total)}</p>
-            <p style={{ fontSize: 11, color: C.muted }}>{gifts.count} מתנות התקבלו</p>
-          </div>
-        </div>
+        )}
 
         {/* Venue Map placeholder */}
         <VenueMap />
@@ -747,6 +744,288 @@ function VenueMap() {
           <span style={{ fontSize: 11, opacity: 0.7 }}>דביר יעדכן אתכם כשהיא מוכנה</span>
         </p>
       </div>
+    </div>
+  );
+}
+
+const BLESSINGS = [
+  "האהבה שלכם היא המפה, והחתונה היא הצעד הראשון במסע.",
+  "כל רגע שעובר מקרב אתכם ליום שתזכרו לנצח.",
+  "שיהיה לכם יום שמח כמו הלב שלכם — מלא ועמוק.",
+  "שתמיד תצחקו ביחד, ושתמיד תהיו הבית אחד של השני.",
+  "מהיום הזה ועד כל הימים — ביחד.",
+];
+
+function BlessingCard({ name }: { name: string }) {
+  const blessing = BLESSINGS[Math.floor(name.length % BLESSINGS.length)];
+  return (
+    <div style={{
+      borderRadius: "1.25rem",
+      padding: "1.75rem 1.5rem",
+      marginBottom: "0.875rem",
+      textAlign: "center",
+      background: "linear-gradient(135deg, #1C1008 0%, #2E1A0A 100%)",
+      boxShadow: "0 4px 24px rgba(28,16,8,0.18)",
+      border: "1px solid rgba(197,164,109,0.20)",
+      position: "relative" as const,
+      overflow: "hidden",
+    }}>
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent, rgba(197,164,109,0.5), transparent)" }} />
+      <p style={{ fontSize: 11, letterSpacing: "0.25em", textTransform: "uppercase" as const, color: "rgba(197,164,109,0.6)", marginBottom: "0.75rem", fontFamily: "Heebo, sans-serif" }}>
+        ✦ לכבוד {name}
+      </p>
+      <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1rem,3.5vw,1.2rem)", color: "white", lineHeight: 1.7, margin: 0, fontWeight: 400 }}>
+        &ldquo;{blessing}&rdquo;
+      </p>
+      <div style={{ width: 32, height: 1, background: "rgba(197,164,109,0.4)", margin: "1rem auto 0" }} />
+      <p style={{ fontSize: 11, color: "rgba(197,164,109,0.55)", marginTop: "0.5rem", fontFamily: "Heebo, sans-serif" }}>
+        דביר · רגע לפני
+      </p>
+    </div>
+  );
+}
+
+// ─── Budget Tracker ───────────────────────────────────────────────────────────
+
+const BUDGET_CATS = [
+  { key: "venue",        label: "אולם",           color: "#C5A46D" },
+  { key: "catering",     label: "קייטרינג",        color: "#8B6914" },
+  { key: "photographer", label: "צלם",             color: "#6B7B5A" },
+  { key: "dj",           label: "DJ / מוזיקה",    color: "#7C6A52" },
+  { key: "flowers",      label: "פרחים",           color: "#A8866A" },
+  { key: "dress",        label: "שמלה / חליפה",   color: "#9B8B6E" },
+  { key: "other",        label: "אחר",             color: "#B5A090" },
+];
+
+interface BudgetItem { id: string; category: string; description: string; planned_amount: number }
+
+function BudgetTracker({ token }: { token: string }) {
+  const [items,    setItems]    = useState<BudgetItem[]>([]);
+  const [open,     setOpen]     = useState(false);
+  const [cat,      setCat]      = useState("venue");
+  const [desc,     setDesc]     = useState("");
+  const [amount,   setAmount]   = useState("");
+  const [saving,   setSaving]   = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/couple/${token}/budget`)
+      .then(r => r.json())
+      .then(d => Array.isArray(d) && setItems(d));
+  }, [token]);
+
+  async function add() {
+    if (!amount || Number(amount) <= 0) return;
+    setSaving(true);
+    const catLabel = BUDGET_CATS.find(c => c.key === cat)?.label ?? cat;
+    const res = await fetch(`/api/couple/${token}/budget`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category: cat, description: desc || catLabel, planned_amount: Number(amount) }),
+    });
+    const item = await res.json();
+    if (!item.error) setItems(prev => [...prev, item]);
+    setAmount(""); setDesc(""); setOpen(false); setSaving(false);
+  }
+
+  async function remove(id: string) {
+    await fetch(`/api/couple/${token}/budget?id=${id}`, { method: "DELETE" });
+    setItems(prev => prev.filter(i => i.id !== id));
+  }
+
+  const total = items.reduce((s, i) => s + i.planned_amount, 0);
+
+  // Pie chart segments
+  const PIE = 54, CIRC = 2 * Math.PI * PIE;
+  let offset = 0;
+  const segments = items.map(item => {
+    const cat = BUDGET_CATS.find(c => c.key === item.category);
+    const pct = total > 0 ? item.planned_amount / total : 0;
+    const seg = { id: item.id, color: cat?.color ?? "#C5A46D", dasharray: pct * CIRC, dashoffset: -offset * CIRC };
+    offset += pct;
+    return seg;
+  });
+
+  return (
+    <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "0.875rem" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.875rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <Wallet size={14} style={{ color: C.gold }} />
+          <h3 style={{ fontSize: "0.85rem", fontWeight: 600, margin: 0 }}>תקציב החתונה</h3>
+        </div>
+        {total > 0 && (
+          <span style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, color: C.gold }}>
+            ₪{fmt(total)}
+          </span>
+        )}
+      </div>
+
+      {items.length === 0 ? (
+        <p style={{ fontSize: 12, color: C.muted, textAlign: "center", padding: "0.5rem 0" }}>
+          הוסיפו את קטגוריות התקציב שלכם — ותראו תמונה ברורה לאן הולך הכסף
+        </p>
+      ) : (
+        <div style={{ display: "flex", gap: "1rem", alignItems: "center", marginBottom: "0.875rem" }}>
+          {/* Donut */}
+          <svg width="116" height="116" viewBox="0 0 116 116" style={{ flexShrink: 0 }}>
+            <circle cx="58" cy="58" r={PIE} fill="none" stroke="rgba(197,164,109,0.12)" strokeWidth="16" />
+            {segments.map(s => (
+              <circle key={s.id} cx="58" cy="58" r={PIE} fill="none" stroke={s.color} strokeWidth="16"
+                strokeDasharray={`${s.dasharray} ${CIRC}`} strokeDashoffset={s.dashoffset}
+                transform="rotate(-90 58 58)" style={{ transition: "all 0.5s ease" }} />
+            ))}
+            <text x="58" y="62" textAnchor="middle" style={{ fontSize: 11, fill: C.muted, fontFamily: "Heebo, sans-serif" }}>
+              סה״כ
+            </text>
+          </svg>
+          {/* Legend */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
+            {items.map(item => {
+              const cat = BUDGET_CATS.find(c => c.key === item.category);
+              const pct = total > 0 ? Math.round((item.planned_amount / total) * 100) : 0;
+              return (
+                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: cat?.color ?? C.gold, flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, flex: 1, color: C.dark }}>{item.description}</span>
+                  <span style={{ fontSize: 11, color: C.muted }}>{pct}%</span>
+                  <button onClick={() => remove(item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(0,0,0,0.2)", padding: 1 }}>
+                    <Trash2 size={11} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {open ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", paddingTop: "0.5rem", borderTop: `1px solid ${C.border}` }}>
+          <select value={cat} onChange={e => setCat(e.target.value)}
+            style={{ padding: "0.4rem 0.6rem", borderRadius: 8, border: `1px solid ${C.border}`, fontFamily: "Heebo, sans-serif", fontSize: 13, background: "white", outline: "none" }}>
+            {BUDGET_CATS.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+          </select>
+          <input placeholder="תיאור (אופציונלי)" value={desc} onChange={e => setDesc(e.target.value)}
+            style={{ padding: "0.4rem 0.6rem", borderRadius: 8, border: `1px solid ${C.border}`, fontFamily: "Heebo, sans-serif", fontSize: 13, outline: "none" }} />
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <input type="number" placeholder="סכום ₪" value={amount} onChange={e => setAmount(e.target.value)}
+              style={{ flex: 1, padding: "0.4rem 0.6rem", borderRadius: 8, border: `1px solid ${C.border}`, fontFamily: "Heebo, sans-serif", fontSize: 13, outline: "none" }} />
+            <button onClick={add} disabled={saving || !amount}
+              style={{ padding: "0.4rem 0.9rem", borderRadius: 8, background: C.gold, border: "none", color: "white", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+              {saving ? "..." : "הוסף"}
+            </button>
+            <button onClick={() => setOpen(false)}
+              style={{ padding: "0.4rem 0.6rem", borderRadius: 8, background: "rgba(0,0,0,0.05)", border: "none", cursor: "pointer" }}>
+              <XCircle size={14} style={{ color: C.muted }} />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setOpen(true)}
+          style={{ width: "100%", padding: "0.5rem", borderRadius: 8, border: `1px dashed ${C.border}`, background: "transparent", cursor: "pointer", fontSize: 12, color: C.muted, fontFamily: "Heebo, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+          <Plus size={13} /> הוסף קטגוריית תקציב
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Gifts Tracker ────────────────────────────────────────────────────────────
+
+interface GiftItem { id: string; guest_name: string; amount: number; notes?: string }
+
+function GiftsTracker({ token }: { token: string }) {
+  const [gifts,   setGifts]   = useState<GiftItem[]>([]);
+  const [open,    setOpen]    = useState(false);
+  const [name,    setName]    = useState("");
+  const [amount,  setAmount]  = useState("");
+  const [notes,   setNotes]   = useState("");
+  const [saving,  setSaving]  = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/couple/${token}/gifts-log`)
+      .then(r => r.json())
+      .then(d => Array.isArray(d) && setGifts(d));
+  }, [token]);
+
+  async function add() {
+    if (!name || !amount || Number(amount) <= 0) return;
+    setSaving(true);
+    const res = await fetch(`/api/couple/${token}/gifts-log`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ guest_name: name, amount: Number(amount), notes }),
+    });
+    const gift = await res.json();
+    if (!gift.error) setGifts(prev => [gift, ...prev]);
+    setName(""); setAmount(""); setNotes(""); setOpen(false); setSaving(false);
+  }
+
+  async function remove(id: string) {
+    await fetch(`/api/couple/${token}/gifts-log?id=${id}`, { method: "DELETE" });
+    setGifts(prev => prev.filter(g => g.id !== id));
+  }
+
+  const total = gifts.reduce((s, g) => s + g.amount, 0);
+
+  return (
+    <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "0.875rem" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.875rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <Gift size={14} style={{ color: C.gold }} />
+          <h3 style={{ fontSize: "0.85rem", fontWeight: 600, margin: 0 }}>מתנות שהתקבלו</h3>
+        </div>
+        {total > 0 && (
+          <span style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, color: C.olive }}>
+            ₪{fmt(total)}
+          </span>
+        )}
+      </div>
+
+      {gifts.length === 0 ? (
+        <p style={{ fontSize: 12, color: C.muted, textAlign: "center", padding: "0.5rem 0" }}>
+          רשמו כאן כל מתנה שמגיעה — הכל מסתכם אוטומטית
+        </p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: "0.75rem", maxHeight: 180, overflowY: "auto" }}>
+          {gifts.map(g => (
+            <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "0.4rem 0.5rem", borderRadius: 8, background: "rgba(107,123,90,0.05)" }}>
+              <span style={{ flex: 1, fontSize: 13, color: C.dark }}>{g.guest_name}</span>
+              {g.notes && <span style={{ fontSize: 11, color: C.muted }}>{g.notes}</span>}
+              <span style={{ fontSize: 13, fontWeight: 600, color: C.olive }}>₪{fmt(g.amount)}</span>
+              <button onClick={() => remove(g.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(0,0,0,0.2)", padding: 1 }}>
+                <Trash2 size={11} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {open ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", paddingTop: "0.5rem", borderTop: `1px solid ${C.border}` }}>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <input placeholder="שם הנותן" value={name} onChange={e => setName(e.target.value)}
+              style={{ flex: 2, padding: "0.4rem 0.6rem", borderRadius: 8, border: `1px solid ${C.border}`, fontFamily: "Heebo, sans-serif", fontSize: 13, outline: "none" }} />
+            <input type="number" placeholder="₪ סכום" value={amount} onChange={e => setAmount(e.target.value)}
+              style={{ flex: 1, padding: "0.4rem 0.6rem", borderRadius: 8, border: `1px solid ${C.border}`, fontFamily: "Heebo, sans-serif", fontSize: 13, outline: "none" }} />
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <input placeholder="הערה (אופציונלי)" value={notes} onChange={e => setNotes(e.target.value)}
+              style={{ flex: 1, padding: "0.4rem 0.6rem", borderRadius: 8, border: `1px solid ${C.border}`, fontFamily: "Heebo, sans-serif", fontSize: 13, outline: "none" }} />
+            <button onClick={add} disabled={saving || !name || !amount}
+              style={{ padding: "0.4rem 0.9rem", borderRadius: 8, background: C.olive, border: "none", color: "white", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+              {saving ? "..." : "הוסף"}
+            </button>
+            <button onClick={() => setOpen(false)}
+              style={{ padding: "0.4rem 0.6rem", borderRadius: 8, background: "rgba(0,0,0,0.05)", border: "none", cursor: "pointer" }}>
+              <XCircle size={14} style={{ color: C.muted }} />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setOpen(true)}
+          style={{ width: "100%", padding: "0.5rem", borderRadius: 8, border: `1px dashed ${C.border}`, background: "transparent", cursor: "pointer", fontSize: 12, color: C.muted, fontFamily: "Heebo, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+          <Plus size={13} /> רשום מתנה שהתקבלה
+        </button>
+      )}
     </div>
   );
 }
