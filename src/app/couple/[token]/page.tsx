@@ -10,6 +10,69 @@ import {
 import type { WeddingScore, SmartAlert } from "@/lib/wedding-score";
 import ChatWidget from "@/components/ChatWidget";
 
+const INSPIRATION_QUOTES = [
+  "האהבה אינה מסתכלת בשעון — היא פשוט נמצאת שם.",
+  "כל יום יחד הוא דף חדש בסיפור שלכם.",
+  "לא מה שיש לכם, אלא מה שאתם בונים יחד — זה שיישאר.",
+  "החתונה היא הפתיח; החיים המשותפים הם היצירה.",
+  "שתי נשמות, בית אחד, אינסוף פרקים לפנינו.",
+  "אושר אמיתי הוא שיהיה מישהו שמח לראות אותך כשאתה חוזר הביתה.",
+  "אהבה היא הבחירה שבוחרים מחדש כל יום.",
+  "הפרטים הקטנים — הם לב הסיפור הגדול.",
+  "ביחד אתם חזקים יותר מהסכום של שניכם.",
+  "הזמן עובר, הרגעים נשארים — תעשו כמה שיותר.",
+  "כל זוג כותב את הסיפור שלו. הפרק הזה רק מתחיל.",
+  "חתונה היא הבטחה שעושים ברגל אחת — ומקיימים עם שתיהן.",
+  "לאהוב מישהו זה לראות אותו כמו שהוא ולהחזיק את ידו בכל זאת.",
+  "הדבר הטוב ביותר שתחזיקו בחיים זה יד של מישהו שאוהב אתכם.",
+  "האמת הגדולה ביותר: ביחד הכל יותר קל.",
+  "מהיום אתם לא שניים — אתם אחד עם שתי נקודות מבט מדהימות.",
+  "כל הכנה עכשיו היא מתנה לכם בעתיד.",
+  "הפרחים יכמשו, הגלידה תיגמר — אבל האהבה שלכם תישאר.",
+  "גם אם הכל לא מושלם — הם בוחרים אחד את השנייה. זה הכי חשוב.",
+  "החתונה היא יום אחד. הנישואין הם חיים שלמים. שניהם שווים כל רגע.",
+];
+
+function getTimeTheme() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return {
+    // Morning — soft sunrise, warm peach & gold
+    gradient: "linear-gradient(150deg, #E8A87C 0%, #C5794A 45%, #9B5A2C 100%)",
+    bgPage:   "#F5EDE0",
+    ring1:    "rgba(255,200,120,0.15)",
+    ring2:    "rgba(255,180,80,0.10)",
+    radial:   "radial-gradient(ellipse at 20% 0%, rgba(255,220,150,0.22) 0%, transparent 60%)",
+    label:    "בוקר טוב ☀️",
+    textMuted:"rgba(255,235,190,0.75)",
+    factBg:   "rgba(0,0,0,0.16)",
+    factBorder:"rgba(255,200,120,0.35)",
+  };
+  if (h >= 12 && h < 18) return {
+    // Afternoon — deep olive & sage, calm midday
+    gradient: "linear-gradient(150deg, #7A9B6A 0%, #4E7A45 45%, #2E5A28 100%)",
+    bgPage:   "#EDF2E8",
+    ring1:    "rgba(180,220,160,0.15)",
+    ring2:    "rgba(140,190,120,0.10)",
+    radial:   "radial-gradient(ellipse at 80% 0%, rgba(200,230,170,0.20) 0%, transparent 60%)",
+    label:    "צהריים טובים 🌿",
+    textMuted:"rgba(220,245,200,0.75)",
+    factBg:   "rgba(0,0,0,0.18)",
+    factBorder:"rgba(180,220,150,0.35)",
+  };
+  // Night — deep navy & indigo, romantic stars
+  return {
+    gradient: "linear-gradient(150deg, #2C3E6B 0%, #1A2A50 45%, #0D1A38 100%)",
+    bgPage:   "#E8EAF2",
+    ring1:    "rgba(180,200,255,0.12)",
+    ring2:    "rgba(140,160,255,0.08)",
+    radial:   "radial-gradient(ellipse at 60% 0%, rgba(150,170,255,0.18) 0%, transparent 60%)",
+    label:    "לילה טוב 🌙",
+    textMuted:"rgba(200,215,255,0.70)",
+    factBg:   "rgba(0,0,0,0.25)",
+    factBorder:"rgba(180,200,255,0.30)",
+  };
+}
+
 const C = {
   cream:  "#F2EDE3",
   ivory:  "#FDFAF5",
@@ -256,6 +319,8 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
   );
 
   const { event, stats, budget, seating, gifts } = data;
+  const theme      = getTimeTheme();
+  const quote      = INSPIRATION_QUOTES[Math.floor(Math.random() * INSPIRATION_QUOTES.length)];
   const daysLeft   = briefing?.daysUntilEvent ?? Math.max(0, Math.ceil((new Date(event.date).getTime() - Date.now()) / 86_400_000));
   const taskPct    = tasks.length > 0 ? Math.round((tasks.filter(t => t.completed).length / tasks.length) * 100) : 0;
   const seatingPct = stats.attendees > 0 ? Math.round((seating.assignedSeats / stats.attendees) * 100) : 0;
@@ -265,7 +330,7 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
   const others     = alerts.filter(a => a.severity !== "urgent");
 
   return (
-    <div dir="rtl" style={{ minHeight: "100vh", background: "#F2EDE3", fontFamily: "Heebo, sans-serif", color: C.dark }}>
+    <div dir="rtl" style={{ minHeight: "100vh", background: theme.bgPage, fontFamily: "Heebo, sans-serif", color: C.dark }}>
 
       {/* Header */}
       <style>{`
@@ -286,35 +351,35 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
       `}</style>
 
       <div style={{
-        background: "linear-gradient(150deg, #C5954A 0%, #9B6E2C 50%, #7A5020 100%)",
+        background: theme.gradient,
         padding: "2.25rem 1.5rem 1.75rem",
         borderBottom: "1px solid rgba(0,0,0,0.12)",
         position: "relative",
         overflow: "hidden",
       }}>
         {/* floating rings */}
-        <div style={{ position:"absolute", width:220, height:220, borderRadius:"50%", border:"1px solid rgba(255,220,130,0.1)", top:-60, left:-60, animation:"coupleFloat 7s ease-in-out infinite", pointerEvents:"none" }} />
-        <div style={{ position:"absolute", width:140, height:140, borderRadius:"50%", border:"1px solid rgba(255,220,130,0.08)", bottom:-40, right:40, animation:"coupleFloat 5s ease-in-out infinite 1.5s", pointerEvents:"none" }} />
+        <div style={{ position:"absolute", width:220, height:220, borderRadius:"50%", border:`1px solid ${theme.ring1}`, top:-60, left:-60, animation:"coupleFloat 7s ease-in-out infinite", pointerEvents:"none" }} />
+        <div style={{ position:"absolute", width:140, height:140, borderRadius:"50%", border:`1px solid ${theme.ring2}`, bottom:-40, right:40, animation:"coupleFloat 5s ease-in-out infinite 1.5s", pointerEvents:"none" }} />
         {/* subtle texture overlay */}
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 80% 0%, rgba(255,220,130,0.18) 0%, transparent 60%)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, background: theme.radial, pointerEvents: "none" }} />
         <div style={{ maxWidth: 640, margin: "0 auto", position: "relative" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <p style={{ fontSize: 10, letterSpacing: "0.30em", textTransform: "uppercase", color: "rgba(255,235,180,0.7)", marginBottom: "0.6rem", fontFamily: "Heebo, sans-serif" }}>
-              ✦ {briefing?.phaseLabel ?? "לוח בקרה"}
+            <p style={{ fontSize: 10, letterSpacing: "0.30em", textTransform: "uppercase", color: theme.textMuted, marginBottom: "0.6rem", fontFamily: "Heebo, sans-serif" }}>
+              ✦ {briefing?.phaseLabel ?? theme.label}
             </p>
-            <button onClick={() => window.print()} className="no-print"
-              style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,220,130,0.25)", borderRadius: 10, padding: "0.35rem 0.85rem", color: "rgba(255,235,180,0.8)", fontSize: 12, cursor: "pointer", fontFamily: "Heebo, sans-serif", display: "flex", alignItems: "center", gap: 5 }}>
-              🖨️ הדפסה
-            </button>
           </div>
           <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1.8rem,6vw,2.4rem)", fontWeight: 700, marginBottom: "0.35rem", lineHeight: 1.2, color: "#FFF8EC" }}>
             {briefing?.greeting ?? event.name}
           </h1>
           {briefing?.phaseMessage && (
-            <p style={{ fontSize: 13, color: "rgba(255,240,200,0.75)", marginBottom: "1.25rem", lineHeight: 1.6 }}>
+            <p style={{ fontSize: 13, color: theme.textMuted, marginBottom: "0.75rem", lineHeight: 1.6 }}>
               {briefing.phaseMessage}
             </p>
           )}
+          {/* Daily inspiration quote */}
+          <p style={{ fontSize: 13, fontStyle: "italic", color: theme.textMuted, marginBottom: "1.25rem", lineHeight: 1.7, borderRight: "2px solid rgba(255,255,255,0.25)", paddingRight: "0.75rem" }}>
+            &ldquo;{quote}&rdquo;
+          </p>
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
             {(briefing?.keyFacts ?? [
               `${stats.confirmed + stats.declined}/${stats.total} ענו`,
@@ -323,9 +388,9 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
             ]).map((fact, i) => (
               <div key={i} style={{
                 padding: "0.3rem 0.85rem", borderRadius: 20,
-                background: "rgba(0,0,0,0.18)",
-                border: "1px solid rgba(255,220,130,0.30)",
-                fontSize: 12, color: "rgba(255,235,180,0.92)", fontFamily: "Heebo, sans-serif", fontWeight: 500,
+                background: theme.factBg,
+                border: `1px solid ${theme.factBorder}`,
+                fontSize: 12, color: "rgba(255,245,220,0.92)", fontFamily: "Heebo, sans-serif", fontWeight: 500,
               }}>
                 {fact}
               </div>
@@ -552,28 +617,32 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         {/* Gifts Tracker */}
         <GiftsTracker token={token} />
 
-        {/* Seating */}
-        {seating.assignedSeats > 0 && (
-          <a href={`/couple/${token}/seating`} style={{ textDecoration: "none", display: "block", marginBottom: "0.875rem" }}>
-            <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <LayoutGrid size={14} style={{ color: C.gold }} />
-                  <h3 style={{ fontSize: "0.85rem", fontWeight: 600, margin: 0, color: C.dark }}>סידורי הושבה</h3>
-                </div>
-                <span style={{ fontSize: 11, color: C.gold, fontFamily: "Heebo, sans-serif" }}>לצפייה בשולחנות ←</span>
+        {/* Seating — always visible */}
+        <a href={`/couple/${token}/seating`} style={{ textDecoration: "none", display: "block", marginBottom: "0.875rem" }}>
+          <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <LayoutGrid size={14} style={{ color: C.gold }} />
+                <h3 style={{ fontSize: "0.85rem", fontWeight: 600, margin: 0, color: C.dark }}>סידורי הושבה</h3>
               </div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: "0.4rem" }}>
-                <span style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.4rem", fontWeight: 700, color: C.dark }}>{seatingPct}%</span>
-                <span style={{ fontSize: 12, color: C.muted }}>מוצבים</span>
-              </div>
-              <p style={{ fontSize: 11, color: C.muted, marginBottom: "0.5rem" }}>{seating.assignedSeats} מתוך {stats.attendees} אורחים קיבלו מקום</p>
-              <div style={{ height: 6, borderRadius: 3, background: "rgba(197,164,109,0.12)", overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${seatingPct}%`, background: seatingPct >= 80 ? C.olive : C.gold, transition: "width 0.8s" }} />
-              </div>
+              <span style={{ fontSize: 11, color: C.gold, fontFamily: "Heebo, sans-serif" }}>לסידור השולחנות ←</span>
             </div>
-          </a>
-        )}
+            {seating.assignedSeats > 0 ? (
+              <>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: "0.4rem" }}>
+                  <span style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.4rem", fontWeight: 700, color: C.dark }}>{seatingPct}%</span>
+                  <span style={{ fontSize: 12, color: C.muted }}>מוצבים</span>
+                </div>
+                <p style={{ fontSize: 11, color: C.muted, marginBottom: "0.5rem" }}>{seating.assignedSeats} מתוך {stats.attendees} אורחים קיבלו מקום</p>
+                <div style={{ height: 6, borderRadius: 3, background: "rgba(197,164,109,0.12)", overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${seatingPct}%`, background: seatingPct >= 80 ? C.olive : C.gold, transition: "width 0.8s" }} />
+                </div>
+              </>
+            ) : (
+              <p style={{ fontSize: 12, color: C.muted }}>🪑 טרם הוצב אף אורח — לחצו כדי להתחיל לסדר את השולחנות</p>
+            )}
+          </div>
+        </a>
 
         {/* Wedding Day Timeline — editable */}
         <TimelineEditor token={token} />
