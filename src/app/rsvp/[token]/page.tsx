@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { use } from "react";
-import { CheckCircle, XCircle, Users, Loader2, AlertCircle } from "lucide-react";
+import { CheckCircle, XCircle, Users, Loader2, AlertCircle, Share2 } from "lucide-react";
 import { getTheme, type EventTheme } from "@/lib/themes";
 
 type Status = "confirmed" | "declined" | "pending";
@@ -213,6 +213,26 @@ export default function RsvpPage({
                 </a>
               )}
             </div>
+          )}
+
+          {/* Share "I'm going!" */}
+          {confirmed && (
+            <button
+              onClick={async () => {
+                const text = `🎉 מגיעים לחתונה של ${event?.name ?? ""}! מחכים לחגוג ביחד 💛`;
+                if (navigator.share) {
+                  try { await navigator.share({ text }); } catch { /* cancelled */ }
+                } else {
+                  await navigator.clipboard.writeText(text);
+                  alert("הטקסט הועתק! שתפו בסטטוס 🎉");
+                }
+              }}
+              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-sm font-medium mt-3 transition-all duration-200 hover:opacity-85"
+              style={{ background: `${theme.accentColor}10`, color: theme.accentColor, border: `1px solid ${theme.accentColor}33`, fontFamily: "Heebo, sans-serif", boxShadow: `0 2px 10px ${theme.accentColor}0e` }}
+            >
+              <Share2 size={15} />
+              שתפו שאתם מגיעים!
+            </button>
           )}
 
           <div className="w-16 h-px mx-auto mt-6"

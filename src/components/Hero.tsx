@@ -286,9 +286,80 @@ function Dashboard() {
 }
 
 /* ─── Hero section ─── */
+const HOW_STEPS = [
+  { emoji: "💌", title: "יוצרים את האירוע", desc: "מזינים שם, תאריך, כתובת ובוחרים עיצוב מתוך 20+ תבניות עיצוב אלגנטיות" },
+  { emoji: "📲", title: "שולחים הזמנות", desc: "המערכת שולחת הזמנות דיגיטליות אישיות עם קישור RSVP לכל אורח בנפרד" },
+  { emoji: "📊", title: "עוקבים בזמן אמת", desc: "רואים מי אישר, מי פתח, ומי עוד לא ענה — הכל בדשבורד חי ועדכני" },
+  { emoji: "🎊", title: "נהנים מהחתונה", desc: "בלי אקסל, בלי בלגן. הכל מסודר אוטומטית — ומגיעים ליום עצמו רגועים" },
+];
+
+function HowItWorksModal({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      style={{ background: "rgba(28,16,8,0.55)", backdropFilter: "blur(4px)" }}
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-md rounded-3xl p-8"
+        style={{ background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.25)", boxShadow: "0 24px 80px rgba(0,0,0,0.16)", maxHeight: "90vh", overflowY: "auto" }}
+        onClick={e => e.stopPropagation()}
+        dir="rtl"
+      >
+        <button
+          onClick={onClose}
+          style={{ position: "absolute", top: 16, left: 16, background: "rgba(0,0,0,0.06)", border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#555", fontSize: 18 }}
+        >×</button>
+
+        <div className="text-center mb-7">
+          <p style={{ fontSize: 10, letterSpacing: "0.22em", color: "#C5A46D", fontFamily: "Heebo, sans-serif", marginBottom: 8 }}>✦ תהליך פשוט ✦</p>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#1C1008", fontFamily: "Frank Ruhl Libre, serif" }}>
+            איך זה עובד?
+          </h2>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 24 }}>
+          {HOW_STEPS.map((step, i) => (
+            <div key={i} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+              <div style={{ flexShrink: 0, width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg,#C5A46D,#B8935A)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 18 }}>
+                {i + 1}
+              </div>
+              <div style={{ paddingTop: 2 }}>
+                <p style={{ fontWeight: 600, fontSize: 14, color: "#1C1008", fontFamily: "Frank Ruhl Libre, serif", marginBottom: 3 }}>
+                  {step.emoji} {step.title}
+                </p>
+                <p style={{ fontSize: 13, color: "rgba(28,16,8,0.55)", fontFamily: "Heebo, sans-serif", lineHeight: 1.6 }}>
+                  {step.desc}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <a
+          href="https://wa.me/972533318177"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={onClose}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "0.9rem", borderRadius: 16, background: "linear-gradient(135deg,#C5A46D,#B8935A)", color: "white", fontFamily: "Heebo, sans-serif", fontWeight: 700, fontSize: 15, textDecoration: "none" }}
+        >
+          התחילו עכשיו — בחינם ←
+        </a>
+      </div>
+    </div>
+  );
+}
+
 export default function Hero() {
   const parallaxRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -339,7 +410,7 @@ export default function Hero() {
               אורחים, הושבה, תקציב, מתנות ומשימות. הכל במקום אחד.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mb-6">
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mb-3">
               <a
                 href={WA_URL}
                 target="_blank"
@@ -354,6 +425,13 @@ export default function Hero() {
                 <ArrowLeft size={17} strokeWidth={2} />
               </a>
             </div>
+            <button
+              onClick={() => setShowHowItWorks(true)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "#C5A46D", fontFamily: "Heebo, sans-serif", fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 4, marginBottom: 12, textDecoration: "underline", textUnderlineOffset: 3, textDecorationColor: "rgba(197,164,109,0.4)" }}
+            >
+              ← ראו איך זה עובד
+            </button>
+            {showHowItWorks && <HowItWorksModal onClose={() => setShowHowItWorks(false)} />}
 
             <a
               href="tel:0533318177"

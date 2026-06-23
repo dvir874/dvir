@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Calendar, Clock, MapPin, Navigation, Map, ChevronDown, ExternalLink, CalendarPlus,
+  Calendar, Clock, MapPin, Navigation, Map, ChevronDown, ExternalLink, CalendarPlus, Share2,
 } from "lucide-react";
 
 function buildICS(name: string, date: string, address?: string | null): string {
@@ -519,8 +519,22 @@ export default function EventPageClient({
               <br />
               לא קיבלתם? פנו לזוג המאושר.
             </p>
-            <div className="mt-5 pt-4 flex justify-center" style={{ borderTop: `1px solid ${theme.cardBorder}` }}>
+            <div className="mt-5 pt-4 flex justify-center gap-3 flex-wrap" style={{ borderTop: `1px solid ${theme.cardBorder}` }}>
               <AddToCalendarButton event={event} theme={theme} />
+              <button
+                onClick={async () => {
+                  const url = window.location.href;
+                  if (navigator.share) {
+                    try { await navigator.share({ title: event.name, text: `מוזמנים לאירוע ${event.name}`, url }); } catch { /* cancelled */ }
+                  } else {
+                    await navigator.clipboard.writeText(url);
+                    alert("הקישור הועתק! שתפו עם מי שתרצו 🎉");
+                  }
+                }}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "0.6rem 1.4rem", borderRadius: 50, border: `1.5px solid ${theme.accentColor}55`, background: `${theme.accentColor}10`, color: theme.accentColor, cursor: "pointer", fontFamily: "Heebo, sans-serif", fontSize: 13, fontWeight: 600 }}
+              >
+                <Share2 size={15} /> שתף
+              </button>
             </div>
           </div>
         </div>

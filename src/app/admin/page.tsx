@@ -311,7 +311,7 @@ const STATUS_COLOR: Record<GuestStatus, { bg: string; color: string }> = {
 };
 
 const PAGE_SIZE = 20;
-type Tab = "guests" | "reminders" | "import-export" | "command-center" | "recommendations" | "couple-view" | "calendar" | "history";
+type Tab = "guests" | "reminders" | "import-export" | "command-center" | "recommendations" | "couple-view" | "calendar" | "history" | "analytics";
 
 interface CouponRow {
   id: string;
@@ -400,8 +400,12 @@ export default function AdminPage() {
   // Dropdown menus (click-based)
   const [showEventDropdown, setShowEventDropdown] = useState(false);
   const [showWeddingTools, setShowWeddingTools] = useState(false);
-  const eventDropdownRef = useRef<HTMLDivElement>(null);
-  const weddingToolsRef  = useRef<HTMLDivElement>(null);
+  const eventDropdownRef  = useRef<HTMLDivElement>(null);
+  const weddingToolsRef   = useRef<HTMLDivElement>(null);
+  const coupleMenuRef     = useRef<HTMLDivElement>(null);
+  const toolsMenuRef      = useRef<HTMLDivElement>(null);
+  const [showCoupleMenu,  setShowCoupleMenu]  = useState(false);
+  const [showToolsMenu,   setShowToolsMenu]   = useState(false);
 
   /* ── Data fetching ──────────────────────────────── */
   useEffect(() => {
@@ -476,9 +480,13 @@ export default function AdminPage() {
         setShowEventDropdown(false);
       if (weddingToolsRef.current && !weddingToolsRef.current.contains(e.target as Node))
         setShowWeddingTools(false);
+      if (coupleMenuRef.current && !coupleMenuRef.current.contains(e.target as Node))
+        setShowCoupleMenu(false);
+      if (toolsMenuRef.current && !toolsMenuRef.current.contains(e.target as Node))
+        setShowToolsMenu(false);
     }
     function handleEsc(e: KeyboardEvent) {
-      if (e.key === "Escape") { setShowEventDropdown(false); setShowWeddingTools(false); }
+      if (e.key === "Escape") { setShowEventDropdown(false); setShowWeddingTools(false); setShowCoupleMenu(false); setShowToolsMenu(false); }
     }
     document.addEventListener("mousedown", handleOutside);
     document.addEventListener("keydown", handleEsc);
@@ -878,20 +886,93 @@ export default function AdminPage() {
           >
             <Wand2 size={13} /> אשף יצירה
           </a>
-          {/* Wedding Tools dropdown — click-based */}
-          <div ref={weddingToolsRef} style={{ position: "relative", display: "inline-block" }}>
-            <button
-              onClick={() => setShowWeddingTools((s) => !s)}
-              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
-              style={{ background: showWeddingTools ? "rgba(197,164,109,0.28)" : "rgba(197,164,109,0.18)", color: C.olive }}
-            >
-              ✦ כלי חתונה
-            </button>
-            {showWeddingTools && (
-              <div
-                className="absolute rounded-xl overflow-hidden shadow-lg z-50"
-                style={{ background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.25)", minWidth: 160, top: "calc(100% + 4px)", left: 0 }}
+          {/* ── Group A: זוג ואירוע dropdown ── */}
+          {selectedEventId && (
+            <div ref={coupleMenuRef} style={{ position: "relative", display: "inline-block" }}>
+              <button
+                onClick={() => { setShowCoupleMenu(s => !s); setShowToolsMenu(false); }}
+                className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
+                style={{ background: showCoupleMenu ? "rgba(197,164,109,0.28)" : "rgba(197,164,109,0.15)", color: C.gold }}
               >
+                👫 זוג ואירוע ▾
+              </button>
+              {showCoupleMenu && (
+                <div className="absolute rounded-2xl overflow-hidden z-50" style={{ background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.25)", minWidth: 190, top: "calc(100% + 6px)", right: 0, boxShadow: "0 8px 30px rgba(0,0,0,0.1)" }}>
+                  {/* Approval */}
+                  <button
+                    onClick={() => { handleCreateApproval(); setShowCoupleMenu(false); }}
+                    disabled={approvalCreating}
+                    className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-amber-50 transition-colors text-right disabled:opacity-50"
+                    style={{ color: approvalMap[selectedEventId]?.status === "approved" ? C.olive : C.gold, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}
+                  >
+                    {approvalCreating ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                    {approvalMap[selectedEventId]?.status === "approved" ? "✓ אושר" : approvalMap[selectedEventId]?.status === "pending" ? "⏳ ממתין לאישור" : approvalMap[selectedEventId]?.status === "changes_requested" ? "✏️ תיקונים נדרשים" : "שלח לאישור לקוח"}
+                  </button>
+                  <div style={{ height: 1, background: "rgba(197,164,109,0.12)", margin: "0 12px" }} />
+                  {selectedEvent?.couple_token && (
+                    <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/couple/${selectedEvent.couple_token}`); setShowCoupleMenu(false); }}
+                      className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-amber-50 transition-colors" style={{ color: C.dark, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
+                      <Copy size={13} /> קישור לזוג
+                    </button>
+                  )}
+                  {selectedEvent?.couple_token && (
+                    <button onClick={async () => {
+                      const phone = selectedEvent?.client_phone?.replace(/[^0-9]/g, "").replace(/^0/, "972") ?? "";
+                      if (!phone) { alert("אין מספר טלפון שמור לזוג"); return; }
+                      try {
+                        const res = await fetch(`/api/couple/${selectedEvent.couple_token}/briefing`);
+                        const brief = await res.json();
+                        const keyFacts: string[] = brief.keyFacts ?? [];
+                        const alerts: { title: string }[] = brief.alerts ?? [];
+                        const msg = `שלום! 💛\nעדכון מרגע לפני עבור ${selectedEvent.name}:\n\n${keyFacts.join(" | ")}\n\nפעולות נדרשות:\n${alerts.slice(0, 3).map((a) => `• ${a.title}`).join("\n")}\n\nלדשבורד המלא: ${window.location.origin}/couple/${selectedEvent.couple_token}`;
+                        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
+                      } catch { alert("שגיאה בשליפת הנתונים"); }
+                      setShowCoupleMenu(false);
+                    }} className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-amber-50 transition-colors" style={{ color: C.dark, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
+                      🔔 תזכורת לזוג WhatsApp
+                    </button>
+                  )}
+                  <button onClick={() => {
+                    const themesUrl = `${window.location.origin}/themes?event=${selectedEventId}`;
+                    const phone = selectedEvent?.client_phone?.replace(/[^0-9]/g, "").replace(/^0/, "972") ?? "";
+                    if (phone) window.open(`https://wa.me/${phone}?text=${encodeURIComponent(`שלום! 🎉\nהכנתי לכם דף לבחירת עיצוב ההזמנה.\nבחרו את הסגנון שאתם אוהבים ושלחו לי 👇\n${themesUrl}`)}`, "_blank");
+                    else { navigator.clipboard.writeText(themesUrl); alert("קישור הועתק!"); }
+                    setShowCoupleMenu(false);
+                  }} className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-amber-50 transition-colors" style={{ color: C.dark, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
+                    <Palette size={13} /> בחירת עיצוב
+                  </button>
+                  <a href={`/event/${selectedEventId}?preview=true`} target="_blank" rel="noopener noreferrer" onClick={() => setShowCoupleMenu(false)}
+                    className="flex items-center gap-2 px-4 py-3 text-xs hover:bg-amber-50 transition-colors" style={{ color: C.dark, textDecoration: "none", fontFamily: "Heebo, sans-serif" }}>
+                    <ExternalLink size={13} /> תצוגה מקדימה
+                  </a>
+                  <div style={{ height: 1, background: "rgba(197,164,109,0.12)", margin: "0 12px" }} />
+                  <button onClick={() => { setBitPhoneInput((selectedEvent as (typeof selectedEvent & { bit_phone?: string }))?.bit_phone ?? ""); setShowBitModal(true); setShowCoupleMenu(false); }}
+                    className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-amber-50 transition-colors" style={{ color: "#1B3AE8", fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
+                    ₪ ביט מתנות
+                  </button>
+                  <button onClick={() => {
+                    const ev = selectedEvent as (typeof selectedEvent & { dress_code?: string; parking_info?: string; greeting?: string });
+                    setInfoDressCode(ev?.dress_code ?? ""); setInfoParking(ev?.parking_info ?? ""); setInfoGreeting(ev?.greeting ?? "");
+                    setShowInfoModal(true); setShowCoupleMenu(false);
+                  }} className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-amber-50 transition-colors" style={{ color: C.dark, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
+                    ✏️ פרטי הזמנה
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Group B: כלים dropdown ── */}
+          <div ref={toolsMenuRef} style={{ position: "relative", display: "inline-block" }}>
+            <button
+              onClick={() => { setShowToolsMenu(s => !s); setShowCoupleMenu(false); }}
+              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
+              style={{ background: showToolsMenu ? "rgba(107,123,90,0.20)" : "rgba(107,123,90,0.12)", color: C.olive }}
+            >
+              🛠️ כלים ▾
+            </button>
+            {showToolsMenu && (
+              <div className="absolute rounded-2xl overflow-hidden z-50" style={{ background: "#FDFAF5", border: "1px solid rgba(107,123,90,0.2)", minWidth: 190, top: "calc(100% + 6px)", right: 0, boxShadow: "0 8px 30px rgba(0,0,0,0.1)" }}>
                 {[
                   { href: selectedEventId ? `/admin/seating?event=${selectedEventId}` : "/admin/seating", label: "סידור הושבה", emoji: "🪑" },
                   { href: "/admin/budget",    label: "ניהול תקציב",   emoji: "💰" },
@@ -900,20 +981,40 @@ export default function AdminPage() {
                   { href: "/admin/whatsapp",  label: "קמפיין וואטסאפ", emoji: "📲" },
                   ...(selectedEventId ? [{ href: `/admin/gallery/${selectedEventId}`, label: "גלריית תמונות", emoji: "📸" }] : []),
                 ].map((item) => (
-                  <a
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setShowWeddingTools(false)}
-                    className="flex items-center gap-2 px-4 py-3 text-xs hover:bg-amber-50 transition-colors"
-                    style={{ color: C.dark, textDecoration: "none", fontFamily: "Heebo, sans-serif" }}
-                  >
-                    <span>{item.emoji}</span>
-                    {item.label}
+                  <a key={item.href} href={item.href} onClick={() => setShowToolsMenu(false)}
+                    className="flex items-center gap-2 px-4 py-3 text-xs hover:bg-green-50 transition-colors" style={{ color: C.dark, textDecoration: "none", fontFamily: "Heebo, sans-serif" }}>
+                    <span>{item.emoji}</span>{item.label}
                   </a>
                 ))}
+                {selectedEventId && (
+                  <>
+                    <div style={{ height: 1, background: "rgba(107,123,90,0.12)", margin: "0 12px" }} />
+                    <button onClick={async () => {
+                      try {
+                        const res = await fetch("/api/coupons", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ created_by_event_id: selectedEventId, discount_pct: 10, description: "הפניית חבר" }) });
+                        const d = await res.json();
+                        if (!res.ok) throw new Error(d.error);
+                        alert(`קוד הקופון: ${d.code} (${d.discount_pct}% הנחה)`);
+                      } catch (e: unknown) { alert("שגיאה: " + (e instanceof Error ? e.message : String(e))); }
+                      setShowToolsMenu(false);
+                    }} className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-green-50 transition-colors" style={{ color: C.dark, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
+                      🎟️ צור קופון הפניה
+                    </button>
+                    {selectedEvent && (
+                      <button onClick={() => {
+                        window.open(`/quote?name=${encodeURIComponent(selectedEvent.name ?? "")}&date=${selectedEvent.date ?? ""}`, "_blank");
+                        setShowToolsMenu(false);
+                      }} className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-green-50 transition-colors" style={{ color: C.dark, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
+                        📄 הצעת מחיר
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
             )}
           </div>
+
+          {/* ── Standalone: create + refresh + delete + logout ── */}
           <button
             onClick={() => setShowCreate((s) => !s)}
             className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
@@ -921,163 +1022,6 @@ export default function AdminPage() {
           >
             <Plus size={13} /> מהיר
           </button>
-          {/* Approval controls */}
-          {selectedEventId && (
-            <button
-              onClick={handleCreateApproval}
-              disabled={approvalCreating}
-              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80 disabled:opacity-50"
-              style={{
-                background: approvalMap[selectedEventId]?.status === "approved"
-                  ? "rgba(107,123,90,0.12)"
-                  : approvalMap[selectedEventId]?.status === "changes_requested"
-                    ? "rgba(200,100,0,0.12)"
-                    : "rgba(197,164,109,0.12)",
-                color: approvalMap[selectedEventId]?.status === "approved" ? C.olive
-                  : approvalMap[selectedEventId]?.status === "changes_requested" ? "rgb(180,100,0)"
-                  : C.gold,
-              }}
-              title="צור בקשת אישור ושלח ללקוח"
-            >
-              {approvalCreating ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-              {approvalMap[selectedEventId]?.status === "approved" ? "✓ אושר"
-                : approvalMap[selectedEventId]?.status === "changes_requested" ? "✏️ תיקונים"
-                : approvalMap[selectedEventId]?.status === "pending" ? "⏳ ממתין"
-                : "שלח לאישור"}
-            </button>
-          )}
-          {selectedEvent?.couple_token && (
-            <button
-              onClick={() => {
-                const base = window.location.origin;
-                navigator.clipboard.writeText(`${base}/couple/${selectedEvent.couple_token}`);
-              }}
-              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
-              style={{ background: "rgba(197,164,109,0.10)", color: C.gold }}
-              title="העתק קישור דף הזוג"
-            >
-              <Copy size={13} /> קישור לזוג
-            </button>
-          )}
-          {selectedEvent?.couple_token && (
-            <button
-              onClick={async () => {
-                const phone = selectedEvent?.client_phone?.replace(/[^0-9]/g, "").replace(/^0/, "972") ?? "";
-                if (!phone) { alert("אין מספר טלפון שמור לזוג"); return; }
-                try {
-                  const res = await fetch(`/api/couple/${selectedEvent.couple_token}/briefing`);
-                  const brief = await res.json();
-                  const keyFacts: string[] = brief.keyFacts ?? [];
-                  const alerts: { title: string }[] = brief.alerts ?? [];
-                  const base = window.location.origin;
-                  const msg = `שלום! 💛\nעדכון מרגע לפני עבור ${selectedEvent.name}:\n\n${keyFacts.join(" | ")}\n\nפעולות נדרשות:\n${alerts.slice(0, 3).map((a) => `• ${a.title}`).join("\n")}\n\nלדשבורד המלא: ${base}/couple/${selectedEvent.couple_token}`;
-                  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
-                } catch {
-                  alert("שגיאה בשליפת הנתונים");
-                }
-              }}
-              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
-              style={{ background: "rgba(197,164,109,0.10)", color: C.gold }}
-              title="שלח תזכורת לזוג בוואטסאפ"
-            >
-              🔔 תזכורת לזוג
-            </button>
-          )}
-          {selectedEventId && (
-            <button
-              onClick={() => {
-                const themesUrl = `${window.location.origin}/themes?event=${selectedEventId}`;
-                const phone = selectedEvent?.client_phone?.replace(/[^0-9]/g, "").replace(/^0/, "972") ?? "";
-                if (phone) {
-                  const text = encodeURIComponent(`שלום! 🎉\nהכנתי לכם דף לבחירת עיצוב ההזמנה.\nבחרו את הסגנון שאתם אוהבים ושלחו לי 👇\n${themesUrl}`);
-                  window.open(`https://wa.me/${phone}?text=${text}`, "_blank");
-                } else {
-                  navigator.clipboard.writeText(themesUrl);
-                  alert("קישור הועתק! (אין טלפון שמור לזוג)");
-                }
-              }}
-              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
-              style={{ background: "rgba(197,164,109,0.10)", color: C.gold }}
-              title="שלח לזוג לבחירת עיצוב"
-            >
-              <Palette size={13} /> בחירת עיצוב
-            </button>
-          )}
-          {selectedEventId && (
-            <button
-              onClick={async () => {
-                try {
-                  const res = await fetch("/api/coupons", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ created_by_event_id: selectedEventId, discount_pct: 10, description: "הפניית חבר" }),
-                  });
-                  const d = await res.json();
-                  if (!res.ok) throw new Error(d.error);
-                  alert(`קוד הקופון: ${d.code} (${d.discount_pct}% הנחה) - שמור אותו!`);
-                } catch (e: unknown) {
-                  alert("שגיאה ביצירת קופון: " + (e instanceof Error ? e.message : String(e)));
-                }
-              }}
-              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
-              style={{ background: "rgba(197,164,109,0.10)", color: C.gold }}
-              title="צור קופון הפניה"
-            >
-              🎟️ צור קופון
-            </button>
-          )}
-          {selectedEventId && selectedEvent && (
-            <button
-              onClick={() => {
-                const n = encodeURIComponent(selectedEvent.name ?? "");
-                const d = selectedEvent.date ?? "";
-                window.open(`/quote?name=${n}&date=${d}`, "_blank");
-              }}
-              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
-              style={{ background: "rgba(107,123,90,0.10)", color: C.olive }}
-              title="הצעת מחיר"
-            >
-              📄 הצעת מחיר
-            </button>
-          )}
-          {selectedEventId && (
-            <a
-              href={`/event/${selectedEventId}?preview=true`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
-              style={{ background: "rgba(107,123,90,0.10)", color: C.olive }}
-              title="תצוגה מקדימה של דף האירוע"
-            >
-              <ExternalLink size={13} /> תצוגה מקדימה
-            </a>
-          )}
-          {selectedEventId && (
-            <button
-              onClick={() => { setBitPhoneInput((selectedEvent as (typeof selectedEvent & { bit_phone?: string }))?.bit_phone ?? ""); setShowBitModal(true); }}
-              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
-              style={{ background: "rgba(27,58,232,0.08)", color: "#1B3AE8" }}
-              title="הגדרת ביט לקבלת מתנות"
-            >
-              ₪ ביט מתנות
-            </button>
-          )}
-          {selectedEventId && (
-            <button
-              onClick={() => {
-                const ev = selectedEvent as (typeof selectedEvent & { dress_code?: string; parking_info?: string; greeting?: string });
-                setInfoDressCode(ev?.dress_code ?? "");
-                setInfoParking(ev?.parking_info ?? "");
-                setInfoGreeting(ev?.greeting ?? "");
-                setShowInfoModal(true);
-              }}
-              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
-              style={{ background: "rgba(107,123,90,0.10)", color: C.olive }}
-              title="קוד לבוש, חניה, ברכה"
-            >
-              ✏️ פרטי הזמנה
-            </button>
-          )}
           <button
             onClick={() => selectedEventId && fetchGuests(selectedEventId)}
             className="p-2 rounded-xl transition-all hover:opacity-70"
@@ -1447,6 +1391,9 @@ export default function AdminPage() {
 
       <div className="container-max mx-auto px-4 md:px-8 py-6">
 
+        {/* ── Today's Agenda strip ──────────────────── */}
+        <AdminAgenda events={events} onSelect={(id) => setSelectedEventId(id)} />
+
         {/* ── Insights Panel ─────────────────────────── */}
         {insights.length > 0 && (
           <div
@@ -1700,6 +1647,7 @@ export default function AdminPage() {
             ["command-center","מרכז בקרה"],
             ["guests","רשימת אורחים"],
             ["reminders","תזכורות"],
+            ["analytics","📊 אנליטיקה"],
             ["couple-view","👀 מבט הזוג"],
             ["calendar","📅 לוח שנה"],
             ["history","🕓 היסטוריה"],
@@ -2207,6 +2155,13 @@ export default function AdminPage() {
 
         {activeTab === "recommendations" && (
           <ReminderCenter overview={overview} onSelectEvent={(id) => { setSelectedEventId(id); setActiveTab("reminders"); }} />
+        )}
+
+        {/* ══════════════════════════════════════════════
+            TAB: Analytics
+        ══════════════════════════════════════════════ */}
+        {activeTab === "analytics" && (
+          <AdminAnalytics guests={guests} events={events} selectedEventId={selectedEventId} />
         )}
 
         {/* ══════════════════════════════════════════════
@@ -3282,6 +3237,204 @@ function ReminderCenter({
               </div>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   AdminAgenda — Today's Agenda Strip
+══════════════════════════════════════════════════════ */
+function AdminAgenda({ events, onSelect }: { events: Event[]; onSelect: (id: string) => void }) {
+  const [dismissed, setDismissed] = React.useState(false);
+  if (dismissed || events.length === 0) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const inWeek = new Date(today.getTime() + 7 * 86_400_000);
+
+  const upcoming = events
+    .filter(e => e.date)
+    .map(e => {
+      const d = new Date(e.date + "T00:00:00");
+      const diffDays = Math.round((d.getTime() - today.getTime()) / 86_400_000);
+      return { ...e, diffDays };
+    })
+    .filter(e => e.diffDays >= 0 && e.diffDays <= 60)
+    .sort((a, b) => a.diffDays - b.diffDays)
+    .slice(0, 6);
+
+  if (upcoming.length === 0) return null;
+
+  return (
+    <div className="mb-5 rounded-2xl p-4" style={{ background: "rgba(197,164,109,0.07)", border: "1px solid rgba(197,164,109,0.2)" }}>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-semibold" style={{ color: "#6B7B5A", fontFamily: "Heebo, sans-serif" }}>
+          📅 סדר היום — אירועים קרובים
+        </p>
+        <button onClick={() => setDismissed(true)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(28,16,8,0.3)", fontSize: 16 }}>×</button>
+      </div>
+      <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+        {upcoming.map(ev => {
+          const isToday = ev.diffDays === 0;
+          const isTomorrow = ev.diffDays === 1;
+          const isThisWeek = ev.diffDays <= 7;
+          const badgeColor = isToday ? "#A32D2D" : isThisWeek ? "#854F0B" : "#3B6D11";
+          const badgeBg = isToday ? "#FCEBEB" : isThisWeek ? "#FAEEDA" : "#EAF3DE";
+          const label = isToday ? "היום!" : isTomorrow ? "מחר" : `בעוד ${ev.diffDays} ימים`;
+          return (
+            <button
+              key={ev.id}
+              onClick={() => onSelect(ev.id)}
+              className="flex-shrink-0 rounded-xl p-3 text-right transition-all hover:scale-105"
+              style={{ background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.25)", minWidth: 160, cursor: "pointer" }}
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: badgeBg, color: badgeColor }}>{label}</span>
+              </div>
+              <p className="text-xs font-semibold truncate" style={{ color: "#1C1008", fontFamily: "Frank Ruhl Libre, serif", maxWidth: 140 }}>{ev.name}</p>
+              <p className="text-[10px] mt-0.5" style={{ color: "rgba(28,16,8,0.45)", fontFamily: "Heebo, sans-serif" }}>
+                {new Date(ev.date + "T00:00:00").toLocaleDateString("he-IL", { day: "numeric", month: "short" })}
+              </p>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   AdminAnalytics — Guest analytics dashboard
+══════════════════════════════════════════════════════ */
+function AdminAnalytics({ guests, events, selectedEventId }: { guests: Guest[]; events: Event[]; selectedEventId: string | null }) {
+  const HEEBO = { fontFamily: "Heebo, sans-serif" };
+  const FRANK = { fontFamily: "Frank Ruhl Libre, serif" };
+  const GOLD = "#C5A46D";
+  const DARK = "#1C1008";
+  const CARD = { background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.22)", borderRadius: 16, padding: "1.25rem" };
+
+  if (!selectedEventId) {
+    return (
+      <div className="rounded-2xl p-10 text-center" style={CARD}>
+        <p style={{ color: "rgba(51,51,51,0.4)", ...HEEBO }}>בחר אירוע כדי לראות אנליטיקה</p>
+      </div>
+    );
+  }
+
+  const total = guests.length;
+  const opened = guests.filter(g => g.opened_at).length;
+  const responded = guests.filter(g => g.status !== "pending").length;
+  const confirmed = guests.filter(g => g.status === "confirmed").length;
+  const openRate = total > 0 ? Math.round((opened / total) * 100) : 0;
+  const responseRate = total > 0 ? Math.round((responded / total) * 100) : 0;
+  const confirmRate = responded > 0 ? Math.round((confirmed / responded) * 100) : 0;
+
+  // Average response time (hours from created_at to response_time)
+  const responseTimes = guests
+    .filter(g => g.response_time && g.created_at)
+    .map(g => (new Date(g.response_time!).getTime() - new Date(g.created_at).getTime()) / 3_600_000);
+  const avgResponseHours = responseTimes.length > 0
+    ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)
+    : null;
+
+  // Opening times by hour of day
+  const hourBuckets: number[] = Array(24).fill(0);
+  guests.forEach(g => {
+    if (g.opened_at) {
+      const h = new Date(g.opened_at).getHours();
+      hourBuckets[h]++;
+    }
+  });
+  const maxHourCount = Math.max(...hourBuckets, 1);
+  const peakHour = hourBuckets.indexOf(Math.max(...hourBuckets));
+
+  // Response by day of week
+  const dayLabels = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+  const dayBuckets: number[] = Array(7).fill(0);
+  guests.forEach(g => {
+    if (g.response_time) {
+      const d = new Date(g.response_time).getDay();
+      dayBuckets[d]++;
+    }
+  });
+  const maxDayCount = Math.max(...dayBuckets, 1);
+
+  const StatCard = ({ label, value, sub, color = GOLD }: { label: string; value: string; sub?: string; color?: string }) => (
+    <div style={{ ...CARD, textAlign: "center" }}>
+      <p style={{ fontSize: 11, color: "rgba(28,16,8,0.45)", marginBottom: 6, ...HEEBO }}>{label}</p>
+      <p style={{ fontSize: 28, fontWeight: 700, color, ...FRANK }}>{value}</p>
+      {sub && <p style={{ fontSize: 11, color: "rgba(28,16,8,0.4)", marginTop: 4, ...HEEBO }}>{sub}</p>}
+    </div>
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* KPI Cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
+        <StatCard label="פתחו קישור" value={`${openRate}%`} sub={`${opened} מתוך ${total}`} />
+        <StatCard label="ענו על RSVP" value={`${responseRate}%`} sub={`${responded} מתוך ${total}`} color="#6B7B5A" />
+        <StatCard label="אישרו הגעה" value={`${confirmRate}%`} sub={`מתוך שענו`} color="#3B6D11" />
+        <StatCard label="זמן תגובה ממוצע" value={avgResponseHours !== null ? `${avgResponseHours}ש'` : "—"} sub="מקבלת הזמנה" color="#854F0B" />
+      </div>
+
+      {/* Opening hours chart */}
+      <div style={CARD}>
+        <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, color: DARK, ...HEEBO }}>שעות פתיחת הזמנה</p>
+        <p style={{ fontSize: 11, color: "rgba(28,16,8,0.4)", marginBottom: 16, ...HEEBO }}>
+          שיא פתיחות: {String(peakHour).padStart(2, "0")}:00 ({hourBuckets[peakHour]} פתיחות)
+        </p>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 80 }}>
+          {hourBuckets.map((count, h) => (
+            <div key={h} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+              <div style={{
+                width: "100%", borderRadius: 4,
+                height: `${Math.max(4, (count / maxHourCount) * 72)}px`,
+                background: h === peakHour ? GOLD : `${GOLD}44`,
+                transition: "height 0.3s ease",
+              }} />
+              {(h % 4 === 0) && <span style={{ fontSize: 8, color: "rgba(28,16,8,0.35)", ...HEEBO }}>{h}</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Response by day of week */}
+      <div style={CARD}>
+        <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 16, color: DARK, ...HEEBO }}>מענה לפי יום בשבוע</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {dayLabels.map((label, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 11, minWidth: 48, color: "rgba(28,16,8,0.55)", ...HEEBO }}>{label}</span>
+              <div style={{ flex: 1, height: 16, background: "rgba(197,164,109,0.1)", borderRadius: 8, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${(dayBuckets[i] / maxDayCount) * 100}%`, background: `linear-gradient(90deg,${GOLD},${GOLD}88)`, borderRadius: 8, transition: "width 0.4s ease" }} />
+              </div>
+              <span style={{ fontSize: 11, minWidth: 20, color: "rgba(28,16,8,0.4)", textAlign: "left", ...HEEBO }}>{dayBuckets[i]}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Response time histogram */}
+      {responseTimes.length > 0 && (
+        <div style={CARD}>
+          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, color: DARK, ...HEEBO }}>התפלגות זמני תגובה</p>
+          <p style={{ fontSize: 11, color: "rgba(28,16,8,0.4)", marginBottom: 16, ...HEEBO }}>
+            {responseTimes.filter(t => t <= 2).length} ענו תוך שעתיים · {responseTimes.filter(t => t > 2 && t <= 24).length} ענו תוך יום · {responseTimes.filter(t => t > 24).length} ענו אחרי יום+
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            {[
+              { label: "< 2 שעות", count: responseTimes.filter(t => t <= 2).length, color: "#3B6D11" },
+              { label: "2–24 שעות", count: responseTimes.filter(t => t > 2 && t <= 24).length, color: GOLD },
+              { label: "> 24 שעות", count: responseTimes.filter(t => t > 24).length, color: "#854F0B" },
+            ].map(({ label, count, color }) => (
+              <div key={label} style={{ textAlign: "center", padding: "0.75rem", background: `${color}0d`, borderRadius: 12, border: `1px solid ${color}33` }}>
+                <p style={{ fontSize: 20, fontWeight: 700, color, ...FRANK }}>{count}</p>
+                <p style={{ fontSize: 10, color, marginTop: 4, ...HEEBO }}>{label}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

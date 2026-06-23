@@ -136,6 +136,7 @@ export interface SeatingTable {
   sort_order: number;
   pos_x?: number;
   pos_y?: number;
+  notes?: string | null;
   created_at: string;
   assignments?: SeatingAssignment[];
 }
