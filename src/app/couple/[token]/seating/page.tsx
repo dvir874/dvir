@@ -1,7 +1,8 @@
 "use client";
 
 import { use, useEffect, useState, useCallback } from "react";
-import { Plus, Trash2, Users, ArrowRight, Search, X, AlertTriangle } from "lucide-react";
+import { Plus, Users, ArrowRight, Search } from "lucide-react";
+import SeatingFloorPlan from "@/components/SeatingFloorPlan";
 
 const GOLD  = "#C5A46D";
 const OLIVE = "#6B7B5A";
@@ -201,73 +202,26 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
 
             {/* Floor plan */}
             <div>
-              <p style={{ fontSize: 12, color: "rgba(28,16,8,0.4)", marginBottom: "1rem" }}>
-                גרור אורח לשולחן, או לחץ לבחירה ואז &quot;הצב כאן&quot; · לחץ על כיסא מלא להסרה
+              <p style={{ fontSize: 12, color: "rgba(28,16,8,0.4)", marginBottom: "0.75rem" }}>
+                גרור שולחנות לסידור האולם · גרור אורח לשולחן · לחץ על כיסא מלא להסרה
               </p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "1.5rem" }}>
-                {data.tables.map(table => {
-                  const assigned  = assignmentsByTable(table.id);
-                  const over      = assigned.length > table.capacity;
-                  const isRect    = table.type === "rectangular";
-
-                  return (
-                    <div
-                      key={table.id}
-                      onDragOver={e => e.preventDefault()}
-                      onDrop={e => { e.preventDefault(); const gId = e.dataTransfer.getData("guestId"); if (gId) assignGuest(gId, table.id); }}
-                      style={{
-                        ...CARD, padding: "1rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
-                        minWidth: isRect ? 220 : 170, position: "relative",
-                        border: selectedGuest ? `1.5px dashed ${GOLD}` : CARD.border,
-                        background: selectedGuest ? "rgba(197,164,109,0.04)" : CARD.background,
-                        transition: "border 0.2s, background 0.2s",
-                      }}
-                    >
-                      <button onClick={() => deleteTable(table.id)}
-                        style={{ position: "absolute", top: 6, left: 6, background: "none", border: "none", cursor: "pointer", color: "rgba(28,16,8,0.25)", padding: 2, lineHeight: 1 }}>
-                        <Trash2 size={13} />
-                      </button>
-
-                      <span style={{
-                        position: "absolute", top: 6, right: 6, fontSize: 10, fontWeight: 700,
-                        padding: "1px 7px", borderRadius: 20,
-                        background: over ? "rgba(220,38,38,0.1)" : "rgba(107,123,90,0.1)",
-                        color: over ? "rgb(220,38,38)" : OLIVE,
-                        display: "flex", alignItems: "center", gap: 3,
-                        border: `1px solid ${over ? "rgba(220,38,38,0.25)" : "rgba(107,123,90,0.2)"}`,
-                      }}>
-                        {over && <AlertTriangle size={9} />}{assigned.length}/{table.capacity}
-                      </span>
-
-                      {isRect
-                        ? <RectTableSVG  table={table} assigned={assigned} capacity={Math.max(table.capacity, 1)} guestById={guestById} onRemoveGuest={id => assignGuest(id, null)} />
-                        : <RoundTableSVG table={table} assigned={assigned} capacity={Math.max(table.capacity, 1)} guestById={guestById} onRemoveGuest={id => assignGuest(id, null)} />
-                      }
-
-                      {assigned.length > 0 && (
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "center", maxWidth: isRect ? 210 : 160 }}>
-                          {assigned.map(a => {
-                            const g = guestById(a.guest_id);
-                            return (
-                              <span key={a.id} onClick={() => assignGuest(a.guest_id, null)} title="לחץ להסרה"
-                                style={{ display: "inline-flex", alignItems: "center", gap: 2, padding: "2px 7px", borderRadius: 20, background: "rgba(107,123,90,0.1)", color: DARK, fontSize: 11, cursor: "pointer", border: "1px solid rgba(107,123,90,0.18)" }}>
-                                {g?.name ?? "?"}<X size={9} />
-                              </span>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {selectedGuest && (
-                        <button onClick={() => assignGuest(selectedGuest, table.id)} disabled={saving}
-                          style={{ width: "100%", padding: "0.4rem", borderRadius: 8, border: `2px dashed ${GOLD}`, background: "rgba(197,164,109,0.06)", color: GOLD, cursor: "pointer", fontSize: 11, fontFamily: "Heebo, sans-serif" }}>
-                          ✦ הצב — {guestById(selectedGuest)?.name}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              <SeatingFloorPlan
+                tables={data.tables}
+                assignments={data.assignments}
+                guests={data.guests}
+                selectedGuest={selectedGuest}
+                saving={saving}
+                onAssign={(gId, tId) => assignGuest(gId, tId)}
+                onRemove={(gId) => assignGuest(gId, null)}
+                onDelete={(tId) => deleteTable(tId)}
+                onMoveTable={async (tId, x, y) => {
+                  await fetch(`/api/couple/${token}/seating/${tId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ pos_x: x, pos_y: y }),
+                  });
+                }}
+              />
             </div>
 
             {/* Sidebar */}

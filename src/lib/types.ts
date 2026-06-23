@@ -134,6 +134,8 @@ export interface SeatingTable {
   capacity: number;
   type: 'round' | 'rectangular' | 'custom';
   sort_order: number;
+  pos_x?: number;
+  pos_y?: number;
   created_at: string;
   assignments?: SeatingAssignment[];
 }

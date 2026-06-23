@@ -8,6 +8,7 @@ import {
 import type { SeatingTable, SeatingAssignment, Guest } from "@/lib/types";
 import { PRESET_TAGS } from "@/lib/seating-ai";
 import type { SeatingResult } from "@/lib/seating-ai";
+import SeatingFloorPlan from "@/components/SeatingFloorPlan";
 
 const CARD = { background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.22)", borderRadius: "1.25rem" };
 const GOLD = "#C5A46D";
@@ -306,27 +307,23 @@ export default function SeatingPage() {
 
               {loading && <p style={{ textAlign: "center", color: "rgba(51,51,51,0.4)", padding: "2rem" }}>טוען...</p>}
 
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "1.5rem" }}>
-                {data.tables.map((table) => {
-                  const assigned = assignmentsByTable(table.id);
-                  return (
-                    <VisualTable
-                      key={table.id}
-                      table={table}
-                      assigned={assigned}
-                      selectedGuest={selectedGuest}
-                      onDrop={(gId) => assignGuest(gId, table.id)}
-                      onAssign={() => selectedGuest && assignGuest(selectedGuest, table.id)}
-                      onDelete={() => deleteTable(table.id)}
-                      onRemoveGuest={(gId) => assignGuest(gId, null)}
-                      guestById={guestById}
-                      tagMap={tagMap}
-                      saving={saving}
-                      selectedGuestName={selectedGuest ? (guestById(selectedGuest)?.name ?? "") : ""}
-                    />
-                  );
-                })}
-              </div>
+              <SeatingFloorPlan
+                tables={data.tables}
+                assignments={data.assignments}
+                guests={data.guests}
+                selectedGuest={selectedGuest}
+                saving={saving}
+                onAssign={(gId, tId) => assignGuest(gId, tId)}
+                onRemove={(gId) => assignGuest(gId, null)}
+                onDelete={(tId) => deleteTable(tId)}
+                onMoveTable={async (tId, x, y) => {
+                  await fetch(`/api/seating/${tId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ pos_x: x, pos_y: y }),
+                  });
+                }}
+              />
             </div>
 
             {/* Unassigned guests */}
