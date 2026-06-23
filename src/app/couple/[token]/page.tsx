@@ -617,6 +617,23 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         {/* Gifts Tracker */}
         <GiftsTracker token={token} />
 
+        {/* Vendor Book */}
+        <VendorBook token={token} />
+
+        {/* Gallery link */}
+        <a href={`/gallery/${token}`} style={{ textDecoration: "none", display: "block", marginBottom: "0.875rem" }}>
+          <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(197,164,109,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Camera size={20} style={{ color: C.gold }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "0.95rem", fontWeight: 700, margin: 0, color: C.dark }}>גלריית תמונות</h3>
+              <p style={{ fontSize: 12, color: C.muted, margin: "2px 0 0" }}>תמונות מהאירוע — שתפו עם האורחים</p>
+            </div>
+            <span style={{ fontSize: 11, color: C.gold, flexShrink: 0 }}>←</span>
+          </div>
+        </a>
+
         {/* Seating — always visible */}
         <a href={`/couple/${token}/seating`} style={{ textDecoration: "none", display: "block", marginBottom: "0.875rem" }}>
           <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow }}>
@@ -822,46 +839,71 @@ function TimelineEditor({ token }: { token: string }) {
 }
 
 function RsvpCounter({ stats }: { stats: { total: number; confirmed: number; declined: number; pending: number; attendees: number } }) {
-  const total = stats.total || 1;
+  const total        = stats.total || 1;
   const confirmedPct = Math.round((stats.confirmed / total) * 100);
   const declinedPct  = Math.round((stats.declined  / total) * 100);
   const pendingPct   = 100 - confirmedPct - declinedPct;
+
+  // SVG donut
+  const R = 46, CIRC = 2 * Math.PI * R;
+  let off = 0;
+  const slices = [
+    { pct: confirmedPct / 100, color: C.olive   },
+    { pct: declinedPct  / 100, color: "#C0392B" },
+    { pct: pendingPct   / 100, color: "rgba(197,164,109,0.35)" },
+  ].map(s => {
+    const dash = s.pct * CIRC;
+    const slice = { ...s, dasharray: dash, dashoffset: -off * CIRC };
+    off += s.pct;
+    return slice;
+  });
 
   return (
     <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "0.875rem" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <Users size={14} style={{ color: C.gold }} />
-          <h3 style={{ fontSize: "0.8rem", fontWeight: 600, margin: 0 }}>אישורי הגעה</h3>
+          <h3 style={{ fontSize: "0.85rem", fontWeight: 600, margin: 0 }}>אישורי הגעה</h3>
         </div>
         <span style={{ fontSize: 11, color: C.muted }}>{stats.confirmed + stats.declined} מתוך {stats.total} ענו</span>
       </div>
 
-      {/* Bar */}
-      <div style={{ height: 10, borderRadius: 5, overflow: "hidden", display: "flex", marginBottom: "0.875rem", background: "rgba(197,164,109,0.10)" }}>
-        <div style={{ width: `${confirmedPct}%`, background: C.olive, transition: "width 0.8s" }} />
-        <div style={{ width: `${declinedPct}%`, background: "#C0392B", transition: "width 0.8s" }} />
-        <div style={{ width: `${pendingPct}%`, background: "rgba(197,164,109,0.25)", transition: "width 0.8s" }} />
-      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>
+        {/* Donut */}
+        <svg width={110} height={110} viewBox="0 0 110 110" style={{ flexShrink: 0 }}>
+          <circle cx={55} cy={55} r={R} fill="none" stroke="rgba(197,164,109,0.10)" strokeWidth={14} />
+          {slices.map((s, i) => (
+            <circle key={i} cx={55} cy={55} r={R} fill="none" stroke={s.color} strokeWidth={14}
+              strokeDasharray={`${s.dasharray} ${CIRC}`} strokeDashoffset={s.dashoffset}
+              transform="rotate(-90 55 55)" style={{ transition: "all 0.8s ease" }} />
+          ))}
+          <text x={55} y={50} textAnchor="middle" style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 20, fontWeight: 700, fill: C.dark }}>{confirmedPct}%</text>
+          <text x={55} y={65} textAnchor="middle" style={{ fontFamily: "Heebo, sans-serif", fontSize: 9, fill: C.muted }}>אישרו</text>
+        </svg>
 
-      {/* Legend */}
-      <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
-        {[
-          { label: "מגיעים", count: stats.confirmed, color: C.olive },
-          { label: "ממתינים", count: stats.pending, color: C.gold },
-          { label: "לא מגיעים", count: stats.declined, color: "#C0392B" },
-        ].map(({ label, count, color }) => (
-          <div key={label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
-            <span style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.1rem", fontWeight: 700, color: C.dark }}>{count}</span>
-            <span style={{ fontSize: 10, color: C.muted, fontFamily: "Heebo, sans-serif" }}>{label}</span>
-          </div>
-        ))}
+        {/* Bars */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+          {[
+            { label: "מגיעים",     count: stats.confirmed, pct: confirmedPct, color: C.olive   },
+            { label: "ממתינים",    count: stats.pending,   pct: pendingPct,   color: C.gold    },
+            { label: "לא מגיעים", count: stats.declined,  pct: declinedPct,  color: "#C0392B" },
+          ].map(({ label, count, pct, color }) => (
+            <div key={label}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                <span style={{ fontSize: 11, color: C.muted }}>{label}</span>
+                <span style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 13, fontWeight: 700, color }}>{count}</span>
+              </div>
+              <div style={{ height: 5, borderRadius: 3, background: "rgba(197,164,109,0.10)", overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 3, transition: "width 0.8s ease" }} />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {stats.attendees > 0 && (
-        <p style={{ textAlign: "center", marginTop: "0.75rem", fontSize: 12, color: C.olive, fontFamily: "Heebo, sans-serif", fontWeight: 600 }}>
-          {stats.attendees} אנשים מגיעים ליום הגדול 🎉
+        <p style={{ textAlign: "center", marginTop: "0.875rem", fontSize: 12, color: C.olive, fontFamily: "Heebo, sans-serif", fontWeight: 600 }}>
+          🎉 {stats.attendees} אנשים מגיעים ליום הגדול
         </p>
       )}
     </div>
@@ -1509,6 +1551,134 @@ function MoodBoard({ token, eventId }: { token: string; eventId: string }) {
           <button onClick={save} disabled={saving} style={{ marginTop: 12, width: "100%", padding: "0.7rem", borderRadius: 12, background: "linear-gradient(135deg,#C5A46D,#B8935A)", color: "white", border: "none", cursor: "pointer", fontFamily: "Heebo, sans-serif", fontWeight: 700, fontSize: 13 }}>
             {saving ? "שומר..." : "שמור לוח השראה ✓"}
           </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── VendorBook ─────────────────────────────────────────────── */
+const VENDOR_CATS_BOOK = [
+  { key: "venue",        label: "אולם",          emoji: "🏛️" },
+  { key: "catering",     label: "קייטרינג",       emoji: "🍽️" },
+  { key: "photographer", label: "צלם/ת",          emoji: "📷" },
+  { key: "video",        label: "וידאוגרף",       emoji: "🎬" },
+  { key: "dj",           label: "DJ / מוזיקה",   emoji: "🎵" },
+  { key: "flowers",      label: "פרחים",          emoji: "💐" },
+  { key: "dress",        label: "שמלה / חליפה",  emoji: "👗" },
+  { key: "makeup",       label: "איפור / שיער",   emoji: "💄" },
+  { key: "other",        label: "אחר",            emoji: "✦"  },
+];
+
+interface VendorContact { id: string; category: string; name: string; phone: string | null; notes: string | null }
+
+function VendorBook({ token }: { token: string }) {
+  const [contacts, setContacts] = useState<VendorContact[]>([]);
+  const [open,     setOpen]     = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [cat,      setCat]      = useState("venue");
+  const [vname,    setVname]    = useState("");
+  const [vphone,   setVphone]   = useState("");
+  const [vnotes,   setVnotes]   = useState("");
+  const [saving,   setSaving]   = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/couple/${token}/vendors`)
+      .then(r => r.json())
+      .then(d => Array.isArray(d) && setContacts(d));
+  }, [token]);
+
+  async function add() {
+    if (!vname.trim()) return;
+    setSaving(true);
+    const res = await fetch(`/api/couple/${token}/vendors`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category: cat, name: vname, phone: vphone, notes: vnotes }),
+    });
+    const item = await res.json();
+    if (!item.error) setContacts(prev => [...prev, item]);
+    setVname(""); setVphone(""); setVnotes(""); setShowForm(false); setSaving(false);
+  }
+
+  async function remove(id: string) {
+    await fetch(`/api/couple/${token}/vendors?id=${id}`, { method: "DELETE" });
+    setContacts(prev => prev.filter(c => c.id !== id));
+  }
+
+  return (
+    <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "0.875rem" }}>
+      <button onClick={() => setOpen(o => !o)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", padding: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 16 }}>📒</span>
+          <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "0.95rem", fontWeight: 700, margin: 0, color: C.dark }}>ספר ספקים</h3>
+          {contacts.length > 0 && <span style={{ fontSize: 11, background: "rgba(197,164,109,0.15)", color: C.gold, borderRadius: 10, padding: "1px 8px" }}>{contacts.length}</span>}
+        </div>
+        <ChevronDown size={15} style={{ color: C.muted, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+      </button>
+
+      {open && (
+        <div style={{ marginTop: "1rem" }}>
+          {contacts.length === 0 && !showForm && (
+            <p style={{ fontSize: 12, color: C.muted, textAlign: "center", padding: "0.5rem 0 0.75rem" }}>
+              שמרו כאן את פרטי הקשר של כל הספקים — צלם, DJ, פרחים ועוד
+            </p>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", marginBottom: contacts.length > 0 ? "0.75rem" : 0 }}>
+            {contacts.map(c => {
+              const catObj = VENDOR_CATS_BOOK.find(v => v.key === c.category);
+              return (
+                <div key={c.id} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "0.75rem", borderRadius: 10, background: "rgba(197,164,109,0.06)", border: `1px solid ${C.border}` }}>
+                  <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{catObj?.emoji ?? "✦"}</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontWeight: 600, fontSize: 13, margin: 0, color: C.dark }}>{c.name}</p>
+                    <p style={{ fontSize: 11, color: C.muted, margin: "1px 0" }}>{catObj?.label}</p>
+                    {c.phone && (
+                      <a href={`https://wa.me/${c.phone.replace(/[^0-9]/g,"").replace(/^0/,"972")}`} target="_blank" rel="noopener noreferrer"
+                        style={{ fontSize: 12, color: "#1A9B4E", textDecoration: "none", display: "flex", alignItems: "center", gap: 3, marginTop: 2 }}>
+                        💬 {c.phone}
+                      </a>
+                    )}
+                    {c.notes && <p style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>{c.notes}</p>}
+                  </div>
+                  <button onClick={() => remove(c.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(200,60,60,0.4)", padding: 2, flexShrink: 0 }}>
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {showForm ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "0.875rem", borderRadius: 12, background: "rgba(197,164,109,0.06)", border: `1px solid ${C.border}` }}>
+              <select value={cat} onChange={e => setCat(e.target.value)}
+                style={{ padding: "0.45rem 0.75rem", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, fontFamily: "Heebo, sans-serif", background: "white" }}>
+                {VENDOR_CATS_BOOK.map(v => <option key={v.key} value={v.key}>{v.emoji} {v.label}</option>)}
+              </select>
+              <input placeholder="שם הספק *" value={vname} onChange={e => setVname(e.target.value)}
+                style={{ padding: "0.45rem 0.75rem", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, fontFamily: "Heebo, sans-serif" }} />
+              <input placeholder="טלפון (WhatsApp)" value={vphone} onChange={e => setVphone(e.target.value)}
+                style={{ padding: "0.45rem 0.75rem", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, fontFamily: "Heebo, sans-serif" }} />
+              <input placeholder="הערה (אופציונלי)" value={vnotes} onChange={e => setVnotes(e.target.value)}
+                style={{ padding: "0.45rem 0.75rem", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, fontFamily: "Heebo, sans-serif" }} />
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <button onClick={add} disabled={saving || !vname.trim()}
+                  style={{ flex: 1, padding: "0.5rem", borderRadius: 8, border: "none", background: C.gold, color: "white", cursor: "pointer", fontSize: 13, fontFamily: "Heebo, sans-serif", fontWeight: 600 }}>
+                  {saving ? "שומר..." : "שמור ✓"}
+                </button>
+                <button onClick={() => setShowForm(false)}
+                  style={{ padding: "0.5rem 0.875rem", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontSize: 13, fontFamily: "Heebo, sans-serif", color: C.muted }}>
+                  ביטול
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setShowForm(true)}
+              style={{ width: "100%", padding: "0.55rem", borderRadius: 10, border: "1.5px dashed rgba(197,164,109,0.4)", background: "transparent", cursor: "pointer", fontSize: 13, color: C.gold, fontFamily: "Heebo, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+              <Plus size={14} /> הוסף ספק
+            </button>
+          )}
         </div>
       )}
     </div>
