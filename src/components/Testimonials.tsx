@@ -103,54 +103,6 @@ export default function Testimonials() {
           </h2>
         </FadeIn>
 
-        {/* Testimonial cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-4xl mx-auto mb-16">
-          {TESTIMONIALS.map((t, i) => (
-            <motion.div
-              key={t.couple}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.12, duration: 0.6, ease: "easeOut" }}
-              whileHover={{ y: -6, boxShadow: "0 20px 40px rgba(0,0,0,0.3)" }}
-              style={{
-                background: "rgba(255,255,255,0.04)",
-                backdropFilter: "blur(12px)",
-                border: "1px solid rgba(197,164,109,0.18)",
-                borderRadius: "1.5rem",
-                padding: "1.5rem",
-                cursor: "default",
-                position: "relative",
-                overflow: "hidden",
-              }}
-            >
-              {/* Quote mark */}
-              <div style={{ position:"absolute", top:12, left:16, fontSize:64, color:"rgba(197,164,109,0.08)", fontFamily:"Frank Ruhl Libre, serif", lineHeight:1, pointerEvents:"none", userSelect:"none" }}>"</div>
-
-              {/* Stars */}
-              <div style={{ display:"flex", gap:3, marginBottom:"0.875rem" }}>
-                {Array.from({ length: t.stars }).map((_, j) => (
-                  <Star key={j} size={14} fill="#C5A46D" stroke="none" style={{ animation:`starPop 0.4s ease forwards`, animationDelay:`${j*0.07 + i*0.1}s`, opacity:0 }} />
-                ))}
-              </div>
-
-              <p style={{ fontSize:13, color:"rgba(255,240,200,0.75)", lineHeight:1.75, fontFamily:"Heebo, sans-serif", marginBottom:"1.25rem", position:"relative", zIndex:1 }}>
-                &ldquo;{t.text}&rdquo;
-              </p>
-
-              <div style={{ display:"flex", alignItems:"center", gap:10, borderTop:"1px solid rgba(197,164,109,0.12)", paddingTop:"1rem" }}>
-                <div style={{ width:36, height:36, borderRadius:"50%", background:"rgba(197,164,109,0.15)", border:"1px solid rgba(197,164,109,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>
-                  {t.emoji}
-                </div>
-                <div>
-                  <p style={{ fontFamily:"Frank Ruhl Libre, serif", fontSize:"0.9rem", fontWeight:700, color:"#FFF8EC", margin:0 }}>{t.couple}</p>
-                  <p style={{ fontSize:11, color:"rgba(197,164,109,0.55)", margin:0, fontFamily:"Heebo, sans-serif" }}>{t.date}</p>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-
         {/* CTA */}
         <div className="text-center">
           <motion.a

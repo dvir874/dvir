@@ -2,7 +2,7 @@ import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import WhyUs from "@/components/WhyUs";
 import DashboardDemo from "@/components/DashboardDemo";
-import Testimonials from "@/components/Testimonials";
+import LiveInvitationDemo from "@/components/LiveInvitationDemo";
 import BookDemoCTA from "@/components/BookDemoCTA";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
@@ -16,7 +16,7 @@ export default function Home() {
       <Hero />
       <WhyUs />
       <DashboardDemo />
-      <Testimonials />
+      <LiveInvitationDemo />
       <BookDemoCTA />
       <Contact />
       <Footer />

@@ -201,19 +201,6 @@ export default function DemoPage() {
   const eventDate = new Date("2025-09-15T19:00:00");
   const { time, mounted } = useCountdown(eventDate);
   const { ref: heroRef, visible: heroVisible } = useScrollReveal();
-  const [pricingVisible, setPricingVisible] = useState(false);
-  const pricingRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = pricingRef.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) { setPricingVisible(true); obs.disconnect(); }
-    }, { threshold: 0.2 });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
   const rsvpBars = [
     { label: "אישרו",   value: DEMO_STATS.confirmed, color: OLIVE,    max: DEMO_STATS.total },
     { label: "סירבו",   value: DEMO_STATS.declined,  color: "#C0392B", max: DEMO_STATS.total },
@@ -567,119 +554,6 @@ export default function DemoPage() {
           <DashWidget title="תקציב החתונה" delay={200}>
             <DonutChart />
           </DashWidget>
-        </div>
-      </section>
-
-      {/* ── Testimonials ─────────────────────────────────── */}
-      <section style={{ padding: "64px 20px", background: "#0f0700" }}>
-        <div style={{ maxWidth: 900, margin: "0 auto" }}>
-          <p style={{
-            textAlign: "center", ...HEEBO, fontSize: 11, letterSpacing: "0.22em",
-            color: GOLD, textTransform: "uppercase", marginBottom: 8,
-          }}>
-            ✦ מה הזוגות אומרים
-          </p>
-          <h2 style={{
-            textAlign: "center", ...FRANK, fontSize: "clamp(26px, 5vw, 38px)",
-            fontWeight: 700, color: "#fff", marginBottom: 48,
-          }}>
-            זוגות מאושרים
-          </h2>
-          <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-            <TestiCard
-              quote="המערכת שינתה לנו את כל ההכנה לחתונה. הכל במקום אחד!"
-              name="תמר ואורי" emoji="✨" rot="-1deg"
-            />
-            <TestiCard
-              quote="האורחים היו המומים מההזמנה הדיגיטלית. ממליצים בחום!"
-              name="שירה ודניאל" emoji="💛" rot="0deg"
-            />
-            <TestiCard
-              quote="דביר זמין תמיד ועונה מיד. שירות ברמה אחרת."
-              name="מיכל וגיל" emoji="🌿" rot="1deg"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ── Pricing ───────────────────────────────────────── */}
-      <section style={{ padding: "64px 20px", background: "#150900" }}>
-        <div style={{ maxWidth: 440, margin: "0 auto" }}>
-          <p style={{
-            textAlign: "center", ...HEEBO, fontSize: 11, letterSpacing: "0.22em",
-            color: GOLD, textTransform: "uppercase", marginBottom: 8,
-          }}>
-            ✦ מחיר
-          </p>
-          <h2 style={{
-            textAlign: "center", ...FRANK, fontSize: "clamp(26px, 5vw, 38px)",
-            fontWeight: 700, color: "#fff", marginBottom: 48,
-          }}>
-            השקיעו ברגע
-          </h2>
-
-          <div ref={pricingRef} style={{
-            borderRadius: 24, padding: "36px 32px",
-            background: "rgba(255,255,255,0.04)",
-            backdropFilter: "blur(16px)",
-            border: `1px solid ${GOLD}40`,
-            boxShadow: `0 0 80px rgba(197,164,109,0.1)`,
-            textAlign: "center",
-          }}>
-            <div style={{
-              display: "inline-block", padding: "4px 16px", borderRadius: 20, marginBottom: 16,
-              background: `${GOLD}20`, border: `1px solid ${GOLD}40`,
-              ...HEEBO, fontSize: 12, color: GOLD, letterSpacing: "0.1em",
-            }}>
-              חבילה יחידה · הכל כלול
-            </div>
-
-            <div style={{ ...FRANK, fontSize: 20, fontWeight: 700, color: "#fff", marginBottom: 8 }}>
-              חבילת הזהב
-            </div>
-            <div style={{ ...FRANK, fontSize: 52, fontWeight: 700, color: GOLD, marginBottom: 4 }}>
-              ₪1,490
-            </div>
-            <div style={{ ...HEEBO, fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 28 }}>
-              תשלום חד-פעמי · ללא הפתעות
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 32, textAlign: "right" }}>
-              {FEATURES.map((f, i) => (
-                <div key={f} style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  opacity: pricingVisible ? 1 : 0,
-                  transform: pricingVisible ? "translateX(0)" : "translateX(20px)",
-                  transition: `opacity 0.5s ${i * 100}ms, transform 0.5s ${i * 100}ms`,
-                }}>
-                  <div style={{
-                    width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
-                    background: `${OLIVE}30`, border: `1px solid ${OLIVE}`,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 11, color: OLIVE,
-                  }}>✓</div>
-                  <span style={{ ...HEEBO, fontSize: 14, color: "rgba(255,255,255,0.75)" }}>{f}</span>
-                </div>
-              ))}
-            </div>
-
-            <a
-              href={WA_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="shimmer-btn"
-              style={{
-                display: "block", textAlign: "center",
-                ...HEEBO, fontSize: 16, fontWeight: 700,
-                background: `linear-gradient(135deg, ${GOLD}, #9B6E2C)`,
-                color: "#fff", padding: "16px 24px", borderRadius: 30,
-                textDecoration: "none",
-                boxShadow: `0 8px 30px rgba(197,164,109,0.4)`,
-              }}
-            >
-              השאר פרטים בוואטסאפ ←
-            </a>
-          </div>
         </div>
       </section>
 
