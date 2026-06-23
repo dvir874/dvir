@@ -19,7 +19,7 @@ export default async function EventPreviewPage({
   const supabase = createServerClient();
   const { data: event, error } = await supabase
     .from("events")
-    .select("id, name, date, address, theme")
+    .select("id, name, date, address, theme, bit_phone")
     .eq("id", id)
     .single();
 
@@ -32,6 +32,7 @@ export default async function EventPreviewPage({
       event={event}
       theme={theme}
       isPreview={isPreview}
+      bitPhone={event.bit_phone ?? null}
     />
   );
 }

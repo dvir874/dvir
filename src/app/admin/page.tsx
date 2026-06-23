@@ -12,7 +12,7 @@ import { EVENT_STATUS_LABEL, EVENT_STATUS_COLOR } from "@/lib/types";
 import { generateReminderRecommendations } from "@/lib/reminder-recommendations";
 import type { ReminderRecommendation } from "@/lib/reminder-recommendations";
 import { ACTION_LABEL } from "@/lib/reminder-recommendations";
-import { whatsappReminderLink, whatsappInviteLink } from "@/lib/phone";
+import { whatsappReminderLink, whatsappInviteLink, whatsappThankYouLink } from "@/lib/phone";
 import { generateTasks } from "@/lib/automation/task-engine";
 import type { Task }     from "@/lib/automation/task-engine";
 import { THEME_LIST, DEFAULT_THEME_ID } from "@/lib/themes";
@@ -310,7 +310,7 @@ const STATUS_COLOR: Record<GuestStatus, { bg: string; color: string }> = {
 };
 
 const PAGE_SIZE = 20;
-type Tab = "guests" | "reminders" | "import-export" | "command-center" | "recommendations";
+type Tab = "guests" | "reminders" | "import-export" | "command-center" | "recommendations" | "couple-view";
 
 interface CouponRow {
   id: string;
@@ -345,6 +345,7 @@ export default function AdminPage() {
   const [newDate,     setNewDate]     = useState("");
   const [newAddress,  setNewAddress]  = useState("");
   const [newTheme,    setNewTheme]    = useState<ThemeId>(DEFAULT_THEME_ID);
+  const [newPhone,    setNewPhone]    = useState("");
   const [creating,    setCreating]    = useState(false);
 
   // Import
@@ -386,6 +387,9 @@ export default function AdminPage() {
   const [coupons,        setCoupons]        = useState<CouponRow[]>([]);
   const [couponsLoading, setCouponsLoading] = useState(false);
   const [showCoupons,    setShowCoupons]    = useState(false);
+  const [showBitModal,   setShowBitModal]   = useState(false);
+  const [bitPhoneInput,  setBitPhoneInput]  = useState("");
+  const [savingBit,      setSavingBit]      = useState(false);
 
   // Dropdown menus (click-based)
   const [showEventDropdown, setShowEventDropdown] = useState(false);
@@ -613,7 +617,7 @@ export default function AdminPage() {
     const res = await fetch("/api/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName, date: newDate, address: newAddress, theme: newTheme }),
+      body: JSON.stringify({ name: newName, date: newDate, address: newAddress, theme: newTheme, client_phone: newPhone.trim() || undefined }),
     });
     const data: Event = await res.json();
     setEvents((e) => [...e, data]);
@@ -623,6 +627,7 @@ export default function AdminPage() {
     setNewDate("");
     setNewAddress("");
     setNewTheme(DEFAULT_THEME_ID);
+    setNewPhone("");
     setCreating(false);
   }
 
@@ -1041,6 +1046,16 @@ export default function AdminPage() {
               <ExternalLink size={13} /> תצוגה מקדימה
             </a>
           )}
+          {selectedEventId && (
+            <button
+              onClick={() => { setBitPhoneInput((selectedEvent as (typeof selectedEvent & { bit_phone?: string }))?.bit_phone ?? ""); setShowBitModal(true); }}
+              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
+              style={{ background: "rgba(27,58,232,0.08)", color: "#1B3AE8" }}
+              title="הגדרת ביט לקבלת מתנות"
+            >
+              ₪ ביט מתנות
+            </button>
+          )}
           <button
             onClick={() => selectedEventId && fetchGuests(selectedEventId)}
             className="p-2 rounded-xl transition-all hover:opacity-70"
@@ -1069,6 +1084,60 @@ export default function AdminPage() {
           </button>
         </div>
       </header>
+
+      {/* ── Bit phone modal ─────────────────────────── */}
+      {showBitModal && selectedEventId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4" onClick={() => setShowBitModal(false)}>
+          <div
+            className="w-full max-w-sm rounded-3xl p-6"
+            style={{ background: C.ivory, border: `1px solid ${C.border}`, boxShadow: "0 20px 60px rgba(0,0,0,0.12)" }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold mb-1" style={{ color: C.dark, fontFamily: "Frank Ruhl Libre, serif" }}>
+              🎁 קבלת מתנות בביט
+            </h3>
+            <p className="text-xs mb-4" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>
+              הוסף מספר ביט של הזוג. אורחים שייכנסו להזמנה יראו כפתור &quot;שלח מתנה בביט&quot;.
+            </p>
+            <input
+              type="tel"
+              placeholder="05X-XXXXXXX"
+              value={bitPhoneInput}
+              onChange={e => setBitPhoneInput(e.target.value)}
+              className="w-full rounded-xl px-4 py-3 text-sm outline-none mb-4"
+              style={{ background: "white", border: `1.5px solid ${C.border}`, color: C.dark, fontFamily: "Heebo, sans-serif", direction: "ltr", textAlign: "left" }}
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  setSavingBit(true);
+                  await fetch(`/api/events/${selectedEventId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ bit_phone: bitPhoneInput.trim() || null }),
+                  });
+                  setEvents(prev => prev.map(e => e.id === selectedEventId ? { ...e, bit_phone: bitPhoneInput.trim() || null } as typeof e : e));
+                  setSavingBit(false);
+                  setShowBitModal(false);
+                }}
+                disabled={savingBit}
+                className="flex-1 py-2.5 rounded-xl font-semibold text-sm"
+                style={{ background: "linear-gradient(135deg,#1B3AE8,#2D52F5)", color: "white", fontFamily: "Heebo, sans-serif", opacity: savingBit ? 0.7 : 1 }}
+              >
+                {savingBit ? "שומר..." : "שמור"}
+              </button>
+              <button
+                onClick={() => setShowBitModal(false)}
+                className="flex-1 py-2.5 rounded-xl font-semibold text-sm"
+                style={{ background: "rgba(51,51,51,0.07)", color: C.muted, fontFamily: "Heebo, sans-serif" }}
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Create event modal ───────────────────────── */}
       {showCreate && (
@@ -1103,6 +1172,14 @@ export default function AdminPage() {
                 onChange={(e) => setNewAddress(e.target.value)}
                 className="w-full rounded-xl px-4 py-3 text-sm outline-none"
                 style={{ background: "white", border: `1px solid ${C.border}`, color: C.dark, fontFamily: "Heebo, sans-serif" }}
+              />
+              <input
+                type="tel"
+                placeholder="📱 טלפון הזוג (לשליחת קישורים בוואטסאפ)"
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+                style={{ background: "white", border: `1px solid ${C.border}`, color: C.dark, fontFamily: "Heebo, sans-serif", direction: "ltr", textAlign: "right" }}
               />
             </div>
 
@@ -1523,6 +1600,7 @@ export default function AdminPage() {
             ["command-center","מרכז בקרה"],
             ["guests","רשימת אורחים"],
             ["reminders","תזכורות"],
+            ["couple-view","👀 מבט הזוג"],
             ["recommendations","מרכז המלצות"],
             ["import-export","ייבוא / ייצוא"],
           ] as [Tab, string][]).map(
@@ -1981,12 +2059,28 @@ export default function AdminPage() {
                   ))}
               </div>
             )}
+
+            {/* ── Thank-you messages ─────────────────────── */}
+            <ThankYouSection
+              guests={guests}
+              eventName={selectedEvent?.name ?? ""}
+              eventId={selectedEventId ?? ""}
+            />
           </div>
         )}
 
         {/* ══════════════════════════════════════════════
             TAB: Reminder Recommendations
         ══════════════════════════════════════════════ */}
+        {activeTab === "couple-view" && selectedEvent?.couple_token && (
+          <CoupleView token={selectedEvent.couple_token} eventName={selectedEvent.name} />
+        )}
+        {activeTab === "couple-view" && !selectedEvent?.couple_token && (
+          <div className="rounded-2xl p-10 text-center" style={{ background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.22)" }}>
+            <p style={{ color: "rgba(51,51,51,0.4)", fontFamily: "Heebo, sans-serif" }}>לאירוע זה אין עדיין קישור זוג</p>
+          </div>
+        )}
+
         {activeTab === "recommendations" && (
           <ReminderCenter overview={overview} onSelectEvent={(id) => { setSelectedEventId(id); setActiveTab("reminders"); }} />
         )}
@@ -2491,6 +2585,250 @@ function EventCard({ ev, approvalStatus, onSelect }: { ev: EventSummary; approva
           <p className="text-xs" style={{ color: C.muted }}>נוכחות צפויה</p>
           <p className="text-xl font-bold" style={{ color: C.dark, fontFamily: "Frank Ruhl Libre, serif" }}>{ev.attendees}</p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   COUPLE VIEW COMPONENT
+══════════════════════════════════════════════════════ */
+interface CoupleData {
+  event: { id: string; name: string; date: string; address?: string | null };
+  stats: { total: number; confirmed: number; declined: number; pending: number; attendees: number; responseRate: number };
+  budget: { planned: number; actual: number; items: number };
+  seating: { tables: number; assigned: number; total: number };
+  tasks: { done: number; total: number };
+  gifts: { total: number; count: number };
+}
+
+function CoupleView({ token, eventName }: { token: string; eventName: string }) {
+  const C2 = { gold: "#C5A46D", dark: "#1C1008", muted: "rgba(28,16,8,0.45)", ivory: "#FDFAF5", border: "rgba(197,164,109,0.22)", olive: "#6B7B5A", cream: "#F2EDE3" };
+  const [data, setData]       = useState<CoupleData | null>(null);
+  const [tasks, setTasks]     = useState<{ id: string; title: string; completed: boolean; category?: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      fetch(`/api/couple/${token}`).then(r => r.ok ? r.json() : null),
+      fetch(`/api/couple/${token}/tasks`).then(r => r.ok ? r.json() : []).catch(() => []),
+    ]).then(([summary, taskList]) => {
+      setData(summary);
+      setTasks(Array.isArray(taskList) ? taskList : taskList?.tasks ?? []);
+      setLoading(false);
+    });
+  }, [token]);
+
+  if (loading) return (
+    <div className="flex justify-center py-16">
+      <Loader2 size={28} className="animate-spin" style={{ color: C2.gold }} />
+    </div>
+  );
+
+  if (!data) return (
+    <div className="rounded-2xl p-10 text-center" style={{ background: C2.ivory, border: `1px solid ${C2.border}` }}>
+      <p style={{ color: C2.muted }}>לא ניתן לטעון נתוני זוג</p>
+    </div>
+  );
+
+  const tasksDone    = data.tasks.done;
+  const tasksTotal   = data.tasks.total;
+  const tasksPct     = tasksTotal > 0 ? Math.round((tasksDone / tasksTotal) * 100) : 0;
+  const budgetUsedPct = data.budget.planned > 0 ? Math.round((data.budget.actual / data.budget.planned) * 100) : 0;
+  const seatingPct   = data.seating.total > 0 ? Math.round((data.seating.assigned / data.seating.total) * 100) : 0;
+
+  const pendingTasks = tasks.filter(t => !t.completed).slice(0, 6);
+  const doneTasks    = tasks.filter(t => t.completed).slice(0, 4);
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Header */}
+      <div className="rounded-2xl p-4 flex items-center gap-4" style={{ background: "rgba(197,164,109,0.06)", border: `1px solid rgba(197,164,109,0.18)` }}>
+        <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg" style={{ background: "rgba(197,164,109,0.15)" }}>💑</div>
+        <div>
+          <p className="font-bold" style={{ color: C2.dark, fontFamily: "Frank Ruhl Libre, serif" }}>{eventName}</p>
+          <p className="text-xs" style={{ color: C2.muted }}>
+            {new Date(data.event.date).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+            {data.event.address ? ` · ${data.event.address}` : ""}
+          </p>
+        </div>
+        <a href={`/couple/${token}`} target="_blank" rel="noopener noreferrer"
+          className="mr-auto flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl"
+          style={{ background: "rgba(197,164,109,0.1)", color: C2.gold }}>
+          <ExternalLink size={12} /> כניסה לדשבורד
+        </a>
+      </div>
+
+      {/* KPI grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: "אורחים אישרו", value: data.stats.confirmed, sub: `מתוך ${data.stats.total}`, color: C2.olive },
+          { label: "אחוז מענה", value: `${data.stats.responseRate}%`, sub: `${data.stats.pending} ממתינים`, color: C2.gold },
+          { label: "תקציב בפועל", value: `₪${(data.budget.actual / 1000).toFixed(0)}K`, sub: `מתוך ₪${(data.budget.planned / 1000).toFixed(0)}K`, color: C2.gold },
+          { label: "מתנות", value: `₪${data.gifts.total.toLocaleString()}`, sub: `${data.gifts.count} מתנות`, color: C2.olive },
+        ].map(({ label, value, sub, color }) => (
+          <div key={label} className="rounded-2xl p-4" style={{ background: C2.ivory, border: `1px solid ${C2.border}` }}>
+            <p className="text-xs mb-1" style={{ color: C2.muted }}>{label}</p>
+            <p className="text-2xl font-bold" style={{ color, fontFamily: "Frank Ruhl Libre, serif" }}>{value}</p>
+            <p className="text-xs mt-0.5" style={{ color: C2.muted }}>{sub}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Progress bars */}
+      <div className="grid md:grid-cols-3 gap-3">
+        {[
+          { label: "משימות הושלמו", pct: tasksPct, value: `${tasksDone}/${tasksTotal}`, color: C2.olive },
+          { label: "תקציב נוצל", pct: budgetUsedPct, value: `${budgetUsedPct}%`, color: budgetUsedPct > 90 ? "rgb(200,80,80)" : C2.gold },
+          { label: "אורחים הושבו", pct: seatingPct, value: `${data.seating.assigned}/${data.seating.total}`, color: C2.gold },
+        ].map(({ label, pct, value, color }) => (
+          <div key={label} className="rounded-2xl p-4" style={{ background: C2.ivory, border: `1px solid ${C2.border}` }}>
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-xs font-medium" style={{ color: C2.dark }}>{label}</p>
+              <p className="text-xs font-bold" style={{ color }}>{value}</p>
+            </div>
+            <div className="h-2 rounded-full" style={{ background: "rgba(197,164,109,0.15)" }}>
+              <div className="h-2 rounded-full transition-all" style={{ width: `${Math.min(100, pct)}%`, background: color }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tasks breakdown */}
+      {tasksTotal > 0 && (
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="rounded-2xl p-4" style={{ background: C2.ivory, border: `1px solid ${C2.border}` }}>
+            <p className="text-xs font-bold mb-3" style={{ color: C2.dark }}>⏳ משימות פתוחות ({tasks.filter(t => !t.completed).length})</p>
+            {pendingTasks.length === 0
+              ? <p className="text-xs" style={{ color: C2.muted }}>כל המשימות הושלמו 🎉</p>
+              : pendingTasks.map(t => (
+                <div key={t.id} className="flex items-center gap-2 py-1.5 border-b" style={{ borderColor: "rgba(197,164,109,0.1)" }}>
+                  <div className="w-3.5 h-3.5 rounded-full border shrink-0" style={{ borderColor: "rgba(197,164,109,0.4)" }} />
+                  <p className="text-xs" style={{ color: C2.dark }}>{t.title}</p>
+                </div>
+              ))}
+            {tasks.filter(t => !t.completed).length > 6 && (
+              <p className="text-xs mt-2" style={{ color: C2.muted }}>+ {tasks.filter(t => !t.completed).length - 6} נוספות</p>
+            )}
+          </div>
+          <div className="rounded-2xl p-4" style={{ background: C2.ivory, border: `1px solid ${C2.border}` }}>
+            <p className="text-xs font-bold mb-3" style={{ color: C2.olive }}>✅ הושלמו לאחרונה ({tasks.filter(t => t.completed).length})</p>
+            {doneTasks.length === 0
+              ? <p className="text-xs" style={{ color: C2.muted }}>עדיין לא הושלמו משימות</p>
+              : doneTasks.map(t => (
+                <div key={t.id} className="flex items-center gap-2 py-1.5 border-b" style={{ borderColor: "rgba(197,164,109,0.1)" }}>
+                  <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(107,123,90,0.15)" }}>
+                    <span style={{ fontSize: 8, color: C2.olive }}>✓</span>
+                  </div>
+                  <p className="text-xs line-through" style={{ color: C2.muted }}>{t.title}</p>
+                </div>
+              ))}
+            {tasks.filter(t => t.completed).length > 4 && (
+              <p className="text-xs mt-2" style={{ color: C2.muted }}>+ {tasks.filter(t => t.completed).length - 4} נוספות</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   THANK YOU SECTION
+══════════════════════════════════════════════════════ */
+function ThankYouSection({ guests, eventName, eventId }: { guests: Guest[]; eventName: string; eventId: string }) {
+  const C2 = { gold: "#C5A46D", dark: "#1C1008", muted: "rgba(28,16,8,0.45)", ivory: "#FDFAF5", border: "rgba(197,164,109,0.22)", olive: "#6B7B5A" };
+  const [galleryUrl, setGalleryUrl] = useState("");
+  const [loadingAlbum, setLoadingAlbum] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    if (!eventId) return;
+    setLoadingAlbum(true);
+    fetch(`/api/admin/gallery/${eventId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.album?.public_token) {
+          setGalleryUrl(`${window.location.origin}/gallery/${d.album.public_token}`);
+        }
+        setLoadingAlbum(false);
+      })
+      .catch(() => setLoadingAlbum(false));
+  }, [eventId]);
+
+  const guestsWithPhone = guests.filter(g => g.phone);
+
+  function sendAll() {
+    setSending(true);
+    guestsWithPhone.forEach((g, i) => {
+      setTimeout(() => {
+        window.open(whatsappThankYouLink(g.phone, g.name, eventName, galleryUrl || null), "_blank");
+      }, i * 600);
+    });
+    setTimeout(() => setSending(false), guestsWithPhone.length * 600 + 500);
+  }
+
+  return (
+    <div className="mt-8 rounded-2xl p-5" style={{ background: "rgba(197,164,109,0.05)", border: "1px solid rgba(197,164,109,0.18)" }}>
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
+        <div>
+          <p className="font-bold text-sm" style={{ color: C2.dark, fontFamily: "Frank Ruhl Libre, serif" }}>
+            💛 הודעות תודה לאחר האירוע
+          </p>
+          <p className="text-xs mt-0.5" style={{ color: C2.muted }}>
+            שלחו הודעת תודה לכל האורחים עם קישור להעלאת תמונות
+          </p>
+        </div>
+        <button
+          onClick={sendAll}
+          disabled={sending || guestsWithPhone.length === 0}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium"
+          style={{ background: "rgba(37,211,102,0.12)", color: "#1A9B4E", opacity: sending ? 0.6 : 1 }}
+        >
+          <MessageCircle size={14} />
+          {sending ? "שולח..." : `שלח לכולם (${guestsWithPhone.length})`}
+        </button>
+      </div>
+
+      <div className="flex items-center gap-2 mb-4">
+        <input
+          type="url"
+          placeholder={loadingAlbum ? "טוען קישור גלריה..." : "קישור לגלריה / אלבום תמונות (אופציונלי)"}
+          value={galleryUrl}
+          onChange={e => setGalleryUrl(e.target.value)}
+          className="flex-1 rounded-xl px-3 py-2 text-xs outline-none"
+          style={{ background: "white", border: "1px solid rgba(197,164,109,0.28)", color: C2.dark, fontFamily: "Heebo, sans-serif", direction: "ltr", textAlign: "left" }}
+        />
+        {galleryUrl && (
+          <span className="text-xs px-2 py-1 rounded-lg" style={{ background: "rgba(107,123,90,0.1)", color: C2.olive }}>
+            ✓ גלריה
+          </span>
+        )}
+      </div>
+
+      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(197,164,109,0.15)", maxHeight: 220, overflowY: "auto" }}>
+        {guestsWithPhone.map((g, i) => (
+          <div key={g.id} className="flex items-center gap-3 px-3 py-2.5"
+            style={{ background: i % 2 === 0 ? C2.ivory : "white", borderBottom: "1px solid rgba(197,164,109,0.08)" }}>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium truncate" style={{ color: C2.dark }}>{g.name}</p>
+              <p className="text-[10px]" style={{ color: C2.muted }}>{g.phone}</p>
+            </div>
+            <a
+              href={whatsappThankYouLink(g.phone, g.name, eventName, galleryUrl || null)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-[11px] px-2.5 py-1.5 rounded-lg shrink-0"
+              style={{ background: "rgba(37,211,102,0.10)", color: "#1A9B4E" }}
+            >
+              <MessageCircle size={10} /> שלח
+            </a>
+          </div>
+        ))}
+        {guestsWithPhone.length === 0 && (
+          <p className="text-xs text-center py-4" style={{ color: C2.muted }}>אין אורחים עם מספר טלפון</p>
+        )}
       </div>
     </div>
   );

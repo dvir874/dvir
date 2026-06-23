@@ -22,11 +22,12 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const body = await request.json();
 
-  const { name, date, address, theme } = body as {
+  const { name, date, address, theme, client_phone } = body as {
     name?: string;
     date?: string;
     address?: string;
     theme?: string;
+    client_phone?: string;
   };
   if (!name || !date)
     return NextResponse.json({ error: 'name and date are required' }, { status: 400 });
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
   const supabase = createServerClient();
   const { data, error } = await supabase
     .from('events')
-    .insert({ name, date, address, theme: theme ?? DEFAULT_THEME_ID })
+    .insert({ name, date, address, theme: theme ?? DEFAULT_THEME_ID, client_phone: client_phone ?? null })
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

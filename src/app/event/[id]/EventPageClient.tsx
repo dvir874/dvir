@@ -47,10 +47,12 @@ export default function EventPageClient({
   event,
   theme,
   isPreview,
+  bitPhone,
 }: {
   event: EventData;
   theme: EventTheme;
   isPreview: boolean;
+  bitPhone?: string | null;
 }) {
   const eventDate = new Date(event.date + "T19:00:00");
   const { time, mounted } = useCountdown(eventDate);
@@ -377,6 +379,37 @@ export default function EventPageClient({
           </div>
         </div>
       </section>
+
+      {/* ── Gift / Bit section ──────────────────────────── */}
+      {bitPhone && (
+        <section className="py-10 px-4 text-center" style={{ background: theme.bodyBg }}>
+          <p style={{ fontSize: 13, color: theme.accentColor, marginBottom: "0.4rem", fontFamily: "Frank Ruhl Libre, serif", letterSpacing: "0.08em" }}>
+            🎁 רוצים לשלוח מתנה?
+          </p>
+          <p style={{ fontSize: 12, color: `${theme.heroMutedText}`, marginBottom: "1.25rem", fontFamily: "Heebo, sans-serif" }}>
+            שלחו מתנה כספית דרך ביט ישירות לזוג המאושר
+          </p>
+          <a
+            href={`https://www.bitpay.co.il/?phone=${bitPhone.replace(/\D/g, "")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 10,
+              padding: "0.75rem 2rem", borderRadius: 50,
+              background: "linear-gradient(135deg, #1B3AE8 0%, #2D52F5 100%)",
+              color: "white", fontFamily: "Heebo, sans-serif", fontWeight: 700,
+              fontSize: 15, textDecoration: "none",
+              boxShadow: "0 4px 18px rgba(27,58,232,0.28)",
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 40 40" fill="none">
+              <rect width="40" height="40" rx="10" fill="white" fillOpacity="0.15"/>
+              <text x="50%" y="54%" dominantBaseline="middle" textAnchor="middle" fontSize="18" fill="white" fontWeight="900">₪</text>
+            </svg>
+            שלח מתנה בביט
+          </a>
+        </section>
+      )}
 
       {/* ── Footer ──────────────────────────────────── */}
       <footer className="py-8 px-4 text-center" style={{ background: theme.footerBg }}>

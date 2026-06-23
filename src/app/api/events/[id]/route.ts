@@ -1,6 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
 
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  if (!id) return NextResponse.json({ error: 'Missing event id' }, { status: 400 });
+
+  const body = await req.json();
+  const allowed = ['name', 'date', 'address', 'theme', 'bit_phone', 'notes', 'client_name', 'client_phone', 'client_email', 'venue_name'];
+  const update: Record<string, unknown> = {};
+  for (const key of allowed) {
+    if (key in body) update[key] = body[key];
+  }
+
+  const supabase = createServerClient();
+  const { data, error } = await supabase.from('events').update(update).eq('id', id).select().single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
+}
+
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },

@@ -22,6 +22,22 @@ export function whatsappInviteLink(
   return `https://wa.me/?text=${encoded}`;
 }
 
+export function whatsappThankYouLink(
+  phone: string,
+  name: string,
+  eventName: string,
+  galleryUrl?: string | null,
+): string {
+  const normalized = normalizePhone(phone);
+  let message =
+    `שלום ${name}! 💛\n\nתודה שהייתם חלק מהיום המיוחד שלנו ב${eventName}.\n` +
+    `שמחנו לחגוג איתכם ❤️`;
+  if (galleryUrl) {
+    message += `\n\nצילמתם תמונות? נשמח שתשתפו אותן באלבום המשותף 📸\n${galleryUrl}`;
+  }
+  return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+}
+
 export function whatsappReminderLink(
   phone: string,
   name: string,

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ShieldCheck, MessageCircle, LayoutDashboard, HeartHandshake } from "lucide-react";
+import { ShieldCheck, MessageCircle, LayoutDashboard, HeartHandshake, Gift, Camera } from "lucide-react";
 import FadeIn, { StaggerContainer, staggerItem } from "./FadeIn";
 
 
@@ -34,6 +34,20 @@ const cards = [
       "חתונה, חינה, אירוסין, בר מצווה, בת מצווה, ברית ואירועי משפחה. כל אירוע מקבל ניהול מדויק ועיצוב הזמנה שמספר את הסיפור שלכם.",
     accent: "#6B7B5A",
   },
+  {
+    icon: Gift,
+    title: "קבלת מתנות דרך ביט",
+    description:
+      "האורחים שולחים מתנה כספית ישירות לזוג דרך ביט, ממש מתוך ההזמנה הדיגיטלית. בלי מעטפות, בלי בלבול, הכסף מגיע ישר.",
+    accent: "#C5A46D",
+  },
+  {
+    icon: Camera,
+    title: "אלבום תמונות משותף",
+    description:
+      "אחרי האירוע, האורחים מעלים את התמונות שצילמו לאלבום אחד משותף. כל הרגעים של כולם, במקום אחד, לכל החיים.",
+    accent: "#6B7B5A",
+  },
 ];
 
 export default function WhyUs() {
@@ -52,7 +66,7 @@ export default function WhyUs() {
         </FadeIn>
 
         <StaggerContainer
-          className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-3xl mx-auto"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-5xl mx-auto"
           staggerDelay={0.1}
         >
           {cards.map((card) => {
