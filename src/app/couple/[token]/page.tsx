@@ -337,6 +337,12 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
       {/* Countdown */}
       <CountdownTimer targetDate={event.date} />
 
+      {/* Partner profiles */}
+      <PartnerProfiles eventName={event.name} />
+
+      {/* Mood Board */}
+      <MoodBoard token={token} eventId={event.id} />
+
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "1.5rem 1rem 6rem" }}>
 
         {/* Urgent alerts with one-tap actions */}
@@ -1304,6 +1310,142 @@ function SmartRecommendations({
         <p style={{ fontSize: 11, color: C.muted, textAlign: "center", marginTop: "0.75rem", fontFamily: "Heebo, sans-serif" }}>
           ועוד {pending.length - 4} משימות ברשימה המלאה למטה
         </p>
+      )}
+    </div>
+  );
+}
+
+/* ── PartnerProfiles ────────────────────────────────────────── */
+function PartnerProfiles({ eventName }: { eventName: string }) {
+  const parsed = (() => {
+    const clean = eventName.replace(/^חתונת\s*/i, "").replace(/^אירוע\s*/i, "");
+    const match = clean.match(/^(.+?)\s+ו(.+)$/);
+    if (match) return [match[1].trim(), match[2].trim()];
+    return null;
+  })();
+  if (!parsed) return null;
+  const [p1, p2] = parsed;
+
+  const Avatar = ({ name, color }: { name: string; color: string }) => (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+      <div style={{ width: 52, height: 52, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 18, color: "white", letterSpacing: 0 }}>
+        {name.slice(0, 1)}
+      </div>
+      <p style={{ fontSize: 13, fontWeight: 600, color: "#FFF8EC", fontFamily: "Frank Ruhl Libre, serif" }}>{name}</p>
+    </div>
+  );
+
+  return (
+    <div style={{ maxWidth: 640, margin: "0 auto", padding: "0.75rem 1rem 0" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20, padding: "1rem", borderRadius: 16, background: "rgba(0,0,0,0.15)", border: "1px solid rgba(255,220,130,0.15)" }}>
+        <Avatar name={p1} color="#C5A46D" />
+        <div style={{ fontSize: 20, color: "rgba(255,235,180,0.6)" }}>💛</div>
+        <Avatar name={p2} color="#6B7B5A" />
+      </div>
+    </div>
+  );
+}
+
+/* ── MoodBoard ────────────────────────────────────────────────── */
+const MOOD_PALETTES = [
+  { id: "romantic", label: "רומנטי", colors: ["#F9CDD5", "#E8A5B5", "#D4839E", "#C5A46D", "#8B6355"] },
+  { id: "luxury",   label: "יוקרתי", colors: ["#1A2744", "#2E4080", "#C5A46D", "#D4BC8A", "#F2EDE3"] },
+  { id: "natural",  label: "טבעי",   colors: ["#D4E6C3", "#8FAF78", "#6B7B5A", "#C8B89A", "#F2EDE3"] },
+  { id: "modern",   label: "מודרני", colors: ["#1A1A1A", "#333333", "#AAAAAA", "#DDDDDD", "#F5F5F5"] },
+  { id: "enchanted",label: "קסום",   colors: ["#E8D5F5", "#C5A0E0", "#9B6CC5", "#6B4A8C", "#F2EDE3"] },
+];
+const MOOD_STYLES = ["קלאסי", "בוהו שיק", "מינימליסטי", "רוסטיק", "גלאמור"];
+
+function MoodBoard({ token, eventId }: { token: string; eventId: string }) {
+  const [palette, setPalette] = useState<string | null>(null);
+  const [style,   setStyle]   = useState<string | null>(null);
+  const [vision,  setVision]  = useState("");
+  const [saving,  setSaving]  = useState(false);
+  const [open,    setOpen]    = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/events/${eventId}`).then(r => r.json()).then(ev => {
+      if (ev.mood_palette) setPalette(ev.mood_palette);
+      if (ev.mood_style)   setStyle(ev.mood_style);
+      if (ev.mood_vision)  setVision(ev.mood_vision ?? "");
+    }).catch(() => {});
+  }, [eventId]);
+
+  async function save() {
+    setSaving(true);
+    await fetch(`/api/events/${eventId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mood_palette: palette, mood_style: style, mood_vision: vision }),
+    }).catch(() => {});
+    setSaving(false);
+    setOpen(false);
+  }
+
+  const selectedPalette = MOOD_PALETTES.find(p => p.id === palette);
+
+  return (
+    <div style={{ maxWidth: 640, margin: "0.75rem auto 0", padding: "0 1rem" }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.85rem 1rem", borderRadius: 14, background: "rgba(0,0,0,0.15)", border: "1px solid rgba(255,220,130,0.15)", cursor: "pointer" }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 16 }}>🎨</span>
+          <div style={{ textAlign: "right" }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "#FFF8EC", fontFamily: "Frank Ruhl Libre, serif", margin: 0 }}>
+              לוח השראה
+            </p>
+            <p style={{ fontSize: 11, color: "rgba(255,235,180,0.6)", fontFamily: "Heebo, sans-serif", margin: 0 }}>
+              {palette ? `${selectedPalette?.label} · ${style ?? ""}` : "הוסיפו את חזון החתונה שלכם"}
+            </p>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 4 }}>
+          {selectedPalette?.colors.slice(0, 3).map((c, i) => (
+            <div key={i} style={{ width: 14, height: 14, borderRadius: "50%", background: c, border: "1px solid rgba(255,255,255,0.2)" }} />
+          ))}
+          <span style={{ color: "rgba(255,235,180,0.6)", fontSize: 14, marginRight: 4 }}>{open ? "▲" : "▼"}</span>
+        </div>
+      </button>
+
+      {open && (
+        <div style={{ background: "#FDFAF5", borderRadius: 16, padding: "1.25rem", marginTop: 8, border: "1px solid rgba(197,164,109,0.25)" }} dir="rtl">
+          <p style={{ fontSize: 12, fontWeight: 600, color: "#6B7B5A", marginBottom: 10, fontFamily: "Heebo, sans-serif" }}>פלטת צבעים</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+            {MOOD_PALETTES.map(p => (
+              <button key={p.id} onClick={() => setPalette(p.id)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "0.5rem 0.75rem", borderRadius: 10, border: `1.5px solid ${palette === p.id ? "#C5A46D" : "rgba(197,164,109,0.2)"}`, background: palette === p.id ? "rgba(197,164,109,0.08)" : "white", cursor: "pointer" }}>
+                <div style={{ display: "flex", gap: 3 }}>
+                  {p.colors.map((c, i) => <div key={i} style={{ width: 18, height: 18, borderRadius: "50%", background: c }} />)}
+                </div>
+                <span style={{ fontSize: 12, color: "#1C1008", fontFamily: "Heebo, sans-serif", fontWeight: palette === p.id ? 600 : 400 }}>{p.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <p style={{ fontSize: 12, fontWeight: 600, color: "#6B7B5A", marginBottom: 8, fontFamily: "Heebo, sans-serif" }}>סגנון החתונה</p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+            {MOOD_STYLES.map(s => (
+              <button key={s} onClick={() => setStyle(s)} style={{ padding: "0.4rem 0.9rem", borderRadius: 20, border: `1.5px solid ${style === s ? "#C5A46D" : "rgba(197,164,109,0.25)"}`, background: style === s ? "rgba(197,164,109,0.12)" : "white", fontSize: 12, color: style === s ? "#A07840" : "#555", cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
+                {s}
+              </button>
+            ))}
+          </div>
+
+          <p style={{ fontSize: 12, fontWeight: 600, color: "#6B7B5A", marginBottom: 6, fontFamily: "Heebo, sans-serif" }}>החזון שלכם</p>
+          <textarea
+            value={vision}
+            onChange={e => setVision(e.target.value)}
+            placeholder="ספרו לנו איך אתם דמיינתם את היום הגדול..."
+            maxLength={500}
+            rows={3}
+            style={{ width: "100%", borderRadius: 10, border: "1px solid rgba(197,164,109,0.3)", padding: "0.6rem 0.75rem", fontSize: 12, fontFamily: "Heebo, sans-serif", resize: "none", outline: "none", boxSizing: "border-box" }}
+          />
+
+          <button onClick={save} disabled={saving} style={{ marginTop: 12, width: "100%", padding: "0.7rem", borderRadius: 12, background: "linear-gradient(135deg,#C5A46D,#B8935A)", color: "white", border: "none", cursor: "pointer", fontFamily: "Heebo, sans-serif", fontWeight: 700, fontSize: 13 }}>
+            {saving ? "שומר..." : "שמור לוח השראה ✓"}
+          </button>
+        </div>
       )}
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Plus, Trash2, Users, ArrowRight, Search, X, AlertTriangle,
   Wand2, CheckCircle, Loader2, Tag, Heart, Swords, RefreshCw,
@@ -684,6 +684,47 @@ function VisualTable({ table, assigned, selectedGuest, onDrop, onAssign, onDelet
           ✦ הצב — {selectedGuestName}
         </button>
       )}
+
+      {/* Table notes */}
+      <TableNoteInput table={table} />
+    </div>
+  );
+}
+
+function TableNoteInput({ table }: { table: SeatingTable }) {
+  const [note, setNote] = useState(table.notes ?? "");
+  const [saving, setSaving] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function handleChange(v: string) {
+    setNote(v);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSaving(true);
+      await fetch(`/api/seating/${table.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: v }),
+      }).catch(() => {});
+      setSaving(false);
+    }, 800);
+  }
+
+  return (
+    <div style={{ width: "100%", position: "relative" }}>
+      <input
+        value={note}
+        onChange={e => handleChange(e.target.value)}
+        placeholder="הערה לשולחן (VIP, דיאטה...)"
+        maxLength={80}
+        style={{
+          width: "100%", fontSize: 10, padding: "3px 8px", borderRadius: 8,
+          border: "1px solid rgba(197,164,109,0.25)", background: note ? "rgba(197,164,109,0.06)" : "transparent",
+          color: "#1C1008", fontFamily: "Heebo, sans-serif", outline: "none",
+          boxSizing: "border-box",
+        }}
+      />
+      {saving && <span style={{ position: "absolute", left: 4, top: 3, fontSize: 9, color: "rgba(0,0,0,0.3)" }}>שומר…</span>}
     </div>
   );
 }
