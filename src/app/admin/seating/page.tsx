@@ -208,6 +208,24 @@ export default function SeatingPage() {
                 {events.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
               </select>
             )}
+            {/* Print report button */}
+            {eventId && (
+              <a
+                href={`/admin/seating/print?event_id=${eventId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "0.5rem 1rem", borderRadius: 10, border: "none",
+                  background: "rgba(107,123,90,0.12)", color: "#6B7B5A",
+                  cursor: "pointer", fontSize: 13, fontFamily: "Heebo, sans-serif",
+                  textDecoration: "none",
+                }}
+              >
+                🖨️ הדפס דוח
+              </a>
+            )}
+
             {/* AI Generate button */}
             <button
               onClick={() => runAI(false)}

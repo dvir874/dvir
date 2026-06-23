@@ -19,7 +19,7 @@ export default async function EventPreviewPage({
   const supabase = createServerClient();
   const { data: event, error } = await supabase
     .from("events")
-    .select("id, name, date, address, theme, bit_phone")
+    .select("id, name, date, address, theme, bit_phone, dress_code, parking_info, greeting")
     .eq("id", id)
     .single();
 

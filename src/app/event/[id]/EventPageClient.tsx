@@ -83,6 +83,9 @@ interface EventData {
   date: string;
   address?: string | null;
   theme?: string | null;
+  dress_code?: string | null;
+  parking_info?: string | null;
+  greeting?: string | null;
 }
 
 /* ── Countdown hook ─────────────────────────────────── */
@@ -420,6 +423,81 @@ export default function EventPageClient({
               >
                 <Map size={18} strokeWidth={1.5} style={{ color: "#4285F4" }} /> Google Maps
               </a>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Couple greeting ────────────────────────── */}
+      {event.greeting && (
+        <section className="py-12 px-4" style={{ background: theme.altSectionBg }}>
+          <div className="max-w-md mx-auto text-center">
+            <div className="text-2xl mb-3">💌</div>
+            <div
+              className="rounded-3xl p-7"
+              style={{ background: theme.cardBg, border: `1px solid ${theme.accentColor}22`, boxShadow: theme.cardShadow }}
+            >
+              <p
+                className="text-base leading-relaxed whitespace-pre-line"
+                style={{ color: theme.headingColor, ...FRANK, fontStyle: "italic", lineHeight: 1.8 }}
+              >
+                {event.greeting}
+              </p>
+              <div className="mt-4 flex justify-center gap-2" style={{ color: theme.accentColor, opacity: 0.5 }}>
+                <span style={{ fontSize: 9 }}>✦</span>
+                <span style={{ fontSize: 9 }}>✦</span>
+                <span style={{ fontSize: 9 }}>✦</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Dress code + Parking ────────────────────── */}
+      {(event.dress_code || event.parking_info) && (
+        <section className="py-12 px-4" style={{ background: event.greeting ? theme.bodyBg : theme.altSectionBg }}>
+          <div className="max-w-xl mx-auto">
+            <p className="text-center text-xs tracking-[0.22em] uppercase mb-7"
+              style={{ color: theme.accentColor, ...HEEBO }}>
+              מידע נוסף
+            </p>
+            <div className={`grid gap-4 ${event.dress_code && event.parking_info ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 max-w-sm mx-auto"}`}>
+              {event.dress_code && (
+                <div
+                  className="flex flex-col items-center text-center p-6 rounded-2xl"
+                  style={{ background: theme.cardBg, border: `1px solid ${theme.cardBorder}`, boxShadow: theme.cardShadow }}
+                >
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4"
+                    style={{ background: theme.cardIconBg }}>
+                    <span style={{ fontSize: 20 }}>👔</span>
+                  </div>
+                  <p className="text-[10px] tracking-[0.18em] uppercase mb-2"
+                    style={{ color: `${theme.accentColor}aa`, ...HEEBO }}>
+                    קוד לבוש
+                  </p>
+                  <p className="font-bold text-base leading-tight" style={{ color: theme.headingColor, ...FRANK }}>
+                    {event.dress_code}
+                  </p>
+                </div>
+              )}
+              {event.parking_info && (
+                <div
+                  className="flex flex-col items-center text-center p-6 rounded-2xl"
+                  style={{ background: theme.cardBg, border: `1px solid ${theme.cardBorder}`, boxShadow: theme.cardShadow }}
+                >
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4"
+                    style={{ background: theme.cardIconBg }}>
+                    <span style={{ fontSize: 20 }}>🅿️</span>
+                  </div>
+                  <p className="text-[10px] tracking-[0.18em] uppercase mb-2"
+                    style={{ color: `${theme.accentColor}aa`, ...HEEBO }}>
+                    חניה
+                  </p>
+                  <p className="font-bold text-sm leading-snug" style={{ color: theme.headingColor, ...FRANK }}>
+                    {event.parking_info}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </section>

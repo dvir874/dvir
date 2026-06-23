@@ -391,6 +391,11 @@ export default function AdminPage() {
   const [showBitModal,   setShowBitModal]   = useState(false);
   const [bitPhoneInput,  setBitPhoneInput]  = useState("");
   const [savingBit,      setSavingBit]      = useState(false);
+  const [showInfoModal,  setShowInfoModal]  = useState(false);
+  const [infoDressCode,  setInfoDressCode]  = useState("");
+  const [infoParking,    setInfoParking]    = useState("");
+  const [infoGreeting,   setInfoGreeting]   = useState("");
+  const [savingInfo,     setSavingInfo]     = useState(false);
 
   // Dropdown menus (click-based)
   const [showEventDropdown, setShowEventDropdown] = useState(false);
@@ -1057,6 +1062,22 @@ export default function AdminPage() {
               ₪ ביט מתנות
             </button>
           )}
+          {selectedEventId && (
+            <button
+              onClick={() => {
+                const ev = selectedEvent as (typeof selectedEvent & { dress_code?: string; parking_info?: string; greeting?: string });
+                setInfoDressCode(ev?.dress_code ?? "");
+                setInfoParking(ev?.parking_info ?? "");
+                setInfoGreeting(ev?.greeting ?? "");
+                setShowInfoModal(true);
+              }}
+              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
+              style={{ background: "rgba(107,123,90,0.10)", color: C.olive }}
+              title="קוד לבוש, חניה, ברכה"
+            >
+              ✏️ פרטי הזמנה
+            </button>
+          )}
           <button
             onClick={() => selectedEventId && fetchGuests(selectedEventId)}
             className="p-2 rounded-xl transition-all hover:opacity-70"
@@ -1130,6 +1151,84 @@ export default function AdminPage() {
               </button>
               <button
                 onClick={() => setShowBitModal(false)}
+                className="flex-1 py-2.5 rounded-xl font-semibold text-sm"
+                style={{ background: "rgba(51,51,51,0.07)", color: C.muted, fontFamily: "Heebo, sans-serif" }}
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Event info modal (dress code, parking, greeting) ── */}
+      {showInfoModal && selectedEventId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4" onClick={() => setShowInfoModal(false)}>
+          <div
+            className="w-full max-w-sm rounded-3xl p-6"
+            style={{ background: C.ivory, border: `1px solid ${C.border}`, boxShadow: "0 20px 60px rgba(0,0,0,0.12)" }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold mb-4" style={{ color: C.dark, fontFamily: "Frank Ruhl Libre, serif" }}>
+              ✏️ פרטי הזמנה
+            </h3>
+            <div className="flex flex-col gap-3 mb-5">
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>👔 קוד לבוש</label>
+                <input
+                  placeholder="למשל: לבוש אלגנטי / חגיגי"
+                  value={infoDressCode}
+                  onChange={e => setInfoDressCode(e.target.value)}
+                  maxLength={60}
+                  className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+                  style={{ background: "white", border: `1.5px solid ${C.border}`, color: C.dark, fontFamily: "Heebo, sans-serif" }}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>🅿️ הוראות חניה</label>
+                <input
+                  placeholder="למשל: חניה חינם בחניון הסמוך"
+                  value={infoParking}
+                  onChange={e => setInfoParking(e.target.value)}
+                  maxLength={120}
+                  className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+                  style={{ background: "white", border: `1.5px solid ${C.border}`, color: C.dark, fontFamily: "Heebo, sans-serif" }}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>💌 ברכה אישית מהזוג</label>
+                <textarea
+                  placeholder="מילים חמות מהזוג שיופיעו בהזמנה..."
+                  value={infoGreeting}
+                  onChange={e => setInfoGreeting(e.target.value)}
+                  maxLength={300}
+                  rows={3}
+                  className="w-full rounded-xl px-4 py-2.5 text-sm outline-none resize-none"
+                  style={{ background: "white", border: `1.5px solid ${C.border}`, color: C.dark, fontFamily: "Heebo, sans-serif" }}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  setSavingInfo(true);
+                  await fetch(`/api/events/${selectedEventId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ dress_code: infoDressCode.trim() || null, parking_info: infoParking.trim() || null, greeting: infoGreeting.trim() || null }),
+                  });
+                  setEvents(prev => prev.map(e => e.id === selectedEventId ? { ...e, dress_code: infoDressCode.trim() || null, parking_info: infoParking.trim() || null, greeting: infoGreeting.trim() || null } as typeof e : e));
+                  setSavingInfo(false);
+                  setShowInfoModal(false);
+                }}
+                disabled={savingInfo}
+                className="flex-1 py-2.5 rounded-xl font-semibold text-sm"
+                style={{ background: `linear-gradient(135deg,${C.gold},${C.gold}cc)`, color: "white", fontFamily: "Heebo, sans-serif", opacity: savingInfo ? 0.7 : 1 }}
+              >
+                {savingInfo ? "שומר..." : "שמור"}
+              </button>
+              <button
+                onClick={() => setShowInfoModal(false)}
                 className="flex-1 py-2.5 rounded-xl font-semibold text-sm"
                 style={{ background: "rgba(51,51,51,0.07)", color: C.muted, fontFamily: "Heebo, sans-serif" }}
               >
