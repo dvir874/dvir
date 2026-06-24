@@ -1008,6 +1008,7 @@ export default function AdminPage() {
             {showToolsMenu && (
               <div className="absolute rounded-2xl overflow-hidden z-50" style={{ background: "#FDFAF5", border: "1px solid rgba(107,123,90,0.2)", minWidth: 190, top: "calc(100% + 6px)", right: 0, boxShadow: "0 8px 30px rgba(0,0,0,0.1)" }}>
                 {[
+                  { href: "/admin/dashboard", label: "לוח בקרה",       emoji: "📊" },
                   { href: selectedEventId ? `/admin/seating?event=${selectedEventId}` : "/admin/seating", label: "סידור הושבה", emoji: "🪑" },
                   { href: "/admin/budget",    label: "ניהול תקציב",   emoji: "💰" },
                   { href: "/admin/gifts",     label: "מעקב מתנות",    emoji: "🎁" },
