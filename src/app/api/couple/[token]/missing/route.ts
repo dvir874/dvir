@@ -31,10 +31,6 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const { count: totalGuests } = await sb.from("guests").select("id", { count: "exact", head: true }).eq("event_id", eventId);
   if ((totalGuests ?? 0) === 0) missing.push({ label: "לא הוזנו אורחים", severity: "high" });
 
-  // Check pending guests
-  const { count: pendingGuests } = await sb.from("guests").select("id", { count: "exact", head: true }).eq("event_id", eventId).eq("status", "pending");
-  if ((pendingGuests ?? 0) > 5) missing.push({ label: `${pendingGuests} אורחים עדיין לא ענו להזמנה`, severity: "medium" });
-
   // Check seating
   const { data: tables } = await sb.from("seating_tables").select("id").eq("event_id", eventId).limit(1);
   if (!tables?.length) missing.push({ label: "לא נוצרו שולחנות להושבה", severity: "medium" });

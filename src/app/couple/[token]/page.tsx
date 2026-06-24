@@ -460,13 +460,11 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
 
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "1.5rem 1rem 6rem" }}>
 
-        {/* Urgent alerts with one-tap actions */}
-        {urgents.length > 0 && (
+        {/* Urgent alerts — read-only, no actions for couple */}
+        {urgents.filter(a => a.key !== "rsvp_low" && a.key !== "rsvp_pending").length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.25rem" }}>
-            {urgents.map((a, i) => {
+            {urgents.filter(a => a.key !== "rsvp_low" && a.key !== "rsvp_pending").map((a, i) => {
               const cfg    = ALERT_CONFIG.urgent;
-              const isPending = a.key === "rsvp_low" || a.key === "rsvp_pending";
-              const isDone    = actionDone.has("send_reminder");
               return (
                 <div key={i} style={{ padding: "0.875rem 1rem", borderRadius: 12, background: cfg.bg, border: `1px solid ${cfg.border}` }}>
                   <div style={{ display: "flex", gap: "0.75rem" }}>
@@ -476,21 +474,17 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
                       <p style={{ fontSize: 12, color: C.muted }}>{a.body}</p>
                     </div>
                   </div>
-                  {isPending && (
+                  {false && (
                     <button
-                      onClick={() => doAction("send_reminder")}
-                      disabled={!!actionBusy || isDone}
+                      disabled
                       style={{
                         marginTop: "0.6rem", width: "100%", padding: "0.5rem 1rem",
-                        borderRadius: 8, border: "none", cursor: isDone ? "default" : "pointer",
-                        background: isDone ? "rgba(107,123,90,0.15)" : "rgba(192,57,43,0.12)",
-                        color: isDone ? C.olive : cfg.text,
+                        borderRadius: 8, border: "none", cursor: "default",
+                        background: "transparent", color: "transparent",
                         fontSize: 12, fontWeight: 600, fontFamily: "Heebo, sans-serif",
                         display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                       }}
                     >
-                      {actionBusy === "send_reminder" ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Zap size={13} />}
-                      {isDone ? "✓ תזכורות נשלחו" : "שלח תזכורת לכולם עכשיו"}
                     </button>
                   )}
                 </div>
