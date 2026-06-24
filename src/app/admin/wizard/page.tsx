@@ -47,7 +47,6 @@ export default function WizardPage() {
   const [venueName,      setVenueName]      = useState("");
   const [venueAddress,   setVenueAddress]   = useState("");
   const [clientPhone,    setClientPhone]    = useState("");
-  const [rsvpDeadline,   setRsvpDeadline]   = useState("");
 
   /* Step 2 — Theme */
   const [theme, setTheme] = useState<ThemeId>("classic-light");
@@ -134,7 +133,6 @@ export default function WizardPage() {
           address: venueAddress,
           theme,
           client_phone: clientPhone.trim() || undefined,
-          rsvp_deadline: rsvpDeadline || undefined,
           guests: parsedGuests.filter((g) => g.name.trim()),
         }),
       });
@@ -241,7 +239,6 @@ export default function WizardPage() {
               <Field label="שם האולם / מקום" value={venueName} onChange={setVenueName} placeholder="לדוגמה: אולמי הגן" />
               <Field label="כתובת" value={venueAddress} onChange={setVenueAddress} placeholder="לדוגמה: הרצל 12, תל אביב" />
               <Field label="📱 טלפון הזוג (WhatsApp)" type="tel" value={clientPhone} onChange={setClientPhone} placeholder="לדוגמה: 0521234567" />
-              <Field label="⏰ תאריך אחרון לאישור RSVP (אופציונלי)" type="date" value={rsvpDeadline} onChange={setRsvpDeadline} />
             </Card>
 
             <NavRow
