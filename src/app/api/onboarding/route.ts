@@ -15,6 +15,7 @@ interface OnboardingBody {
   client_email?: string;
   notes?: string;
   theme?: string;
+  rsvp_deadline?: string;
   // Guest list
   guests?: ParsedGuest[];
 }
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
   const {
     event_type, name, date, venue_name, address,
     client_name, client_phone, client_email, notes,
-    theme, guests = [],
+    theme, rsvp_deadline, guests = [],
   } = body;
 
   if (!name?.trim() || !date) {
@@ -50,6 +51,7 @@ export async function POST(request: NextRequest) {
       client_phone: client_phone?.trim() || null,
       client_email: client_email?.trim() || null,
       notes: notes?.trim() || null,
+      rsvp_deadline: rsvp_deadline || null,
     })
     .select()
     .single();
@@ -89,6 +91,8 @@ export async function POST(request: NextRequest) {
     {
       event_id: event.id,
       event_name: event.name,
+      couple_token: event.couple_token,
+      client_phone: event.client_phone,
       guest_count: importedCount,
       status: eventStatus,
       import_error: importError,

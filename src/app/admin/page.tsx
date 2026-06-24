@@ -1023,6 +1023,18 @@ export default function AdminPage() {
                 {selectedEventId && (
                   <>
                     <div style={{ height: 1, background: "rgba(107,123,90,0.12)", margin: "0 12px" }} />
+                    {selectedEvent?.client_phone && selectedEvent?.couple_token && (() => {
+                      const phone = selectedEvent.client_phone!.replace(/\D/g,"").replace(/^0/,"972");
+                      const dashUrl = `${window.location.origin}/couple/${selectedEvent.couple_token}`;
+                      const msg = encodeURIComponent(`💌 שלום!\nהנה הקישור לדשבורד שלכם:\n${dashUrl}\n\nשם תמצאו את כל הפרטים, אישורי הגעה ועוד 🤍`);
+                      return (
+                        <a href={`https://wa.me/${phone}?text=${msg}`} target="_blank" rel="noopener noreferrer" onClick={() => setShowToolsMenu(false)}
+                          className="flex items-center gap-2 px-4 py-3 text-xs hover:bg-green-50 transition-colors font-semibold"
+                          style={{ color: "#1A9B4E", fontFamily: "Heebo, sans-serif", textDecoration: "none", background: "rgba(37,211,102,0.04)" }}>
+                          💌 שלח קישור דשבורד לזוג
+                        </a>
+                      );
+                    })()}
                     <button onClick={() => { setShowBroadcast(true); setShowToolsMenu(false); }}
                       className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-blue-50 transition-colors" style={{ color: "#1A6FBF", fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
                       📣 שלח הודעה לכל האורחים

@@ -37,15 +37,17 @@ const STEP_LABELS = ["פרטי האירוע", "בחירת עיצוב", "מוזמ
 export default function WizardPage() {
   const [step, setStep]       = useState<WizardStep>(1);
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult]   = useState<{ event_id: string; event_name: string; guest_count: number } | null>(null);
+  const [result, setResult]   = useState<{ event_id: string; event_name: string; couple_token?: string | null; client_phone?: string | null; guest_count: number } | null>(null);
   const [submitError, setSubmitError] = useState("");
 
   /* Step 1 — Event details */
-  const [eventType,    setEventType]    = useState("");
-  const [eventName,    setEventName]    = useState("");
-  const [eventDate,    setEventDate]    = useState("");
-  const [venueName,    setVenueName]    = useState("");
-  const [venueAddress, setVenueAddress] = useState("");
+  const [eventType,      setEventType]      = useState("");
+  const [eventName,      setEventName]      = useState("");
+  const [eventDate,      setEventDate]      = useState("");
+  const [venueName,      setVenueName]      = useState("");
+  const [venueAddress,   setVenueAddress]   = useState("");
+  const [clientPhone,    setClientPhone]    = useState("");
+  const [rsvpDeadline,   setRsvpDeadline]   = useState("");
 
   /* Step 2 — Theme */
   const [theme, setTheme] = useState<ThemeId>("classic-light");
@@ -131,6 +133,8 @@ export default function WizardPage() {
           venue_name: venueName,
           address: venueAddress,
           theme,
+          client_phone: clientPhone.trim() || undefined,
+          rsvp_deadline: rsvpDeadline || undefined,
           guests: parsedGuests.filter((g) => g.name.trim()),
         }),
       });
@@ -236,6 +240,8 @@ export default function WizardPage() {
               <Field label="תאריך האירוע *" type="date" value={eventDate} onChange={setEventDate} />
               <Field label="שם האולם / מקום" value={venueName} onChange={setVenueName} placeholder="לדוגמה: אולמי הגן" />
               <Field label="כתובת" value={venueAddress} onChange={setVenueAddress} placeholder="לדוגמה: הרצל 12, תל אביב" />
+              <Field label="📱 טלפון הזוג (WhatsApp)" type="tel" value={clientPhone} onChange={setClientPhone} placeholder="לדוגמה: 0521234567" />
+              <Field label="⏰ תאריך אחרון לאישור RSVP (אופציונלי)" type="date" value={rsvpDeadline} onChange={setRsvpDeadline} />
             </Card>
 
             <NavRow
@@ -522,49 +528,112 @@ export default function WizardPage() {
         )}
 
         {/* ════════════════ STEP 5 — SUCCESS ════════════════ */}
-        {step === 5 && result && (
-          <div className="flex flex-col items-center text-center gap-6 pt-6 pb-12">
-            <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ background: "rgba(107,123,90,0.12)" }}>
-              <CheckCircle size={44} style={{ color: C.olive }} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold mb-1" style={{ color: C.dark, ...FRANK }}>
-                האירוע נוצר בהצלחה!
-              </h1>
-              <p className="text-sm" style={{ color: C.muted, ...HEEBO }}>{result.event_name}</p>
-            </div>
+        {step === 5 && result && (() => {
+          const phone = result.client_phone?.replace(/\D/g,"").replace(/^0/,"972") ?? "";
+          const dashUrl = result.couple_token
+            ? `${typeof window !== "undefined" ? window.location.origin : "https://regalifnei.vercel.app"}/couple/${result.couple_token}`
+            : null;
+          const eventDateStr = eventDate_display(eventDate);
 
-            <div className="w-full rounded-2xl p-5 text-right" style={{ background: C.ivory, border: `1px solid ${C.border}` }}>
-              <ReviewRow label="אירוע" value={result.event_name} bold />
-              <ReviewRow label="מוזמנים שיובאו" value={result.guest_count > 0 ? `${result.guest_count} אורחים` : "לא יובאו"} />
-              <ReviewRow label="סטטוס" value="טיוטה — מוכן לעריכה ✓" />
-            </div>
+          function waMsg(text: string) {
+            return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+          }
 
-            <div className="flex flex-col gap-3 w-full">
-              <a
-                href="/admin"
-                className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-sm font-semibold text-white"
-                style={{ background: `linear-gradient(135deg,${C.olive},#3E5435)`, ...HEEBO }}
-              >
-                <ExternalLink size={16} /> עבור ללוח הניהול
-              </a>
-              {result.event_id && (
-                <a
-                  href={`/event/${result.event_id}?preview=true`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-sm font-semibold"
-                  style={{ background: "rgba(107,123,90,0.10)", color: C.olive, ...HEEBO }}
-                >
-                  <ExternalLink size={15} /> תצוגה מקדימה
-                </a>
+          return (
+            <div className="flex flex-col items-center text-center gap-5 pt-6 pb-12">
+              {/* Icon */}
+              <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ background: "rgba(107,123,90,0.12)" }}>
+                <CheckCircle size={44} style={{ color: C.olive }} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold mb-1" style={{ color: C.dark, ...FRANK }}>האירוע נוצר בהצלחה!</h1>
+                <p className="text-sm" style={{ color: C.muted, ...HEEBO }}>{result.event_name}</p>
+              </div>
+
+              {/* Summary card */}
+              <div className="w-full rounded-2xl p-5 text-right" style={{ background: C.ivory, border: `1px solid ${C.border}` }}>
+                <ReviewRow label="אירוע"          value={result.event_name} bold />
+                <ReviewRow label="מוזמנים שיובאו" value={result.guest_count > 0 ? `${result.guest_count} אורחים` : "לא יובאו"} />
+                <ReviewRow label="טלפון זוג"       value={result.client_phone || "לא הוזן"} />
+                <ReviewRow label="סטטוס"           value="מוכן לעריכה ✓" />
+              </div>
+
+              {/* WhatsApp actions — only when phone exists */}
+              {phone && dashUrl && (
+                <div className="w-full rounded-2xl p-4 text-right" style={{ background: "rgba(37,211,102,0.06)", border: "1px solid rgba(37,211,102,0.2)" }}>
+                  <p className="text-xs font-semibold mb-3" style={{ color: "#1A9B4E", ...HEEBO }}>📱 שלח לזוג בוואטסאפ</p>
+                  <div className="flex flex-col gap-2">
+
+                    {/* 1. Welcome + dashboard link */}
+                    <a href={waMsg(`🎉 שלום!\nהאירוע שלכם "${result.event_name}" מוכן במערכת רגע לפני!\n\nהנה הקישור לדשבורד האישי שלכם:\n${dashUrl}\n\nשם תמצאו את כל הפרטים, אישורי הגעה, הושבה ועוד 🤍`)}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-semibold transition-all hover:opacity-85"
+                      style={{ background: "#25D366", color: "white", textDecoration: "none", ...HEEBO }}>
+                      💌 שלח קישור דשבורד + ברכת פתיחה
+                    </a>
+
+                    {/* 2. RSVP reminder (for later) */}
+                    <a href={waMsg(`שלום! 👋\nרק מזכיר — אתם יכולים לעקוב אחרי אישורי ההגעה בזמן אמת:\n${dashUrl}\n\nאורחים שעוד לא ענו — שווה לשלוח להם תזכורת 🙏`)}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-medium transition-all hover:opacity-85"
+                      style={{ background: "rgba(37,211,102,0.12)", color: "#1A9B4E", textDecoration: "none", border: "1px solid rgba(37,211,102,0.25)", ...HEEBO }}>
+                      📨 שלח תזכורת RSVP לזוג
+                    </a>
+
+                    {/* 4. Reminder 7 days before */}
+                    <a href={waMsg(`הי! 🌟\nעוד שבוע לחתונה של ${result.event_name}!\nהמלצה: בדקו שכל האורחים אישרו, וסיימו את סידורי ההושבה.\n\nדשבורד: ${dashUrl}`)}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-medium transition-all hover:opacity-85"
+                      style={{ background: "rgba(37,211,102,0.12)", color: "#1A9B4E", textDecoration: "none", border: "1px solid rgba(37,211,102,0.25)", ...HEEBO }}>
+                      🔔 תזכורת "שבוע לפני" (לשלוח מאוחר יותר)
+                    </a>
+
+                    {/* 5. Day-of */}
+                    <a href={waMsg(`🎊 היום זה הגדול!\n${result.event_name} — ${eventDateStr}\n\nמחכים לחגוג איתכם! 🤍\nכל הכבוד על ההכנות — הכל יהיה מושלם!`)}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-medium transition-all hover:opacity-85"
+                      style={{ background: "rgba(37,211,102,0.12)", color: "#1A9B4E", textDecoration: "none", border: "1px solid rgba(37,211,102,0.25)", ...HEEBO }}>
+                      🎉 ברכת יום האירוע (לשלוח ביום)
+                    </a>
+                  </div>
+                </div>
               )}
+
+              {/* No phone warning */}
+              {!phone && (
+                <div className="w-full rounded-2xl p-4 text-right" style={{ background: "rgba(197,164,109,0.08)", border: `1px solid ${C.border}` }}>
+                  <p className="text-xs" style={{ color: C.muted, ...HEEBO }}>
+                    💡 לא הוזן טלפון — לא ניתן לשלוח הודעות WhatsApp לזוג. ניתן לעדכן באדמין בהמשך.
+                  </p>
+                </div>
+              )}
+
+              {/* Navigation */}
+              <div className="flex flex-col gap-3 w-full">
+                <a href="/admin"
+                  className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-sm font-semibold text-white"
+                  style={{ background: `linear-gradient(135deg,${C.olive},#3E5435)`, ...HEEBO }}>
+                  <ExternalLink size={16} /> עבור ללוח הניהול
+                </a>
+                {result.event_id && (
+                  <a href={`/event/${result.event_id}?preview=true`} target="_blank" rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-sm font-semibold"
+                    style={{ background: "rgba(107,123,90,0.10)", color: C.olive, ...HEEBO }}>
+                    <ExternalLink size={15} /> תצוגה מקדימה
+                  </a>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );
+}
+
+function eventDate_display(dateStr: string) {
+  if (!dateStr) return "";
+  try { return new Date(dateStr).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" }); } catch { return dateStr; }
 }
 
 /* ── Sub-components ── */
