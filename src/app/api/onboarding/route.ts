@@ -51,7 +51,6 @@ export async function POST(request: NextRequest) {
       client_phone: client_phone?.trim() || null,
       client_email: client_email?.trim() || null,
       notes: notes?.trim() || null,
-      rsvp_deadline: rsvp_deadline || null,
     })
     .select()
     .single();
