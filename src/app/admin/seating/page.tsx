@@ -54,6 +54,7 @@ export default function SeatingPage() {
   const [relGuestA,       setRelGuestA]        = useState("");
   const [relGuestB,       setRelGuestB]        = useState("");
   const [relType,         setRelType]          = useState("couple");
+  const [catFilter,       setCatFilter]        = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -93,9 +94,18 @@ export default function SeatingPage() {
   const assignedGuestIds   = new Set(data.assignments.map((a) => a.guest_id));
   const guestById          = (id: string) => data.guests.find((g) => g.id === id);
 
+  // All unique categories
+  const guestCategories = Array.from(new Set(data.guests.map(g => g.category).filter(Boolean))) as string[];
+
+  // Confirmed guests who are unassigned (for the warning)
+  const confirmedUnassigned = data.guests.filter(g =>
+    !assignedGuestIds.has(g.id) && (g as Guest & { status?: string }).status === "confirmed"
+  );
+
   const unassignedGuests = data.guests
     .filter((g) => !assignedGuestIds.has(g.id))
-    .filter((g) => g.name.toLowerCase().includes(search.toLowerCase()));
+    .filter((g) => g.name.toLowerCase().includes(search.toLowerCase()))
+    .filter((g) => !catFilter || g.category === catFilter);
 
   async function assignGuest(guestId: string, tableId: string | null) {
     if (!eventId) return;
@@ -351,11 +361,39 @@ export default function SeatingPage() {
                   <Users size={16} style={{ color: GOLD }} />
                   <h2 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 600 }}>לא מוצבים ({unassignedGuests.length})</h2>
                 </div>
-                <div style={{ position: "relative", marginBottom: "0.75rem" }}>
+
+                {/* #23 — Unseated confirmed warning */}
+                {confirmedUnassigned.length > 0 && (
+                  <div style={{ marginBottom: "0.75rem", padding: "0.55rem 0.75rem", borderRadius: 8, background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.2)", display: "flex", alignItems: "center", gap: 6 }}>
+                    <AlertTriangle size={13} style={{ color: "#EF4444", flexShrink: 0 }} />
+                    <p style={{ fontSize: 12, color: "#EF4444", margin: 0, fontFamily: "Heebo, sans-serif" }}>
+                      {confirmedUnassigned.length} מגיעים ללא מקום!
+                    </p>
+                  </div>
+                )}
+
+                <div style={{ position: "relative", marginBottom: "0.5rem" }}>
                   <Search size={14} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "rgba(51,51,51,0.35)" }} />
                   <input placeholder="חיפוש..." value={search} onChange={(e) => setSearch(e.target.value)}
                     style={{ width: "100%", padding: "0.5rem 2rem 0.5rem 0.75rem", borderRadius: 8, border: "1px solid rgba(197,164,109,0.25)", fontFamily: "Heebo, sans-serif", fontSize: 13, boxSizing: "border-box" }} />
                 </div>
+
+                {/* #22 — Category filter */}
+                {guestCategories.length > 0 && (
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: "0.5rem" }}>
+                    <button onClick={() => setCatFilter(null)}
+                      style={{ padding: "2px 10px", borderRadius: 14, fontSize: 11, border: `1.5px solid ${!catFilter ? GOLD : "rgba(197,164,109,0.25)"}`, background: !catFilter ? "rgba(197,164,109,0.12)" : "transparent", color: !catFilter ? GOLD : DARK, cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
+                      הכל
+                    </button>
+                    {guestCategories.map(cat => (
+                      <button key={cat} onClick={() => setCatFilter(catFilter === cat ? null : cat)}
+                        style={{ padding: "2px 10px", borderRadius: 14, fontSize: 11, border: `1.5px solid ${catFilter === cat ? GOLD : "rgba(197,164,109,0.25)"}`, background: catFilter === cat ? "rgba(197,164,109,0.12)" : "transparent", color: catFilter === cat ? GOLD : DARK, cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <p style={{ fontSize: 11, color: "rgba(51,51,51,0.4)", marginBottom: "0.5rem" }}>גרור אורח לשולחן, או לחץ לבחירה ואז &quot;הצב כאן&quot;</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 500, overflowY: "auto" }}>
                   {unassignedGuests.map((g) => {

@@ -2,17 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { use } from "react";
-import { CheckCircle, XCircle, Users, Loader2, AlertCircle, Share2 } from "lucide-react";
+import { CheckCircle, XCircle, Users, Loader2, AlertCircle, Share2, Clock } from "lucide-react";
 import { getTheme, type EventTheme } from "@/lib/themes";
 
 type Status = "confirmed" | "declined" | "pending";
 type MealOption = "regular" | "vegetarian" | "vegan" | "mehadrin";
 
 const MEAL_OPTIONS: { value: MealOption; label: string; emoji: string }[] = [
-  { value: "regular", label: "רגיל", emoji: "🍽️" },
-  { value: "vegetarian", label: "צמחוני", emoji: "🥗" },
-  { value: "vegan", label: "טבעוני", emoji: "🌱" },
-  { value: "mehadrin", label: "כשר מהדרין", emoji: "✡️" },
+  { value: "regular",     label: "רגיל",          emoji: "🍽️" },
+  { value: "vegetarian",  label: "צמחוני",         emoji: "🥗" },
+  { value: "vegan",       label: "טבעוני",         emoji: "🌱" },
+  { value: "mehadrin",    label: "כשר מהדרין",     emoji: "✡️" },
 ];
 
 interface GuestInfo {
@@ -28,26 +28,25 @@ interface EventInfo {
   date: string;
   address?: string | null;
   theme?: string | null;
+  rsvp_deadline?: string | null;
 }
 
-type Screen = "loading" | "error" | "form" | "done";
+type Screen = "loading" | "error" | "form" | "done" | "closed";
 
-export default function RsvpPage({
-  params,
-}: {
-  params: Promise<{ token: string }>;
-}) {
+export default function RsvpPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
 
-  const [screen,     setScreen]     = useState<Screen>("loading");
-  const [guest,      setGuest]      = useState<GuestInfo | null>(null);
-  const [event,      setEvent]      = useState<EventInfo | null>(null);
-  const [choice,     setChoice]     = useState<"confirmed" | "declined" | null>(null);
-  const [guestCount, setGuestCount] = useState(1);
-  const [meal,       setMeal]       = useState<MealOption | null>(null);
-  const [mealNote,   setMealNote]   = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [errorMsg,   setErrorMsg]   = useState("");
+  const [screen,      setScreen]      = useState<Screen>("loading");
+  const [guest,       setGuest]       = useState<GuestInfo | null>(null);
+  const [event,       setEvent]       = useState<EventInfo | null>(null);
+  const [choice,      setChoice]      = useState<"confirmed" | "declined" | null>(null);
+  const [guestCount,  setGuestCount]  = useState(1);
+  const [meal,        setMeal]        = useState<MealOption | null>(null);
+  const [mealNote,    setMealNote]    = useState("");
+  const [submitting,  setSubmitting]  = useState(false);
+  const [errorMsg,    setErrorMsg]    = useState("");
+  const [envelopeOpen, setEnvelopeOpen] = useState(false);
+  const [cardVisible,  setCardVisible]  = useState(false);
 
   useEffect(() => {
     fetch(`/api/rsvp/${token}`)
@@ -57,8 +56,25 @@ export default function RsvpPage({
         setGuest(data.guest);
         setEvent(data.event);
         setGuestCount(data.guest.guest_count ?? 1);
-        if (data.guest.status !== "pending") setScreen("done");
-        else setScreen("form");
+
+        // Check deadline
+        if (data.event?.rsvp_deadline) {
+          const deadline = new Date(data.event.rsvp_deadline);
+          deadline.setHours(23, 59, 59);
+          if (new Date() > deadline && data.guest.status === "pending") {
+            setScreen("closed");
+            return;
+          }
+        }
+
+        if (data.guest.status !== "pending") {
+          setScreen("done");
+        } else {
+          // Start envelope animation
+          setTimeout(() => setEnvelopeOpen(true), 400);
+          setTimeout(() => setCardVisible(true), 1200);
+          setTimeout(() => setScreen("form"), 1400);
+        }
       })
       .catch(() => setScreen("error"));
   }, [token]);
@@ -80,6 +96,12 @@ export default function RsvpPage({
       if (!res.ok) throw new Error("Server error");
       setGuest((g) => g ? { ...g, status: choice, guest_count: guestCount } : g);
       setScreen("done");
+      if (choice === "confirmed") {
+        try {
+          const text = `🎉 מגיעים לחתונה של ${event?.name ?? ""}! מחכים לחגוג ביחד 🤍`;
+          if (navigator.share) { navigator.share({ text }).catch(() => {}); }
+        } catch { /* ignore */ }
+      }
     } catch {
       setErrorMsg("אירעה שגיאה. נסו שוב.");
     } finally {
@@ -95,13 +117,63 @@ export default function RsvpPage({
       })
     : "";
 
-  if (screen === "loading") return <Shell theme={theme}><LoadingSpinner theme={theme} /></Shell>;
-  if (screen === "error")   return <Shell theme={theme}><ErrorScreen theme={theme} /></Shell>;
+  const deadlineStr = event?.rsvp_deadline
+    ? new Date(event.rsvp_deadline).toLocaleDateString("he-IL", { day: "numeric", month: "long" })
+    : null;
+
+  if (screen === "loading") {
+    // Show envelope animation while loading
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#F2EDE3" }}>
+        <style>{`
+          @keyframes envelopeOpen {
+            0%   { transform: perspective(600px) rotateX(0deg); }
+            100% { transform: perspective(600px) rotateX(-180deg); }
+          }
+          @keyframes cardRise {
+            0%   { opacity:0; transform: translateY(30px); }
+            100% { opacity:1; transform: translateY(0); }
+          }
+          @keyframes envelopeFade {
+            0%   { opacity:1; transform: scale(1); }
+            100% { opacity:0; transform: scale(0.85); }
+          }
+          .envelope-flap-open { animation: envelopeOpen 0.7s cubic-bezier(0.4,0,0.2,1) forwards; transform-origin: top center; }
+          .card-rise { animation: cardRise 0.5s ease forwards; }
+          .envelope-fade { animation: envelopeFade 0.4s ease forwards; }
+        `}</style>
+        <LoadingSpinner theme={theme} />
+      </div>
+    );
+  }
+
+  if (screen === "error") return <Shell theme={theme}><ErrorScreen theme={theme} /></Shell>;
+
+  if (screen === "closed") {
+    return (
+      <Shell theme={theme}>
+        <div className="text-center py-4">
+          <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5"
+            style={{ background: `rgba(197,164,109,0.1)`, border: `1.5px solid rgba(197,164,109,0.3)` }}>
+            <Clock size={38} style={{ color: theme.accentColor }} strokeWidth={1.5} />
+          </div>
+          <h2 className="text-2xl font-bold mb-2" style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif" }}>
+            ההזמנה נסגרה
+          </h2>
+          <p className="text-sm mb-2" style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif", lineHeight: 1.7 }}>
+            תאריך האחרון לאישור הגעה עבר.
+          </p>
+          <p className="text-sm" style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif" }}>
+            לפרטים נוספים, פנו ישירות לבעלי השמחה.
+          </p>
+        </div>
+      </Shell>
+    );
+  }
 
   if (screen === "done") {
     const confirmed = guest?.status === "confirmed";
 
-    // Build Google Calendar link
     const calUrl = (() => {
       if (!event?.date) return null;
       const d     = new Date(event.date);
@@ -124,8 +196,6 @@ export default function RsvpPage({
     return (
       <Shell theme={theme}>
         <div className="text-center" style={{ animation: "rsvpFadeUp 0.5s ease both" }}>
-
-          {/* Sparkles row */}
           {confirmed && (
             <div className="flex justify-center gap-3 mb-4" style={{ animation: "rsvpFadeUp 0.4s ease 0.1s both" }}>
               {["✦", "💛", "✦"].map((s, i) => (
@@ -139,27 +209,21 @@ export default function RsvpPage({
               ))}
             </div>
           )}
-
-          {/* Icon */}
-          <div
-            className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-5"
+          <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-5"
             style={{
               background: confirmed
                 ? `radial-gradient(circle, ${theme.accentColor}22 0%, ${theme.accentColor}0a 100%)`
                 : "rgba(197,164,109,0.08)",
               border: `1.5px solid ${theme.accentColor}44`,
               animation: "rsvpPop 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.15s both",
-            }}
-          >
+            }}>
             {confirmed
               ? <CheckCircle size={44} style={{ color: theme.accentColor }} strokeWidth={1.5} />
               : <XCircle    size={44} style={{ color: theme.accentColor }} strokeWidth={1.5} />}
           </div>
 
-          <h2
-            className="text-2xl font-bold mb-2"
-            style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif", lineHeight: 1.3 }}
-          >
+          <h2 className="text-2xl font-bold mb-2"
+            style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif", lineHeight: 1.3 }}>
             {confirmed ? "תודה שאישרתם!" : "קיבלנו את תגובתכם"}
           </h2>
 
@@ -187,39 +251,29 @@ export default function RsvpPage({
             </div>
           )}
 
-          {/* Calendar + Waze — shown only for confirmed guests */}
           {confirmed && (calUrl || wazeUrl) && (
             <div className="flex flex-col gap-2.5" style={{ animation: "rsvpFadeUp 0.4s ease 0.35s both" }}>
               {calUrl && (
-                <a
-                  href={calUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <a href={calUrl} target="_blank" rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2.5 w-full py-3.5 rounded-2xl text-sm font-medium transition-all duration-200 hover:opacity-85 hover:-translate-y-0.5"
-                  style={{ background: theme.accentBg, color: theme.accentColor, border: `1px solid ${theme.accentColor}33`, fontFamily: "Heebo, sans-serif", boxShadow: `0 2px 10px ${theme.accentColor}14` }}
-                >
+                  style={{ background: theme.accentBg, color: theme.accentColor, border: `1px solid ${theme.accentColor}33`, fontFamily: "Heebo, sans-serif", boxShadow: `0 2px 10px ${theme.accentColor}14` }}>
                   📅 הוסיפו ליומן Google
                 </a>
               )}
               {wazeUrl && (
-                <a
-                  href={wazeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <a href={wazeUrl} target="_blank" rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2.5 w-full py-3.5 rounded-2xl text-sm font-medium transition-all duration-200 hover:opacity-85 hover:-translate-y-0.5"
-                  style={{ background: "rgba(51,204,255,0.08)", color: "#0099CC", border: "1px solid rgba(51,204,255,0.25)", fontFamily: "Heebo, sans-serif" }}
-                >
+                  style={{ background: "rgba(51,204,255,0.08)", color: "#0099CC", border: "1px solid rgba(51,204,255,0.25)", fontFamily: "Heebo, sans-serif" }}>
                   🚗 נווטו לאולם — Waze
                 </a>
               )}
             </div>
           )}
 
-          {/* Share "I'm going!" */}
           {confirmed && (
             <button
               onClick={async () => {
-                const text = `🎉 מגיעים לחתונה של ${event?.name ?? ""}! מחכים לחגוג ביחד 💛`;
+                const text = `🎉 מגיעים לחתונה של ${event?.name ?? ""}! מחכים לחגוג ביחד 🤍`;
                 if (navigator.share) {
                   try { await navigator.share({ text }); } catch { /* cancelled */ }
                 } else {
@@ -228,8 +282,7 @@ export default function RsvpPage({
                 }
               }}
               className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-sm font-medium mt-3 transition-all duration-200 hover:opacity-85"
-              style={{ background: `${theme.accentColor}10`, color: theme.accentColor, border: `1px solid ${theme.accentColor}33`, fontFamily: "Heebo, sans-serif", boxShadow: `0 2px 10px ${theme.accentColor}0e` }}
-            >
+              style={{ background: `${theme.accentColor}10`, color: theme.accentColor, border: `1px solid ${theme.accentColor}33`, fontFamily: "Heebo, sans-serif" }}>
               <Share2 size={15} />
               שתפו שאתם מגיעים!
             </button>
@@ -239,6 +292,53 @@ export default function RsvpPage({
             style={{ background: `linear-gradient(90deg,transparent,${theme.accentColor},transparent)` }} />
         </div>
       </Shell>
+    );
+  }
+
+  /* ── Envelope animation screen ───────────── */
+  if (!cardVisible) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4"
+        style={{ background: theme.bodyBg === "#FFFFFF" || theme.bodyBg === "#111111"
+          ? theme.bodyBg
+          : `linear-gradient(160deg,${theme.bodyBg} 0%,${theme.bodyBg}ee 100%)` }}>
+        <style>{`
+          @keyframes envelopeFlap {
+            0%   { transform: perspective(400px) rotateX(0deg); }
+            100% { transform: perspective(400px) rotateX(-175deg); }
+          }
+          @keyframes letterRise {
+            0%   { transform: translateY(0); opacity:0.3; }
+            100% { transform: translateY(-55px); opacity:1; }
+          }
+          @keyframes envFade {
+            0%   { opacity:1; transform:scale(1); }
+            100% { opacity:0; transform:scale(0.92) translateY(12px); }
+          }
+          .env-body { position:relative; width:220px; height:140px; background:linear-gradient(145deg,#FDF5E6,#F5E8C8); border-radius:6px 6px 14px 14px; border:1.5px solid rgba(197,164,109,0.5); box-shadow:0 8px 32px rgba(197,164,109,0.2); }
+          .env-flap { position:absolute; top:0; left:0; right:0; height:0; border-right:110px solid transparent; border-left:110px solid transparent; border-top:70px solid #EDD99A; transform-origin:top center; }
+          .env-flap-open { animation: envelopeFlap 0.7s cubic-bezier(0.4,0,0.2,1) 0.3s forwards; }
+          .env-letter { position:absolute; bottom:10px; left:14px; right:14px; height:80px; background:white; border-radius:6px; border:1px solid rgba(197,164,109,0.3); display:flex;align-items:center;justify-content:center; }
+          .letter-rise { animation: letterRise 0.6s cubic-bezier(0.34,1.4,0.64,1) 0.9s forwards; }
+          .env-fade  { animation: envFade 0.4s ease 1.1s forwards; }
+        `}</style>
+
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:16 }}>
+          <div className={`env-body ${envelopeOpen ? "env-fade" : ""}`}>
+            <div className={`env-flap ${envelopeOpen ? "env-flap-open" : ""}`} />
+            <div style={{ position:"absolute", bottom:0, left:0, right:0, height:0, borderRight:"110px solid transparent", borderLeft:"110px solid transparent", borderBottom:"60px solid #E8D5A0" }} />
+            <div style={{ position:"absolute", top:"50%", left:0, right:0, height:0, borderRight:"110px solid #F0E2B2", borderLeft:"110px solid transparent" }} />
+            <div className={`env-letter ${envelopeOpen ? "letter-rise" : ""}`}>
+              <p style={{ fontFamily:"Frank Ruhl Libre, serif", fontSize:15, color:"#C5A46D", textAlign:"center", padding:"0 8px", lineHeight:1.4 }}>
+                {event?.name ?? "ההזמנה שלכם"}
+              </p>
+            </div>
+          </div>
+          <p style={{ fontSize:13, color:"rgba(28,16,8,0.45)", fontFamily:"Heebo, sans-serif" }}>
+            {envelopeOpen ? "פותח את ההזמנה..." : "יש לכם הזמנה 💌"}
+          </p>
+        </div>
+      </div>
     );
   }
 
@@ -253,16 +353,12 @@ export default function RsvpPage({
             <span style={{ fontSize: 10 }}>✦</span>
             <span style={{ fontSize: 10 }}>✦</span>
           </div>
-          <p
-            className="text-[10px] tracking-[0.26em] uppercase mb-2"
-            style={{ color: theme.accentColor, fontFamily: "Heebo, sans-serif" }}
-          >
+          <p className="text-[10px] tracking-[0.26em] uppercase mb-2"
+            style={{ color: theme.accentColor, fontFamily: "Heebo, sans-serif" }}>
             אתם מוזמנים
           </p>
-          <h1
-            className="text-3xl font-bold mb-1.5 leading-tight"
-            style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif" }}
-          >
+          <h1 className="text-3xl font-bold mb-1.5 leading-tight"
+            style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif" }}>
             {event.name}
           </h1>
           <p className="text-sm" style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif" }}>
@@ -273,26 +369,30 @@ export default function RsvpPage({
               📍 {event.address}
             </p>
           )}
+          {/* Deadline badge */}
+          {deadlineStr && (
+            <div className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full"
+              style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
+              <Clock size={11} style={{ color: "#EF4444" }} />
+              <span style={{ fontSize: 11, color: "#EF4444", fontFamily: "Heebo, sans-serif" }}>
+                אנא אשרו עד {deadlineStr}
+              </span>
+            </div>
+          )}
           <div className="w-14 h-px mx-auto mt-4"
             style={{ background: `linear-gradient(90deg,transparent,${theme.accentColor}88,transparent)` }} />
         </div>
       )}
 
-      {/* Greeting */}
-      <p
-        className="text-center text-base font-semibold mb-1"
-        style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif", animation: "rsvpFadeUp 0.4s ease 0.08s both" }}
-      >
+      <p className="text-center text-base font-semibold mb-1"
+        style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif", animation: "rsvpFadeUp 0.4s ease 0.08s both" }}>
         שלום {guest?.name} 🤍
       </p>
-      <p
-        className="text-center text-sm mb-6"
-        style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif", animation: "rsvpFadeUp 0.4s ease 0.12s both" }}
-      >
+      <p className="text-center text-sm mb-6"
+        style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif", animation: "rsvpFadeUp 0.4s ease 0.12s both" }}>
         האם תוכלו להגיע לאירוע?
       </p>
 
-      {/* Confirm / Decline buttons */}
       <div className="flex flex-col gap-3 mb-6" style={{ animation: "rsvpFadeUp 0.4s ease 0.18s both" }}>
         <button
           onClick={() => { setChoice("confirmed"); setGuestCount(guest?.guest_count ?? 1); }}
@@ -308,8 +408,7 @@ export default function RsvpPage({
               ? `0 6px 24px ${theme.accentColor}30, 0 2px 8px ${theme.accentColor}18`
               : `0 1px 4px rgba(0,0,0,0.04)`,
             transform: choice === "confirmed" ? "scale(1.015)" : "scale(1)",
-          }}
-        >
+          }}>
           <CheckCircle size={20} strokeWidth={choice === "confirmed" ? 2 : 1.5} />
           כן, נגיע! 🎉
         </button>
@@ -322,69 +421,49 @@ export default function RsvpPage({
             background: choice === "declined" ? "rgba(90,75,65,0.08)" : "transparent",
             color: choice === "declined" ? "#7A6A5A" : theme.mutedColor,
             border: `1.5px solid ${choice === "declined" ? "rgba(90,75,65,0.3)" : theme.cardBorder}`,
-          }}
-        >
+          }}>
           <XCircle size={16} strokeWidth={1.5} />
           לא נוכל להגיע
         </button>
       </div>
 
-      {/* Guest count */}
       {choice === "confirmed" && (
-        <div
-          className="rounded-2xl p-5 mb-5"
-          style={{ background: theme.accentBg, border: `1px solid ${theme.accentBorder}` }}
-        >
-          <p
-            className="text-sm font-semibold mb-3 flex items-center gap-2"
-            style={{ color: theme.headingColor, fontFamily: "Heebo, sans-serif" }}
-          >
+        <div className="rounded-2xl p-5 mb-5"
+          style={{ background: theme.accentBg, border: `1px solid ${theme.accentBorder}` }}>
+          <p className="text-sm font-semibold mb-3 flex items-center gap-2"
+            style={{ color: theme.headingColor, fontFamily: "Heebo, sans-serif" }}>
             <Users size={16} style={{ color: theme.accentColor }} />
             כמה אורחים מגיעים?
           </p>
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => setGuestCount((c) => Math.max(1, c - 1))}
+            <button onClick={() => setGuestCount((c) => Math.max(1, c - 1))}
               className="w-10 h-10 rounded-xl text-xl font-bold flex items-center justify-center transition-all"
-              style={{ background: theme.cardBg, border: `1px solid ${theme.accentBorder}`, color: theme.accentColor }}
-            >
+              style={{ background: theme.cardBg, border: `1px solid ${theme.accentBorder}`, color: theme.accentColor }}>
               −
             </button>
-            <span
-              className="text-3xl font-bold w-12 text-center"
-              style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif" }}
-            >
+            <span className="text-3xl font-bold w-12 text-center"
+              style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif" }}>
               {guestCount}
             </span>
-            <button
-              onClick={() => setGuestCount((c) => Math.min(20, c + 1))}
+            <button onClick={() => setGuestCount((c) => Math.min(20, c + 1))}
               className="w-10 h-10 rounded-xl text-xl font-bold flex items-center justify-center transition-all"
-              style={{ background: theme.cardBg, border: `1px solid ${theme.accentBorder}`, color: theme.accentColor }}
-            >
+              style={{ background: theme.cardBg, border: `1px solid ${theme.accentBorder}`, color: theme.accentColor }}>
               +
             </button>
           </div>
         </div>
       )}
 
-      {/* Meal preference */}
       {choice === "confirmed" && (
-        <div
-          className="rounded-2xl p-5 mb-5"
-          style={{ background: theme.accentBg, border: `1px solid ${theme.accentBorder}` }}
-        >
-          <p
-            className="text-sm font-semibold mb-3"
-            style={{ color: theme.headingColor, fontFamily: "Heebo, sans-serif" }}
-          >
+        <div className="rounded-2xl p-5 mb-5"
+          style={{ background: theme.accentBg, border: `1px solid ${theme.accentBorder}` }}>
+          <p className="text-sm font-semibold mb-3"
+            style={{ color: theme.headingColor, fontFamily: "Heebo, sans-serif" }}>
             העדפת מנה
           </p>
           <div className="grid grid-cols-2 gap-2 mb-3">
             {MEAL_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setMeal(opt.value)}
+              <button key={opt.value} type="button" onClick={() => setMeal(opt.value)}
                 className="py-3 px-3 rounded-xl text-sm font-medium flex items-center gap-2 transition-all"
                 style={{
                   fontFamily: "Heebo, sans-serif",
@@ -393,27 +472,16 @@ export default function RsvpPage({
                     : theme.cardBg,
                   color: meal === opt.value ? "white" : theme.accentColor,
                   border: `1.5px solid ${meal === opt.value ? "transparent" : theme.accentBorder}`,
-                }}
-              >
+                }}>
                 <span>{opt.emoji}</span>
                 {opt.label}
               </button>
             ))}
           </div>
-          <input
-            type="text"
-            placeholder="הערה למנה (אופציונלי)"
-            value={mealNote}
-            onChange={(e) => setMealNote(e.target.value)}
-            maxLength={120}
+          <input type="text" placeholder="הערה למנה (אופציונלי)"
+            value={mealNote} onChange={(e) => setMealNote(e.target.value)} maxLength={120}
             className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
-            style={{
-              fontFamily: "Heebo, sans-serif",
-              background: theme.cardBg,
-              border: `1px solid ${theme.accentBorder}`,
-              color: theme.headingColor,
-            }}
-          />
+            style={{ fontFamily: "Heebo, sans-serif", background: theme.cardBg, border: `1px solid ${theme.accentBorder}`, color: theme.headingColor }} />
         </div>
       )}
 
@@ -423,20 +491,15 @@ export default function RsvpPage({
         </p>
       )}
 
-      <button
-        onClick={handleSubmit}
-        disabled={!choice || submitting}
+      <button onClick={handleSubmit} disabled={!choice || submitting}
         className="w-full py-4 rounded-2xl font-semibold text-base flex items-center justify-center gap-2.5 transition-all duration-200 disabled:opacity-40"
         style={{
           fontFamily: "Heebo, sans-serif",
           background: `linear-gradient(135deg,${theme.accentColor},${theme.accentColor}bb)`,
           color: "white",
           boxShadow: choice ? `0 4px 20px ${theme.accentColor}33` : "none",
-        }}
-      >
-        {submitting
-          ? <Loader2 size={18} className="animate-spin" />
-          : "שלחו אישור ✓"}
+        }}>
+        {submitting ? <Loader2 size={18} className="animate-spin" /> : "שלחו אישור ✓"}
       </button>
 
       <p className="text-center text-xs mt-5" style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif" }}>
@@ -446,16 +509,12 @@ export default function RsvpPage({
   );
 }
 
-/* ── Shared wrapper ─────────────────────────────────── */
 function Shell({ theme, children }: { theme: EventTheme; children: React.ReactNode }) {
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-4"
+    <div className="min-h-screen flex items-center justify-center p-4"
       style={{ background: theme.bodyBg === "#FFFFFF" || theme.bodyBg === "#111111"
         ? theme.bodyBg
-        : `linear-gradient(160deg,${theme.bodyBg} 0%,${theme.bodyBg}ee 100%)` }}
-    >
-      {/* Corner ornaments */}
+        : `linear-gradient(160deg,${theme.bodyBg} 0%,${theme.bodyBg}ee 100%)` }}>
       {(["top-6 right-6","top-6 left-6 scale-x-[-1]","bottom-6 right-6 scale-y-[-1]","bottom-6 left-6 -scale-x-100 scale-y-[-1]"] as const).map((p) => (
         <div key={p} className={`fixed ${p} opacity-20 pointer-events-none`}>
           <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
@@ -464,15 +523,8 @@ function Shell({ theme, children }: { theme: EventTheme; children: React.ReactNo
           </svg>
         </div>
       ))}
-
-      <div
-        className="w-full max-w-sm rounded-3xl p-7"
-        style={{
-          background: theme.cardBg,
-          border: `1px solid ${theme.cardBorder}`,
-          boxShadow: theme.cardShadow,
-        }}
-      >
+      <div className="w-full max-w-sm rounded-3xl p-7"
+        style={{ background: theme.cardBg, border: `1px solid ${theme.cardBorder}`, boxShadow: theme.cardShadow }}>
         {children}
       </div>
     </div>

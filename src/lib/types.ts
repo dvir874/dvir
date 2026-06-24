@@ -86,6 +86,10 @@ export interface Event {
   client_email?: string | null;
   notes?: string | null;
   created_at: string;
+  payment_status?: string | null;
+  payment_amount?: number | null;
+  payment_date?: string | null;
+  rsvp_deadline?: string | null;
 }
 
 export interface EventSummary {

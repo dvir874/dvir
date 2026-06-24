@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState, useCallback } from "react";
+import { use, useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   CheckCircle, Clock, XCircle, Users, Loader2, AlertCircle,
@@ -210,6 +210,13 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
   const [showAlerts,  setShowAlerts]  = useState(true);
   const [actionBusy,  setActionBusy]  = useState<string | null>(null);
   const [actionDone,  setActionDone]  = useState<Set<string>>(new Set());
+  const [rsvpToast,      setRsvpToast]      = useState("");
+  const [announcements,  setAnnouncements]  = useState<{ id: string; message: string; created_at: string }[]>([]);
+  const [missingItems,   setMissingItems]   = useState<{ label: string; severity: "high" | "medium" | "low" }[]>([]);
+  const [missingOpen,    setMissingOpen]    = useState(false);
+  const [missingLoading, setMissingLoading] = useState(false);
+  const [showCalendar,   setShowCalendar]   = useState(false);
+  const prevConfirmedRef = useRef<number | null>(null);
 
   const load = useCallback(async () => {
     const [mainRes, briefRes, onboardRes] = await Promise.all([
@@ -231,6 +238,47 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
   }, [token, router]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Live RSVP polling — beep + toast when new confirmation arrives
+  useEffect(() => {
+    const id = setInterval(async () => {
+      try {
+        const r = await fetch(`/api/couple/${token}`);
+        const d = await r.json();
+        if (d.error) return;
+        const nowConfirmed: number = d.stats?.confirmed ?? 0;
+        if (prevConfirmedRef.current !== null && nowConfirmed > prevConfirmedRef.current) {
+          // Play a gentle beep via AudioContext
+          try {
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.frequency.value = 880;
+            osc.type = "sine";
+            gain.gain.setValueAtTime(0, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+            osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.6);
+          } catch { /* no audio permission */ }
+          const diff = nowConfirmed - prevConfirmedRef.current;
+          setRsvpToast(`🎉 ${diff === 1 ? "אורח חדש אישר הגעה!" : `${diff} אורחים חדשים אישרו!`}`);
+          setTimeout(() => setRsvpToast(""), 4000);
+          setData(d);
+        }
+        prevConfirmedRef.current = nowConfirmed;
+      } catch { /* ignore */ }
+    }, 30_000);
+    return () => clearInterval(id);
+  }, [token]);
+
+  // Fetch announcements from admin
+  useEffect(() => {
+    fetch(`/api/couple/${token}/announcements`)
+      .then(r => r.json())
+      .then(d => Array.isArray(d) && setAnnouncements(d))
+      .catch(() => {});
+  }, [token]);
 
   useEffect(() => {
     if (!data?.event?.id) return;
@@ -331,6 +379,13 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
 
   return (
     <div dir="rtl" style={{ minHeight: "100vh", background: theme.bgPage, fontFamily: "Heebo, sans-serif", color: C.dark }}>
+
+      {/* Live RSVP toast */}
+      {rsvpToast && (
+        <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: C.olive, color: "white", padding: "0.65rem 1.5rem", borderRadius: 30, fontSize: 14, fontFamily: "Heebo, sans-serif", fontWeight: 600, boxShadow: "0 4px 20px rgba(107,123,90,0.4)", animation: "slideCard 0.3s ease", whiteSpace: "nowrap" }}>
+          {rsvpToast}
+        </div>
+      )}
 
       {/* Header */}
       <style>{`
@@ -608,6 +663,103 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         {/* Smart Recommendations */}
         <SmartRecommendations tasks={tasks} daysLeft={daysLeft} onComplete={toggleTask} />
 
+        {/* #15 — 7-day countdown bell */}
+        {daysLeft <= 7 && daysLeft > 0 && (
+          <div style={{ background: "linear-gradient(135deg, #7B2D8B, #4A1060)", borderRadius: "1.25rem", padding: "1.25rem", marginBottom: "1rem", boxShadow: "0 4px 20px rgba(123,45,139,0.25)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 28, animation: "coupleFloat 1.5s ease-in-out infinite" }}>🔔</span>
+              <div>
+                <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.05rem", fontWeight: 700, color: "white", margin: 0 }}>
+                  {daysLeft === 1 ? "מחר זה הגדול! 🎊" : `עוד ${daysLeft} ימים לחתונה!`}
+                </p>
+                <p style={{ fontSize: 12, color: "rgba(255,220,255,0.8)", margin: "3px 0 0", fontFamily: "Heebo, sans-serif" }}>
+                  {daysLeft <= 3 ? "הכל מוכן? אתם מדהימים 💜" : "הגיע הזמן לסיים כל פריט אחרון ✓"}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* #16 — Admin announcements */}
+        {announcements.length > 0 && (
+          <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.875rem" }}>
+              <span style={{ fontSize: 16 }}>📢</span>
+              <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, margin: 0 }}>עדכונים ממנהל האירוע</h2>
+              <span style={{ marginRight: "auto", background: "rgba(197,164,109,0.15)", color: C.gold, borderRadius: 10, fontSize: 11, padding: "1px 8px" }}>{announcements.length}</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+              {announcements.map(a => (
+                <div key={a.id} style={{ padding: "0.75rem 1rem", borderRadius: 12, background: "rgba(197,164,109,0.07)", border: `1px solid ${C.border}` }}>
+                  <p style={{ fontSize: 13, color: C.dark, margin: 0, lineHeight: 1.55, fontFamily: "Heebo, sans-serif" }}>{a.message}</p>
+                  <p style={{ fontSize: 11, color: C.muted, margin: "4px 0 0", fontFamily: "Heebo, sans-serif" }}>
+                    {new Date(a.created_at).toLocaleDateString("he-IL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* #13 — Mini calendar */}
+        <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
+          <button onClick={() => setShowCalendar(c => !c)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", padding: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 16 }}>📅</span>
+              <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "0.95rem", fontWeight: 700, margin: 0, color: C.dark }}>לוח זמנים</h3>
+            </div>
+            <ChevronDown size={15} style={{ color: C.muted, transform: showCalendar ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+          </button>
+          {showCalendar && (
+            <MiniCalendar tasks={tasks} eventDate={event.date} />
+          )}
+        </div>
+
+        {/* #14 — What's missing */}
+        <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 16 }}>🔍</span>
+              <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "0.95rem", fontWeight: 700, margin: 0, color: C.dark }}>מה עוד חסר?</h3>
+            </div>
+            <button
+              onClick={async () => {
+                if (missingOpen) { setMissingOpen(false); return; }
+                setMissingLoading(true);
+                const res = await fetch(`/api/couple/${token}/missing`);
+                const d = await res.json();
+                setMissingItems(d.missing ?? []);
+                setMissingOpen(true);
+                setMissingLoading(false);
+              }}
+              style={{ padding: "0.35rem 0.875rem", borderRadius: 20, border: `1px solid ${C.gold}`, background: "transparent", color: C.gold, cursor: "pointer", fontSize: 12, fontFamily: "Heebo, sans-serif", display: "flex", alignItems: "center", gap: 5 }}>
+              {missingLoading ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : null}
+              {missingOpen ? "סגור" : "סרוק"}
+            </button>
+          </div>
+          {missingOpen && (
+            <div style={{ marginTop: "0.875rem" }}>
+              {missingItems.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "0.75rem 0" }}>
+                  <span style={{ fontSize: 28 }}>🎉</span>
+                  <p style={{ fontSize: 13, color: C.olive, fontWeight: 600, margin: "6px 0 0", fontFamily: "Heebo, sans-serif" }}>הכל נראה מוכן! כל הכבוד</p>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  {missingItems.map((item, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "0.6rem 0.875rem", borderRadius: 10,
+                      background: item.severity === "high" ? "rgba(192,57,43,0.06)" : item.severity === "medium" ? "rgba(197,164,109,0.08)" : "rgba(107,123,90,0.06)",
+                      border: `1px solid ${item.severity === "high" ? "rgba(192,57,43,0.2)" : item.severity === "medium" ? "rgba(197,164,109,0.25)" : "rgba(107,123,90,0.2)"}` }}>
+                      <span style={{ fontSize: 14 }}>{item.severity === "high" ? "🔴" : item.severity === "medium" ? "🟡" : "🟢"}</span>
+                      <p style={{ fontSize: 13, color: C.dark, margin: 0, fontFamily: "Heebo, sans-serif" }}>{item.label}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* RSVP Visual Counter */}
         <RsvpCounter stats={stats} />
 
@@ -620,17 +772,17 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         {/* Vendor Book */}
         <VendorBook token={token} />
 
-        {/* Gallery link */}
+        {/* Gallery link — #20 enhanced */}
         <a href={`/gallery/${token}`} style={{ textDecoration: "none", display: "block", marginBottom: "0.875rem" }}>
-          <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(197,164,109,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Camera size={20} style={{ color: C.gold }} />
+          <div style={{ background: "linear-gradient(135deg, rgba(197,164,109,0.12), rgba(197,164,109,0.04))", borderRadius: "1.25rem", border: `1.5px solid rgba(197,164,109,0.30)`, padding: "1.25rem", boxShadow: C.shadow, display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: "linear-gradient(135deg, #C5A46D, #9B7040)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(197,164,109,0.3)" }}>
+              <Camera size={22} style={{ color: "white" }} />
             </div>
             <div style={{ flex: 1 }}>
-              <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "0.95rem", fontWeight: 700, margin: 0, color: C.dark }}>גלריית תמונות</h3>
-              <p style={{ fontSize: 12, color: C.muted, margin: "2px 0 0" }}>תמונות מהאירוע — שתפו עם האורחים</p>
+              <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, margin: 0, color: C.dark }}>אלבום תמונות האירוע</h3>
+              <p style={{ fontSize: 12, color: C.muted, margin: "2px 0 0" }}>האורחים שלכם מעלים תמונות ישירות לאלבום המשותף</p>
             </div>
-            <span style={{ fontSize: 11, color: C.gold, flexShrink: 0 }}>←</span>
+            <span style={{ fontSize: 11, color: C.gold, flexShrink: 0, fontWeight: 600 }}>פתח ←</span>
           </div>
         </a>
 
@@ -1553,6 +1705,60 @@ function MoodBoard({ token, eventId }: { token: string; eventId: string }) {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── MiniCalendar ───────────────────────────────────────────── */
+function MiniCalendar({ tasks, eventDate }: { tasks: WeddingTask[]; eventDate: string }) {
+  const today = new Date();
+  const wedding = new Date(eventDate);
+  // Show next 30 days
+  const upcoming = tasks
+    .filter(t => !t.completed && t.due_date)
+    .map(t => ({ ...t, dueDate: new Date(t.due_date!) }))
+    .filter(t => t.dueDate >= today)
+    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+    .slice(0, 8);
+
+  const milestones = [
+    { label: "החתונה! 💍", date: wedding, color: C.gold, important: true },
+    ...upcoming.map(t => ({ label: t.title, date: t.dueDate, color: C.olive, important: false })),
+  ].sort((a, b) => a.date.getTime() - b.date.getTime()).slice(0, 8);
+
+  if (milestones.length === 0) {
+    return (
+      <div style={{ marginTop: "0.875rem", textAlign: "center", padding: "0.75rem 0" }}>
+        <p style={{ fontSize: 12, color: C.muted, fontFamily: "Heebo, sans-serif" }}>
+          הוסיפו תאריכי יעד למשימות כדי לראות לוח זמנים
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: "0.875rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+      {milestones.map((m, i) => {
+        const diff = Math.ceil((m.date.getTime() - today.getTime()) / 86_400_000);
+        const dateStr = m.date.toLocaleDateString("he-IL", { day: "numeric", month: "long" });
+        return (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "0.6rem 0.875rem", borderRadius: 10,
+            background: m.important ? "rgba(197,164,109,0.10)" : "transparent",
+            border: `1px solid ${m.important ? "rgba(197,164,109,0.3)" : C.border}` }}>
+            <div style={{ width: 36, textAlign: "center", flexShrink: 0 }}>
+              <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 18, fontWeight: 700, color: m.color, margin: 0, lineHeight: 1 }}>{m.date.getDate()}</p>
+              <p style={{ fontSize: 10, color: C.muted, margin: 0 }}>{m.date.toLocaleDateString("he-IL", { month: "short" })}</p>
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 13, fontWeight: m.important ? 700 : 500, color: C.dark, margin: 0, fontFamily: "Heebo, sans-serif" }}>{m.label}</p>
+              <p style={{ fontSize: 11, color: C.muted, margin: "1px 0 0", fontFamily: "Heebo, sans-serif" }}>{dateStr}</p>
+            </div>
+            <span style={{ fontSize: 11, color: diff <= 3 ? "#C0392B" : C.muted, fontFamily: "Heebo, sans-serif", fontWeight: diff <= 7 ? 600 : 400, flexShrink: 0 }}>
+              {diff === 0 ? "היום!" : diff === 1 ? "מחר" : `עוד ${diff} ימים`}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }

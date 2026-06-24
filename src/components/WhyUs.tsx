@@ -52,18 +52,46 @@ const cards = [
 
 export default function WhyUs() {
   return (
-    <section
+    <motion.section
       id="why-us"
-      className="section-padding relative overflow-hidden bg-white"
-      style={{ borderBottom: "1px solid rgba(197,164,109,0.12)" }}
+      className="section-padding relative overflow-hidden"
+      style={{ borderBottom: "1px solid rgba(197,164,109,0.12)", background: "white" }}
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
+      viewport={{ once: true, amount: 0.15 }}
+      transition={{ duration: 0.5 }}
     >
-      <div className="container-max mx-auto">
-        <FadeIn className="text-center mb-10">
+      {/* Gold line sweep from right */}
+      <motion.div
+        initial={{ scaleX: 0, originX: 1 }}
+        whileInView={{ scaleX: 1 }}
+        viewport={{ once: true, amount: 0.3 }}
+        transition={{ duration: 0.9, ease: "easeOut" }}
+        style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg, transparent, #C5A46D, transparent)", transformOrigin: "right" }}
+      />
+
+      {/* Soft background wash */}
+      <motion.div
+        initial={{ opacity: 0, scale: 1.1 }}
+        whileInView={{ opacity: 1, scale: 1 }}
+        viewport={{ once: true }}
+        transition={{ duration: 1.2, ease: "easeOut" }}
+        style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 0%, rgba(197,164,109,0.06) 0%, transparent 65%)", pointerEvents: "none" }}
+      />
+
+      <div className="container-max mx-auto" style={{ position: "relative" }}>
+        <motion.div
+          className="text-center mb-10"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.5 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
           <h2 className="section-title">למה לבחור ברגע לפני?</h2>
           <p className="section-subtitle">
             טכנולוגיה חכמה עם ליווי אישי. כדי שתוכלו להיות נוכחים ברגעים שחשובים באמת
           </p>
-        </FadeIn>
+        </motion.div>
 
         <StaggerContainer
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-5xl mx-auto"
@@ -75,7 +103,7 @@ export default function WhyUs() {
               <motion.div
                 key={card.title}
                 variants={staggerItem}
-                className="h-full flex gap-5 p-7 rounded-2xl cursor-default transition-shadow duration-300 hover:shadow-[0_8px_32px_rgba(197,164,109,0.12)]"
+                className="h-full flex gap-5 p-7 rounded-2xl cursor-default transition-all duration-300 hover:shadow-[0_8px_32px_rgba(197,164,109,0.14)] hover:-translate-y-1"
                 style={{
                   background: "#FDFAF5",
                   border: "1px solid rgba(197,164,109,0.18)",
@@ -106,6 +134,15 @@ export default function WhyUs() {
           })}
         </StaggerContainer>
       </div>
-    </section>
+
+      {/* Gold line sweep at bottom */}
+      <motion.div
+        initial={{ scaleX: 0, originX: 0 }}
+        whileInView={{ scaleX: 1 }}
+        viewport={{ once: true, amount: 0.8 }}
+        transition={{ duration: 0.9, ease: "easeOut", delay: 0.3 }}
+        style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent, rgba(197,164,109,0.4), transparent)", transformOrigin: "left" }}
+      />
+    </motion.section>
   );
 }

@@ -341,13 +341,23 @@ export default function AdminPage() {
   const [page,            setPage]            = useState(1);
 
   // Create event form
-  const [showCreate,  setShowCreate]  = useState(false);
-  const [newName,     setNewName]     = useState("");
-  const [newDate,     setNewDate]     = useState("");
-  const [newAddress,  setNewAddress]  = useState("");
-  const [newTheme,    setNewTheme]    = useState<ThemeId>(DEFAULT_THEME_ID);
-  const [newPhone,    setNewPhone]    = useState("");
-  const [creating,    setCreating]    = useState(false);
+  const [showCreate,        setShowCreate]        = useState(false);
+  const [newName,           setNewName]           = useState("");
+  const [newDate,           setNewDate]           = useState("");
+  const [newAddress,        setNewAddress]        = useState("");
+  const [newTheme,          setNewTheme]          = useState<ThemeId>(DEFAULT_THEME_ID);
+  const [newPhone,          setNewPhone]          = useState("");
+  const [newRsvpDeadline,   setNewRsvpDeadline]   = useState("");
+  const [creating,          setCreating]          = useState(false);
+
+  // Extra modals
+  const [showBroadcast,     setShowBroadcast]     = useState(false);
+  const [broadcastMsg,      setBroadcastMsg]      = useState("");
+  const [broadcastLoading,  setBroadcastLoading]  = useState(false);
+  const [showAnnounce,      setShowAnnounce]      = useState(false);
+  const [announceMsg,       setAnnounceMsg]       = useState("");
+  const [announceLoading,   setAnnounceLoading]   = useState(false);
+  const [showContractModal, setShowContractModal] = useState(false);
 
   // Import
   const fileRef                       = useRef<HTMLInputElement>(null);
@@ -396,6 +406,10 @@ export default function AdminPage() {
   const [infoParking,    setInfoParking]    = useState("");
   const [infoGreeting,   setInfoGreeting]   = useState("");
   const [savingInfo,     setSavingInfo]     = useState(false);
+  const [showPayModal,   setShowPayModal]   = useState(false);
+  const [payAmount,      setPayAmount]      = useState("499");
+  const [payDesc,        setPayDesc]        = useState("");
+  const [payLoading,     setPayLoading]     = useState(false);
 
   // Dropdown menus (click-based)
   const [showEventDropdown, setShowEventDropdown] = useState(false);
@@ -631,7 +645,7 @@ export default function AdminPage() {
     const res = await fetch("/api/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName, date: newDate, address: newAddress, theme: newTheme, client_phone: newPhone.trim() || undefined }),
+      body: JSON.stringify({ name: newName, date: newDate, address: newAddress, theme: newTheme, client_phone: newPhone.trim() || undefined, rsvp_deadline: newRsvpDeadline || undefined }),
     });
     const data: Event = await res.json();
     setEvents((e) => [...e, data]);
@@ -970,6 +984,13 @@ export default function AdminPage() {
                   }} className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-amber-50 transition-colors" style={{ color: C.dark, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
                     ✏️ פרטי הזמנה
                   </button>
+
+                  <button onClick={() => {
+                    setPayDesc(`ניהול חתונה — ${selectedEvent?.name ?? ""}`);
+                    setShowPayModal(true); setShowCoupleMenu(false);
+                  }} className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-green-50 transition-colors" style={{ color: "#1A9B4E", fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer", borderTop: "1px solid rgba(197,164,109,0.10)" }}>
+                    💳 גבה תשלום
+                  </button>
                 </div>
               )}
             </div>
@@ -1002,6 +1023,41 @@ export default function AdminPage() {
                 {selectedEventId && (
                   <>
                     <div style={{ height: 1, background: "rgba(107,123,90,0.12)", margin: "0 12px" }} />
+                    <button onClick={() => { setShowBroadcast(true); setShowToolsMenu(false); }}
+                      className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-blue-50 transition-colors" style={{ color: "#1A6FBF", fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
+                      📣 שלח הודעה לכל האורחים
+                    </button>
+                    <button onClick={() => { setShowAnnounce(true); setShowToolsMenu(false); }}
+                      className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-amber-50 transition-colors" style={{ color: C.gold, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
+                      📢 פרסם עדכון לזוג
+                    </button>
+                    <button onClick={async () => {
+                      if (!selectedEvent?.client_phone) { alert("לא הוגדר טלפון לזוג"); return; }
+                      const phone = selectedEvent.client_phone.replace(/\D/g,"").replace(/^0/,"972");
+                      const url = `https://g.page/r/YOUR_GOOGLE_PLACE_ID/review`;
+                      const msg = encodeURIComponent(`שלום! 🌟\nשמחנו לנהל את החתונה שלכם.\nנשמח אם תשאירו לנו ביקורת קצרה:\n${url}`);
+                      window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
+                      setShowToolsMenu(false);
+                    }} className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-amber-50 transition-colors" style={{ color: "#E67E22", fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
+                      ⭐ בקש ביקורת Google
+                    </button>
+                    {selectedEvent?.client_phone && (() => {
+                      const phone = selectedEvent.client_phone!.replace(/\D/g,"").replace(/^0/,"972");
+                      const eventDate = selectedEvent.date ? new Date(selectedEvent.date).toLocaleDateString("he-IL", { day: "numeric", month: "long" }) : "";
+                      const venue = selectedEvent.address ?? "האולם";
+                      const msg = encodeURIComponent(`🎊 היום זה הגדול!\nהחתונה של ${selectedEvent.name} — ${eventDate}\n📍 ${venue}\n\nמחכים לחגוג איתכם! 🤍`);
+                      return (
+                        <a href={`https://wa.me/${phone}?text=${msg}`} target="_blank" rel="noopener noreferrer" onClick={() => setShowToolsMenu(false)}
+                          className="flex items-center gap-2 px-4 py-3 text-xs hover:bg-green-50 transition-colors" style={{ color: "#1A9B4E", fontFamily: "Heebo, sans-serif", textDecoration: "none" }}>
+                          🎉 שלח ברכת יום האירוע לזוג
+                        </a>
+                      );
+                    })()}
+                    <div style={{ height: 1, background: "rgba(107,123,90,0.12)", margin: "0 12px" }} />
+                    <button onClick={() => { setShowContractModal(true); setShowToolsMenu(false); }}
+                      className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-amber-50 transition-colors" style={{ color: C.dark, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
+                      📝 צור חוזה שירות
+                    </button>
                     <button onClick={async () => {
                       try {
                         const res = await fetch("/api/coupons", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ created_by_event_id: selectedEventId, discount_pct: 10, description: "הפניית חבר" }) });
@@ -1196,6 +1252,247 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* ── Payment modal ───────────────────────────── */}
+      {showPayModal && selectedEventId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl p-6" style={{ background: "#FDFAF5", boxShadow: "0 24px 60px rgba(0,0,0,0.18)" }}>
+            <h2 className="text-lg font-bold mb-1" style={{ fontFamily: "Frank Ruhl Libre, serif", color: C.dark }}>💳 גביית תשלום</h2>
+            <p className="text-xs mb-4" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>{selectedEvent?.name}</p>
+
+            {/* Package shortcuts */}
+            <p className="text-xs font-semibold mb-2" style={{ color: C.muted }}>בחר חבילה:</p>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {[
+                { label: "בסיסי",  price: 299, desc: "הזמנה + RSVP" },
+                { label: "מלא",    price: 499, desc: "הכל כלול" },
+                { label: "פרימיום", price: 799, desc: "פרימיום + ליווי" },
+              ].map(p => (
+                <button key={p.price} onClick={() => { setPayAmount(String(p.price)); setPayDesc(`${p.label} — ${selectedEvent?.name ?? ""}`); }}
+                  className="rounded-xl p-3 text-center transition-all"
+                  style={{ border: `1.5px solid ${payAmount === String(p.price) ? C.gold : C.border}`, background: payAmount === String(p.price) ? `rgba(197,164,109,0.10)` : "white", cursor: "pointer" }}>
+                  <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 16, fontWeight: 700, color: C.gold, margin: 0 }}>₪{p.price}</p>
+                  <p style={{ fontSize: 10, color: C.dark, margin: "2px 0 0", fontFamily: "Heebo, sans-serif" }}>{p.label}</p>
+                  <p style={{ fontSize: 9, color: C.muted, fontFamily: "Heebo, sans-serif" }}>{p.desc}</p>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-3 mb-5">
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: C.muted }}>סכום מותאם (₪)</label>
+                <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} min={1}
+                  className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+                  style={{ border: `1px solid ${C.border}`, fontFamily: "Frank Ruhl Libre, serif", fontSize: 16, fontWeight: 700, color: C.gold }} />
+              </div>
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: C.muted }}>תיאור (יופיע בקבלה)</label>
+                <input value={payDesc} onChange={e => setPayDesc(e.target.value)}
+                  className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+                  style={{ border: `1px solid ${C.border}`, fontFamily: "Heebo, sans-serif" }} />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                disabled={payLoading || !payAmount || Number(payAmount) <= 0}
+                onClick={async () => {
+                  setPayLoading(true);
+                  try {
+                    const res = await fetch("/api/stripe/checkout", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ event_id: selectedEventId, amount: Number(payAmount), description: payDesc }),
+                    });
+                    const data = await res.json();
+                    if (data.url) {
+                      // Copy link + optionally open
+                      await navigator.clipboard.writeText(data.url);
+                      const phone = selectedEvent?.client_phone?.replace(/[^0-9]/g,"").replace(/^0/,"972") ?? "";
+                      const waMsg = encodeURIComponent(`שלום! 💛\nהנה קישור לתשלום עבור החבילה שלכם:\n${data.url}`);
+                      if (phone) window.open(`https://wa.me/${phone}?text=${waMsg}`, "_blank");
+                      else window.open(data.url, "_blank");
+                      setShowPayModal(false);
+                    } else { alert(data.error ?? "שגיאה ביצירת קישור"); }
+                  } catch { alert("שגיאה ביצירת קישור"); }
+                  setPayLoading(false);
+                }}
+                className="flex-1 py-2.5 rounded-xl font-semibold text-sm"
+                style={{ background: payLoading ? "rgba(37,211,102,0.4)" : "linear-gradient(135deg,#1A9B4E,#0f6b35)", color: "white", fontFamily: "Heebo, sans-serif", border: "none", cursor: "pointer", opacity: (!payAmount || Number(payAmount) <= 0) ? 0.5 : 1 }}>
+                {payLoading ? "מייצר קישור..." : `שלח קישור תשלום ₪${payAmount}`}
+              </button>
+              <button onClick={() => setShowPayModal(false)}
+                className="px-4 py-2.5 rounded-xl text-sm"
+                style={{ background: "rgba(51,51,51,0.07)", color: C.muted, fontFamily: "Heebo, sans-serif", border: "none", cursor: "pointer" }}>
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Broadcast modal (#24) ── */}
+      {showBroadcast && selectedEventId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl p-6" style={{ background: "#FDFAF5", boxShadow: "0 24px 60px rgba(0,0,0,0.18)" }}>
+            <h2 className="text-lg font-bold mb-1" style={{ fontFamily: "Frank Ruhl Libre, serif", color: C.dark }}>📣 הודעה לכל האורחים</h2>
+            <p className="text-xs mb-4" style={{ color: C.muted }}>ייפתח וואטסאפ עם הודעה לכל אורח. שלחו אחד אחד (מגבלת וואטסאפ).</p>
+            <div className="mb-3">
+              <p className="text-xs mb-2" style={{ color: C.muted }}>תבניות מהירות:</p>
+              <div className="flex flex-col gap-1.5">
+                {[
+                  { label: "תזכורת RSVP", text: `שלום [שם], עדיין לא קיבלנו את אישורך לאירוע ${selectedEvent?.name ?? ""}. נשמח לדעת! 🙏` },
+                  { label: "פרטי האולם", text: `שלום [שם], 📍 האירוע ${selectedEvent?.name ?? ""} יתקיים ב${selectedEvent?.address ?? ""}. מחכים לכם! 🤍` },
+                  { label: "יום האירוע", text: `שלום [שם]! 🎊 היום זה הגדול — ${selectedEvent?.name ?? ""}. מחכים לכם ❤️` },
+                ].map(t => (
+                  <button key={t.label} onClick={() => setBroadcastMsg(t.text)}
+                    className="text-right px-3 py-2 rounded-lg text-xs transition-colors hover:bg-amber-50"
+                    style={{ border: `1px solid ${C.border}`, background: "transparent", fontFamily: "Heebo, sans-serif", color: C.dark, cursor: "pointer" }}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <textarea value={broadcastMsg} onChange={e => setBroadcastMsg(e.target.value)} rows={4}
+              placeholder="כתבו את ההודעה. השתמשו ב[שם] למקום שם האורח..."
+              className="w-full rounded-xl px-3 py-2.5 text-sm outline-none mb-4"
+              style={{ border: `1px solid ${C.border}`, fontFamily: "Heebo, sans-serif", resize: "none" }} />
+            <div className="flex gap-2">
+              <button disabled={broadcastLoading || !broadcastMsg.trim()}
+                onClick={async () => {
+                  setBroadcastLoading(true);
+                  const res = await fetch(`/api/events/${selectedEventId}/guests`).catch(() => null);
+                  const guestsData = res ? await res.json() : null;
+                  const list: { name: string; phone: string }[] = Array.isArray(guestsData) ? guestsData.filter((g: { phone?: string }) => g.phone) : [];
+                  if (list.length === 0) {
+                    // Fallback: use guests state
+                    const gList = guests.filter(g => (g as { phone?: string }).phone);
+                    if (gList.length === 0) { alert("אין אורחים עם מספר טלפון"); setBroadcastLoading(false); return; }
+                    for (const g of gList.slice(0, 3)) {
+                      const phone = ((g as { phone?: string }).phone ?? "").replace(/\D/g,"").replace(/^0/,"972");
+                      const msg = broadcastMsg.replace(/\[שם\]/g, g.name);
+                      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
+                      await new Promise(r => setTimeout(r, 800));
+                    }
+                  }
+                  setBroadcastLoading(false);
+                  setShowBroadcast(false);
+                }}
+                className="flex-1 py-2.5 rounded-xl font-semibold text-sm"
+                style={{ background: "linear-gradient(135deg,#1A6FBF,#0D4F8C)", color: "white", border: "none", cursor: "pointer", fontFamily: "Heebo, sans-serif", opacity: !broadcastMsg.trim() ? 0.5 : 1 }}>
+                {broadcastLoading ? "שולח..." : "פתח בוואטסאפ"}
+              </button>
+              <button onClick={() => setShowBroadcast(false)}
+                className="px-4 py-2.5 rounded-xl text-sm"
+                style={{ background: "rgba(51,51,51,0.07)", color: C.muted, border: "none", cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Announce to couple modal (#16) ── */}
+      {showAnnounce && selectedEvent?.couple_token && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl p-6" style={{ background: "#FDFAF5", boxShadow: "0 24px 60px rgba(0,0,0,0.18)" }}>
+            <h2 className="text-lg font-bold mb-1" style={{ fontFamily: "Frank Ruhl Libre, serif", color: C.dark }}>📢 עדכון לזוג</h2>
+            <p className="text-xs mb-4" style={{ color: C.muted }}>ההודעה תופיע בדשבורד של הזוג.</p>
+            <textarea value={announceMsg} onChange={e => setAnnounceMsg(e.target.value)} rows={4}
+              placeholder="כתבו עדכון / הודעה לזוג..."
+              className="w-full rounded-xl px-3 py-2.5 text-sm outline-none mb-4"
+              style={{ border: `1px solid ${C.border}`, fontFamily: "Heebo, sans-serif", resize: "none" }} />
+            <div className="flex gap-2">
+              <button disabled={announceLoading || !announceMsg.trim()}
+                onClick={async () => {
+                  setAnnounceLoading(true);
+                  await fetch(`/api/couple/${selectedEvent.couple_token}/announcements`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: announceMsg }),
+                  });
+                  setAnnounceMsg("");
+                  setAnnounceLoading(false);
+                  setShowAnnounce(false);
+                  alert("✓ העדכון פורסם לדשבורד הזוג!");
+                }}
+                className="flex-1 py-2.5 rounded-xl font-semibold text-sm"
+                style={{ background: `linear-gradient(135deg,${C.gold},${C.gold}cc)`, color: "white", border: "none", cursor: "pointer", fontFamily: "Heebo, sans-serif", opacity: !announceMsg.trim() ? 0.5 : 1 }}>
+                {announceLoading ? "שולח..." : "פרסם עדכון"}
+              </button>
+              <button onClick={() => setShowAnnounce(false)}
+                className="px-4 py-2.5 rounded-xl text-sm"
+                style={{ background: "rgba(51,51,51,0.07)", color: C.muted, border: "none", cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Contract modal (#7) ── */}
+      {showContractModal && selectedEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-3xl p-6 overflow-y-auto max-h-[90vh]" style={{ background: "#FDFAF5", boxShadow: "0 24px 60px rgba(0,0,0,0.18)" }}>
+            <h2 className="text-lg font-bold mb-1" style={{ fontFamily: "Frank Ruhl Libre, serif", color: C.dark }}>📝 חוזה שירות</h2>
+            <p className="text-xs mb-4" style={{ color: C.muted }}>תבנית חוזה מולאה אוטומטית — העתיקו / הדפיסו</p>
+            <div id="contract-body" className="text-sm leading-relaxed p-4 rounded-xl mb-4" style={{ border: `1px solid ${C.border}`, background: "white", fontFamily: "Heebo, sans-serif", color: C.dark, direction: "rtl", whiteSpace: "pre-wrap", maxHeight: 420, overflowY: "auto", lineHeight: 1.8 }}>
+              {`חוזה שירות — ניהול אירוע
+━━━━━━━━━━━━━━━━━━━━━━━━━
+
+בין: דביר בן ברוך, מנהל אירועים
+     טל׳: 053-3318177
+
+לבין: ${selectedEvent.client_name ?? "[שם הלקוח]"}
+     טל׳: ${selectedEvent.client_phone ?? "[טלפון]"}
+
+אירוע: ${selectedEvent.name}
+תאריך: ${selectedEvent.date ? new Date(selectedEvent.date).toLocaleDateString("he-IL") : ""}
+מיקום: ${selectedEvent.address ?? "[כתובת האולם]"}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━
+שירותים הכלולים:
+• ניהול רשימת אורחים ואישורי הגעה (RSVP)
+• הזמנה דיגיטלית מעוצבת
+• סידורי הושבה
+• ניהול תקציב ומעקב מתנות
+• דשבורד דיגיטלי לזוג
+• ליווי אישי לאורך כל הדרך
+
+━━━━━━━━━━━━━━━━━━━━━━━━━
+תשלום: ₪${selectedEvent.payment_amount ?? "____"}
+סטטוס: ${selectedEvent.payment_status === "paid" ? "שולם ✓" : "טרם שולם"}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━
+חתימת הלקוח: ________________
+תאריך: ________________
+
+חתימת נותן השירות: ________________
+תאריך: ${new Date().toLocaleDateString("he-IL")}`}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => {
+                const text = document.getElementById("contract-body")?.innerText ?? "";
+                navigator.clipboard.writeText(text);
+                alert("החוזה הועתק ללוח!");
+              }} className="flex-1 py-2.5 rounded-xl font-semibold text-sm"
+                style={{ background: `linear-gradient(135deg,${C.gold},${C.gold}cc)`, color: "white", border: "none", cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
+                העתק
+              </button>
+              <button onClick={() => window.print()}
+                className="flex-1 py-2.5 rounded-xl font-semibold text-sm"
+                style={{ background: "rgba(51,51,51,0.07)", color: C.dark, border: "none", cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
+                🖨️ הדפס
+              </button>
+              <button onClick={() => setShowContractModal(false)}
+                className="px-4 py-2.5 rounded-xl text-sm"
+                style={{ background: "rgba(239,68,68,0.07)", color: "rgba(239,68,68,0.7)", border: "none", cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
+                סגור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Create event modal ───────────────────────── */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
@@ -1238,6 +1535,16 @@ export default function AdminPage() {
                 className="w-full rounded-xl px-4 py-3 text-sm outline-none"
                 style={{ background: "white", border: `1px solid ${C.border}`, color: C.dark, fontFamily: "Heebo, sans-serif", direction: "ltr", textAlign: "right" }}
               />
+              <div>
+                <label className="text-xs block mb-1" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>⏰ תאריך אחרון לאישור RSVP (אופציונלי)</label>
+                <input
+                  type="date"
+                  value={newRsvpDeadline}
+                  onChange={(e) => setNewRsvpDeadline(e.target.value)}
+                  className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+                  style={{ background: "white", border: `1px solid ${C.border}`, color: C.dark, fontFamily: "Heebo, sans-serif" }}
+                />
+              </div>
             </div>
 
             {/* ── Theme picker ── */}
