@@ -31,7 +31,7 @@ const PUBLIC_API_PREFIXES = [
   '/api/auth',
   '/api/cron',
   '/api/health',         // uptime monitoring — no auth required
-  '/api/_sentry-test',   // TEMPORARY — Sprint 1 verification, remove after
+  '/api/sentry-test',    // TEMPORARY — Sprint 1 verification, remove after
 ];
 
 function isAdminProtectedApi(pathname: string): boolean {
