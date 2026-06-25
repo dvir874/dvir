@@ -87,7 +87,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     : hour >= 12 && hour < 17 ? "צהריים טובים"
     : hour >= 17 && hour < 21 ? "ערב טוב"
     : "לילה טוב";
-  const greeting = coupleName ? `${timeGreeting}, ${coupleName} 💛` : `${timeGreeting} 💛`;
+  const greeting = coupleName ? `${timeGreeting}, ${coupleName}` : timeGreeting;
 
   // Phase-aware message
   const phaseMessage: Record<typeof phase, string> = {

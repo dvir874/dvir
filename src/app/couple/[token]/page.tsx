@@ -126,58 +126,56 @@ const ALERT_CONFIG: Record<string, { bg: string; border: string; text: string; i
 
 function fmt(n: number) { return n.toLocaleString("he-IL"); }
 
-function CountdownTimer({ targetDate }: { targetDate: string }) {
+function useCountdown(targetDate: string) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, done: false });
-
   useEffect(() => {
     function calc() {
       const diff = new Date(targetDate).getTime() - Date.now();
       if (diff <= 0) { setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, done: true }); return; }
-      const days    = Math.floor(diff / 86_400_000);
-      const hours   = Math.floor((diff % 86_400_000) / 3_600_000);
-      const minutes = Math.floor((diff % 3_600_000) / 60_000);
-      const seconds = Math.floor((diff % 60_000) / 1_000);
-      setTimeLeft({ days, hours, minutes, seconds, done: false });
+      setTimeLeft({
+        days:    Math.floor(diff / 86_400_000),
+        hours:   Math.floor((diff % 86_400_000) / 3_600_000),
+        minutes: Math.floor((diff % 3_600_000) / 60_000),
+        seconds: Math.floor((diff % 60_000) / 1_000),
+        done: false,
+      });
     }
     calc();
     const id = setInterval(calc, 1000);
     return () => clearInterval(id);
   }, [targetDate]);
+  return timeLeft;
+}
 
-  if (timeLeft.done) return null;
-
+// Inline countdown used inside the hero header
+function CountdownInline({ targetDate }: { targetDate: string }) {
+  const t = useCountdown(targetDate);
+  if (t.done) return null;
   const units = [
-    { label: "ימים",    value: timeLeft.days    },
-    { label: "שעות",   value: timeLeft.hours   },
-    { label: "דקות",   value: timeLeft.minutes },
-    { label: "שניות",  value: timeLeft.seconds },
+    { label: "ימים",   value: t.days    },
+    { label: "שעות",   value: t.hours   },
+    { label: "דקות",   value: t.minutes },
+    { label: "שניות",  value: t.seconds },
   ];
-
   return (
-    <div style={{ background: "rgba(61,43,31,0.06)", borderBottom: "1px solid rgba(197,164,109,0.15)", padding: "1rem 1.5rem" }}>
-      <div style={{ maxWidth: 640, margin: "0 auto" }}>
-        <p style={{ textAlign: "center", fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(197,164,109,0.8)", marginBottom: "0.75rem", fontFamily: "Heebo, sans-serif" }}>
-          ספירה לאחור ליום הגדול
-        </p>
-        <div style={{ display: "flex", justifyContent: "center", gap: "0.75rem" }}>
-          {units.map(({ label, value }) => (
-            <div key={label} style={{ textAlign: "center", minWidth: 56 }}>
-              <div style={{
-                background: "linear-gradient(135deg,#3D2B1F,#5C3D2E)",
-                borderRadius: 12,
-                padding: "0.6rem 0.4rem",
-                marginBottom: "0.3rem",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-              }}>
-                <span style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1.3rem,5vw,1.8rem)", fontWeight: 700, color: "#C5A46D", lineHeight: 1 }}>
-                  {String(value).padStart(2, "0")}
-                </span>
-              </div>
-              <span style={{ fontSize: 10, color: "rgba(51,51,51,0.55)", fontFamily: "Heebo, sans-serif" }}>{label}</span>
-            </div>
-          ))}
+    <div style={{ display: "flex", justifyContent: "center", gap: "0.6rem" }}>
+      {units.map(({ label, value }) => (
+        <div key={label} style={{ textAlign: "center", minWidth: 60 }}>
+          <div style={{
+            background: "linear-gradient(160deg, rgba(197,164,109,0.18) 0%, rgba(197,164,109,0.06) 100%)",
+            border: "1px solid rgba(197,164,109,0.25)",
+            borderRadius: 14,
+            padding: "0.7rem 0.3rem 0.6rem",
+            marginBottom: "0.4rem",
+            backdropFilter: "blur(8px)",
+          }}>
+            <span style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1.5rem,5.5vw,2rem)", fontWeight: 700, color: "#C5A46D", lineHeight: 1 }}>
+              {String(value).padStart(2, "0")}
+            </span>
+          </div>
+          <span style={{ fontSize: 9, color: "rgba(197,164,109,0.5)", fontFamily: "Heebo, sans-serif", letterSpacing: "0.1em" }}>{label}</span>
         </div>
-      </div>
+      ))}
     </div>
   );
 }
@@ -415,68 +413,83 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         }
       `}</style>
 
+      {/* ═══ LUXURY HERO HEADER ═══ */}
       <div style={{
-        background: theme.gradient,
-        padding: "2.75rem 1.5rem 2.25rem",
-        borderBottom: "1px solid rgba(197,164,109,0.15)",
+        background: "linear-gradient(170deg, #100A04 0%, #1C1008 40%, #0A0604 100%)",
+        padding: "3rem 1.5rem 0",
         position: "relative",
         overflow: "hidden",
       }}>
-        {/* decorative rings */}
-        <div style={{ position:"absolute", width:320, height:320, borderRadius:"50%", border:`1px solid ${theme.ring1}`, top:-100, left:-100, animation:"coupleFloat 8s ease-in-out infinite", pointerEvents:"none" }} />
-        <div style={{ position:"absolute", width:200, height:200, borderRadius:"50%", border:`1px solid ${theme.ring2}`, top:-60, left:-60, animation:"coupleFloat 6s ease-in-out infinite 2s", pointerEvents:"none" }} />
-        <div style={{ position:"absolute", width:160, height:160, borderRadius:"50%", border:`1px solid ${theme.ring2}`, bottom:-50, right:20, animation:"coupleFloat 5s ease-in-out infinite 1s", pointerEvents:"none" }} />
-        {/* gold radial glow */}
-        <div style={{ position: "absolute", inset: 0, background: theme.radial, pointerEvents: "none" }} />
-        {/* bottom gold shimmer line */}
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent 0%, rgba(197,164,109,0.5) 50%, transparent 100%)", pointerEvents: "none" }} />
-        <div style={{ maxWidth: 640, margin: "0 auto", position: "relative" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.6rem" }}>
-            <p style={{ fontSize: 10, letterSpacing: "0.30em", textTransform: "uppercase", color: theme.textMuted, fontFamily: "Heebo, sans-serif", margin: 0 }}>
-              ✦ {briefing?.phaseLabel ?? theme.label}
-            </p>
-            <p style={{ fontSize: 10, letterSpacing: "0.22em", color: "rgba(197,164,109,0.55)", fontFamily: "Frank Ruhl Libre, serif", margin: 0 }}>
-              רגע לפני ✦
-            </p>
+        {/* Radial gold glow top-center */}
+        <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 70% 50% at 50% -10%, rgba(197,164,109,0.22) 0%, transparent 70%)", pointerEvents:"none" }} />
+        {/* Grain texture overlay */}
+        <div style={{ position:"absolute", inset:0, opacity:0.035, backgroundImage:"url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")", backgroundSize:"200px", pointerEvents:"none" }} />
+        {/* Floating rings */}
+        <div style={{ position:"absolute", width:400, height:400, borderRadius:"50%", border:"1px solid rgba(197,164,109,0.07)", top:-160, right:-120, animation:"coupleFloat 10s ease-in-out infinite", pointerEvents:"none" }} />
+        <div style={{ position:"absolute", width:250, height:250, borderRadius:"50%", border:"1px solid rgba(197,164,109,0.05)", bottom:-80, left:-80, animation:"coupleFloat 7s ease-in-out infinite 2s", pointerEvents:"none" }} />
+
+        <div style={{ maxWidth: 640, margin: "0 auto", position: "relative", textAlign: "center" }}>
+
+          {/* Brand name */}
+          <p style={{ fontSize: 9, letterSpacing: "0.45em", color: "rgba(197,164,109,0.5)", fontFamily: "Heebo, sans-serif", fontWeight: 300, marginBottom: "1.5rem", textTransform: "uppercase" }}>
+            ✦ &nbsp; ר ג ע &nbsp; ל פ נ י &nbsp; ✦
+          </p>
+
+          {/* Ornamental top divider */}
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"0.75rem", marginBottom:"1.75rem" }}>
+            <div style={{ flex:1, height:1, background:"linear-gradient(90deg, transparent, rgba(197,164,109,0.35))" }} />
+            <span style={{ fontSize:11, color:"rgba(197,164,109,0.5)", letterSpacing:"0.15em" }}>✦</span>
+            <div style={{ flex:1, height:1, background:"linear-gradient(90deg, rgba(197,164,109,0.35), transparent)" }} />
           </div>
 
-          {/* Gold divider line */}
-          <div style={{ width: 36, height: 1, background: "linear-gradient(90deg, transparent, rgba(197,164,109,0.7), transparent)", marginBottom: "1rem" }} />
+          {/* Time greeting — small & elegant */}
+          <p style={{ fontSize: 12, letterSpacing: "0.20em", color: "rgba(197,164,109,0.65)", fontFamily: "Heebo, sans-serif", fontWeight: 300, marginBottom: "0.6rem" }}>
+            {briefing?.phaseLabel ?? theme.label}
+          </p>
 
-          <h1 className="gold-shimmer-text" style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(2rem,6.5vw,2.8rem)", fontWeight: 900, marginBottom: "0.4rem", lineHeight: 1.15, letterSpacing: "-0.01em" }}>
+          {/* Event name — the hero */}
+          <h1 className="gold-shimmer-text" style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(2.4rem,8vw,3.4rem)", fontWeight: 900, lineHeight: 1.1, letterSpacing: "-0.02em", marginBottom: "0.5rem" }}>
             {briefing?.greeting ?? event.name}
           </h1>
-          {briefing?.phaseMessage && (
-            <p style={{ fontSize: 13, color: theme.textMuted, marginBottom: "0.75rem", lineHeight: 1.6 }}>
-              {briefing.phaseMessage}
-            </p>
-          )}
-          {/* Daily inspiration quote */}
-          <p style={{ fontSize: 13, fontStyle: "italic", color: theme.textMuted, marginBottom: "1.5rem", lineHeight: 1.75, borderRight: "2px solid rgba(197,164,109,0.35)", paddingRight: "0.875rem" }}>
+
+          {/* Event date — formatted elegantly */}
+          <p style={{ fontSize: 13, color: "rgba(197,164,109,0.55)", fontFamily: "Heebo, sans-serif", fontWeight: 300, letterSpacing: "0.08em", marginBottom: "1.5rem" }}>
+            {new Date(event.date).toLocaleDateString("he-IL", { weekday:"long", day:"numeric", month:"long", year:"numeric" })}
+          </p>
+
+          {/* Quote */}
+          <p style={{ fontSize: 13, fontStyle: "italic", color: "rgba(255,240,200,0.38)", marginBottom: "2rem", lineHeight: 1.75, maxWidth: 340, margin: "0 auto 2rem", fontFamily: "Frank Ruhl Libre, serif", fontWeight: 400 }}>
             &ldquo;{quote}&rdquo;
           </p>
-          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+
+          {/* Key stats pills */}
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center", marginBottom: "2.5rem" }}>
             {(briefing?.keyFacts ?? [
               `${stats.confirmed + stats.declined}/${stats.total} ענו`,
               `${tasks.filter(t => t.completed).length}/${tasks.length} משימות`,
               `${daysLeft} ימים`,
             ]).map((fact, i) => (
               <div key={i} style={{
-                padding: "0.3rem 0.9rem", borderRadius: 20,
-                background: theme.factBg,
-                border: `1px solid ${theme.factBorder}`,
-                backdropFilter: "blur(8px)",
-                fontSize: 12, color: "rgba(255,245,220,0.90)", fontFamily: "Heebo, sans-serif", fontWeight: 500,
+                padding: "0.35rem 1rem", borderRadius: 20,
+                background: "rgba(197,164,109,0.08)",
+                border: "1px solid rgba(197,164,109,0.22)",
+                backdropFilter: "blur(10px)",
+                fontSize: 12, color: "rgba(255,240,200,0.75)", fontFamily: "Heebo, sans-serif", fontWeight: 400, letterSpacing: "0.03em",
               }}>
                 {fact}
               </div>
             ))}
           </div>
+
+          {/* Countdown embedded in hero */}
+          <div style={{ background: "rgba(197,164,109,0.05)", borderTop: "1px solid rgba(197,164,109,0.12)", margin: "0 -1.5rem", padding: "1.5rem 1.5rem 2rem" }}>
+            <p style={{ textAlign: "center", fontSize: 9, letterSpacing: "0.35em", textTransform: "uppercase", color: "rgba(197,164,109,0.45)", marginBottom: "1rem", fontFamily: "Heebo, sans-serif" }}>
+              ס פ י ר ה &nbsp; ל א ח ו ר
+            </p>
+            <CountdownInline targetDate={event.date} />
+          </div>
         </div>
       </div>
-
-      {/* Countdown */}
-      <CountdownTimer targetDate={event.date} />
 
 
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "1.5rem 1rem 6rem" }}>
