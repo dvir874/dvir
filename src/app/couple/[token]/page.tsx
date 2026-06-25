@@ -679,6 +679,50 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
 
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "1.5rem 1rem 6rem" }}>
 
+        {/* Personal Wedding Assistant */}
+        {briefing && (
+          <div style={{ background: `linear-gradient(135deg, ${C.dark} 0%, #2C1F0E 100%)`, borderRadius: "1.5rem", padding: "1.25rem 1.5rem", marginBottom: "1.25rem", position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at top right, rgba(197,164,109,0.15) 0%, transparent 60%)", pointerEvents: "none" }} />
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", position: "relative" }}>
+              <div style={{ fontSize: 32, flexShrink: 0 }}>✨</div>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 10, letterSpacing: "0.3em", color: "rgba(197,164,109,0.6)", fontFamily: "Heebo, sans-serif", marginBottom: 4 }}>מסע החתונה שלכם</p>
+                <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 17, fontWeight: 700, color: "#FDFAF5", lineHeight: 1.35, marginBottom: "0.75rem" }}>
+                  {briefing.daysUntilEvent > 0
+                    ? `${briefing.daysUntilEvent} ימים עד לרגע`
+                    : briefing.daysUntilEvent === 0 ? "היום זה הרגע! 🎊" : "המסע נמשך 💛"}
+                </p>
+                {/* Progress bar */}
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(197,164,109,0.65)", marginBottom: 4 }}>
+                    <span>התקדמות כללית</span>
+                    <span style={{ fontWeight: 700 }}>
+                      {Math.round(((stats.confirmed + stats.declined) / Math.max(stats.total, 1)) * 100)}% ענו
+                    </span>
+                  </div>
+                  <div style={{ height: 5, background: "rgba(197,164,109,0.15)", borderRadius: 3, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${Math.round(((stats.confirmed + stats.declined) / Math.max(stats.total, 1)) * 100)}%`, background: "linear-gradient(90deg, #C5A46D, #E8D5A8)", borderRadius: 3, transition: "width 0.8s" }} />
+                  </div>
+                </div>
+                {/* Quick links to new pages */}
+                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                  {[
+                    { href: `/couple/${token}/guests`, label: "👥 מוזמנים" },
+                    { href: `/couple/${token}/vendors`, label: "🤝 ספקים" },
+                    { href: `/couple/${token}/checklist`, label: "📋 צ'קליסט" },
+                    { href: `/couple/${token}/gifts`, label: "🎁 מתנות" },
+                  ].map(link => (
+                    <a key={link.href} href={link.href}
+                      style={{ padding: "5px 12px", borderRadius: 10, background: "rgba(197,164,109,0.15)", border: "1px solid rgba(197,164,109,0.25)", color: "rgba(197,164,109,0.9)", fontSize: 12, fontFamily: "Heebo, sans-serif", fontWeight: 600, textDecoration: "none", display: "inline-block" }}>
+                      {link.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Urgent alerts — read-only, no actions for couple */}
         {urgents.filter(a => a.key !== "rsvp_low" && a.key !== "rsvp_pending").length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.25rem" }}>

@@ -150,6 +150,20 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   if (!event) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+  // Generic event field update (gift methods, payment links, etc.)
+  if (!action) {
+    const { bit_phone, paybox_link, easy2give_link, custom_gift_link } = body;
+    const patch: Record<string, unknown> = {};
+    if (bit_phone !== undefined) patch.bit_phone = bit_phone;
+    if (paybox_link !== undefined) patch.paybox_link = paybox_link;
+    if (easy2give_link !== undefined) patch.easy2give_link = easy2give_link;
+    if (custom_gift_link !== undefined) patch.custom_gift_link = custom_gift_link;
+    if (Object.keys(patch).length > 0) {
+      await supabase.from('events').update(patch).eq('id', event.id);
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   if (action === 'send_reminder') {
     // Fetch pending guests and mark reminder_sent timestamp
     const { data: pending } = await supabase
