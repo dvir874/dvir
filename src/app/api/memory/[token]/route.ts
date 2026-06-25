@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
+import { checkRateLimit, getClientIp, LIMITS } from '@/lib/rate-limit';
+import { validateUploadFile } from '@/lib/file-validation';
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -30,6 +32,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
 // Content-Type: multipart/form-data
 // Fields: guest_name, type (photo|video|blessing), file? (for photo/video), blessing_text? (for blessing)
 export async function POST(request: NextRequest, { params }: Params) {
+  const ip = getClientIp(request);
+  const rl = checkRateLimit(ip, 'memory_upload', LIMITS.memory_upload.max, LIMITS.memory_upload.windowMs);
+  if (!rl.ok) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   const { token } = await params;
   const supabase = createServerClient();
 
@@ -65,11 +70,10 @@ export async function POST(request: NextRequest, { params }: Params) {
   let mime_type: string | null    = null;
 
   if (file) {
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ error: `קובץ גדול מדי — מקסימום 50MB` }, { status: 413 });
-    }
+    const validation = validateUploadFile(file, { allowVideo: type === 'video' });
+    if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 400 });
 
-    const ext  = file.name.split('.').pop()?.toLowerCase() ?? 'bin';
+    const ext  = validation.safeExt ?? 'bin';
     const path = `${vaultToken.event_id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     const bytes = await file.arrayBuffer();
 
@@ -85,7 +89,8 @@ export async function POST(request: NextRequest, { params }: Params) {
           detail: uploadErr.message,
         }, { status: 500 });
       }
-      return NextResponse.json({ error: uploadErr.message }, { status: 500 });
+      console.error('[memory:storage]', uploadErr.message);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 
     const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
@@ -111,6 +116,9 @@ export async function POST(request: NextRequest, { params }: Params) {
     .select()
     .single();
 
-  if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
+  if (insertErr) {
+    console.error('[memory:insert]', insertErr.message);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
   return NextResponse.json({ id: item.id, public_url }, { status: 201 });
 }

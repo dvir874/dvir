@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
 import { syncToGoogleSheets } from '@/lib/sheets';
+import { requireAdmin } from '@/lib/auth-guard';
 import type { GuestStatus } from '@/lib/types';
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: NextRequest, { params }: Params) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const { id } = await params;
   const body = await request.json();
   const { status, guest_count } = body as {
@@ -45,6 +48,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(request: NextRequest, { params }: Params) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const { id } = await params;
 
   const confirmHeader = request.headers.get('x-delete-confirm');

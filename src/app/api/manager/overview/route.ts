@@ -2,10 +2,13 @@ import { NextResponse }          from 'next/server';
 import { createServerClient }    from '@/lib/supabase-server';
 import { computeEventHealth }    from '@/lib/automation/health';
 import type { EventSummary }     from '@/lib/types';
+import { requireAdmin } from '@/lib/auth-guard';
 
 export type { EventSummary };
 
 export async function GET() {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     console.error('[api/overview] Missing env vars — NEXT_PUBLIC_SUPABASE_URL:', !!process.env.NEXT_PUBLIC_SUPABASE_URL, 'SUPABASE_SERVICE_ROLE_KEY:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
     return NextResponse.json({ error: 'Server misconfiguration: missing Supabase env vars' }, { status: 500 });

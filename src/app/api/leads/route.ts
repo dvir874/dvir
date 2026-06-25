@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
+import { requireAdmin } from '@/lib/auth-guard';
+import { LeadCreateSchema, parseBody } from '@/lib/schemas';
+import { withRetry } from '@/lib/retry';
 
 export const dynamic = 'force-dynamic';
 
 // GET — admin only: list all leads with task counts
 export async function GET(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const { searchParams } = new URL(request.url);
   const status = searchParams.get('status'); // optional filter
 
@@ -23,20 +28,22 @@ export async function GET(request: NextRequest) {
 
 // POST — public: contact form submission creates a lead
 export async function POST(request: NextRequest) {
-  const body = await request.json();
+  const { checkRateLimit, getClientIp, LIMITS } = await import('@/lib/rate-limit');
+  const ip = getClientIp(request);
+  const rl = checkRateLimit(ip, 'leads', LIMITS.leads.max, LIMITS.leads.windowMs);
+  if (!rl.ok) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  const rawBody = await request.json();
+  const { data: body, error: validationError } = parseBody(LeadCreateSchema, rawBody);
+  if (validationError || !body) return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   const { name, phone, email, event_type, wedding_date, guest_count, source, ref_code, notes } = body;
-
-  if (!name?.trim() || !phone?.trim()) {
-    return NextResponse.json({ error: 'name and phone required' }, { status: 400 });
-  }
 
   const supabase = createServerClient();
 
   const { data: lead, error } = await supabase
     .from('leads')
     .insert({
-      name: name.trim(),
-      phone: phone.trim(),
+      name: name,
+      phone: phone,
       email: email?.trim() || null,
       event_type: event_type || null,
       wedding_date: wedding_date || null,
@@ -50,8 +57,8 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    console.error('[api/leads POST]', error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('[leads:insert]', error.message);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 
   // Log form_submit activity
@@ -63,7 +70,7 @@ export async function POST(request: NextRequest) {
   });
 
   // Push notification via ntfy.sh (JSON format — supports Unicode/Hebrew correctly)
-  try {
+  withRetry(async () => {
     const dateStr   = wedding_date ? ` | חתונה: ${wedding_date}` : '';
     const sourceStr = source && source !== 'unknown' ? ` | ${source}` : '';
     const ntfyTopic = process.env.NTFY_TOPIC ?? 'regalifnei-leads';
@@ -79,14 +86,10 @@ export async function POST(request: NextRequest) {
       }),
       signal: AbortSignal.timeout(6000),
     });
-    if (!ntfyRes.ok) {
-      console.error('[ntfy] failed:', ntfyRes.status, await ntfyRes.text().catch(() => ''));
-    } else {
-      console.log('[ntfy] sent OK for lead', lead.id);
-    }
-  } catch (ntfyErr) {
-    console.error('[ntfy] exception:', ntfyErr);
-  }
+    if (!ntfyRes.ok) throw new Error(`ntfy HTTP ${ntfyRes.status}`);
+  }, { attempts: 3, baseDelayMs: 500, label: 'ntfy' }).catch(err => {
+    console.error('[ntfy] all retries failed:', err);
+  });
 
   // If came via referral, increment leads count on referral code
   if (ref_code) {

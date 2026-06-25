@@ -2,6 +2,13 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
+  // Global body size limit: 110 MB (covers max 100 MB video uploads + multipart overhead).
+  // Individual route handlers enforce stricter limits via file-validation.ts.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '110mb',
+    },
+  },
   images: {
     remotePatterns: [
       // Supabase Storage (memory wall photos)

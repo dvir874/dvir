@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
+import { checkRateLimit, getClientIp, LIMITS } from '@/lib/rate-limit';
+import { validateUploadFile, MAX_GALLERY_SIZE } from '@/lib/file-validation';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -9,6 +11,9 @@ export async function POST(
   { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
+  const ip = getClientIp(req);
+  const rl = checkRateLimit(ip, 'gallery_upload', LIMITS.gallery_upload.max, LIMITS.gallery_upload.windowMs);
+  if (!rl.ok) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   const sb = createServerClient();
 
   // Verify album exists and is open
@@ -27,8 +32,11 @@ export async function POST(
 
   if (!file) return NextResponse.json({ error: 'no file' }, { status: 400 });
 
-  const isVideo    = file.type.startsWith('video/');
-  const ext        = file.name.split('.').pop() ?? (isVideo ? 'mp4' : 'jpg');
+  const validation = validateUploadFile(file, { allowVideo: true, maxBytes: MAX_GALLERY_SIZE });
+  if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 400 });
+
+  const isVideo    = validation.isVideo ?? false;
+  const ext        = validation.safeExt ?? (isVideo ? 'mp4' : 'jpg');
   const path       = `${album.event_id}/${album.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
   const bytes      = await file.arrayBuffer();
 
@@ -38,8 +46,8 @@ export async function POST(
   });
 
   if (storageErr) {
-    console.error('[gallery upload]', storageErr.message);
-    return NextResponse.json({ error: storageErr.message }, { status: 500 });
+    console.error('[gallery:storage]', storageErr.message);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 
   // Get signed URL (valid 10 years — for admin view)
@@ -58,8 +66,8 @@ export async function POST(
   });
 
   if (dbErr) {
-    console.error('[gallery db]', dbErr.message);
-    return NextResponse.json({ error: dbErr.message }, { status: 500 });
+    console.error('[gallery:db]', dbErr.message);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 
   // Increment photo_count

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { checkRateLimit, getClientIp, LIMITS } from '@/lib/rate-limit';
 
 const COOKIE = 'raga_admin_session';
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 export async function POST(request: NextRequest) {
+  const ip = getClientIp(request);
+  const rl = checkRateLimit(ip, 'login', LIMITS.login.max, LIMITS.login.windowMs);
+  if (!rl.ok) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   const { password } = await request.json();
 
   const adminPassword = process.env.ADMIN_PASSWORD;

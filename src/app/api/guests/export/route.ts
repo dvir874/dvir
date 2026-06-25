@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
 import { generateGuestsXlsx } from '@/lib/xlsx-utils';
 import type { Guest } from '@/lib/types';
+import { requireAdmin } from '@/lib/auth-guard';
 
 export async function GET(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const { searchParams } = new URL(request.url);
   const event_id = searchParams.get('event_id');
   if (!event_id)

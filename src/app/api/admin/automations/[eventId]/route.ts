@@ -4,6 +4,7 @@ import {
   DEFAULT_TEMPLATES, CAMPAIGN_ORDER, getScheduledDate, getDaysUntilEvent,
   type CampaignType,
 } from '@/lib/automation/message-templates';
+import { requireAdmin } from '@/lib/auth-guard';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,8 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ eventId: string }> },
 ) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const { eventId } = await params;
   const sb = createServerClient();
 
@@ -48,6 +51,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ eventId: string }> },
 ) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const { eventId } = await params;
   const body = await req.json() as Record<string, unknown>;
   const sb   = createServerClient();

@@ -1,10 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
 import { syncToGoogleSheets } from '@/lib/sheets';
+import { checkRateLimit, getClientIp, LIMITS } from '@/lib/rate-limit';
+import { z } from 'zod';
+
+const RsvpPostSchema = z.object({
+  status:          z.enum(['confirmed', 'declined']),
+  guest_count:     z.number().int().min(0).max(20).optional(),
+  meal_preference: z.string().max(200).optional().nullable(),
+  meal_note:       z.string().max(500).optional().nullable(),
+});
 
 type Params = { params: Promise<{ token: string }> };
 
 export async function GET(_request: NextRequest, { params }: Params) {
+  const ip = getClientIp(_request);
+  const rl = checkRateLimit(ip, 'rsvp', LIMITS.rsvp.max, LIMITS.rsvp.windowMs);
+  if (!rl.ok) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   const { token } = await params;
   const supabase = createServerClient();
 
@@ -55,17 +67,16 @@ export async function GET(_request: NextRequest, { params }: Params) {
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
+  const ip = getClientIp(request);
+  const rl = checkRateLimit(ip, 'rsvp', LIMITS.rsvp.max, LIMITS.rsvp.windowMs);
+  if (!rl.ok) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   const { token } = await params;
-  const body = await request.json();
-  const { status, guest_count, meal_preference, meal_note } = body as {
-    status?: string;
-    guest_count?: number;
-    meal_preference?: string | null;
-    meal_note?: string | null;
-  };
-
-  if (!status || !['confirmed', 'declined'].includes(status))
-    return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+  const raw = await request.json();
+  const parsed = RsvpPostSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+  }
+  const { status, guest_count, meal_preference, meal_note } = parsed.data;
 
   const supabase = createServerClient();
   const { data: updated, error } = await supabase

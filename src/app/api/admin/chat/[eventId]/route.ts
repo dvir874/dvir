@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { requireAdmin } from '@/lib/auth-guard';
 
 export const dynamic = "force-dynamic";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const { eventId } = await params;
   const sb = createServerClient();
 
@@ -19,6 +22,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ eve
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const { eventId } = await params;
   const { body } = await req.json();
   if (!body?.trim()) return NextResponse.json({ error: "body required" }, { status: 400 });

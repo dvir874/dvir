@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
 import { parseGuestsFromXlsx } from '@/lib/xlsx-utils';
+import { requireAdmin } from '@/lib/auth-guard';
 
 export async function POST(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const formData = await request.formData();
   const file = formData.get('file') as File | null;
   const event_id = formData.get('event_id') as string | null;
