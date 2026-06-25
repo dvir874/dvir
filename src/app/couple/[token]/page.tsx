@@ -194,6 +194,182 @@ function ScoreGauge({ score, color }: { score: number; color: string }) {
   );
 }
 
+// ─── Splash Screen ────────────────────────────────────────────────────────────
+function SplashScreen({ name }: { name: string }) {
+  const [phase, setPhase] = useState<"hidden" | "show" | "fade">("hidden");
+  useEffect(() => {
+    if (sessionStorage.getItem("raga_splash_shown")) return;
+    sessionStorage.setItem("raga_splash_shown", "1");
+    setPhase("show");
+    const t1 = setTimeout(() => setPhase("fade"), 2400);
+    const t2 = setTimeout(() => setPhase("hidden"), 3300);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+  if (phase === "hidden") return null;
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 99999,
+      background: "#080402",
+      display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column",
+      gap: "1.25rem",
+      opacity: phase === "fade" ? 0 : 1,
+      transition: phase === "fade" ? "opacity 0.9s cubic-bezier(0.4,0,0.2,1)" : "opacity 0.4s ease",
+      pointerEvents: phase === "fade" ? "none" : "all",
+    }}>
+      {/* Stars background */}
+      {Array.from({ length: 30 }).map((_, i) => (
+        <div key={i} style={{
+          position: "absolute",
+          width: Math.random() * 2 + 1 + "px", height: Math.random() * 2 + 1 + "px",
+          borderRadius: "50%",
+          background: "rgba(197,164,109,0.6)",
+          left: Math.random() * 100 + "%", top: Math.random() * 100 + "%",
+          animation: `coupleGlow ${1.5 + Math.random() * 2}s ease-in-out infinite`,
+          animationDelay: Math.random() * 2 + "s",
+        }} />
+      ))}
+      <p style={{ fontSize: 9, letterSpacing: "0.55em", color: "rgba(197,164,109,0.45)", fontFamily: "Heebo, sans-serif", fontWeight: 300, textAlign: "center" }}>
+        ✦ &nbsp; ר ג ע &nbsp; ל פ נ י &nbsp; ✦
+      </p>
+      <div style={{ textAlign: "center" }}>
+        <div className="gold-shimmer-text" style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(2.2rem,9vw,4rem)", fontWeight: 900, lineHeight: 1.1, letterSpacing: "-0.02em" }}>
+          {name}
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        <div style={{ width: 48, height: 1, background: "linear-gradient(90deg,transparent,rgba(197,164,109,0.55))" }} />
+        <span style={{ fontSize: 12, color: "rgba(197,164,109,0.55)", fontFamily: "Heebo, sans-serif", letterSpacing: "0.18em" }}>ברוכים הבאים</span>
+        <div style={{ width: 48, height: 1, background: "linear-gradient(90deg,rgba(197,164,109,0.55),transparent)" }} />
+      </div>
+      {/* Bottom progress bar */}
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 2, background: "rgba(197,164,109,0.15)" }}>
+        <div style={{ height: "100%", background: "linear-gradient(90deg,transparent,#C5A46D,transparent)", animation: "goldShimmer 2.5s linear forwards", backgroundSize: "300% auto" }} />
+      </div>
+    </div>
+  );
+}
+
+// ─── Gold Particle Canvas ─────────────────────────────────────────────────────
+function GoldParticles() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let animId: number;
+    const COLORS = ["rgba(197,164,109,", "rgba(232,213,168,", "rgba(155,122,66,", "rgba(255,235,180,"];
+    const particles = Array.from({ length: 60 }, () => ({
+      x: Math.random() * 800, y: Math.random() * 300,
+      r: Math.random() * 1.8 + 0.4,
+      vx: (Math.random() - 0.5) * 0.25,
+      vy: -(Math.random() * 0.4 + 0.08),
+      o: Math.random() * 0.7 + 0.1,
+      vo: (Math.random() * 0.007 + 0.002) * (Math.random() > 0.5 ? 1 : -1),
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+    }));
+    function resize() {
+      if (!canvas) return;
+      canvas.width  = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    }
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+    function draw() {
+      if (!canvas || !ctx) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const p of particles) {
+        p.x += p.vx; p.y += p.vy;
+        p.o = Math.max(0.05, Math.min(0.85, p.o + p.vo));
+        if (p.o <= 0.05 || p.o >= 0.85) p.vo *= -1;
+        if (p.y < -8)  { p.y = canvas.height + 8; p.x = Math.random() * canvas.width; }
+        if (p.x < -8)  p.x = canvas.width  + 8;
+        if (p.x > canvas.width + 8) p.x = -8;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = p.color + p.o.toFixed(2) + ")";
+        ctx.fill();
+      }
+      animId = requestAnimationFrame(draw);
+    }
+    draw();
+    return () => { cancelAnimationFrame(animId); ro.disconnect(); };
+  }, []);
+  return <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }} />;
+}
+
+// ─── Wedding Rings ────────────────────────────────────────────────────────────
+function WeddingRings() {
+  return (
+    <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.5rem", animation: "coupleFloat 5s ease-in-out infinite" }}>
+      <svg width="100" height="52" viewBox="0 0 100 52" fill="none" style={{ overflow: "visible", filter: "drop-shadow(0 2px 8px rgba(197,164,109,0.35))" }}>
+        <circle cx="36" cy="26" r="20" fill="none" stroke="#C5A46D" strokeWidth="3.5" />
+        <circle cx="36" cy="26" r="20" fill="none" stroke="rgba(232,213,168,0.4)" strokeWidth="1" strokeDasharray="3 10" />
+        <circle cx="36" cy="26" r="14" fill="none" stroke="rgba(197,164,109,0.15)" strokeWidth="1" />
+        <circle cx="64" cy="26" r="20" fill="none" stroke="#C5A46D" strokeWidth="3.5" />
+        <circle cx="64" cy="26" r="20" fill="none" stroke="rgba(232,213,168,0.4)" strokeWidth="1" strokeDasharray="3 10" />
+        <circle cx="64" cy="26" r="14" fill="none" stroke="rgba(197,164,109,0.15)" strokeWidth="1" />
+        {/* Diamond highlight */}
+        <polygon points="50,8 52.5,13 50,18 47.5,13" fill="rgba(232,213,168,0.85)" />
+      </svg>
+    </div>
+  );
+}
+
+// ─── Confetti (one-time burst on load) ────────────────────────────────────────
+function useConfetti() {
+  useEffect(() => {
+    if (sessionStorage.getItem("raga_confetti_shown")) return;
+    sessionStorage.setItem("raga_confetti_shown", "1");
+    const canvas = document.createElement("canvas");
+    Object.assign(canvas.style, { position:"fixed", inset:"0", width:"100%", height:"100%", pointerEvents:"none", zIndex:"99997" });
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext("2d")!;
+    const COLORS = ["#C5A46D","#E8D5A8","#9B7A42","#6B7B5A","#FDFAF5","#D4BC8A","#BFA060"];
+    const pieces = Array.from({ length: 130 }, () => ({
+      x: canvas.width * 0.3 + Math.random() * canvas.width * 0.4,
+      y: canvas.height * 0.35,
+      vx: (Math.random() - 0.5) * 9,
+      vy: -(Math.random() * 14 + 4),
+      angle: Math.random() * Math.PI * 2,
+      vr: (Math.random() - 0.5) * 0.18,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      w: Math.random() * 9 + 4,
+      h: Math.random() * 6 + 3,
+      o: 1,
+      shape: Math.random() > 0.55 ? "rect" : "circle" as "rect"|"circle",
+    }));
+    let animId: number;
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      let alive = false;
+      for (const p of pieces) {
+        p.x += p.vx; p.y += p.vy;
+        p.vy += 0.38;
+        p.angle += p.vr;
+        p.vx *= 0.995;
+        if (p.y > canvas.height * 0.6) p.o = Math.max(0, p.o - 0.025);
+        if (p.o > 0 && p.y < canvas.height + 20) alive = true;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle);
+        ctx.globalAlpha = p.o;
+        ctx.fillStyle = p.color;
+        if (p.shape === "rect") ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+        else { ctx.beginPath(); ctx.arc(0, 0, p.w/2, 0, Math.PI*2); ctx.fill(); }
+        ctx.restore();
+      }
+      if (alive) animId = requestAnimationFrame(draw);
+      else canvas.remove();
+    }
+    draw();
+    return () => { cancelAnimationFrame(animId); canvas.remove(); };
+  }, []);
+}
+
 export default function CoupleDashboard({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
   const router    = useRouter();
@@ -208,6 +384,7 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
   const [showAlerts,  setShowAlerts]  = useState(true);
   const [actionBusy,  setActionBusy]  = useState<string | null>(null);
   const [actionDone,  setActionDone]  = useState<Set<string>>(new Set());
+  useConfetti();
   const [rsvpToast,      setRsvpToast]      = useState("");
   const [announcements,  setAnnouncements]  = useState<{ id: string; message: string; created_at: string }[]>([]);
   const [missingItems,   setMissingItems]   = useState<{ label: string; severity: "high" | "medium" | "low" }[]>([]);
@@ -378,6 +555,9 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
   return (
     <div dir="rtl" style={{ minHeight: "100vh", background: theme.bgPage, fontFamily: "Heebo, sans-serif", color: C.dark }}>
 
+      {/* ── Splash + effects ── */}
+      {data && <SplashScreen name={event.name} />}
+
       {/* Live RSVP toast */}
       {rsvpToast && (
         <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: C.olive, color: "white", padding: "0.65rem 1.5rem", borderRadius: 30, fontSize: 14, fontFamily: "Heebo, sans-serif", fontWeight: 600, boxShadow: "0 4px 20px rgba(107,123,90,0.4)", animation: "slideCard 0.3s ease", whiteSpace: "nowrap" }}>
@@ -420,6 +600,8 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         position: "relative",
         overflow: "hidden",
       }}>
+        {/* Gold particles canvas */}
+        <GoldParticles />
         {/* Radial gold glow top-center */}
         <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 70% 50% at 50% -10%, rgba(197,164,109,0.22) 0%, transparent 70%)", pointerEvents:"none" }} />
         {/* Grain texture overlay */}
@@ -431,12 +613,15 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         <div style={{ maxWidth: 640, margin: "0 auto", position: "relative", textAlign: "center" }}>
 
           {/* Brand name */}
-          <p style={{ fontSize: 9, letterSpacing: "0.45em", color: "rgba(197,164,109,0.5)", fontFamily: "Heebo, sans-serif", fontWeight: 300, marginBottom: "1.5rem", textTransform: "uppercase" }}>
+          <p style={{ fontSize: 9, letterSpacing: "0.45em", color: "rgba(197,164,109,0.5)", fontFamily: "Heebo, sans-serif", fontWeight: 300, marginBottom: "1.25rem", textTransform: "uppercase" }}>
             ✦ &nbsp; ר ג ע &nbsp; ל פ נ י &nbsp; ✦
           </p>
 
+          {/* Wedding rings */}
+          <WeddingRings />
+
           {/* Ornamental top divider */}
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"0.75rem", marginBottom:"1.75rem" }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"0.75rem", marginBottom:"1.5rem" }}>
             <div style={{ flex:1, height:1, background:"linear-gradient(90deg, transparent, rgba(197,164,109,0.35))" }} />
             <span style={{ fontSize:11, color:"rgba(197,164,109,0.5)", letterSpacing:"0.15em" }}>✦</span>
             <div style={{ flex:1, height:1, background:"linear-gradient(90deg, rgba(197,164,109,0.35), transparent)" }} />
