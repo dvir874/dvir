@@ -36,40 +36,40 @@ const INSPIRATION_QUOTES = [
 function getTimeTheme() {
   const h = new Date().getHours();
   if (h >= 5 && h < 12) return {
-    // Morning — soft sunrise, warm peach & gold
-    gradient: "linear-gradient(150deg, #E8A87C 0%, #C5794A 45%, #9B5A2C 100%)",
-    bgPage:   "#F5EDE0",
-    ring1:    "rgba(255,200,120,0.15)",
-    ring2:    "rgba(255,180,80,0.10)",
-    radial:   "radial-gradient(ellipse at 20% 0%, rgba(255,220,150,0.22) 0%, transparent 60%)",
-    label:    "בוקר טוב ☀️",
-    textMuted:"rgba(255,235,190,0.75)",
-    factBg:   "rgba(0,0,0,0.16)",
-    factBorder:"rgba(255,200,120,0.35)",
+    // Morning — warm ivory-gold brand palette
+    gradient:   "linear-gradient(150deg, #C5A46D 0%, #9B7A42 50%, #6B5530 100%)",
+    bgPage:     "#F6F1E8",
+    ring1:      "rgba(255,235,180,0.18)",
+    ring2:      "rgba(197,164,109,0.12)",
+    radial:     "radial-gradient(ellipse at 20% 0%, rgba(255,235,170,0.20) 0%, transparent 60%)",
+    label:      "בוקר טוב ☀️",
+    textMuted:  "rgba(255,245,220,0.80)",
+    factBg:     "rgba(0,0,0,0.18)",
+    factBorder: "rgba(255,230,160,0.38)",
   };
   if (h >= 12 && h < 18) return {
-    // Afternoon — deep olive & sage, calm midday
-    gradient: "linear-gradient(150deg, #7A9B6A 0%, #4E7A45 45%, #2E5A28 100%)",
-    bgPage:   "#EDF2E8",
-    ring1:    "rgba(180,220,160,0.15)",
-    ring2:    "rgba(140,190,120,0.10)",
-    radial:   "radial-gradient(ellipse at 80% 0%, rgba(200,230,170,0.20) 0%, transparent 60%)",
-    label:    "צהריים טובים 🌿",
-    textMuted:"rgba(220,245,200,0.75)",
-    factBg:   "rgba(0,0,0,0.18)",
-    factBorder:"rgba(180,220,150,0.35)",
+    // Afternoon — olive-sage brand palette
+    gradient:   "linear-gradient(150deg, #6B7B5A 0%, #4A5E3C 50%, #2E3D24 100%)",
+    bgPage:     "#F2EDE3",
+    ring1:      "rgba(197,220,160,0.15)",
+    ring2:      "rgba(150,180,120,0.10)",
+    radial:     "radial-gradient(ellipse at 80% 0%, rgba(180,210,150,0.18) 0%, transparent 60%)",
+    label:      "צהריים טובים 🌿",
+    textMuted:  "rgba(225,240,200,0.80)",
+    factBg:     "rgba(0,0,0,0.18)",
+    factBorder: "rgba(197,220,160,0.38)",
   };
-  // Night — deep navy & indigo, romantic stars
+  // Evening/Night — deep warm brown-gold brand palette
   return {
-    gradient: "linear-gradient(150deg, #2C3E6B 0%, #1A2A50 45%, #0D1A38 100%)",
-    bgPage:   "#E8EAF2",
-    ring1:    "rgba(180,200,255,0.12)",
-    ring2:    "rgba(140,160,255,0.08)",
-    radial:   "radial-gradient(ellipse at 60% 0%, rgba(150,170,255,0.18) 0%, transparent 60%)",
-    label:    "לילה טוב 🌙",
-    textMuted:"rgba(200,215,255,0.70)",
-    factBg:   "rgba(0,0,0,0.25)",
-    factBorder:"rgba(180,200,255,0.30)",
+    gradient:   "linear-gradient(150deg, #3D2B1F 0%, #261810 50%, #140C08 100%)",
+    bgPage:     "#F2EDE3",
+    ring1:      "rgba(197,164,109,0.14)",
+    ring2:      "rgba(197,164,109,0.08)",
+    radial:     "radial-gradient(ellipse at 60% 0%, rgba(197,164,109,0.16) 0%, transparent 60%)",
+    label:      "לילה טוב 🌙",
+    textMuted:  "rgba(255,235,190,0.70)",
+    factBg:     "rgba(0,0,0,0.28)",
+    factBorder: "rgba(197,164,109,0.38)",
   };
 }
 
@@ -418,9 +418,12 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         {/* subtle texture overlay */}
         <div style={{ position: "absolute", inset: 0, background: theme.radial, pointerEvents: "none" }} />
         <div style={{ maxWidth: 640, margin: "0 auto", position: "relative" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <p style={{ fontSize: 10, letterSpacing: "0.30em", textTransform: "uppercase", color: theme.textMuted, marginBottom: "0.6rem", fontFamily: "Heebo, sans-serif" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.6rem" }}>
+            <p style={{ fontSize: 10, letterSpacing: "0.30em", textTransform: "uppercase", color: theme.textMuted, fontFamily: "Heebo, sans-serif", margin: 0 }}>
               ✦ {briefing?.phaseLabel ?? theme.label}
+            </p>
+            <p style={{ fontSize: 10, letterSpacing: "0.20em", color: "rgba(255,255,255,0.35)", fontFamily: "Frank Ruhl Libre, serif", margin: 0 }}>
+              רגע לפני ✦
             </p>
           </div>
           <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1.8rem,6vw,2.4rem)", fontWeight: 700, marginBottom: "0.35rem", lineHeight: 1.2, color: "#FFF8EC" }}>
@@ -659,15 +662,15 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
 
         {/* #15 — 7-day countdown bell */}
         {daysLeft <= 7 && daysLeft > 0 && (
-          <div style={{ background: "linear-gradient(135deg, #7B2D8B, #4A1060)", borderRadius: "1.25rem", padding: "1.25rem", marginBottom: "1rem", boxShadow: "0 4px 20px rgba(123,45,139,0.25)" }}>
+          <div style={{ background: "linear-gradient(135deg, #3D2B1F, #261810)", borderRadius: "1.25rem", padding: "1.25rem", marginBottom: "1rem", boxShadow: "0 4px 20px rgba(197,164,109,0.22)", border: "1px solid rgba(197,164,109,0.28)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ fontSize: 28, animation: "coupleFloat 1.5s ease-in-out infinite" }}>🔔</span>
               <div>
-                <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.05rem", fontWeight: 700, color: "white", margin: 0 }}>
+                <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.05rem", fontWeight: 700, color: "#FFF8EC", margin: 0 }}>
                   {daysLeft === 1 ? "מחר זה הגדול! 🎊" : `עוד ${daysLeft} ימים לחתונה!`}
                 </p>
-                <p style={{ fontSize: 12, color: "rgba(255,220,255,0.8)", margin: "3px 0 0", fontFamily: "Heebo, sans-serif" }}>
-                  {daysLeft <= 3 ? "הכל מוכן? אתם מדהימים 💜" : "הגיע הזמן לסיים כל פריט אחרון ✓"}
+                <p style={{ fontSize: 12, color: "rgba(197,164,109,0.85)", margin: "3px 0 0", fontFamily: "Heebo, sans-serif" }}>
+                  {daysLeft <= 3 ? "הכל מוכן? אתם מדהימים ✨" : "הגיע הזמן לסיים כל פריט אחרון ✓"}
                 </p>
               </div>
             </div>
