@@ -561,42 +561,43 @@ export default function WizardPage() {
               {phone && dashUrl && (
                 <div className="w-full rounded-2xl p-4 text-right" style={{ background: "rgba(37,211,102,0.06)", border: "1px solid rgba(37,211,102,0.2)" }}>
                   <p className="text-xs font-semibold mb-3" style={{ color: "#1A9B4E", ...HEEBO }}>📱 שלח לזוג בוואטסאפ</p>
-                  <div className="flex flex-col gap-2">
-
-                    {/* 1. Welcome + dashboard link */}
-                    <a href={waMsg(`🎉 שלום!\nהאירוע שלכם "${result.event_name}" מוכן במערכת רגע לפני!\n\nהנה הקישור לדשבורד האישי שלכם:\n${dashUrl}\n\nבדף תמצאו:\n✅ אישורי הגעה בזמן אמת\n📋 רשימת משימות לחתונה\n💰 מעקב תקציב\n🪑 הושבה אורחים\n📸 גלריית תמונות\n\nכל השינויים נשמרים אוטומטית 🤍`)}
-                      target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-semibold transition-all hover:opacity-85"
-                      style={{ background: "#25D366", color: "white", textDecoration: "none", ...HEEBO }}>
-                      💌 שלח קישור דשבורד + ברכת פתיחה
-                    </a>
-
-                    {/* 2. RSVP reminder (for later) */}
-                    <a href={waMsg(`שלום! 👋\nרק מזכיר — אתם יכולים לעקוב אחרי אישורי ההגעה בזמן אמת:\n${dashUrl}\n\nאורחים שעוד לא ענו — שווה לשלוח להם תזכורת 🙏`)}
-                      target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-medium transition-all hover:opacity-85"
-                      style={{ background: "rgba(37,211,102,0.12)", color: "#1A9B4E", textDecoration: "none", border: "1px solid rgba(37,211,102,0.25)", ...HEEBO }}>
-                      📨 שלח תזכורת RSVP לזוג
-                    </a>
-
-                    {/* 4. Reminder 7 days before */}
-                    <a href={waMsg(`הי! 🌟\nעוד שבוע לחתונה של ${result.event_name}!\nהמלצה: בדקו שכל האורחים אישרו, וסיימו את סידורי ההושבה.\n\nדשבורד: ${dashUrl}`)}
-                      target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-medium transition-all hover:opacity-85"
-                      style={{ background: "rgba(37,211,102,0.12)", color: "#1A9B4E", textDecoration: "none", border: "1px solid rgba(37,211,102,0.25)", ...HEEBO }}>
-                      🔔 תזכורת "שבוע לפני" (לשלוח מאוחר יותר)
-                    </a>
-
-                    {/* 5. Day-of */}
-                    <a href={waMsg(`🎊 היום זה הגדול!\n${result.event_name} — ${eventDateStr}\n\nמחכים לחגוג איתכם! 🤍\nכל הכבוד על ההכנות — הכל יהיה מושלם!`)}
-                      target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-medium transition-all hover:opacity-85"
-                      style={{ background: "rgba(37,211,102,0.12)", color: "#1A9B4E", textDecoration: "none", border: "1px solid rgba(37,211,102,0.25)", ...HEEBO }}>
-                      🎉 ברכת יום האירוע (לשלוח ביום)
-                    </a>
-                  </div>
+                  <a href={waMsg(
+                    `🎉 שלום!\nהאירוע שלכם "${result.event_name}" מוכן במערכת רגע לפני!\n\n` +
+                    `הנה הקישור לדשבורד האישי שלכם:\n${dashUrl}\n\n` +
+                    `מה תמצאו בדף:\n` +
+                    `✅ אישורי הגעה — רואים בזמן אמת מי אישר ומי לא\n` +
+                    `📋 משימות — רשימת To-Do לפני החתונה\n` +
+                    `💰 תקציב — מעקב הוצאות ותשלומים\n` +
+                    `🪑 הושבה — סידור אורחים לשולחנות\n` +
+                    `📸 גלריה — אורחים יעלו תמונות מהאירוע\n` +
+                    `💌 זיכרונות — וידאו ברכות מהאורחים\n\n` +
+                    `הדף מתעדכן אוטומטית, אפשר לפתוח מהטלפון בכל רגע 🤍`
+                  )}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-semibold transition-all hover:opacity-85"
+                    style={{ background: "#25D366", color: "white", textDecoration: "none", ...HEEBO }}>
+                    💌 שלח קישור דשבורד + ברכת פתיחה
+                  </a>
                 </div>
               )}
+
+              {/* Admin reminders info */}
+              <div className="w-full flex flex-col gap-2 text-right">
+                <div className="rounded-2xl px-4 py-3 flex items-start gap-3" style={{ background: "rgba(197,164,109,0.10)", border: `1px solid ${C.border}` }}>
+                  <span className="text-base">🔔</span>
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: C.dark, ...HEEBO }}>תזכורת שבוע לפני</p>
+                    <p className="text-xs mt-0.5" style={{ color: C.muted, ...HEEBO }}>תופיע אצלך בלוח הניהול 7 ימים לפני האירוע</p>
+                  </div>
+                </div>
+                <div className="rounded-2xl px-4 py-3 flex items-start gap-3" style={{ background: "rgba(197,164,109,0.10)", border: `1px solid ${C.border}` }}>
+                  <span className="text-base">🎊</span>
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: C.dark, ...HEEBO }}>ברכת יום האירוע</p>
+                    <p className="text-xs mt-0.5" style={{ color: C.muted, ...HEEBO }}>תופיע אצלך בלוח הניהול ביום האירוע עצמו</p>
+                  </div>
+                </div>
+              </div>
 
               {/* No phone warning */}
               {!phone && (

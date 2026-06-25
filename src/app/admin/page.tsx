@@ -3609,59 +3609,125 @@ function ReminderCenter({
 ══════════════════════════════════════════════════════ */
 function AdminAgenda({ events, onSelect }: { events: Event[]; onSelect: (id: string) => void }) {
   const [dismissed, setDismissed] = React.useState(false);
-  if (dismissed || events.length === 0) return null;
+  const [dismissedReminders, setDismissedReminders] = React.useState<Set<string>>(new Set());
+  if (events.length === 0) return null;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const inWeek = new Date(today.getTime() + 7 * 86_400_000);
 
-  const upcoming = events
+  const mapped = events
     .filter(e => e.date)
     .map(e => {
       const d = new Date(e.date + "T00:00:00");
       const diffDays = Math.round((d.getTime() - today.getTime()) / 86_400_000);
       return { ...e, diffDays };
-    })
+    });
+
+  // Action reminders: today's events + exactly-7-days events
+  const todayEvents  = mapped.filter(e => e.diffDays === 0);
+  const weekEvents   = mapped.filter(e => e.diffDays === 7);
+  const actionReminders = [
+    ...todayEvents.map(e => ({ ev: e, type: "today"  as const })),
+    ...weekEvents.map(e =>  ({ ev: e, type: "week"   as const })),
+  ].filter(r => !dismissedReminders.has(`${r.type}-${r.ev.id}`));
+
+  const upcoming = mapped
     .filter(e => e.diffDays >= 0 && e.diffDays <= 60)
     .sort((a, b) => a.diffDays - b.diffDays)
     .slice(0, 6);
 
-  if (upcoming.length === 0) return null;
+  if (actionReminders.length === 0 && (dismissed || upcoming.length === 0)) return null;
 
   return (
-    <div className="mb-5 rounded-2xl p-4" style={{ background: "rgba(197,164,109,0.07)", border: "1px solid rgba(197,164,109,0.2)" }}>
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-semibold" style={{ color: "#6B7B5A", fontFamily: "Heebo, sans-serif" }}>
-          📅 סדר היום — אירועים קרובים
-        </p>
-        <button onClick={() => setDismissed(true)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(28,16,8,0.3)", fontSize: 16 }}>×</button>
-      </div>
-      <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-        {upcoming.map(ev => {
-          const isToday = ev.diffDays === 0;
-          const isTomorrow = ev.diffDays === 1;
-          const isThisWeek = ev.diffDays <= 7;
-          const badgeColor = isToday ? "#A32D2D" : isThisWeek ? "#854F0B" : "#3B6D11";
-          const badgeBg = isToday ? "#FCEBEB" : isThisWeek ? "#FAEEDA" : "#EAF3DE";
-          const label = isToday ? "היום!" : isTomorrow ? "מחר" : `בעוד ${ev.diffDays} ימים`;
-          return (
-            <button
-              key={ev.id}
-              onClick={() => onSelect(ev.id)}
-              className="flex-shrink-0 rounded-xl p-3 text-right transition-all hover:scale-105"
-              style={{ background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.25)", minWidth: 160, cursor: "pointer" }}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: badgeBg, color: badgeColor }}>{label}</span>
+    <div className="mb-5 flex flex-col gap-3">
+      {/* ── Action reminders ── */}
+      {actionReminders.map(({ ev, type }) => {
+        const isToday = type === "today";
+        const bg      = isToday ? "#FFF3CD" : "rgba(197,164,109,0.10)";
+        const border  = isToday ? "#F5C842" : "rgba(197,164,109,0.30)";
+        const icon    = isToday ? "🎊" : "🔔";
+        const title   = isToday
+          ? `ברכת יום האירוע — ${ev.name}`
+          : `שבוע לאירוע — ${ev.name}`;
+        const subtitle = isToday
+          ? "שלח ברכה לזוג היום! זה הרגע הגדול שלהם 🤍"
+          : "עוד 7 ימים לחתונה — כדאי לבדוק RSVP פתוחים ולסגור הושבה";
+        const phone = (ev as Event & { client_phone?: string }).client_phone
+          ?.replace(/\D/g, "").replace(/^0/, "972");
+        const coupleToken = (ev as Event & { couple_token?: string }).couple_token;
+        const dashUrl = coupleToken
+          ? `https://regalifnei.vercel.app/couple/${coupleToken}`
+          : null;
+        const waText = isToday
+          ? `🎊 היום זה הגדול!\n${ev.name} — ${new Date(ev.date + "T00:00:00").toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}\n\nמחכים לחגוג איתכם! 🤍\nכל הכבוד על ההכנות — הכל יהיה מושלם!`
+          : `הי! 🌟\nעוד שבוע לחתונה של ${ev.name}!\nהמלצה: בדקו שכל האורחים אישרו, וסיימו את סידורי ההושבה.${dashUrl ? `\n\nדשבורד: ${dashUrl}` : ""}`;
+        const waUrl = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(waText)}` : null;
+
+        return (
+          <div key={`${type}-${ev.id}`} className="rounded-2xl p-4 flex items-start gap-3"
+            style={{ background: bg, border: `1px solid ${border}` }}>
+            <span className="text-2xl mt-0.5">{icon}</span>
+            <div className="flex-1 text-right">
+              <p className="text-sm font-bold" style={{ color: "#1C1008", fontFamily: "Frank Ruhl Libre, serif" }}>{title}</p>
+              <p className="text-xs mt-0.5 mb-3" style={{ color: "rgba(28,16,8,0.6)", fontFamily: "Heebo, sans-serif" }}>{subtitle}</p>
+              <div className="flex gap-2 justify-end flex-wrap">
+                <button onClick={() => onSelect(ev.id)}
+                  className="text-xs px-3 py-1.5 rounded-xl font-medium"
+                  style={{ background: "rgba(28,16,8,0.08)", color: "#1C1008", fontFamily: "Heebo, sans-serif" }}>
+                  פתח דשבורד
+                </button>
+                {waUrl && (
+                  <a href={waUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-xs px-3 py-1.5 rounded-xl font-semibold"
+                    style={{ background: "#25D366", color: "white", textDecoration: "none", fontFamily: "Heebo, sans-serif" }}>
+                    📱 שלח WhatsApp
+                  </a>
+                )}
+                <button onClick={() => setDismissedReminders(p => new Set([...p, `${type}-${ev.id}`]))}
+                  className="text-xs px-3 py-1.5 rounded-xl font-medium"
+                  style={{ background: "rgba(28,16,8,0.05)", color: "rgba(28,16,8,0.4)", fontFamily: "Heebo, sans-serif" }}>
+                  סגור
+                </button>
               </div>
-              <p className="text-xs font-semibold truncate" style={{ color: "#1C1008", fontFamily: "Frank Ruhl Libre, serif", maxWidth: 140 }}>{ev.name}</p>
-              <p className="text-[10px] mt-0.5" style={{ color: "rgba(28,16,8,0.45)", fontFamily: "Heebo, sans-serif" }}>
-                {new Date(ev.date + "T00:00:00").toLocaleDateString("he-IL", { day: "numeric", month: "short" })}
-              </p>
-            </button>
-          );
-        })}
-      </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* ── Upcoming events strip ── */}
+      {!dismissed && upcoming.length > 0 && (
+        <div className="rounded-2xl p-4" style={{ background: "rgba(197,164,109,0.07)", border: "1px solid rgba(197,164,109,0.2)" }}>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold" style={{ color: "#6B7B5A", fontFamily: "Heebo, sans-serif" }}>
+              📅 סדר היום — אירועים קרובים
+            </p>
+            <button onClick={() => setDismissed(true)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(28,16,8,0.3)", fontSize: 16 }}>×</button>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+            {upcoming.map(ev => {
+              const isToday = ev.diffDays === 0;
+              const isTomorrow = ev.diffDays === 1;
+              const isThisWeek = ev.diffDays <= 7;
+              const badgeColor = isToday ? "#A32D2D" : isThisWeek ? "#854F0B" : "#3B6D11";
+              const badgeBg = isToday ? "#FCEBEB" : isThisWeek ? "#FAEEDA" : "#EAF3DE";
+              const label = isToday ? "היום!" : isTomorrow ? "מחר" : `בעוד ${ev.diffDays} ימים`;
+              return (
+                <button key={ev.id} onClick={() => onSelect(ev.id)}
+                  className="flex-shrink-0 rounded-xl p-3 text-right transition-all hover:scale-105"
+                  style={{ background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.25)", minWidth: 160, cursor: "pointer" }}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: badgeBg, color: badgeColor }}>{label}</span>
+                  </div>
+                  <p className="text-xs font-semibold truncate" style={{ color: "#1C1008", fontFamily: "Frank Ruhl Libre, serif", maxWidth: 140 }}>{ev.name}</p>
+                  <p className="text-[10px] mt-0.5" style={{ color: "rgba(28,16,8,0.45)", fontFamily: "Heebo, sans-serif" }}>
+                    {new Date(ev.date + "T00:00:00").toLocaleDateString("he-IL", { day: "numeric", month: "short" })}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
