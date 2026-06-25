@@ -24,14 +24,28 @@ export async function POST(req: NextRequest) {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as import("stripe").Stripe.Checkout.Session;
     const event_id = session.metadata?.event_id;
-    const amount   = session.metadata?.amount;
     if (event_id) {
+      // Use Stripe's verified amount_total (in agorot) — not the client-controlled metadata
+      const amountFromStripe = session.amount_total != null
+        ? session.amount_total / 100
+        : (session.metadata?.amount ? Number(session.metadata.amount) : null);
+
       const sb = createServerClient();
-      await sb.from("events").update({
-        payment_status: "paid",
-        payment_amount: amount ? Number(amount) : null,
-        payment_date:   new Date().toISOString(),
-      }).eq("id", event_id);
+
+      // Idempotency: check if already marked paid to avoid duplicate processing
+      const { data: existing } = await sb
+        .from("events")
+        .select("payment_status")
+        .eq("id", event_id)
+        .single();
+
+      if (existing && existing.payment_status !== "paid") {
+        await sb.from("events").update({
+          payment_status: "paid",
+          payment_amount: amountFromStripe,
+          payment_date:   new Date().toISOString(),
+        }).eq("id", event_id);
+      }
     }
   }
 

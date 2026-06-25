@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
+import { normalizePhone } from '@/lib/phone';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -30,10 +31,15 @@ export async function POST(request: NextRequest) {
   if (!event_id || !name)
     return NextResponse.json({ error: 'event_id and name required' }, { status: 400 });
 
+  // Normalize phone to international format if provided
+  const normalizedPhone = phone && phone.trim()
+    ? normalizePhone(phone.trim())
+    : '';
+
   const supabase = createServerClient();
   const { data, error } = await supabase
     .from('guests')
-    .insert({ event_id, name, phone: phone ?? '', guest_count: guest_count ?? 1 })
+    .insert({ event_id, name: name.trim().slice(0, 255), phone: normalizedPhone, guest_count: Math.max(1, Math.min(50, guest_count ?? 1)) })
     .select()
     .single();
 

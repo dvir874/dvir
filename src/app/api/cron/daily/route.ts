@@ -25,13 +25,20 @@ import { JOB_IDS }                   from "@/lib/automation/scheduler";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  // Auth guard — require CRON_SECRET header in production
+  // Auth guard — always required in production
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const authHeader = request.headers.get("authorization");
+  const authHeader = request.headers.get("authorization");
+  if (process.env.NODE_ENV === "production") {
+    if (!secret) {
+      console.error("[cron/daily] CRON_SECRET env var not set — refusing to run");
+      return NextResponse.json({ error: "Cron not configured" }, { status: 500 });
+    }
     if (authHeader !== `Bearer ${secret}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+  } else if (secret && authHeader !== `Bearer ${secret}`) {
+    // In dev, only enforce if secret is set
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const dryRun = request.nextUrl.searchParams.get("dry") !== "false";

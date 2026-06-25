@@ -33,11 +33,24 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   if (!id) return NextResponse.json({ error: 'Missing event id' }, { status: 400 });
+
+  // Safety: require explicit confirmation header for destructive operations.
+  // This prevents accidental deletions from tests, scripts, or curl commands.
+  const confirmHeader = req.headers.get('x-delete-confirm');
+  if (confirmHeader !== 'delete-event') {
+    return NextResponse.json(
+      {
+        error: 'Missing delete confirmation header.',
+        hint: "Set header: X-Delete-Confirm: delete-event",
+      },
+      { status: 400 }
+    );
+  }
 
   const supabase = createServerClient();
 

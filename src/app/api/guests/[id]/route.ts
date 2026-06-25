@@ -46,6 +46,15 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(request: NextRequest, { params }: Params) {
   const { id } = await params;
+
+  const confirmHeader = request.headers.get('x-delete-confirm');
+  if (confirmHeader !== 'delete-guest') {
+    return NextResponse.json(
+      { error: 'Missing delete confirmation header.', hint: 'Set header: X-Delete-Confirm: delete-guest' },
+      { status: 400 }
+    );
+  }
+
   const supabase = createServerClient();
   const { error } = await supabase.from('guests').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

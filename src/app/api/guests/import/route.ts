@@ -30,10 +30,29 @@ export async function POST(request: NextRequest) {
       { status: 422 }
     );
 
+  if (parsed.length > 1000)
+    return NextResponse.json(
+      { error: 'מקסימום 1000 אורחים בייבוא אחד' },
+      { status: 422 }
+    );
+
+  // Validate and sanitize each row
+  const sanitized = parsed.map((g) => ({
+    name: String(g.name ?? '').trim().slice(0, 255),
+    phone: String(g.phone ?? '').replace(/\D/g, '').slice(0, 20),
+    guest_count: Math.max(1, Math.min(50, Math.floor(Number(g.guest_count) || 1))),
+  })).filter((g) => g.name.length > 0);
+
+  if (sanitized.length === 0)
+    return NextResponse.json(
+      { error: 'לא נמצאו שורות תקינות לאחר בדיקה' },
+      { status: 422 }
+    );
+
   const supabase = createServerClient();
   const { data, error } = await supabase
     .from('guests')
-    .insert(parsed.map((g) => ({ ...g, event_id, status: 'pending' })))
+    .insert(sanitized.map((g) => ({ ...g, event_id, status: 'pending' })))
     .select();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

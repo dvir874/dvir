@@ -594,7 +594,10 @@ export default function AdminPage() {
     if (!targetId) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/events/${targetId}`, { method: "DELETE" });
+      const res = await fetch(`/api/events/${targetId}`, {
+        method: "DELETE",
+        headers: { "X-Delete-Confirm": "delete-event" },
+      });
       if (!res.ok) {
         const d = await res.json();
         alert(`שגיאה: ${d.error}`);
@@ -640,7 +643,10 @@ export default function AdminPage() {
   async function handleDelete(guestId: string) {
     if (!confirm("למחוק את האורח?")) return;
     setGuests((prev) => prev.filter((g) => g.id !== guestId));
-    await fetch(`/api/guests/${guestId}`, { method: "DELETE" });
+    await fetch(`/api/guests/${guestId}`, {
+      method: "DELETE",
+      headers: { "X-Delete-Confirm": "delete-guest" },
+    });
   }
 
   async function handleCreateEvent() {

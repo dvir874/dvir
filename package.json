@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:e2e:check": "node scripts/check-e2e-env.js",
+    "dev:staging": "dotenv -e .env.test -- next dev -p 3001"
   },
   "dependencies": {
     "@stripe/stripe-js": "^9.8.0",
