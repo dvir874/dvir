@@ -3632,9 +3632,9 @@ function AdminAgenda({ events, onSelect }: { events: Event[]; onSelect: (id: str
   ].filter(r => !dismissedReminders.has(`${r.type}-${r.ev.id}`));
 
   const upcoming = mapped
-    .filter(e => e.diffDays >= 0 && e.diffDays <= 60)
+    .filter(e => e.diffDays >= 0)
     .sort((a, b) => a.diffDays - b.diffDays)
-    .slice(0, 6);
+    .slice(0, 8);
 
   if (actionReminders.length === 0 && (dismissed || upcoming.length === 0)) return null;
 
