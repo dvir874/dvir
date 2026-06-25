@@ -425,6 +425,12 @@ export default function AdminPage() {
   const [showCoupleMenu,  setShowCoupleMenu]  = useState(false);
   const [showToolsMenu,   setShowToolsMenu]   = useState(false);
 
+  // Chat inbox
+  const [showInbox,        setShowInbox]        = useState(false);
+  const [inboxItems,       setInboxItems]       = useState<{ eventId: string; eventName: string; clientName: string | null; unreadCount: number; lastAt: string }[]>([]);
+  const [inboxChatEventId, setInboxChatEventId] = useState<string | null>(null);
+  const inboxRef = useRef<HTMLDivElement>(null);
+
   /* ── Data fetching ──────────────────────────────── */
   useEffect(() => {
     fetch("/api/events")
@@ -471,6 +477,31 @@ export default function AdminPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedEventId, fetchGuests]);
+
+  // Fetch unread chat messages for all couples
+  const fetchInbox = useCallback(() => {
+    fetch("/api/admin/chat/unread")
+      .then(r => r.ok ? r.json() : [])
+      .then(setInboxItems)
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchInbox();
+    const id = setInterval(fetchInbox, 30_000);
+    return () => clearInterval(id);
+  }, [fetchInbox]);
+
+  // Close inbox on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (inboxRef.current && !inboxRef.current.contains(e.target as Node)) {
+        setShowInbox(false);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   useEffect(() => {
     if (activeTab !== "command-center") return;
@@ -827,6 +858,51 @@ export default function AdminPage() {
           >
             <Bell size={12} /> אוטומציות אורחים
           </a>
+          {/* Chat inbox — unread messages from couples */}
+          <div ref={inboxRef} style={{ position: "relative" }}>
+            <button
+              onClick={() => { setShowInbox(o => !o); setInboxChatEventId(null); }}
+              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
+              style={{ background: inboxItems.length > 0 ? "rgba(197,164,109,0.18)" : "rgba(28,16,8,0.06)", color: inboxItems.length > 0 ? "#8B6914" : C.dark, position: "relative" }}
+            >
+              💬 הודעות
+              {inboxItems.length > 0 && (
+                <span style={{ background: "#C0392B", color: "white", borderRadius: "50%", width: 17, height: 17, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", position: "absolute", top: -6, left: -6 }}>
+                  {inboxItems.reduce((s, i) => s + i.unreadCount, 0)}
+                </span>
+              )}
+            </button>
+            {showInbox && (
+              <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, width: 320, background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.25)", borderRadius: 16, boxShadow: "0 8px 32px rgba(0,0,0,0.12)", zIndex: 60, overflow: "hidden" }}>
+                <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid rgba(197,164,109,0.15)", fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 14, color: C.dark }}>
+                  📨 הודעות מזוגות
+                </div>
+                {inboxItems.length === 0 ? (
+                  <p style={{ padding: "1.5rem", textAlign: "center", fontSize: 12, color: "rgba(28,16,8,0.4)", fontFamily: "Heebo, sans-serif" }}>אין הודעות חדשות</p>
+                ) : (
+                  <div style={{ maxHeight: 340, overflowY: "auto" }}>
+                    {inboxItems.map(item => (
+                      <button
+                        key={item.eventId}
+                        onClick={() => { setInboxChatEventId(item.eventId); setSelectedEventId(item.eventId); setShowInbox(false); fetchInbox(); }}
+                        style={{ width: "100%", textAlign: "right", padding: "0.7rem 1rem", borderBottom: "1px solid rgba(197,164,109,0.08)", background: "none", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}
+                        className="hover:bg-[rgba(197,164,109,0.06)] transition-colors"
+                      >
+                        <div style={{ textAlign: "right" }}>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: C.dark, fontFamily: "Heebo, sans-serif" }}>{item.eventName}</p>
+                          {item.clientName && <p style={{ fontSize: 11, color: "rgba(28,16,8,0.45)", fontFamily: "Heebo, sans-serif" }}>{item.clientName}</p>}
+                        </div>
+                        <span style={{ background: "#C5A46D", color: "white", borderRadius: 10, padding: "2px 8px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                          {item.unreadCount} חדשות
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Event selector — custom dropdown with per-event trash */}
           {events.length > 0 && (
             <div ref={eventDropdownRef} style={{ position: "relative", display: "inline-block" }}>
@@ -2948,14 +3024,16 @@ export default function AdminPage() {
 
       </div>
 
-      {/* Global chat widget — visible whenever an event is selected */}
-      {selectedEventId && (
+      {/* Chat widget — opens for inbox-selected event or current selected event */}
+      {(inboxChatEventId ?? selectedEventId) && (
         <ChatWidget
-          fetchUrl={`/api/admin/chat/${selectedEventId}`}
-          postUrl={`/api/admin/chat/${selectedEventId}`}
+          key={inboxChatEventId ?? selectedEventId}
+          fetchUrl={`/api/admin/chat/${inboxChatEventId ?? selectedEventId}`}
+          postUrl={`/api/admin/chat/${inboxChatEventId ?? selectedEventId}`}
           myRole="admin"
           accentColor="#C5A46D"
-          label={`💬 צ׳אט עם ${selectedEvent?.name ?? "הזוג"}`}
+          label={`💬 צ׳אט עם ${events.find(e => e.id === (inboxChatEventId ?? selectedEventId))?.name ?? "הזוג"}`}
+          onClose={() => { setInboxChatEventId(null); fetchInbox(); }}
         />
       )}
     </div>

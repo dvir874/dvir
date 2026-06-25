@@ -11,9 +11,10 @@ interface Props {
   myRole: "admin" | "couple";
   accentColor?: string;
   label?: string;
+  onClose?: () => void;
 }
 
-export default function ChatWidget({ fetchUrl, postUrl, myRole, accentColor = "#C5A46D", label = "שאלות ועדכונים" }: Props) {
+export default function ChatWidget({ fetchUrl, postUrl, myRole, accentColor = "#C5A46D", label = "שאלות ועדכונים", onClose }: Props) {
   const [open,    setOpen]    = useState(false);
   const [msgs,    setMsgs]    = useState<Msg[]>([]);
   const [input,   setInput]   = useState("");
@@ -74,7 +75,7 @@ export default function ChatWidget({ fetchUrl, postUrl, myRole, accentColor = "#
     <>
       {/* FAB */}
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={() => { if (open && onClose) onClose(); setOpen(o => !o); }}
         style={{
           position: "fixed", bottom: 24, left: 24, zIndex: 9998,
           width: 52, height: 52, borderRadius: "50%",
