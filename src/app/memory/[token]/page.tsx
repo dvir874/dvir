@@ -392,22 +392,29 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
 
 function Shell({ event, children }: { event: EventInfo | null; children: React.ReactNode }) {
   return (
-    <div style={{ minHeight: "100vh", padding: "2rem 1rem 3rem", background: `linear-gradient(160deg, #F6F1E8 0%, #EDE6D6 100%)` }}>
-      <div style={{ maxWidth: 400, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
-          <p style={{ fontSize: 10, letterSpacing: "0.3em", textTransform: "uppercase", color: "rgba(197,164,109,0.6)", fontFamily: "Heebo, sans-serif" }}>
-            רגע לפני · ארכיון זכרונות
-          </p>
-        </div>
-        {event && (
-          <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
-            <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.25rem", fontWeight: 700, color: "#333" }}>{event.name}</h1>
-            <p style={{ fontSize: 11, color: "rgba(51,51,51,0.45)", fontFamily: "Heebo, sans-serif", marginTop: 2 }}>
+    <div dir="rtl" style={{ minHeight: "100vh", background: `linear-gradient(160deg, #1C1008 0%, #2C1F0E 40%, #F6F1E8 40%)`, fontFamily: "Heebo, sans-serif" }}>
+      {/* Luxury hero header */}
+      <div style={{ background: `linear-gradient(160deg, #1C1008, #2C1F0E)`, padding: "2rem 1rem 3rem", textAlign: "center", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 0%, rgba(197,164,109,0.18) 0%, transparent 60%)", pointerEvents: "none" }} />
+        <p style={{ fontSize: 9, letterSpacing: "0.4em", color: "rgba(197,164,109,0.55)", marginBottom: "0.5rem" }}>רגע לפני</p>
+        {event ? (
+          <>
+            <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.6rem", fontWeight: 700, color: "#FDFAF5", margin: 0, marginBottom: "0.25rem" }}>{event.name}</h1>
+            <p style={{ fontSize: 11, color: "rgba(197,164,109,0.65)" }}>
               {new Date(event.date).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}
             </p>
-          </div>
+            <p style={{ fontSize: 13, color: "rgba(232,213,168,0.7)", marginTop: "0.5rem" }}>📸 שתפו רגעים מהחגיגה</p>
+          </>
+        ) : (
+          <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.4rem", color: "#FDFAF5", margin: 0 }}>ארכיון זכרונות</h1>
         )}
-        {children}
+      </div>
+
+      {/* Card body */}
+      <div style={{ maxWidth: 420, margin: "-1.5rem auto 0", padding: "0 1rem 3rem", position: "relative", zIndex: 1 }}>
+        <div style={{ background: "#FDFAF5", borderRadius: "20px 20px 16px 16px", padding: "1.75rem 1.25rem", boxShadow: "0 8px 32px rgba(28,16,8,0.15)" }}>
+          {children}
+        </div>
       </div>
     </div>
   );

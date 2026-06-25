@@ -3023,6 +3023,13 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* ══════════════════════════════════════════════
+            TAB: Service Center
+        ══════════════════════════════════════════════ */}
+        {activeTab === "service-center" && (
+          <ServiceCenterAdmin selectedEventId={selectedEventId} events={events} />
+        )}
+
       </div>
 
       {/* Chat widget — opens for inbox-selected event or current selected event */}
@@ -3943,6 +3950,90 @@ function AdminAnalytics({ guests, events, selectedEventId }: { guests: Guest[]; 
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── Service Center Admin ────────────────────────── */
+const DEFAULT_STEPS = [
+  { id: "1", title: "קיבלנו את הפרטים שלכם", description: "הכרטיס נקלט במערכת", icon: "📋", status: "pending" },
+  { id: "2", title: "שיחת היכרות", description: "שיחה ראשונה להכרת החזון שלכם", icon: "📞", status: "pending" },
+  { id: "3", title: "בניית תוכנית עבודה", description: "מפת דרכים אישית לחתונה שלכם", icon: "🗺️", status: "pending" },
+  { id: "4", title: "ליווי שוטף", description: "אנחנו איתכם לאורך כל הדרך", icon: "🤝", status: "pending" },
+  { id: "5", title: "בדיקות לפני האירוע", description: "סיכום סופי ואישור כל הפרטים", icon: "✅", status: "pending" },
+  { id: "6", title: "יום האירוע", description: "ביום עצמו אנחנו זמינים עבורכם", icon: "🎊", status: "pending" },
+];
+
+function ServiceCenterAdmin({ selectedEventId, events }: { selectedEventId: string | null; events: Array<{ id: string; name: string }> }) {
+  const [steps, setSteps] = useState<Array<{ id: string; title: string; description?: string; icon?: string; status: string }>>([]);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!selectedEventId) return;
+    fetch(`/api/events/${selectedEventId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.service_steps && d.service_steps.length > 0) setSteps(d.service_steps);
+        else setSteps(DEFAULT_STEPS.map(s => ({ ...s })));
+      });
+  }, [selectedEventId]);
+
+  const save = async () => {
+    if (!selectedEventId) return;
+    setSaving(true);
+    await fetch(`/api/events/${selectedEventId}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ service_steps: steps }),
+    });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  if (!selectedEventId) {
+    return <p style={{ textAlign: "center", color: "rgba(28,16,8,0.45)", padding: "3rem" }}>בחרו אירוע כדי לנהל את מרכז השירות.</p>;
+  }
+
+  const eventName = events.find(e => e.id === selectedEventId)?.name ?? "";
+
+  return (
+    <div style={{ maxWidth: 600 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+        <div>
+          <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 20, fontWeight: 700, color: "#1C1008", margin: 0 }}>🛎 מרכז שירות</h2>
+          <p style={{ fontSize: 13, color: "rgba(28,16,8,0.5)", margin: 0 }}>{eventName}</p>
+        </div>
+        <button onClick={save} disabled={saving}
+          style={{ background: "#C5A46D", color: "white", border: "none", borderRadius: 12, padding: "0.6rem 1.25rem", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
+          {saved ? "✓ נשמר" : saving ? "שומר..." : "שמור"}
+        </button>
+      </div>
+
+      <p style={{ fontSize: 13, color: "rgba(28,16,8,0.5)", marginBottom: "1.25rem" }}>
+        סמנו אילו שלבים הושלמו — הזוג יראה את ההתקדמות בזמן אמת.
+      </p>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+        {steps.map((step, i) => (
+          <div key={step.id} style={{ background: "#FDFAF5", borderRadius: 14, padding: "1rem", border: `1px solid rgba(197,164,109,0.2)`, display: "flex", alignItems: "center", gap: "1rem" }}>
+            <span style={{ fontSize: 22, flexShrink: 0 }}>{step.icon ?? "⬡"}</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontWeight: 700, color: "#1C1008", fontSize: 14 }}>{step.title}</p>
+              {step.description && <p style={{ fontSize: 12, color: "rgba(28,16,8,0.5)" }}>{step.description}</p>}
+            </div>
+            <select
+              value={step.status}
+              onChange={e => setSteps(prev => prev.map((s, j) => j === i ? { ...s, status: e.target.value } : s))}
+              style={{ border: "1px solid rgba(197,164,109,0.3)", borderRadius: 8, padding: "0.4rem 0.6rem", fontSize: 13, fontFamily: "Heebo, sans-serif", background: "white", color: "#1C1008", outline: "none" }}
+            >
+              <option value="pending">ממתין</option>
+              <option value="in_progress">בתהליך</option>
+              <option value="done">הושלם ✓</option>
+            </select>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

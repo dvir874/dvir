@@ -84,9 +84,17 @@ interface EventData {
   address?: string | null;
   theme?: string | null;
   bit_phone?: string | null;
+  paybox_link?: string | null;
+  easy2give_link?: string | null;
+  custom_gift_link?: string | null;
   dress_code?: string | null;
   parking_info?: string | null;
   greeting?: string | null;
+  mini_site_hero_path?: string | null;
+  event_timeline?: Array<{ time: string; title: string }> | null;
+  partner1_name?: string | null;
+  partner2_name?: string | null;
+  couple_token?: string | null;
 }
 
 /* ── Countdown hook ─────────────────────────────────── */
@@ -541,34 +549,63 @@ export default function EventPageClient({
         </div>
       </section>
 
-      {/* ── Gift / Bit section ──────────────────────────── */}
-      {bitPhone && (
+      {/* ── Gift / Payment section ──────────────────────── */}
+      {(event.bit_phone || event.paybox_link || event.easy2give_link || event.custom_gift_link) && (
         <section className="py-10 px-4 text-center" style={{ background: theme.bodyBg }}>
-          <p style={{ fontSize: 13, color: theme.accentColor, marginBottom: "0.4rem", fontFamily: "Frank Ruhl Libre, serif", letterSpacing: "0.08em" }}>
-            🎁 רוצים לשלוח מתנה?
-          </p>
-          <p style={{ fontSize: 12, color: `${theme.heroMutedText}`, marginBottom: "1.25rem", fontFamily: "Heebo, sans-serif" }}>
-            שלחו מתנה כספית דרך ביט ישירות לזוג המאושר
-          </p>
-          <a
-            href={`https://www.bitpay.co.il/?phone=${bitPhone.replace(/\D/g, "")}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 10,
-              padding: "0.75rem 2rem", borderRadius: 50,
-              background: "linear-gradient(135deg, #1B3AE8 0%, #2D52F5 100%)",
-              color: "white", fontFamily: "Heebo, sans-serif", fontWeight: 700,
-              fontSize: 15, textDecoration: "none",
-              boxShadow: "0 4px 18px rgba(27,58,232,0.28)",
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 40 40" fill="none">
-              <rect width="40" height="40" rx="10" fill="white" fillOpacity="0.15"/>
-              <text x="50%" y="54%" dominantBaseline="middle" textAnchor="middle" fontSize="18" fill="white" fontWeight="900">₪</text>
-            </svg>
-            שלח מתנה בביט
-          </a>
+          <p style={{ fontSize: 13, color: theme.accentColor, marginBottom: "0.4rem", fontFamily: "Frank Ruhl Libre, serif", letterSpacing: "0.08em" }}>🎁 רוצים לשלוח מתנה?</p>
+          <p style={{ fontSize: 12, color: `${theme.heroMutedText}`, marginBottom: "1.25rem", fontFamily: "Heebo, sans-serif" }}>בחרו אמצעי תשלום נוח עבורכם</p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.65rem", justifyContent: "center" }}>
+            {event.bit_phone && (
+              <a href={`https://www.bitpay.co.il/?phone=${event.bit_phone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "0.7rem 1.5rem", borderRadius: 50, background: "linear-gradient(135deg, #1B3AE8, #2D52F5)", color: "white", fontFamily: "Heebo, sans-serif", fontWeight: 700, fontSize: 14, textDecoration: "none", boxShadow: "0 4px 16px rgba(27,58,232,0.25)" }}>
+                📱 Bit
+              </a>
+            )}
+            {event.paybox_link && (
+              <a href={event.paybox_link} target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "0.7rem 1.5rem", borderRadius: 50, background: "linear-gradient(135deg, #6B46C1, #8B5CF6)", color: "white", fontFamily: "Heebo, sans-serif", fontWeight: 700, fontSize: 14, textDecoration: "none", boxShadow: "0 4px 16px rgba(107,70,193,0.25)" }}>
+                💜 PayBox
+              </a>
+            )}
+            {event.easy2give_link && (
+              <a href={event.easy2give_link} target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "0.7rem 1.5rem", borderRadius: 50, background: "linear-gradient(135deg, #059669, #10B981)", color: "white", fontFamily: "Heebo, sans-serif", fontWeight: 700, fontSize: 14, textDecoration: "none", boxShadow: "0 4px 16px rgba(5,150,105,0.25)" }}>
+                💚 Easy2Give
+              </a>
+            )}
+            {event.custom_gift_link && (
+              <a href={event.custom_gift_link} target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "0.7rem 1.5rem", borderRadius: 50, background: `linear-gradient(135deg, ${theme.accentColor}, #D4BC8A)`, color: "white", fontFamily: "Heebo, sans-serif", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>
+                🔗 שליחת מתנה
+              </a>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ── Wedding Day Timeline ─────────────────────── */}
+      {event.event_timeline && event.event_timeline.length > 0 && (
+        <section className="py-12 px-4" style={{ background: theme.bodyBg }}>
+          <div style={{ maxWidth: 480, margin: "0 auto" }}>
+            <h2 className="text-xl font-bold text-center mb-8" style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif" }}>
+              🕐 תוכנית האירוע
+            </h2>
+            <div style={{ position: "relative" }}>
+              <div style={{ position: "absolute", right: 16, top: 8, bottom: 8, width: 2, background: `${theme.accentColor}25` }} />
+              <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                {event.event_timeline.map((item, i) => (
+                  <div key={i} style={{ display: "flex", gap: "1.25rem", alignItems: "flex-start" }}>
+                    <div style={{ width: 34, height: 34, borderRadius: "50%", background: theme.cardBg, border: `2px solid ${theme.accentColor}55`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 12, fontWeight: 700, color: theme.accentColor, fontFamily: "Heebo, sans-serif" }}>
+                      {item.time}
+                    </div>
+                    <div style={{ flex: 1, paddingTop: 6 }}>
+                      <p style={{ fontWeight: 700, color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif", fontSize: 15 }}>{item.title}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </section>
       )}
 
