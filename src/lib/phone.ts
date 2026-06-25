@@ -13,7 +13,7 @@ export function whatsappInviteLink(
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://raga-lifnei.co.il';
   const rsvpUrl = `${baseUrl}/rsvp/${rsvpToken}`;
   const message =
-    `✨ *הזמנה רשמית* ✨\n\nשלום ${name}!\n\nאתם מוזמנים לחגוג איתנו 🎊\n\nלחצו על הקישור לפרטים מלאים ואישור הגעה:\n👇\n${rsvpUrl}\n\nנשמח לראותכם! 🤍`;
+    `✨ *הזמנה רשמית* ✨\n\nמשפחה וחברים יקרים!\n\nאתם מוזמנים לחגוג איתנו 🎊\n\nלחצו על הקישור לפרטים מלאים ואישור הגעה:\n👇\n${rsvpUrl}\n\nנשמח לראותכם! 🤍`;
   const encoded = encodeURIComponent(message);
 
   if (phone && phone.trim()) {
