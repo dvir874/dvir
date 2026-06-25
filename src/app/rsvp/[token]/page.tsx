@@ -31,7 +31,7 @@ interface EventInfo {
   rsvp_deadline?: string | null;
 }
 
-type Screen = "loading" | "error" | "form" | "done" | "closed";
+type Screen = "loading" | "error" | "form" | "done" | "closed" | "wrong-person";
 
 export default function RsvpPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -47,6 +47,7 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
   const [errorMsg,    setErrorMsg]    = useState("");
   const [envelopeOpen, setEnvelopeOpen] = useState(false);
   const [cardVisible,  setCardVisible]  = useState(false);
+  const [tableName,    setTableName]    = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/rsvp/${token}`)
@@ -55,6 +56,7 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
         if (data.error) { setScreen("error"); return; }
         setGuest(data.guest);
         setEvent(data.event);
+        setTableName(data.tableName ?? null);
         setGuestCount(data.guest.guest_count ?? 1);
 
         // Check deadline
@@ -148,6 +150,25 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
   }
 
   if (screen === "error") return <Shell theme={theme}><ErrorScreen theme={theme} /></Shell>;
+
+  if (screen === "wrong-person") {
+    return (
+      <Shell theme={theme}>
+        <div className="text-center py-4">
+          <div className="text-5xl mb-4">🤷</div>
+          <h2 className="text-xl font-bold mb-3" style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif" }}>
+            קיבלתם בטעות?
+          </h2>
+          <p className="text-sm mb-2" style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif", lineHeight: 1.7 }}>
+            ייתכן שהקישור נשלח למספר הטלפון הלא נכון.
+          </p>
+          <p className="text-sm" style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif" }}>
+            פנו ישירות לבעלי השמחה כדי לתקן את הטעות 🙏
+          </p>
+        </div>
+      </Shell>
+    );
+  }
 
   if (screen === "closed") {
     return (
@@ -247,6 +268,16 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
               </p>
               <p className="text-xs mt-0.5" style={{ color: theme.accentColor, fontFamily: "Heebo, sans-serif" }}>
                 {formattedDate}
+              </p>
+            </div>
+          )}
+
+          {confirmed && tableName && (
+            <div className="mt-2 mb-4 py-3 px-4 rounded-2xl text-center"
+              style={{ background: `linear-gradient(135deg,${theme.accentColor}18,${theme.accentColor}08)`, border: `1.5px solid ${theme.accentColor}33` }}>
+              <p className="text-xs mb-1" style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif" }}>מקום ישיבה</p>
+              <p className="text-xl font-bold" style={{ color: theme.accentColor, fontFamily: "Frank Ruhl Libre, serif" }}>
+                🪑 שולחן {tableName}
               </p>
             </div>
           )}
@@ -365,9 +396,18 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
             {formattedDate}
           </p>
           {event.address && (
-            <p className="text-xs mt-1" style={{ color: `${theme.accentColor}bb`, fontFamily: "Heebo, sans-serif" }}>
-              📍 {event.address}
-            </p>
+            <div className="flex items-center justify-center gap-2 mt-1 flex-wrap">
+              <p className="text-xs" style={{ color: `${theme.accentColor}bb`, fontFamily: "Heebo, sans-serif" }}>
+                📍 {event.address}
+              </p>
+              <a
+                href={`https://waze.com/ul?q=${encodeURIComponent(event.address)}&navigate=yes`}
+                target="_blank" rel="noopener noreferrer"
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{ background: "rgba(51,204,255,0.12)", color: "#0099CC", fontFamily: "Heebo, sans-serif", textDecoration: "none" }}>
+                🚗 Waze
+              </a>
+            </div>
           )}
           {/* Deadline badge */}
           {deadlineStr && (
@@ -424,6 +464,15 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
           }}>
           <XCircle size={16} strokeWidth={1.5} />
           לא נוכל להגיע
+        </button>
+      </div>
+
+      <div className="text-center mb-4" style={{ animation: "rsvpFadeUp 0.4s ease 0.22s both" }}>
+        <button
+          onClick={() => setScreen("wrong-person")}
+          className="text-xs underline-offset-2"
+          style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", opacity: 0.6 }}>
+          קיבלתם בטעות? זה לא אני
         </button>
       </div>
 

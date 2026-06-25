@@ -34,7 +34,24 @@ export async function GET(_request: NextRequest, { params }: Params) {
     .eq('id', guest.event_id)
     .single();
 
-  return NextResponse.json({ guest, event: event ?? null });
+  // Fetch table assignment if exists
+  const { data: assignment } = await supabase
+    .from('seating_assignments')
+    .select('table_id')
+    .eq('guest_id', guest.id)
+    .maybeSingle();
+
+  let tableName: string | null = null;
+  if (assignment?.table_id) {
+    const { data: table } = await supabase
+      .from('seating_tables')
+      .select('name')
+      .eq('id', assignment.table_id)
+      .single();
+    tableName = table?.name ?? null;
+  }
+
+  return NextResponse.json({ guest, event: event ?? null, tableName });
 }
 
 export async function POST(request: NextRequest, { params }: Params) {

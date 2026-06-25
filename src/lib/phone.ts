@@ -13,7 +13,7 @@ export function whatsappInviteLink(
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://raga-lifnei.co.il';
   const rsvpUrl = `${baseUrl}/rsvp/${rsvpToken}`;
   const message =
-    `שלום ${name} 😊\n\nנשמח לאישור הגעה לחתונה שלנו.\n\n${rsvpUrl}\n\nתודה ❤️`;
+    `✨ *הזמנה רשמית* ✨\n\nשלום ${name}!\n\nאתם מוזמנים לחגוג איתנו 🎊\n\nלחצו על הקישור לפרטים מלאים ואישור הגעה:\n👇\n${rsvpUrl}\n\nנשמח לראותכם! 🤍`;
   const encoded = encodeURIComponent(message);
 
   if (phone && phone.trim()) {
@@ -48,7 +48,6 @@ export function whatsappReminderLink(
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://raga-lifnei.co.il';
   const rsvpUrl = `${baseUrl}/rsvp/${rsvpToken}`;
   const message =
-    `שלום ${name}! 🎊\n\nאנחנו שמחים להזמין אתכם לחגוג איתנו ב${eventName}.\n` +
-    `נשמח לדעת האם תוכלו להגיע — לחצו על הקישור לאישור הגעה:\n${rsvpUrl}`;
+    `🔔 *תזכורת* — ${eventName}\n\nשלום ${name}!\n\nעוד לא קיבלנו את אישור ההגעה שלכם 🙏\n\nלחצו על הקישור לאישור מהיר:\n👇\n${rsvpUrl}\n\nנשמח לדעת האם תוכלו להגיע 🤍`;
   return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
 }
