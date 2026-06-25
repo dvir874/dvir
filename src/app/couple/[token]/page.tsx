@@ -36,40 +36,43 @@ const INSPIRATION_QUOTES = [
 function getTimeTheme() {
   const h = new Date().getHours();
   if (h >= 5 && h < 12) return {
-    // Morning — warm ivory-gold brand palette
-    gradient:   "linear-gradient(150deg, #C5A46D 0%, #9B7A42 50%, #6B5530 100%)",
+    // Morning — soft ivory-gold
+    gradient:   "linear-gradient(150deg, #E8D9B8 0%, #D4BC8A 50%, #C5A46D 100%)",
     bgPage:     "#F6F1E8",
-    ring1:      "rgba(255,235,180,0.18)",
-    ring2:      "rgba(197,164,109,0.12)",
-    radial:     "radial-gradient(ellipse at 20% 0%, rgba(255,235,170,0.20) 0%, transparent 60%)",
+    ring1:      "rgba(197,164,109,0.18)",
+    ring2:      "rgba(197,164,109,0.10)",
+    radial:     "radial-gradient(ellipse at 20% 0%, rgba(255,245,210,0.30) 0%, transparent 60%)",
     label:      "בוקר טוב ☀️",
-    textMuted:  "rgba(255,245,220,0.80)",
-    factBg:     "rgba(0,0,0,0.18)",
-    factBorder: "rgba(255,230,160,0.38)",
+    textMuted:  "rgba(80,55,20,0.70)",
+    factBg:     "rgba(255,255,255,0.45)",
+    factBorder: "rgba(197,164,109,0.40)",
+    dark:       true,
   };
   if (h >= 12 && h < 18) return {
-    // Afternoon — olive-sage brand palette
-    gradient:   "linear-gradient(150deg, #6B7B5A 0%, #4A5E3C 50%, #2E3D24 100%)",
+    // Afternoon — warm sage-cream
+    gradient:   "linear-gradient(150deg, #D4DEC8 0%, #B8CBAL 50%, #9BAF88 100%)",
     bgPage:     "#F2EDE3",
-    ring1:      "rgba(197,220,160,0.15)",
-    ring2:      "rgba(150,180,120,0.10)",
-    radial:     "radial-gradient(ellipse at 80% 0%, rgba(180,210,150,0.18) 0%, transparent 60%)",
+    ring1:      "rgba(107,123,90,0.18)",
+    ring2:      "rgba(107,123,90,0.10)",
+    radial:     "radial-gradient(ellipse at 80% 0%, rgba(220,235,200,0.35) 0%, transparent 60%)",
     label:      "צהריים טובים 🌿",
-    textMuted:  "rgba(225,240,200,0.80)",
-    factBg:     "rgba(0,0,0,0.18)",
-    factBorder: "rgba(197,220,160,0.38)",
+    textMuted:  "rgba(40,55,30,0.68)",
+    factBg:     "rgba(255,255,255,0.45)",
+    factBorder: "rgba(107,123,90,0.35)",
+    dark:       true,
   };
-  // Evening/Night — deep warm brown-gold brand palette
+  // Evening — warm ivory-gold, light enough to read
   return {
-    gradient:   "linear-gradient(150deg, #3D2B1F 0%, #261810 50%, #140C08 100%)",
+    gradient:   "linear-gradient(150deg, #EAD9B5 0%, #D6BE8C 50%, #C5A46D 100%)",
     bgPage:     "#F2EDE3",
-    ring1:      "rgba(197,164,109,0.14)",
-    ring2:      "rgba(197,164,109,0.08)",
-    radial:     "radial-gradient(ellipse at 60% 0%, rgba(197,164,109,0.16) 0%, transparent 60%)",
+    ring1:      "rgba(197,164,109,0.20)",
+    ring2:      "rgba(197,164,109,0.12)",
+    radial:     "radial-gradient(ellipse at 60% 0%, rgba(255,240,200,0.30) 0%, transparent 60%)",
     label:      "לילה טוב 🌙",
-    textMuted:  "rgba(255,235,190,0.70)",
-    factBg:     "rgba(0,0,0,0.28)",
-    factBorder: "rgba(197,164,109,0.38)",
+    textMuted:  "rgba(80,55,20,0.70)",
+    factBg:     "rgba(255,255,255,0.45)",
+    factBorder: "rgba(197,164,109,0.40)",
+    dark:       true,
   };
 }
 
@@ -422,11 +425,11 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
             <p style={{ fontSize: 10, letterSpacing: "0.30em", textTransform: "uppercase", color: theme.textMuted, fontFamily: "Heebo, sans-serif", margin: 0 }}>
               ✦ {briefing?.phaseLabel ?? theme.label}
             </p>
-            <p style={{ fontSize: 10, letterSpacing: "0.20em", color: "rgba(255,255,255,0.35)", fontFamily: "Frank Ruhl Libre, serif", margin: 0 }}>
+            <p style={{ fontSize: 10, letterSpacing: "0.20em", color: theme.textMuted, fontFamily: "Frank Ruhl Libre, serif", margin: 0 }}>
               רגע לפני ✦
             </p>
           </div>
-          <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1.8rem,6vw,2.4rem)", fontWeight: 700, marginBottom: "0.35rem", lineHeight: 1.2, color: "#FFF8EC" }}>
+          <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1.8rem,6vw,2.4rem)", fontWeight: 700, marginBottom: "0.35rem", lineHeight: 1.2, color: "#3D2B1F" }}>
             {briefing?.greeting ?? event.name}
           </h1>
           {briefing?.phaseMessage && (
@@ -435,7 +438,7 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
             </p>
           )}
           {/* Daily inspiration quote */}
-          <p style={{ fontSize: 13, fontStyle: "italic", color: theme.textMuted, marginBottom: "1.25rem", lineHeight: 1.7, borderRight: "2px solid rgba(255,255,255,0.25)", paddingRight: "0.75rem" }}>
+          <p style={{ fontSize: 13, fontStyle: "italic", color: theme.textMuted, marginBottom: "1.25rem", lineHeight: 1.7, borderRight: "2px solid rgba(100,70,30,0.20)", paddingRight: "0.75rem" }}>
             &ldquo;{quote}&rdquo;
           </p>
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -448,7 +451,7 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
                 padding: "0.3rem 0.85rem", borderRadius: 20,
                 background: theme.factBg,
                 border: `1px solid ${theme.factBorder}`,
-                fontSize: 12, color: "rgba(255,245,220,0.92)", fontFamily: "Heebo, sans-serif", fontWeight: 500,
+                fontSize: 12, color: "rgba(61,43,31,0.78)", fontFamily: "Heebo, sans-serif", fontWeight: 500,
               }}>
                 {fact}
               </div>
