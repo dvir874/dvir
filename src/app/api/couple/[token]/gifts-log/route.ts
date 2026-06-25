@@ -25,18 +25,39 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
   return NextResponse.json(data ?? []);
 }
 
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+  const eventId = await getEventId(token);
+  if (!eventId) return NextResponse.json({ error: "not found" }, { status: 404 });
+
+  const { id, ...updates } = await req.json();
+  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  const sb = createServerClient();
+  const { data, error } = await sb
+    .from("gifts")
+    .update(updates)
+    .eq("id", id)
+    .eq("event_id", eventId)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
+}
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const eventId = await getEventId(token);
   if (!eventId) return NextResponse.json({ error: "not found" }, { status: 404 });
 
-  const { guest_name, amount, notes } = await req.json();
-  if (!guest_name || !amount) return NextResponse.json({ error: "missing fields" }, { status: 400 });
+  const { guest_name, amount, gift_type, notes, received_at } = await req.json();
+  if (!guest_name) return NextResponse.json({ error: "missing fields" }, { status: 400 });
 
   const sb = createServerClient();
   const { data, error } = await sb
     .from("gifts")
-    .insert({ event_id: eventId, guest_name, amount: Number(amount), notes: notes ?? null, received_at: new Date().toISOString() })
+    .insert({ event_id: eventId, guest_name, amount: amount ? Number(amount) : null, gift_type: gift_type ?? null, notes: notes ?? null, received_at: received_at ?? new Date().toISOString() })
     .select()
     .single();
 
