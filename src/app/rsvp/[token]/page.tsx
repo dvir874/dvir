@@ -572,9 +572,58 @@ function Shell({ theme, children }: { theme: EventTheme; children: React.ReactNo
           </svg>
         </div>
       ))}
-      <div className="w-full max-w-sm rounded-3xl p-7"
-        style={{ background: theme.cardBg, border: `1px solid ${theme.cardBorder}`, boxShadow: theme.cardShadow }}>
-        {children}
+      <div className="w-full max-w-sm flex flex-col gap-4">
+        <div className="rounded-3xl p-7"
+          style={{ background: theme.cardBg, border: `1px solid ${theme.cardBorder}`, boxShadow: theme.cardShadow }}>
+          {children}
+        </div>
+
+        {/* ── Promo banner ── */}
+        <a
+          href="https://wa.me/972533318177?text=%D7%94%D7%99%D7%99%20%F0%9F%91%8B%20%D7%A8%D7%90%D7%99%D7%AA%D7%99%20%D7%90%D7%AA%20%D7%94%D7%94%D7%96%D7%9E%D7%A0%D7%94%20%D7%95%D7%AA%D7%95%D7%9B%D7%9C%D7%AA%D7%99%20%D7%9C%D7%A9%D7%9E%D7%95%D7%A2%20%D7%99%D7%95%D7%AA%D7%A8%20%D7%A2%D7%9C%20%D7%94%D7%A9%D7%99%D7%A8%D7%95%D7%AA"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ textDecoration: "none", display: "block" }}
+        >
+          <div className="rounded-3xl p-5 text-center"
+            style={{
+              background: "linear-gradient(135deg,#1C1008 0%,#2D1A0E 50%,#1C1008 100%)",
+              border: "1px solid rgba(197,164,109,0.25)",
+              boxShadow: "0 8px 32px rgba(28,16,8,0.3)",
+              position: "relative",
+              overflow: "hidden",
+            }}>
+            {/* Shimmer line */}
+            <div style={{
+              position: "absolute", top: 0, left: 0, right: 0, height: 1,
+              background: "linear-gradient(90deg,transparent,rgba(197,164,109,0.6),transparent)",
+            }} />
+
+            <p style={{ fontSize: 10, letterSpacing: "0.2em", color: "rgba(197,164,109,0.7)", fontFamily: "Heebo, sans-serif", marginBottom: 6, textTransform: "uppercase" }}>
+              ✦ רגע לפני ✦
+            </p>
+            <p style={{ fontSize: 20, fontWeight: 700, color: "#F2EDE3", fontFamily: "Frank Ruhl Libre, serif", lineHeight: 1.3, marginBottom: 4 }}>
+              מתחתנים בקרוב?
+            </p>
+            <p style={{ fontSize: 12, color: "rgba(242,237,227,0.6)", fontFamily: "Heebo, sans-serif", lineHeight: 1.6, marginBottom: 14 }}>
+              ניהול אירוע מקצה לקצה —<br/>
+              רשימות אורחים · הושבה · ספקים · תקציב<br/>
+              הכל במקום אחד, בלי בלגן
+            </p>
+
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              background: "linear-gradient(135deg,#C5A46D,#A07840)",
+              color: "white", borderRadius: 50, padding: "10px 22px",
+              fontSize: 13, fontWeight: 600, fontFamily: "Heebo, sans-serif",
+              boxShadow: "0 4px 16px rgba(197,164,109,0.35)",
+            }}>
+              💬 דברו איתנו
+            </div>
+
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg,transparent,rgba(197,164,109,0.4),transparent)" }} />
+          </div>
+        </a>
       </div>
     </div>
   );
