@@ -55,13 +55,15 @@ export default function ChatWidget({ fetchUrl, postUrl, myRole, accentColor = "#
 
   async function send() {
     if (!input.trim() || sending) return;
+    const text = input.trim();
     setSending(true);
-    const optimistic: Msg = { id: crypto.randomUUID(), sender: myRole, body: input.trim(), created_at: new Date().toISOString() };
-    setMsgs(prev => [...prev, optimistic]);
     setInput("");
+    const optimistic: Msg = { id: crypto.randomUUID(), sender: myRole, body: text, created_at: new Date().toISOString() };
+    setMsgs(prev => [...prev, optimistic]);
     try {
-      await fetch(postUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body: optimistic.body }) });
-      await load();
+      await fetch(postUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body: text }) });
+      // Wait before reloading so the server has time to commit
+      setTimeout(load, 800);
     } catch { /* ignore */ }
     setSending(false);
   }
@@ -116,8 +118,8 @@ export default function ChatWidget({ fetchUrl, postUrl, myRole, accentColor = "#
           {/* Messages */}
           <div style={{ flex: 1, overflowY: "auto", padding: "0.75rem", display: "flex", flexDirection: "column", gap: 8 }}>
             {msgs.length === 0 && (
-              <p style={{ textAlign: "center", color: "rgba(28,16,8,0.3)", fontSize: 12, marginTop: "auto", marginBottom: "auto", fontFamily: "Heebo, sans-serif" }}>
-                עדיין אין הודעות. שלחו לנו שאלה!
+              <p style={{ textAlign: "center", color: "rgba(28,16,8,0.38)", fontSize: 12, marginTop: "auto", marginBottom: "auto", fontFamily: "Heebo, sans-serif", lineHeight: 1.7, padding: "0 0.5rem" }}>
+                חוויתם תקלה, חשבתם על רעיון להוסיף?<br />אנחנו תמיד כאן בשבילכם —<br />דברו עם הצוות שלנו
               </p>
             )}
             {msgs.map(m => {
