@@ -25,7 +25,7 @@ export async function PATCH(
   if (!id) return NextResponse.json({ error: 'Missing event id' }, { status: 400 });
 
   const body = await req.json();
-  const allowed = ['name', 'date', 'address', 'theme', 'bit_phone', 'notes', 'client_name', 'client_phone', 'client_email', 'venue_name', 'dress_code', 'parking_info', 'greeting', 'mood_palette', 'mood_style', 'mood_vision', 'partner1_name', 'partner2_name', 'payment_status', 'payment_amount', 'payment_date', 'rsvp_deadline'];
+  const allowed = ['name', 'date', 'address', 'theme', 'bit_phone', 'notes', 'client_name', 'client_phone', 'client_email', 'venue_name', 'dress_code', 'parking_info', 'greeting', 'mood_palette', 'mood_style', 'mood_vision', 'partner1_name', 'partner2_name', 'payment_status', 'payment_amount', 'payment_date', 'rsvp_deadline', 'service_steps', 'event_timeline', 'mini_site_enabled', 'mini_site_hero_path'];
   const update: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) update[key] = body[key];

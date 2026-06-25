@@ -1073,6 +1073,34 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         {/* Wedding Day Timeline — editable */}
         <TimelineEditor token={token} />
 
+        {/* Service Center link */}
+        <a href={`/couple/${token}/service`} style={{ textDecoration: "none", display: "block", marginBottom: "0.875rem" }}>
+          <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.1rem 1.25rem", boxShadow: C.shadow, display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(197,164,109,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 22 }}>🛎</div>
+            <div style={{ flex: 1 }}>
+              <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "0.95rem", fontWeight: 700, margin: 0, color: C.dark }}>מרכז שירות</h3>
+              <p style={{ fontSize: 12, color: C.muted, margin: "2px 0 0" }}>עקבו אחר תהליך הליווי שלכם</p>
+            </div>
+            <span style={{ fontSize: 11, color: C.gold, fontWeight: 600 }}>פתח ←</span>
+          </div>
+        </a>
+
+        {/* Premium Services */}
+        <div style={{ background: `linear-gradient(135deg, rgba(197,164,109,0.08), rgba(197,164,109,0.03))`, borderRadius: "1.25rem", border: `1.5px solid rgba(197,164,109,0.25)`, padding: "1.25rem", marginBottom: "0.875rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "1rem" }}>
+            <span style={{ fontSize: 18 }}>✨</span>
+            <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, margin: 0, color: C.dark }}>שדרוגים לחתונה</h2>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+            {[
+              { icon: "💌", title: "Save the Date דיגיטלי", desc: "הזמנה מדהימה שתישלח לכל האורחים שלכם" },
+              { icon: "🎬", title: "הזמנה דיגיטלית מונפשת", desc: "סרטון אישי עם המוזיקה והנוסח שבחרתם" },
+            ].map(s => (
+              <PremiumServiceCard key={s.title} icon={s.icon} title={s.title} desc={s.desc} token={token} eventName={event.name} />
+            ))}
+          </div>
+        </div>
+
         {/* Contact Dvir */}
         <a
           href="https://wa.me/972533318177?text=שלום+דביר%2C+יש+לי+שאלה+לגבי+החתונה+שלנו"
@@ -2145,5 +2173,66 @@ function VendorBook({ token }: { token: string }) {
         </div>
       )}
     </div>
+  );
+}
+
+function PremiumServiceCard({ icon, title, desc, token, eventName }: { icon: string; title: string; desc: string; token: string; eventName: string }) {
+  const [showModal, setShowModal] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const sendRequest = async () => {
+    setSending(true);
+    await fetch(`/api/couple/${token}/chat`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: `בקשת הצעת מחיר עבור: ${title}\nאירוע: ${eventName}`, sender: "couple" }),
+    });
+    setSent(true);
+    setSending(false);
+    setTimeout(() => { setShowModal(false); setSent(false); }, 2000);
+  };
+
+  return (
+    <>
+      <div style={{ background: "white", borderRadius: 14, padding: "1rem", border: `1px solid rgba(197,164,109,0.2)`, display: "flex", alignItems: "center", gap: 12 }}>
+        <span style={{ fontSize: 28, flexShrink: 0 }}>{icon}</span>
+        <div style={{ flex: 1 }}>
+          <p style={{ fontWeight: 700, color: C.dark, fontSize: 14 }}>{title}</p>
+          <p style={{ fontSize: 12, color: C.muted }}>{desc}</p>
+        </div>
+        <button onClick={() => setShowModal(true)}
+          style={{ background: C.gold, color: "white", border: "none", borderRadius: 10, padding: "0.45rem 0.9rem", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "Heebo, sans-serif", whiteSpace: "nowrap" }}>
+          הצעת מחיר
+        </button>
+      </div>
+
+      {showModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }} onClick={e => { if (e.target === e.currentTarget) setShowModal(false); }}>
+          <div dir="rtl" style={{ background: "#FDFAF5", borderRadius: 20, padding: "1.5rem", maxWidth: 360, width: "100%" }}>
+            <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 18, fontWeight: 700, color: C.dark, marginBottom: "0.5rem" }}>{title}</h3>
+            <p style={{ fontSize: 13, color: C.muted, marginBottom: "1.25rem", lineHeight: 1.6 }}>
+              אשלח בקשה לצוות רגע לפני ויחזרו אליכם עם הצעה מותאמת אישית.
+            </p>
+            {sent ? (
+              <p style={{ textAlign: "center", color: "#059669", fontWeight: 700 }}>✓ הבקשה נשלחה!</p>
+            ) : (
+              <div style={{ display: "flex", gap: "0.5rem", flexDirection: "column" }}>
+                <button onClick={sendRequest} disabled={sending}
+                  style={{ background: C.gold, color: "white", border: "none", borderRadius: 12, padding: "0.8rem", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
+                  {sending ? "שולח..." : "📩 שלחו בקשה"}
+                </button>
+                <a href={`https://wa.me/972533318177?text=שלום+דביר,+אנחנו+${encodeURIComponent(eventName)}+ורוצים+לשמוע+על+${encodeURIComponent(title)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{ background: "#25D366", color: "white", borderRadius: 12, padding: "0.8rem", fontSize: 15, fontWeight: 700, textAlign: "center", textDecoration: "none", display: "block" }}>
+                  💬 ישירות ב-WhatsApp
+                </a>
+                <button onClick={() => setShowModal(false)}
+                  style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 13 }}>ביטול</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
