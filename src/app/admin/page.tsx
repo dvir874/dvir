@@ -358,6 +358,9 @@ export default function AdminPage() {
   const [announceMsg,       setAnnounceMsg]       = useState("");
   const [announceLoading,   setAnnounceLoading]   = useState(false);
   const [showContractModal, setShowContractModal] = useState(false);
+  const [showBulkInvite,    setShowBulkInvite]    = useState(false);
+  const [bulkInviteList,    setBulkInviteList]    = useState<Guest[]>([]);
+  const [bulkSentSet,       setBulkSentSet]       = useState<Set<string>>(new Set());
 
   // Import
   const fileRef                       = useRef<HTMLInputElement>(null);
@@ -1442,6 +1445,41 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* ── Bulk invite modal ── */}
+      {showBulkInvite && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl p-6 overflow-y-auto max-h-[85vh]" style={{ background: "#FDFAF5", boxShadow: "0 24px 60px rgba(0,0,0,0.18)" }}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold" style={{ fontFamily: "Frank Ruhl Libre, serif", color: C.dark }}>📨 שליחת הזמנות</h2>
+              <button onClick={() => setShowBulkInvite(false)} style={{ background: "none", border: "none", fontSize: "1.4rem", cursor: "pointer", color: C.muted }}>×</button>
+            </div>
+            <p className="text-xs mb-4" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>לחצו על כפתור הוואטסאפ לכל אורח בנפרד. הכפתור יהפוך לירוק לאחר הלחיצה.</p>
+            <div className="flex flex-col gap-2">
+              {bulkInviteList.map((g) => {
+                const sent = bulkSentSet.has(g.id);
+                return (
+                  <div key={g.id} className="flex items-center justify-between rounded-2xl px-4 py-3" style={{ background: sent ? "rgba(37,211,102,0.08)" : "white", border: `1px solid ${sent ? "rgba(37,211,102,0.3)" : C.border}` }}>
+                    <span className="text-sm font-medium" style={{ fontFamily: "Heebo, sans-serif", color: C.dark }}>{g.name} <span style={{ color: C.muted, fontWeight: 400 }}>({g.guest_count})</span></span>
+                    <a
+                      href={whatsappInviteLink(g.phone, g.name, g.rsvp_token)}
+                      target="_blank" rel="noopener noreferrer"
+                      onClick={() => setBulkSentSet(prev => new Set([...prev, g.id]))}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold"
+                      style={{ background: sent ? "rgba(37,211,102,0.15)" : "#25D366", color: sent ? "#1A9B4E" : "white", textDecoration: "none" }}
+                    >
+                      {sent ? "✓ נשלח" : "📲 שלח"}
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-xs text-center mt-4" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>
+              {bulkSentSet.size} / {bulkInviteList.length} נשלחו
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── Contract modal (#7) ── */}
       {showContractModal && selectedEvent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
@@ -2078,13 +2116,7 @@ export default function AdminPage() {
                   שליחה מרוכזת:
                 </span>
                 <button
-                  onClick={() => {
-                    guests.forEach((g, i) => {
-                      setTimeout(() => {
-                        window.open(whatsappInviteLink(g.phone, g.name, g.rsvp_token), "_blank");
-                      }, i * 500);
-                    });
-                  }}
+                  onClick={() => { setBulkInviteList(guests.filter(g => g.phone)); setBulkSentSet(new Set()); setShowBulkInvite(true); }}
                   className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl font-medium transition-all hover:opacity-80"
                   style={{ background: "rgba(37,211,102,0.12)", color: "#1A9B4E" }}
                 >
@@ -2093,13 +2125,7 @@ export default function AdminPage() {
                 {pending > 0 && (
                   <>
                     <button
-                      onClick={() => {
-                        guests.filter((g) => g.status === "pending").forEach((g, i) => {
-                          setTimeout(() => {
-                            window.open(whatsappInviteLink(g.phone, g.name, g.rsvp_token), "_blank");
-                          }, i * 500);
-                        });
-                      }}
+                      onClick={() => { setBulkInviteList(guests.filter(g => g.status === "pending" && g.phone)); setBulkSentSet(new Set()); setShowBulkInvite(true); }}
                       className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl font-medium transition-all hover:opacity-80"
                       style={{ background: "rgba(197,164,109,0.15)", color: "#A07840" }}
                     >
