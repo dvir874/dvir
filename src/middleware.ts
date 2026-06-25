@@ -30,6 +30,7 @@ const PUBLIC_API_PREFIXES = [
   '/api/stripe',
   '/api/auth',
   '/api/cron',
+  '/api/health',   // uptime monitoring — no auth required
 ];
 
 function isAdminProtectedApi(pathname: string): boolean {
