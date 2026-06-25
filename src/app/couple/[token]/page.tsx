@@ -613,7 +613,7 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         <div style={{ maxWidth: 640, margin: "0 auto", position: "relative", textAlign: "center" }}>
 
           {/* Brand name */}
-          <p style={{ fontSize: 9, letterSpacing: "0.45em", color: "rgba(197,164,109,0.5)", fontFamily: "Heebo, sans-serif", fontWeight: 300, marginBottom: "1.25rem", textTransform: "uppercase" }}>
+          <p style={{ fontSize: 10, letterSpacing: "0.45em", color: "rgba(197,164,109,0.85)", fontFamily: "Heebo, sans-serif", fontWeight: 400, marginBottom: "1.25rem", textTransform: "uppercase" }}>
             ✦ &nbsp; ר ג ע &nbsp; ל פ נ י &nbsp; ✦
           </p>
 
@@ -622,13 +622,13 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
 
           {/* Ornamental top divider */}
           <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"0.75rem", marginBottom:"1.5rem" }}>
-            <div style={{ flex:1, height:1, background:"linear-gradient(90deg, transparent, rgba(197,164,109,0.35))" }} />
-            <span style={{ fontSize:11, color:"rgba(197,164,109,0.5)", letterSpacing:"0.15em" }}>✦</span>
-            <div style={{ flex:1, height:1, background:"linear-gradient(90deg, rgba(197,164,109,0.35), transparent)" }} />
+            <div style={{ flex:1, height:1, background:"linear-gradient(90deg, transparent, rgba(197,164,109,0.55))" }} />
+            <span style={{ fontSize:12, color:"rgba(197,164,109,0.85)", letterSpacing:"0.15em" }}>✦</span>
+            <div style={{ flex:1, height:1, background:"linear-gradient(90deg, rgba(197,164,109,0.55), transparent)" }} />
           </div>
 
           {/* Time greeting — small & elegant */}
-          <p style={{ fontSize: 12, letterSpacing: "0.20em", color: "rgba(197,164,109,0.65)", fontFamily: "Heebo, sans-serif", fontWeight: 300, marginBottom: "0.6rem" }}>
+          <p style={{ fontSize: 13, letterSpacing: "0.18em", color: "rgba(232,213,168,0.80)", fontFamily: "Heebo, sans-serif", fontWeight: 300, marginBottom: "0.6rem" }}>
             {briefing?.phaseLabel ?? theme.label}
           </p>
 
@@ -638,12 +638,12 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
           </h1>
 
           {/* Event date — formatted elegantly */}
-          <p style={{ fontSize: 13, color: "rgba(197,164,109,0.55)", fontFamily: "Heebo, sans-serif", fontWeight: 300, letterSpacing: "0.08em", marginBottom: "1.5rem" }}>
+          <p style={{ fontSize: 13, color: "rgba(232,213,168,0.72)", fontFamily: "Heebo, sans-serif", fontWeight: 300, letterSpacing: "0.08em", marginBottom: "1.5rem" }}>
             {new Date(event.date).toLocaleDateString("he-IL", { weekday:"long", day:"numeric", month:"long", year:"numeric" })}
           </p>
 
           {/* Quote */}
-          <p style={{ fontSize: 13, fontStyle: "italic", color: "rgba(255,240,200,0.38)", marginBottom: "2rem", lineHeight: 1.75, maxWidth: 340, margin: "0 auto 2rem", fontFamily: "Frank Ruhl Libre, serif", fontWeight: 400 }}>
+          <p style={{ fontSize: 13, fontStyle: "italic", color: "rgba(255,240,200,0.58)", marginBottom: "2rem", lineHeight: 1.75, maxWidth: 340, margin: "0 auto 2rem", fontFamily: "Frank Ruhl Libre, serif", fontWeight: 400 }}>
             &ldquo;{quote}&rdquo;
           </p>
 
