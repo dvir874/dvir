@@ -36,43 +36,40 @@ const INSPIRATION_QUOTES = [
 function getTimeTheme() {
   const h = new Date().getHours();
   if (h >= 5 && h < 12) return {
-    // Morning — soft ivory-gold
-    gradient:   "linear-gradient(150deg, #E8D9B8 0%, #D4BC8A 50%, #C5A46D 100%)",
+    // Morning — deep warm gold-brown, premium
+    gradient:   "linear-gradient(160deg, #5C3D1E 0%, #3D2410 55%, #1E1008 100%)",
     bgPage:     "#F6F1E8",
     ring1:      "rgba(197,164,109,0.18)",
-    ring2:      "rgba(197,164,109,0.10)",
-    radial:     "radial-gradient(ellipse at 20% 0%, rgba(255,245,210,0.30) 0%, transparent 60%)",
+    ring2:      "rgba(197,164,109,0.09)",
+    radial:     "radial-gradient(ellipse at 15% 10%, rgba(197,164,109,0.18) 0%, transparent 55%)",
     label:      "בוקר טוב ☀️",
-    textMuted:  "rgba(80,55,20,0.70)",
-    factBg:     "rgba(255,255,255,0.45)",
-    factBorder: "rgba(197,164,109,0.40)",
-    dark:       true,
+    textMuted:  "rgba(255,235,185,0.65)",
+    factBg:     "rgba(255,255,255,0.10)",
+    factBorder: "rgba(197,164,109,0.35)",
   };
   if (h >= 12 && h < 18) return {
-    // Afternoon — warm sage-cream
-    gradient:   "linear-gradient(150deg, #D4DEC8 0%, #B8CBAL 50%, #9BAF88 100%)",
+    // Afternoon — deep olive-charcoal, premium
+    gradient:   "linear-gradient(160deg, #3A4D2E 0%, #253320 55%, #121A0E 100%)",
     bgPage:     "#F2EDE3",
-    ring1:      "rgba(107,123,90,0.18)",
+    ring1:      "rgba(180,210,140,0.15)",
     ring2:      "rgba(107,123,90,0.10)",
-    radial:     "radial-gradient(ellipse at 80% 0%, rgba(220,235,200,0.35) 0%, transparent 60%)",
+    radial:     "radial-gradient(ellipse at 80% 10%, rgba(180,210,140,0.16) 0%, transparent 55%)",
     label:      "צהריים טובים 🌿",
-    textMuted:  "rgba(40,55,30,0.68)",
-    factBg:     "rgba(255,255,255,0.45)",
-    factBorder: "rgba(107,123,90,0.35)",
-    dark:       true,
+    textMuted:  "rgba(210,235,180,0.65)",
+    factBg:     "rgba(255,255,255,0.10)",
+    factBorder: "rgba(180,210,140,0.30)",
   };
-  // Evening — warm ivory-gold, light enough to read
+  // Evening/Night — deep espresso-gold, premium
   return {
-    gradient:   "linear-gradient(150deg, #EAD9B5 0%, #D6BE8C 50%, #C5A46D 100%)",
+    gradient:   "linear-gradient(160deg, #3D2B1F 0%, #24160C 55%, #0E0806 100%)",
     bgPage:     "#F2EDE3",
-    ring1:      "rgba(197,164,109,0.20)",
-    ring2:      "rgba(197,164,109,0.12)",
-    radial:     "radial-gradient(ellipse at 60% 0%, rgba(255,240,200,0.30) 0%, transparent 60%)",
+    ring1:      "rgba(197,164,109,0.16)",
+    ring2:      "rgba(197,164,109,0.08)",
+    radial:     "radial-gradient(ellipse at 60% 10%, rgba(197,164,109,0.14) 0%, transparent 55%)",
     label:      "לילה טוב 🌙",
-    textMuted:  "rgba(80,55,20,0.70)",
-    factBg:     "rgba(255,255,255,0.45)",
-    factBorder: "rgba(197,164,109,0.40)",
-    dark:       true,
+    textMuted:  "rgba(255,235,185,0.60)",
+    factBg:     "rgba(255,255,255,0.10)",
+    factBorder: "rgba(197,164,109,0.32)",
   };
 }
 
@@ -82,10 +79,10 @@ const C = {
   gold:   "#C5A46D",
   olive:  "#6B7B5A",
   dark:   "#1C1008",
-  muted:  "rgba(28,16,8,0.45)",
-  border: "rgba(197,164,109,0.18)",
-  card:   "rgba(255,255,255,0.82)",
-  shadow: "0 2px 16px rgba(28,16,8,0.07)",
+  muted:  "rgba(28,16,8,0.42)",
+  border: "rgba(197,164,109,0.22)",
+  card:   "#FFFFFF",
+  shadow: "0 4px 24px rgba(28,16,8,0.09), 0 1px 4px rgba(197,164,109,0.10)",
 };
 
 interface EventInfo    { id: string; name: string; date: string; address?: string | null; client_name?: string | null }
@@ -392,15 +389,25 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
 
       {/* Header */}
       <style>{`
-        @keyframes coupleFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
-        @keyframes coupleGlow  { 0%,100%{opacity:0.5} 50%{opacity:1} }
-        @keyframes slideCard   { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes shimmerBtn  { 0%{background-position:-200% center} 100%{background-position:200% center} }
-        .couple-card { animation: slideCard 0.5s ease forwards; }
-        .couple-card:nth-child(2){animation-delay:0.08s}
-        .couple-card:nth-child(3){animation-delay:0.16s}
-        .couple-card:nth-child(4){animation-delay:0.24s}
-        .couple-card:nth-child(5){animation-delay:0.32s}
+        @import url('https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;700;900&family=Heebo:wght@300;400;500;600&display=swap');
+        @keyframes coupleFloat   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+        @keyframes coupleGlow    { 0%,100%{opacity:0.5} 50%{opacity:1} }
+        @keyframes slideCard     { from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes goldShimmer   { 0%{background-position:-300% center} 100%{background-position:300% center} }
+        @keyframes fadeIn        { from{opacity:0} to{opacity:1} }
+        .couple-card { animation: slideCard 0.55s cubic-bezier(0.22,1,0.36,1) both; }
+        .couple-card:nth-child(2){animation-delay:0.07s}
+        .couple-card:nth-child(3){animation-delay:0.14s}
+        .couple-card:nth-child(4){animation-delay:0.21s}
+        .couple-card:nth-child(5){animation-delay:0.28s}
+        .gold-shimmer-text {
+          background: linear-gradient(90deg, #C5A46D 0%, #E8D5A8 40%, #C5A46D 60%, #9B7A42 100%);
+          background-size: 300% auto;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: goldShimmer 4s linear infinite;
+        }
         @media print {
           .no-print { display: none !important; }
           body { background: white !important; }
@@ -410,26 +417,33 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
 
       <div style={{
         background: theme.gradient,
-        padding: "2.25rem 1.5rem 1.75rem",
-        borderBottom: "1px solid rgba(0,0,0,0.12)",
+        padding: "2.75rem 1.5rem 2.25rem",
+        borderBottom: "1px solid rgba(197,164,109,0.15)",
         position: "relative",
         overflow: "hidden",
       }}>
-        {/* floating rings */}
-        <div style={{ position:"absolute", width:220, height:220, borderRadius:"50%", border:`1px solid ${theme.ring1}`, top:-60, left:-60, animation:"coupleFloat 7s ease-in-out infinite", pointerEvents:"none" }} />
-        <div style={{ position:"absolute", width:140, height:140, borderRadius:"50%", border:`1px solid ${theme.ring2}`, bottom:-40, right:40, animation:"coupleFloat 5s ease-in-out infinite 1.5s", pointerEvents:"none" }} />
-        {/* subtle texture overlay */}
+        {/* decorative rings */}
+        <div style={{ position:"absolute", width:320, height:320, borderRadius:"50%", border:`1px solid ${theme.ring1}`, top:-100, left:-100, animation:"coupleFloat 8s ease-in-out infinite", pointerEvents:"none" }} />
+        <div style={{ position:"absolute", width:200, height:200, borderRadius:"50%", border:`1px solid ${theme.ring2}`, top:-60, left:-60, animation:"coupleFloat 6s ease-in-out infinite 2s", pointerEvents:"none" }} />
+        <div style={{ position:"absolute", width:160, height:160, borderRadius:"50%", border:`1px solid ${theme.ring2}`, bottom:-50, right:20, animation:"coupleFloat 5s ease-in-out infinite 1s", pointerEvents:"none" }} />
+        {/* gold radial glow */}
         <div style={{ position: "absolute", inset: 0, background: theme.radial, pointerEvents: "none" }} />
+        {/* bottom gold shimmer line */}
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent 0%, rgba(197,164,109,0.5) 50%, transparent 100%)", pointerEvents: "none" }} />
         <div style={{ maxWidth: 640, margin: "0 auto", position: "relative" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.6rem" }}>
             <p style={{ fontSize: 10, letterSpacing: "0.30em", textTransform: "uppercase", color: theme.textMuted, fontFamily: "Heebo, sans-serif", margin: 0 }}>
               ✦ {briefing?.phaseLabel ?? theme.label}
             </p>
-            <p style={{ fontSize: 10, letterSpacing: "0.20em", color: theme.textMuted, fontFamily: "Frank Ruhl Libre, serif", margin: 0 }}>
+            <p style={{ fontSize: 10, letterSpacing: "0.22em", color: "rgba(197,164,109,0.55)", fontFamily: "Frank Ruhl Libre, serif", margin: 0 }}>
               רגע לפני ✦
             </p>
           </div>
-          <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1.8rem,6vw,2.4rem)", fontWeight: 700, marginBottom: "0.35rem", lineHeight: 1.2, color: "#3D2B1F" }}>
+
+          {/* Gold divider line */}
+          <div style={{ width: 36, height: 1, background: "linear-gradient(90deg, transparent, rgba(197,164,109,0.7), transparent)", marginBottom: "1rem" }} />
+
+          <h1 className="gold-shimmer-text" style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(2rem,6.5vw,2.8rem)", fontWeight: 900, marginBottom: "0.4rem", lineHeight: 1.15, letterSpacing: "-0.01em" }}>
             {briefing?.greeting ?? event.name}
           </h1>
           {briefing?.phaseMessage && (
@@ -438,7 +452,7 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
             </p>
           )}
           {/* Daily inspiration quote */}
-          <p style={{ fontSize: 13, fontStyle: "italic", color: theme.textMuted, marginBottom: "1.25rem", lineHeight: 1.7, borderRight: "2px solid rgba(100,70,30,0.20)", paddingRight: "0.75rem" }}>
+          <p style={{ fontSize: 13, fontStyle: "italic", color: theme.textMuted, marginBottom: "1.5rem", lineHeight: 1.75, borderRight: "2px solid rgba(197,164,109,0.35)", paddingRight: "0.875rem" }}>
             &ldquo;{quote}&rdquo;
           </p>
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -448,10 +462,11 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
               `${daysLeft} ימים`,
             ]).map((fact, i) => (
               <div key={i} style={{
-                padding: "0.3rem 0.85rem", borderRadius: 20,
+                padding: "0.3rem 0.9rem", borderRadius: 20,
                 background: theme.factBg,
                 border: `1px solid ${theme.factBorder}`,
-                fontSize: 12, color: "rgba(61,43,31,0.78)", fontFamily: "Heebo, sans-serif", fontWeight: 500,
+                backdropFilter: "blur(8px)",
+                fontSize: 12, color: "rgba(255,245,220,0.90)", fontFamily: "Heebo, sans-serif", fontWeight: 500,
               }}>
                 {fact}
               </div>
