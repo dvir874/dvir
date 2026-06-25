@@ -83,6 +83,7 @@ interface EventData {
   date: string;
   address?: string | null;
   theme?: string | null;
+  bit_phone?: string | null;
   dress_code?: string | null;
   parking_info?: string | null;
   greeting?: string | null;

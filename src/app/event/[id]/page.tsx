@@ -23,7 +23,23 @@ export default async function EventPreviewPage({
     .eq("id", id)
     .single();
 
-  if (error || !event) return notFound();
+  // If query fails due to missing optional columns, retry with base columns only
+  if (error || !event) {
+    const { data: base, error: baseErr } = await supabase
+      .from("events")
+      .select("id, name, date, address, theme")
+      .eq("id", id)
+      .single();
+    if (baseErr || !base) return notFound();
+    return (
+      <EventPageClient
+        event={{ ...base, bit_phone: null, dress_code: null, parking_info: null, greeting: null }}
+        theme={getTheme(base.theme)}
+        isPreview={isPreview}
+        bitPhone={null}
+      />
+    );
+  }
 
   const theme = getTheme(event.theme);
 
