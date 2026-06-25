@@ -47,6 +47,7 @@ export default function WizardPage() {
   const [venueName,      setVenueName]      = useState("");
   const [venueAddress,   setVenueAddress]   = useState("");
   const [clientPhone,    setClientPhone]    = useState("");
+  const [hebrewDate,     setHebrewDate]     = useState("");
 
   /* Step 2 — Theme */
   const [theme, setTheme] = useState<ThemeId>("classic-light");
@@ -239,6 +240,7 @@ export default function WizardPage() {
               <Field label="שם האולם / מקום" value={venueName} onChange={setVenueName} placeholder="לדוגמה: אולמי הגן" />
               <Field label="כתובת" value={venueAddress} onChange={setVenueAddress} placeholder="לדוגמה: הרצל 12, תל אביב" />
               <Field label="📱 טלפון הזוג (WhatsApp)" type="tel" value={clientPhone} onChange={setClientPhone} placeholder="לדוגמה: 0521234567" />
+              <Field label="תאריך עברי (אופציונלי)" value={hebrewDate} onChange={setHebrewDate} placeholder="לדוגמה: י״ד בתשרי תשפ״ו" />
             </Card>
 
             <NavRow
@@ -562,7 +564,7 @@ export default function WizardPage() {
                   <div className="flex flex-col gap-2">
 
                     {/* 1. Welcome + dashboard link */}
-                    <a href={waMsg(`🎉 שלום!\nהאירוע שלכם "${result.event_name}" מוכן במערכת רגע לפני!\n\nהנה הקישור לדשבורד האישי שלכם:\n${dashUrl}\n\nשם תמצאו את כל הפרטים, אישורי הגעה, הושבה ועוד 🤍`)}
+                    <a href={waMsg(`🎉 שלום!\nהאירוע שלכם "${result.event_name}" מוכן במערכת רגע לפני!\n\nהנה הקישור לדשבורד האישי שלכם:\n${dashUrl}\n\nבדף תמצאו:\n✅ אישורי הגעה בזמן אמת\n📋 רשימת משימות לחתונה\n💰 מעקב תקציב\n🪑 הושבה אורחים\n📸 גלריית תמונות\n\nכל השינויים נשמרים אוטומטית 🤍`)}
                       target="_blank" rel="noopener noreferrer"
                       className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-semibold transition-all hover:opacity-85"
                       style={{ background: "#25D366", color: "white", textDecoration: "none", ...HEEBO }}>

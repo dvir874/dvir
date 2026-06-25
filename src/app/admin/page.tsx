@@ -1027,7 +1027,7 @@ export default function AdminPage() {
                     {selectedEvent?.client_phone && selectedEvent?.couple_token && (() => {
                       const phone = selectedEvent.client_phone!.replace(/\D/g,"").replace(/^0/,"972");
                       const dashUrl = `${window.location.origin}/couple/${selectedEvent.couple_token}`;
-                      const msg = encodeURIComponent(`💌 שלום!\nהנה הקישור לדשבורד שלכם:\n${dashUrl}\n\nשם תמצאו את כל הפרטים, אישורי הגעה ועוד 🤍`);
+                      const msg = encodeURIComponent(`💌 שלום!\nהנה הקישור לדשבורד שלכם:\n${dashUrl}\n\nבדף תמצאו:\n✅ אישורי הגעה בזמן אמת\n📋 רשימת משימות לחתונה\n💰 מעקב תקציב\n🪑 הושבה אורחים\n📸 גלריית תמונות\n\nכל השינויים נשמרים אוטומטית 🤍`);
                       return (
                         <a href={`https://wa.me/${phone}?text=${msg}`} target="_blank" rel="noopener noreferrer" onClick={() => setShowToolsMenu(false)}
                           className="flex items-center gap-2 px-4 py-3 text-xs hover:bg-green-50 transition-colors font-semibold"
