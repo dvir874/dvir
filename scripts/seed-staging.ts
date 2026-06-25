@@ -98,17 +98,9 @@ async function seed() {
     .insert({
       name:                 STAGING_EVENT_NAME,
       date:                 '2027-01-01',
-      address:              'Test Hall, Test City',
       couple_token:         STAGING_COUPLE_TOKEN,
       status:               'active',
-      event_type:           'wedding',
-      venue_name:           'Test Venue',
-      client_name:          '[staging] Test Client',
-      client_phone:         '0500000000',
-      client_email:         'staging@test.local',
       onboarding_completed: true,
-      guest_count_estimate: 150,
-      budget_estimate:      200000,
     })
     .select('id')
     .single();
