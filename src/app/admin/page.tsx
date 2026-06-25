@@ -361,6 +361,7 @@ export default function AdminPage() {
   const [showBulkInvite,    setShowBulkInvite]    = useState(false);
   const [bulkInviteList,    setBulkInviteList]    = useState<Guest[]>([]);
   const [bulkSentSet,       setBulkSentSet]       = useState<Set<string>>(new Set());
+  const [bulkMode,          setBulkMode]          = useState<"invite" | "reminder">("invite");
 
   // Import
   const fileRef                       = useRef<HTMLInputElement>(null);
@@ -1450,7 +1451,7 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-3xl p-6 overflow-y-auto max-h-[85vh]" style={{ background: "#FDFAF5", boxShadow: "0 24px 60px rgba(0,0,0,0.18)" }}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold" style={{ fontFamily: "Frank Ruhl Libre, serif", color: C.dark }}>📨 שליחת הזמנות</h2>
+              <h2 className="text-lg font-bold" style={{ fontFamily: "Frank Ruhl Libre, serif", color: C.dark }}>{bulkMode === "reminder" ? "🔔 שליחת תזכורות" : "📨 שליחת הזמנות"}</h2>
               <button onClick={() => setShowBulkInvite(false)} style={{ background: "none", border: "none", fontSize: "1.4rem", cursor: "pointer", color: C.muted }}>×</button>
             </div>
             <p className="text-xs mb-4" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>לחצו על כפתור הוואטסאפ לכל אורח בנפרד. הכפתור יהפוך לירוק לאחר הלחיצה.</p>
@@ -1461,7 +1462,9 @@ export default function AdminPage() {
                   <div key={g.id} className="flex items-center justify-between rounded-2xl px-4 py-3" style={{ background: sent ? "rgba(37,211,102,0.08)" : "white", border: `1px solid ${sent ? "rgba(37,211,102,0.3)" : C.border}` }}>
                     <span className="text-sm font-medium" style={{ fontFamily: "Heebo, sans-serif", color: C.dark }}>{g.name} <span style={{ color: C.muted, fontWeight: 400 }}>({g.guest_count})</span></span>
                     <a
-                      href={whatsappInviteLink(g.phone, g.name, g.rsvp_token)}
+                      href={bulkMode === "reminder"
+                        ? whatsappReminderLink(g.phone, g.name, g.rsvp_token, selectedEvent?.name ?? "")
+                        : whatsappInviteLink(g.phone, g.name, g.rsvp_token)}
                       target="_blank" rel="noopener noreferrer"
                       onClick={() => setBulkSentSet(prev => new Set([...prev, g.id]))}
                       className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold"
@@ -2116,7 +2119,7 @@ export default function AdminPage() {
                   שליחה מרוכזת:
                 </span>
                 <button
-                  onClick={() => { setBulkInviteList(guests.filter(g => g.phone)); setBulkSentSet(new Set()); setShowBulkInvite(true); }}
+                  onClick={() => { setBulkInviteList(guests.filter(g => g.phone)); setBulkSentSet(new Set()); setBulkMode("invite"); setShowBulkInvite(true); }}
                   className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl font-medium transition-all hover:opacity-80"
                   style={{ background: "rgba(37,211,102,0.12)", color: "#1A9B4E" }}
                 >
@@ -2125,23 +2128,14 @@ export default function AdminPage() {
                 {pending > 0 && (
                   <>
                     <button
-                      onClick={() => { setBulkInviteList(guests.filter(g => g.status === "pending" && g.phone)); setBulkSentSet(new Set()); setShowBulkInvite(true); }}
+                      onClick={() => { setBulkInviteList(guests.filter(g => g.status === "pending" && g.phone)); setBulkSentSet(new Set()); setBulkMode("invite"); setShowBulkInvite(true); }}
                       className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl font-medium transition-all hover:opacity-80"
                       style={{ background: "rgba(197,164,109,0.15)", color: "#A07840" }}
                     >
                       הזמנה לממתינים ({pending})
                     </button>
                     <button
-                      onClick={() => {
-                        guests.filter((g) => g.status === "pending" && g.phone).forEach((g, i) => {
-                          setTimeout(() => {
-                            window.open(
-                              whatsappReminderLink(g.phone, g.name, g.rsvp_token, selectedEvent?.name ?? ""),
-                              "_blank"
-                            );
-                          }, i * 500);
-                        });
-                      }}
+                      onClick={() => { setBulkInviteList(guests.filter(g => g.status === "pending" && g.phone)); setBulkSentSet(new Set()); setBulkMode("reminder"); setShowBulkInvite(true); }}
                       className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl font-medium transition-all hover:opacity-80"
                       style={{ background: "rgba(107,123,90,0.10)", color: C.olive }}
                     >
