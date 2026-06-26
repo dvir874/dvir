@@ -80,6 +80,16 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const alerts = generateAlerts(scoreInput);
   const phase  = getBriefingPhase(daysUntilEvent);
 
+  // Wedding Readiness Meter (weighted %)
+  const rsvpPct     = guests.length > 0 ? (confirmed.length + declined) / guests.length : 0;
+  const tasksPct    = tasks.length > 0 ? tasks.filter(t => t.completed).length / tasks.length : 0;
+  const vendorsPct  = vendors.length > 0 ? vendors.filter(v => v.confirmed).length / vendors.length : 0;
+  const seatingPct  = confirmedAttendees > 0 ? Math.min(assignedSeats / confirmedAttendees, 1) : 0;
+  const budgetPct   = budget.length > 0 ? 1 : 0;
+  const readinessPct = Math.round(
+    rsvpPct * 25 + tasksPct * 20 + vendorsPct * 20 + seatingPct * 20 + budgetPct * 15
+  );
+
   // Greeting by time of day
   const coupleName = event.client_name?.trim() || null;
   const hour = new Date().getHours();
@@ -121,6 +131,13 @@ export async function GET(_req: NextRequest, { params }: Params) {
     eventName:     event.name,
     score,
     alerts,
+    readinessPct,
+    event: {
+      id:             event.id,
+      name:           event.name,
+      date:           event.date,
+      service_steps:  (event as Record<string, unknown>).service_steps ?? [],
+    },
     keyFacts: [
       guests.length > 0
         ? `${guests.filter(g => g.status === 'confirmed').length + declined} מתוך ${guests.length} ענו`

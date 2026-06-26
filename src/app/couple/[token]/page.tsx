@@ -104,6 +104,8 @@ interface BriefingData {
   score:          WeddingScore;
   alerts:         SmartAlert[];
   keyFacts:       string[];
+  readinessPct:   number;
+  event?:         { id: string; name: string; date: string; service_steps?: unknown[] };
 }
 
 const VENDOR_CATEGORIES = [
@@ -313,6 +315,208 @@ function WeddingRings() {
         {/* Diamond highlight */}
         <polygon points="50,8 52.5,13 50,18 47.5,13" fill="rgba(232,213,168,0.85)" />
       </svg>
+    </div>
+  );
+}
+
+// ─── Daily encouraging messages ───────────────────────────────────────────────
+const DAILY_MESSAGES = [
+  "כל יום שעובר מקרב אתכם לרגע הגדול 💛",
+  "החתונה מחכה לכם — וזה מרגש! ✨",
+  "אתם עושים עבודה מדהימה בארגון הכל 👏",
+  "כל פרט קטן הופך לזיכרון גדול ❤️",
+  "הדרך לחופה מרופדת בהרבה אהבה 💍",
+  "יום אחד פחות — יום אחד יותר קרוב! 🎊",
+  "המשפחה והחברים שלכם כבר מתרגשים 🌟",
+  "ביחד אתם מסוגלים להכל 💪",
+  "זה היום שתספרו עליו לנכדים 🌸",
+  "הרגשת ההתרגשות? זה הסימן שאתם בדרך הנכונה 💫",
+];
+
+// ─── Updates Center (smart contextual updates) ────────────────────────────────
+function UpdatesCenter({ briefing, stats, seating }: {
+  briefing: BriefingData;
+  stats: { total: number; confirmed: number; declined: number; pending: number; attendees: number; responseRate: number };
+  seating: { assignedSeats: number };
+}) {
+  const updates: { icon: string; text: string; priority: "red" | "yellow" | "green"; href?: string }[] = [];
+  const days = briefing.daysUntilEvent;
+
+  if (days > 0 && days <= 5 && stats.attendees > seating.assignedSeats) {
+    updates.push({ icon: "🪑", text: `נותרו ${days} ימים — בדקו שסידורי ההושבה מוכנים`, priority: "red", href: `/couple/${window?.location?.pathname?.split("/")[2]}/seating` });
+  }
+  if (days > 5 && stats.responseRate >= 70 && seating.assignedSeats === 0 && stats.attendees > 0) {
+    updates.push({ icon: "🎯", text: `${stats.responseRate}% ענו — הגיע הזמן להתחיל סידורי הושבה`, priority: "yellow" });
+  }
+  if (briefing.readinessPct >= 90 && days > 0) {
+    updates.push({ icon: "✅", text: `אתם מוכנים ב-${briefing.readinessPct}% — מצוין!`, priority: "green" });
+  }
+  if (stats.pending > 20 && days > 7) {
+    updates.push({ icon: "⏳", text: `${stats.pending} אורחים עדיין לא ענו — שקלו לשלוח תזכורת`, priority: "yellow" });
+  }
+
+  if (updates.length === 0) return null;
+
+  const COLOR = { red: { border: "#EF4444", bg: "rgba(239,68,68,0.07)", dot: "#EF4444" }, yellow: { border: "#F59E0B", bg: "rgba(245,158,11,0.07)", dot: "#F59E0B" }, green: { border: "#10B981", bg: "rgba(16,185,129,0.07)", dot: "#10B981" } };
+
+  return (
+    <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1rem 1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
+      <p style={{ fontSize: 11, fontWeight: 700, color: C.gold, letterSpacing: "0.1em", marginBottom: "0.75rem" }}>❤️ מה חדש?</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        {updates.map((u, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.65rem 0.75rem", borderRadius: 10, background: COLOR[u.priority].bg, border: `1px solid ${COLOR[u.priority].border}30` }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: COLOR[u.priority].dot, flexShrink: 0, display: "inline-block" }} />
+            <p style={{ fontSize: 13, color: C.dark, flex: 1 }}>{u.icon} {u.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Post-Event Dashboard ──────────────────────────────────────────────────────
+function PostEventDashboard({ token, eventName }: { token: string; eventName: string }) {
+  const COUPLE_PHONE = "972533318177";
+  const shareMsg = encodeURIComponent(`היי ❤️\nרצינו להמליץ לכם על "רגע לפני".\nקיבלנו שירות אישי ומערכת שעזרה לנו לנהל את כל החתונה במקום אחד.\nאם אתם מתחתנים בקרוב, ממליצים בחום לבדוק אותם.`);
+
+  return (
+    <div dir="rtl" style={{ minHeight: "100vh", background: C.ivory, fontFamily: "Heebo, sans-serif" }}>
+      {/* Hero */}
+      <div style={{ background: `linear-gradient(160deg, ${C.dark}, #2C1F0E)`, padding: "2.5rem 1.5rem", textAlign: "center", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 0%, rgba(197,164,109,0.2) 0%, transparent 60%)", pointerEvents: "none" }} />
+        <p style={{ fontSize: 9, letterSpacing: "0.4em", color: "rgba(197,164,109,0.55)", marginBottom: "0.5rem" }}>רגע לפני</p>
+        <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "2rem", fontWeight: 900, color: "#FDFAF5", marginBottom: "0.4rem" }}>❤️ מזל טוב!</h1>
+        <p style={{ color: "rgba(232,213,168,0.75)", fontSize: 15 }}>{eventName} — מקווים שנהניתם מכל רגע</p>
+      </div>
+
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "1.5rem 1rem 4rem" }}>
+        {/* 4 big action cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1.5rem" }}>
+          {[
+            { icon: "📸", title: "העלאת תמונות", sub: "שתפו את הקישור עם האורחים", href: `/memory/${token}`, color: "#C5A46D" },
+            { icon: "📷", title: "הזיכרונות שלכם", sub: "גלריית תמונות האירוע", href: `/gallery/${token}`, color: "#6B7B5A" },
+            { icon: "💝", title: "המתנות שלכם", sub: "רשימת כל המתנות שקיבלתם", href: `/couple/${token}/gifts`, color: "#9B7A42" },
+            { icon: "🛎", title: "מרכז שירות", sub: "עקבו אחר השירות שלנו", href: `/couple/${token}/service`, color: "#6B7B5A" },
+          ].map(card => (
+            <a key={card.href} href={card.href} style={{ textDecoration: "none", background: C.card, borderRadius: 18, padding: "1.25rem 1rem", boxShadow: C.shadow, border: `1px solid ${C.border}`, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.4rem", textAlign: "center" }}>
+              <span style={{ fontSize: 32 }}>{card.icon}</span>
+              <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 14, fontWeight: 700, color: C.dark }}>{card.title}</p>
+              <p style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>{card.sub}</p>
+            </a>
+          ))}
+        </div>
+
+        {/* Post-event checklist */}
+        <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
+          <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 17, fontWeight: 700, color: C.dark, marginBottom: "0.85rem" }}>💡 דברים שכדאי לעשות עכשיו</h2>
+          {[
+            "לאסוף את כל התמונות מהאורחים",
+            "להוריד את כל הגלריה למחשב",
+            "לשמור גיבוי נוסף של התמונות",
+            "לעבור על רשימת המתנות",
+            "לשלוח הודעת תודה לאורחים שהגיעו",
+          ].map((item, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.55rem 0", borderBottom: i < 4 ? `1px solid ${C.border}` : "none" }}>
+              <span style={{ color: C.gold, fontSize: 16, flexShrink: 0 }}>✔</span>
+              <p style={{ fontSize: 14, color: C.dark }}>{item}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Personal thank you card from Dvir */}
+        <div style={{ background: `linear-gradient(135deg, ${C.dark}, #2C1F0E)`, borderRadius: "1.25rem", padding: "1.5rem", marginBottom: "1rem", position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at top right, rgba(197,164,109,0.15) 0%, transparent 60%)", pointerEvents: "none" }} />
+          <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 18, fontWeight: 700, color: "#FDFAF5", marginBottom: "0.75rem" }}>🎉 תודה שבחרתם ב"רגע לפני"</p>
+          <p style={{ fontSize: 14, color: "rgba(232,213,168,0.8)", lineHeight: 1.7, marginBottom: "1rem" }}>
+            היה לנו כבוד להיות חלק מהיום הגדול שלכם.<br />
+            אנחנו מאחלים לכם חיים מאושרים ומלאי אהבה. ❤️
+          </p>
+          <p style={{ fontSize: 12, color: "rgba(197,164,109,0.6)" }}>— דביר, רגע לפני</p>
+        </div>
+
+        {/* Support Us card */}
+        <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.5rem", boxShadow: C.shadow }}>
+          <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 17, fontWeight: 700, color: C.dark, marginBottom: "0.5rem" }}>❤️ נהניתם מהשירות?</h2>
+          <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, marginBottom: "1.25rem" }}>
+            אני, דביר, רוצה להודות לכם באופן אישי שבחרתם ב"רגע לפני". היה לי כבוד ללוות אתכם ביום הכי חשוב שלכם. אם נהניתם מהשירות, כל המלצה שלכם עוזרת לי להגיע לעוד זוגות ולהמשיך לעשות את מה שאני אוהב. ❤️ תודה ענקית!
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+            <a href="https://g.page/r/review" target="_blank" rel="noopener noreferrer"
+              style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.85rem 1rem", borderRadius: 12, background: "rgba(251,188,4,0.1)", border: "1px solid rgba(251,188,4,0.3)", textDecoration: "none" }}>
+              <span style={{ fontSize: 20 }}>⭐</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>כתבו לנו חוות דעת בגוגל</span>
+            </a>
+            <a href={`https://wa.me/?text=${shareMsg}`} target="_blank" rel="noopener noreferrer"
+              style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.85rem 1rem", borderRadius: 12, background: "rgba(37,211,102,0.08)", border: "1px solid rgba(37,211,102,0.25)", textDecoration: "none" }}>
+              <span style={{ fontSize: 20 }}>💬</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>המליצו עלינו לחברים</span>
+            </a>
+            <a href="https://regalifnei.vercel.app" target="_blank" rel="noopener noreferrer"
+              style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.85rem 1rem", borderRadius: 12, background: `rgba(197,164,109,0.08)`, border: `1px solid ${C.border}`, textDecoration: "none" }}>
+              <span style={{ fontSize: 20 }}>🌐</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>מעבר לאתר "רגע לפני"</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Day Before Screen ─────────────────────────────────────────────────────────
+function DayBeforeScreen({ token, event, vendors: vendorMap }: {
+  token: string;
+  event: { name: string; date: string; address?: string | null };
+  vendors: Record<string, boolean>;
+}) {
+  const wazeLink = event.address ? `https://waze.com/ul?q=${encodeURIComponent(event.address)}` : null;
+
+  return (
+    <div dir="rtl" style={{ minHeight: "100vh", background: C.ivory, fontFamily: "Heebo, sans-serif" }}>
+      {/* Hero */}
+      <div style={{ background: `linear-gradient(160deg, ${C.dark}, #2C1F0E)`, padding: "2.5rem 1.5rem", textAlign: "center" }}>
+        <p style={{ fontSize: 9, letterSpacing: "0.4em", color: "rgba(197,164,109,0.55)", marginBottom: "0.5rem" }}>רגע לפני</p>
+        <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.8rem", fontWeight: 900, color: "#FDFAF5", marginBottom: "0.4rem" }}>🌟 מחר זה הגדול!</h1>
+        <p style={{ color: "rgba(232,213,168,0.75)", fontSize: 14 }}>{event.name}</p>
+      </div>
+
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "1.5rem 1rem 4rem" }}>
+        {/* What to bring */}
+        <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
+          <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 16, fontWeight: 700, color: C.dark, marginBottom: "0.85rem" }}>✅ מה לקחת מחר</h2>
+          {["תעודת זהות", "חוזים חתומים עם הספקים", "מסמכי הרבנות", "נעליים נוחות לגיבוי", "מטען לטלפון", "כרטיסי שולחן (אם יש)", "תרופות / אנטיביוטיקה (אם רלוונטי)"].map((item, i, arr) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.5rem 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none" }}>
+              <span style={{ color: C.gold, fontSize: 14, flexShrink: 0 }}>✔</span>
+              <p style={{ fontSize: 13, color: C.dark }}>{item}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Venue */}
+        {event.address && (
+          <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
+            <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 16, fontWeight: 700, color: C.dark, marginBottom: "0.75rem" }}>📍 כתובת האולם</h2>
+            <p style={{ fontSize: 14, color: C.dark, marginBottom: "0.75rem" }}>{event.address}</p>
+            {wazeLink && (
+              <a href={wazeLink} target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "0.6rem 1.25rem", borderRadius: 10, background: "rgba(0,130,255,0.1)", border: "1px solid rgba(0,130,255,0.25)", textDecoration: "none", fontSize: 13, fontWeight: 700, color: "#0082FF" }}>
+                🧭 נווט ב-Waze
+              </a>
+            )}
+          </div>
+        )}
+
+        {/* Last reminders */}
+        <div style={{ background: `linear-gradient(135deg, rgba(197,164,109,0.1), rgba(197,164,109,0.04))`, borderRadius: "1.25rem", border: `1.5px solid rgba(197,164,109,0.3)`, padding: "1.25rem" }}>
+          <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 16, fontWeight: 700, color: C.dark, marginBottom: "0.75rem" }}>💛 תזכורות אחרונות</h2>
+          {["נסו לישון מוקדם הלילה", "אכלו ארוחת בוקר טובה מחר", "תנו לעצמכם זמן — אל תתחרעו", "הסמארטפונים בצד — תהיו נוכחים ברגע", "תהנו! ❤️"].map((item, i, arr) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.45rem 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none" }}>
+              <span style={{ fontSize: 14 }}>💫</span>
+              <p style={{ fontSize: 13, color: C.dark }}>{item}</p>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -544,7 +748,17 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
   const { event, stats, budget, seating, gifts } = data;
   const theme      = getTimeTheme();
   const quote      = INSPIRATION_QUOTES[Math.floor(Math.random() * INSPIRATION_QUOTES.length)];
-  const daysLeft   = briefing?.daysUntilEvent ?? Math.max(0, Math.ceil((new Date(event.date).getTime() - Date.now()) / 86_400_000));
+  const daysLeft   = briefing?.daysUntilEvent ?? Math.ceil((new Date(event.date).getTime() - Date.now()) / 86_400_000);
+
+  // Post-event mode
+  if (daysLeft < 0) {
+    return <PostEventDashboard token={token} eventName={event.name} />;
+  }
+
+  // Day-before special screen
+  if (daysLeft === 1) {
+    return <DayBeforeScreen token={token} event={event} vendors={vendors} />;
+  }
   const taskPct    = tasks.length > 0 ? Math.round((tasks.filter(t => t.completed).length / tasks.length) * 100) : 0;
   const seatingPct = stats.attendees > 0 ? Math.round((seating.assignedSeats / stats.attendees) * 100) : 0;
   const score      = briefing?.score;
@@ -711,6 +925,8 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
                     { href: `/couple/${token}/vendors`, label: "🤝 ספקים" },
                     { href: `/couple/${token}/checklist`, label: "📋 צ'קליסט" },
                     { href: `/couple/${token}/gifts`, label: "🎁 מתנות" },
+                    { href: `/couple/${token}/print`, label: "🖨️ הדפסה" },
+                    { href: `/couple/${token}/requests`, label: "📬 בקשות" },
                   ].map(link => (
                     <a key={link.href} href={link.href}
                       style={{ padding: "5px 12px", borderRadius: 10, background: "rgba(197,164,109,0.15)", border: "1px solid rgba(197,164,109,0.25)", color: "rgba(197,164,109,0.9)", fontSize: 12, fontFamily: "Heebo, sans-serif", fontWeight: 600, textDecoration: "none", display: "inline-block" }}>
@@ -721,6 +937,39 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
               </div>
             </div>
           </div>
+        )}
+
+        {/* F7 Readiness Meter */}
+        {briefing && (briefing.readinessPct ?? 0) > 0 && (
+          <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1rem 1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>🎯 מוכנות לחתונה</p>
+              <p style={{ fontSize: 20, fontWeight: 900, fontFamily: "Frank Ruhl Libre, serif", color: briefing.readinessPct >= 80 ? "#059669" : briefing.readinessPct >= 50 ? "#D97706" : "#EF4444" }}>{briefing.readinessPct}%</p>
+            </div>
+            <div style={{ height: 8, background: "rgba(197,164,109,0.15)", borderRadius: 4, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${briefing.readinessPct}%`, borderRadius: 4, transition: "width 1s", background: briefing.readinessPct >= 80 ? "linear-gradient(90deg,#059669,#34D399)" : briefing.readinessPct >= 50 ? "linear-gradient(90deg,#D97706,#FCD34D)" : "linear-gradient(90deg,#EF4444,#FCA5A5)" }} />
+            </div>
+            {/* F9 Smart stat pills */}
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.85rem" }}>
+              {[
+                { label: `📋 ${tasks.filter(t=>!t.completed).length} משימות נותרו`, show: tasks.length > 0 },
+                { label: `👥 ${stats.confirmed} אורחים מאושרים`, show: true },
+                { label: `🤝 ${Object.values(vendors).filter(Boolean).length} ספקים`, show: Object.keys(vendors).length > 0 },
+                { label: `💪 ${briefing.readinessPct}% מוכנות`, show: true },
+              ].filter(p => p.show).map((p, i) => (
+                <span key={i} style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, background: "rgba(197,164,109,0.08)", border: `1px solid ${C.border}`, color: C.muted, fontWeight: 500 }}>{p.label}</span>
+              ))}
+            </div>
+            {/* Daily encouraging message */}
+            <p style={{ fontSize: 12, color: C.gold, marginTop: "0.6rem", fontStyle: "italic" }}>
+              {DAILY_MESSAGES[Math.floor(Date.now() / 86400000) % DAILY_MESSAGES.length]}
+            </p>
+          </div>
+        )}
+
+        {/* F3 Updates Center */}
+        {briefing && data && (
+          <UpdatesCenter briefing={briefing} stats={stats} seating={{ assignedSeats: seating.assignedSeats }} />
         )}
 
         {/* Urgent alerts — read-only, no actions for couple */}
@@ -1101,32 +1350,30 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
           </div>
         </div>
 
-        {/* Contact Dvir */}
+        {/* F4 — Requests Center link (replaces WhatsApp button) */}
         <a
-          href="https://wa.me/972533318177?text=שלום+דביר%2C+יש+לי+שאלה+לגבי+החתונה+שלנו"
-          target="_blank"
-          rel="noopener noreferrer"
+          href={`/couple/${token}/requests`}
           style={{
             display: "flex", alignItems: "center", gap: "1rem",
-            background: "linear-gradient(135deg, #1a4731 0%, #0f2e1f 100%)",
+            background: `linear-gradient(135deg, ${C.dark} 0%, #2C1F0E 100%)`,
             borderRadius: "1.25rem", padding: "1.25rem 1.5rem",
-            boxShadow: "0 4px 20px rgba(37,211,102,0.18)",
+            boxShadow: C.shadow,
             textDecoration: "none", marginBottom: "0.875rem",
-            border: "1px solid rgba(37,211,102,0.25)",
+            border: `1px solid rgba(197,164,109,0.25)`,
           }}
         >
-          <div style={{ width: 46, height: 46, borderRadius: "50%", background: "#25D366", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 10px rgba(37,211,102,0.4)" }}>
-            <span style={{ fontSize: 22 }}>💬</span>
+          <div style={{ width: 46, height: 46, borderRadius: "50%", background: "rgba(197,164,109,0.15)", border: "1px solid rgba(197,164,109,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <span style={{ fontSize: 22 }}>📬</span>
           </div>
           <div>
-            <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, color: "white", margin: 0 }}>
-              שאלה? דברו עם דביר
+            <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, color: "#FDFAF5", margin: 0 }}>
+              מרכז הבקשות
             </p>
-            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.58)", margin: 0, fontFamily: "Heebo, sans-serif" }}>
-              053-3318177 · מענה תוך 24 שעות
+            <p style={{ fontSize: 12, color: "rgba(197,164,109,0.65)", margin: 0, fontFamily: "Heebo, sans-serif" }}>
+              שאלות ובקשות לצוות רגע לפני · מענה תוך 24 שעות
             </p>
           </div>
-          <span style={{ marginRight: "auto", fontSize: 18 }}>←</span>
+          <span style={{ marginRight: "auto", fontSize: 18, color: "rgba(197,164,109,0.6)" }}>←</span>
         </a>
 
         {/* Memory Wall */}

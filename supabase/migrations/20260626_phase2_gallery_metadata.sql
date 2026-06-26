@@ -1,0 +1,9 @@
+ALTER TABLE gallery_photos
+  ADD COLUMN IF NOT EXISTS orientation TEXT,
+  ADD COLUMN IF NOT EXISTS file_size_bytes BIGINT,
+  ADD COLUMN IF NOT EXISTS width_px INT,
+  ADD COLUMN IF NOT EXISTS height_px INT,
+  ADD COLUMN IF NOT EXISTS duration_sec NUMERIC,
+  ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS uploaded_by_guest_name TEXT,
+  ADD COLUMN IF NOT EXISTS media_type TEXT DEFAULT 'photo';

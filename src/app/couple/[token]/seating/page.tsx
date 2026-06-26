@@ -87,8 +87,10 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
   const [saving,        setSaving]        = useState(false);
   const [search,        setSearch]        = useState("");
   const [selectedGuest, setSelectedGuest] = useState<string | null>(null);
-  const [showAddTable,  setShowAddTable]  = useState(false);
-  const [newTable,      setNewTable]      = useState({ name: "", capacity: 10, type: "round" });
+  const [showAddTable,   setShowAddTable]   = useState(false);
+  const [newTable,       setNewTable]       = useState({ name: "", capacity: 10, type: "round" });
+  const [showSimulator,  setShowSimulator]  = useState(false);
+  const [simExpanded,    setSimExpanded]    = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/couple/${token}/seating`);
@@ -157,17 +159,61 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
                 {totalSeated} מתוך {totalGuests} אורחים מוצבים · {data.tables.length} שולחנות
               </p>
             </div>
-            <button
-              onClick={() => setShowAddTable(!showAddTable)}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "0.6rem 1.2rem", borderRadius: 12, border: "none", background: "rgba(255,255,255,0.15)", color: "#FFF8EC", cursor: "pointer", fontSize: 14, fontFamily: "Heebo, sans-serif", backdropFilter: "blur(8px)" }}
-            >
-              <Plus size={16} /> הוסף שולחן
-            </button>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button
+                onClick={() => setShowSimulator(!showSimulator)}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "0.6rem 1.2rem", borderRadius: 12, border: "none", background: showSimulator ? "rgba(197,164,109,0.35)" : "rgba(255,255,255,0.15)", color: "#FFF8EC", cursor: "pointer", fontSize: 14, fontFamily: "Heebo, sans-serif", backdropFilter: "blur(8px)" }}
+              >
+                🏛️ {showSimulator ? "הסתר אולם" : "תצוגת אולם"}
+              </button>
+              <button
+                onClick={() => setShowAddTable(!showAddTable)}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "0.6rem 1.2rem", borderRadius: 12, border: "none", background: "rgba(255,255,255,0.15)", color: "#FFF8EC", cursor: "pointer", fontSize: 14, fontFamily: "Heebo, sans-serif", backdropFilter: "blur(8px)" }}
+              >
+                <Plus size={16} /> הוסף שולחן
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "1.5rem 1rem 4rem" }}>
+
+        {/* F10 — Seating Simulator */}
+        {showSimulator && data.tables.length > 0 && (
+          <div style={{ background: "rgba(255,255,255,0.92)", border: "1px solid rgba(197,164,109,0.2)", borderRadius: "1.25rem", padding: "1.25rem", marginBottom: "1.25rem" }}>
+            <p style={{ fontSize: 12, color: "rgba(28,16,8,0.4)", marginBottom: "1rem", fontFamily: "Heebo, sans-serif" }}>
+              🏛️ תצוגת האולם — קבלו תמונה כללית של סידורי ההושבה
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "0.75rem" }}>
+              {[...data.tables].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map(table => {
+                const assigned = assignmentsByTable(table.id);
+                const pct = Math.round((assigned.length / table.capacity) * 100);
+                const color = pct === 100 ? "#EF4444" : pct >= 75 ? "#D97706" : "#059669";
+                const guests = assigned.map(a => guestById(a.guest_id)).filter(Boolean);
+                return (
+                  <div key={table.id}
+                    onClick={() => setSimExpanded(simExpanded === table.id ? null : table.id)}
+                    style={{ cursor: "pointer", background: "white", borderRadius: 12, padding: "0.85rem", border: `2px solid ${simExpanded === table.id ? GOLD : "rgba(197,164,109,0.2)"}`, transition: "all 0.15s" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.5rem" }}>
+                      <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 14, color: DARK }}>{table.name}</p>
+                      <span style={{ fontSize: 10, fontWeight: 700, color, background: `${color}15`, border: `1px solid ${color}30`, borderRadius: 8, padding: "2px 7px" }}>{pct}%</span>
+                    </div>
+                    <div style={{ height: 5, background: "rgba(197,164,109,0.15)", borderRadius: 3, overflow: "hidden", marginBottom: "0.4rem" }}>
+                      <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 3, transition: "width 0.4s" }} />
+                    </div>
+                    <p style={{ fontSize: 11, color: "rgba(28,16,8,0.45)" }}>{assigned.length} / {table.capacity} מושבים</p>
+                    {simExpanded === table.id && guests.length > 0 && (
+                      <ul style={{ marginTop: "0.65rem", paddingRight: "0.75rem", borderTop: "1px solid rgba(197,164,109,0.15)", paddingTop: "0.5rem" }}>
+                        {guests.map(g => g && <li key={g.id} style={{ fontSize: 12, color: DARK, marginBottom: 2 }}>{g.name} ({g.guest_count})</li>)}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Add table form */}
         {showAddTable && (

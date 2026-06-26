@@ -311,7 +311,7 @@ const STATUS_COLOR: Record<GuestStatus, { bg: string; color: string }> = {
 };
 
 const PAGE_SIZE = 20;
-type Tab = "guests" | "reminders" | "import-export" | "command-center" | "recommendations" | "couple-view" | "calendar" | "history" | "analytics" | "service-center";
+type Tab = "guests" | "reminders" | "import-export" | "command-center" | "recommendations" | "couple-view" | "calendar" | "history" | "analytics" | "service-center" | "requests" | "messages";
 
 interface CouponRow {
   id: string;
@@ -2110,6 +2110,8 @@ export default function AdminPage() {
             ["recommendations","מרכז המלצות"],
             ["import-export","ייבוא / ייצוא"],
             ["service-center","🛎 מרכז שירות"],
+            ["requests","📬 בקשות זוג"],
+            ["messages","💬 WhatsApp Pro"],
           ] as [Tab, string][]).map(
             ([id, label]) => (
               <button
@@ -3028,6 +3030,20 @@ export default function AdminPage() {
         ══════════════════════════════════════════════ */}
         {activeTab === "service-center" && (
           <ServiceCenterAdmin selectedEventId={selectedEventId} events={events} />
+        )}
+
+        {/* ══════════════════════════════════════════════
+            TAB: Requests (couple requests)
+        ══════════════════════════════════════════════ */}
+        {activeTab === "requests" && (
+          <AdminRequestsTab selectedEventId={selectedEventId} />
+        )}
+
+        {/* ══════════════════════════════════════════════
+            TAB: WhatsApp Center Pro
+        ══════════════════════════════════════════════ */}
+        {activeTab === "messages" && (
+          <AdminMessagesTab selectedEventId={selectedEventId} events={events} />
         )}
 
       </div>
@@ -4034,6 +4050,248 @@ function ServiceCenterAdmin({ selectedEventId, events }: { selectedEventId: stri
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/* ── Admin Requests Tab ───────────────────────────────────── */
+function AdminRequestsTab({ selectedEventId }: { selectedEventId: string | null }) {
+  const [requests, setRequests] = React.useState<Record<string, unknown>[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [note, setNote] = React.useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    setLoading(true);
+    const url = selectedEventId ? `/api/admin/requests?event_id=${selectedEventId}` : "/api/admin/requests";
+    fetch(url, { headers: { "x-admin-token": process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "" } })
+      .then(r => r.json())
+      .then(d => Array.isArray(d) && setRequests(d))
+      .finally(() => setLoading(false));
+  }, [selectedEventId]);
+
+  const STATUS_OPTIONS = [
+    { value: "new", label: "נשלחה" },
+    { value: "in_progress", label: "בטיפול" },
+    { value: "resolved", label: "טופלה" },
+    { value: "closed", label: "נסגרה" },
+  ];
+
+  async function update(id: string, status: string) {
+    await fetch("/api/admin/requests", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-admin-token": process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "" },
+      body: JSON.stringify({ id, status, admin_note: note[id] }),
+    });
+    const url = selectedEventId ? `/api/admin/requests?event_id=${selectedEventId}` : "/api/admin/requests";
+    const r = await fetch(url, { headers: { "x-admin-token": process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "" } });
+    const d = await r.json();
+    if (Array.isArray(d)) setRequests(d);
+  }
+
+  const C = { gold: "#C5A46D", dark: "#1C1008", muted: "rgba(28,16,8,0.55)", border: "rgba(197,164,109,0.20)", card: "#FFFFFF", ivory: "#FDFAF5" };
+
+  return (
+    <div dir="rtl" style={{ padding: "1.5rem 1rem" }}>
+      <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 20, fontWeight: 700, color: C.dark, marginBottom: "1rem" }}>📬 בקשות הזוגות</h2>
+      {loading ? <p style={{ color: C.muted }}>טוען...</p> : requests.length === 0 ? <p style={{ color: C.muted }}>אין בקשות</p> : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          {requests.map((req: Record<string, unknown>) => (
+            <div key={req.id as string} style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: "1rem 1.25rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                <div>
+                  <p style={{ fontWeight: 700, color: C.dark, fontSize: 15 }}>{req.title as string}</p>
+                  <p style={{ fontSize: 12, color: C.muted }}>{(req.events as Record<string, string>)?.name ?? ""} · {req.category as string} · {new Date(req.created_at as string).toLocaleDateString("he-IL")}</p>
+                </div>
+                <select
+                  value={req.status as string}
+                  onChange={e => update(req.id as string, e.target.value)}
+                  style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: "0.35rem 0.6rem", fontSize: 12, fontFamily: "Heebo, sans-serif", background: C.ivory, outline: "none" }}
+                >
+                  {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              {req.description ? <p style={{ fontSize: 13, color: C.muted, marginBottom: "0.65rem" }}>{String(req.description)}</p> : null}
+              <textarea
+                placeholder="תגובה לזוג (תוצג להם)"
+                value={note[req.id as string] ?? (req.admin_note as string) ?? ""}
+                onChange={e => setNote(p => ({ ...p, [req.id as string]: e.target.value }))}
+                rows={2}
+                style={{ width: "100%", padding: "0.55rem 0.75rem", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, fontFamily: "Heebo, sans-serif", resize: "none", outline: "none", boxSizing: "border-box", marginBottom: "0.5rem" }}
+              />
+              <button onClick={() => update(req.id as string, req.status as string)}
+                style={{ padding: "0.45rem 1rem", borderRadius: 8, background: C.gold, border: "none", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                שמור
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Admin Messages Tab (WhatsApp Center Pro) ──────────── */
+function AdminMessagesTab({ selectedEventId, events }: { selectedEventId: string | null; events: { id: string; name: string }[] }) {
+  const [queue, setQueue] = React.useState<Record<string, unknown>[]>([]);
+  const [guests, setGuests] = React.useState<{ id: string; name: string; phone: string; status: string; side?: string }[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [templateText, setTemplateText] = React.useState("💍 משפחה וחברים יקרים!\n\nרצינו להזכיר לכם את האירוע שלנו.\n\nנשמח לראותכם! ❤️");
+  const [sending, setSending] = React.useState(false);
+  const [filterSide, setFilterSide] = React.useState<"all" | "bride" | "groom">("all");
+  const [filterStatus, setFilterStatus] = React.useState<"all" | "pending" | "confirmed">("all");
+
+  const C = { gold: "#C5A46D", dark: "#1C1008", muted: "rgba(28,16,8,0.55)", border: "rgba(197,164,109,0.20)", card: "#FFFFFF", ivory: "#FDFAF5" };
+  const event = events.find(e => e.id === selectedEventId);
+
+  React.useEffect(() => {
+    if (!selectedEventId) return;
+    setLoading(true);
+    Promise.all([
+      fetch(`/api/admin/message-queue?event_id=${selectedEventId}`, { headers: { "x-admin-token": process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "" } }).then(r => r.json()),
+      fetch(`/api/guests?event_id=${selectedEventId}`, { headers: { "x-admin-token": process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "" } }).then(r => r.json()),
+    ]).then(([q, g]) => {
+      if (Array.isArray(q)) setQueue(q);
+      if (Array.isArray(g)) setGuests(g);
+    }).finally(() => setLoading(false));
+  }, [selectedEventId]);
+
+  const pending = queue.filter(m => m.status === "pending").length;
+  const sent = queue.filter(m => m.status === "sent").length;
+  const failed = queue.filter(m => m.status === "failed").length;
+
+  const filteredGuests = guests.filter(g => {
+    if (filterSide !== "all" && g.side !== filterSide) return false;
+    if (filterStatus === "pending" && g.status !== "pending") return false;
+    if (filterStatus === "confirmed" && g.status !== "confirmed") return false;
+    return true;
+  });
+
+  async function sendToAll() {
+    if (!selectedEventId || !templateText.trim()) return;
+    setSending(true);
+    const messages = filteredGuests.filter(g => g.phone).map(g => ({
+      guest_id: g.id,
+      phone: g.phone,
+      message_text: templateText,
+      template_key: "custom",
+    }));
+    await fetch("/api/admin/message-queue", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-token": process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "" },
+      body: JSON.stringify({ event_id: selectedEventId, messages }),
+    });
+    const r = await fetch(`/api/admin/message-queue?event_id=${selectedEventId}`, { headers: { "x-admin-token": process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "" } });
+    const d = await r.json();
+    if (Array.isArray(d)) setQueue(d);
+    setSending(false);
+  }
+
+  if (!selectedEventId) return <p style={{ padding: "2rem", color: C.muted, textAlign: "center" }}>בחרו אירוע מהתפריט</p>;
+
+  return (
+    <div dir="rtl" style={{ padding: "1.5rem 1rem" }}>
+      <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 20, fontWeight: 700, color: C.dark, marginBottom: "0.5rem" }}>💬 WhatsApp Center Pro</h2>
+      <p style={{ fontSize: 13, color: C.muted, marginBottom: "1.5rem" }}>{event?.name}</p>
+
+      {/* Progress */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginBottom: "1.5rem" }}>
+        {[
+          { label: "ממתינות", value: pending, color: "#D97706" },
+          { label: "נשלחו", value: sent, color: "#059669" },
+          { label: "נכשלו", value: failed, color: "#EF4444" },
+        ].map(s => (
+          <div key={s.label} style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: "0.85rem", textAlign: "center" }}>
+            <p style={{ fontSize: 24, fontWeight: 900, fontFamily: "Frank Ruhl Libre, serif", color: s.color }}>{s.value}</p>
+            <p style={{ fontSize: 11, color: C.muted }}>{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Template editor */}
+      <div style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, padding: "1.25rem", marginBottom: "1.25rem" }}>
+        <p style={{ fontSize: 13, fontWeight: 700, color: C.dark, marginBottom: "0.65rem" }}>📝 תבנית הודעה</p>
+        <p style={{ fontSize: 11, color: "#EF4444", marginBottom: "0.5rem" }}>⚠️ אל תתחילו עם שם אישי — השתמשו בפנייה קבוצתית</p>
+        <textarea
+          value={templateText}
+          onChange={e => setTemplateText(e.target.value)}
+          rows={5}
+          style={{ width: "100%", padding: "0.75rem", borderRadius: 10, border: `1px solid ${C.border}`, fontSize: 14, fontFamily: "Heebo, sans-serif", resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: 1.6 }}
+        />
+        {/* Phone mockup preview */}
+        <div style={{ marginTop: "0.75rem", background: "#E8F5E9", borderRadius: 12, padding: "0.75rem 1rem", maxWidth: 280, border: "1px solid rgba(37,211,102,0.3)" }}>
+          <p style={{ fontSize: 10, color: "#555", marginBottom: "0.35rem" }}>📱 תצוגה מקדימה</p>
+          <p style={{ fontSize: 13, whiteSpace: "pre-line", color: C.dark, lineHeight: 1.6 }}>{templateText}</p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1rem" }}>
+        {(["all", "bride", "groom"] as const).map(s => (
+          <button key={s} onClick={() => setFilterSide(s)}
+            style={{ padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: filterSide === s ? 700 : 400, border: `1.5px solid ${filterSide === s ? C.gold : C.border}`, background: filterSide === s ? "rgba(197,164,109,0.12)" : "transparent", color: filterSide === s ? C.gold : C.muted, cursor: "pointer" }}>
+            {s === "all" ? "כולם" : s === "bride" ? "צד כלה" : "צד חתן"}
+          </button>
+        ))}
+        <span style={{ color: C.border }}>|</span>
+        {(["all", "pending", "confirmed"] as const).map(s => (
+          <button key={s} onClick={() => setFilterStatus(s)}
+            style={{ padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: filterStatus === s ? 700 : 400, border: `1.5px solid ${filterStatus === s ? C.gold : C.border}`, background: filterStatus === s ? "rgba(197,164,109,0.12)" : "transparent", color: filterStatus === s ? C.gold : C.muted, cursor: "pointer" }}>
+            {s === "all" ? "כל הסטטוסים" : s === "pending" ? "לא ענו" : "מאושרים"}
+          </button>
+        ))}
+      </div>
+
+      <p style={{ fontSize: 12, color: C.muted, marginBottom: "0.75rem" }}>{filteredGuests.length} אורחים בפילטר הנוכחי</p>
+
+      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+        <button
+          onClick={sendToAll}
+          disabled={sending || filteredGuests.length === 0}
+          style={{ padding: "0.7rem 1.5rem", borderRadius: 12, background: filteredGuests.length > 0 ? `linear-gradient(135deg, ${C.gold}, #9B7A42)` : "rgba(197,164,109,0.2)", border: "none", color: filteredGuests.length > 0 ? "white" : C.muted, fontSize: 14, fontWeight: 700, cursor: filteredGuests.length > 0 ? "pointer" : "not-allowed", fontFamily: "Heebo, sans-serif" }}>
+          {sending ? "מכין..." : `📋 הוסף ${filteredGuests.length} לתור הודעות`}
+        </button>
+
+        {/* Open wa.me for first in queue */}
+        {queue.filter(m => m.status === "pending").slice(0, 1).map(m => (
+          <a key={m.id as string} href={m.wa_link as string} target="_blank" rel="noopener noreferrer"
+            onClick={() => fetch("/api/admin/message-queue", { method: "PATCH", headers: { "Content-Type": "application/json", "x-admin-token": process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "" }, body: JSON.stringify({ id: m.id, status: "sent" }) })}
+            style={{ padding: "0.7rem 1.5rem", borderRadius: 12, background: "#25D366", color: "white", textDecoration: "none", fontSize: 14, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}>
+            💬 שלח הבא בתור
+          </a>
+        ))}
+
+        {/* Backup download */}
+        {selectedEventId && (
+          <a href={`/api/admin/backup?event_id=${selectedEventId}`}
+            style={{ padding: "0.7rem 1.25rem", borderRadius: 12, background: "rgba(107,123,90,0.1)", border: "1px solid rgba(107,123,90,0.25)", color: "#6B7B5A", textDecoration: "none", fontSize: 14, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}>
+            📦 גיבוי JSON
+          </a>
+        )}
+      </div>
+
+      {/* Queue list */}
+      {queue.length > 0 && (
+        <div style={{ marginTop: "1.5rem" }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: C.dark, marginBottom: "0.65rem" }}>תור ההודעות</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxHeight: 300, overflowY: "auto" }}>
+            {queue.slice(0, 20).map(m => (
+              <div key={m.id as string} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.65rem 1rem", background: C.ivory, borderRadius: 10, border: `1px solid ${C.border}` }}>
+                <span style={{ fontSize: 16 }}>{m.status === "sent" ? "✅" : m.status === "failed" ? "❌" : "⏳"}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 13, color: C.dark, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.phone as string}</p>
+                  <p style={{ fontSize: 11, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(m.message_text as string).slice(0, 60)}...</p>
+                </div>
+                {m.status === "failed" && (
+                  <button onClick={() => fetch("/api/admin/message-queue", { method: "PATCH", headers: { "Content-Type": "application/json", "x-admin-token": process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "" }, body: JSON.stringify({ id: m.id, status: "pending" }) }).then(() => setQueue(q => q.map(x => x.id === m.id ? { ...x, status: "pending" } : x)))}
+                    style={{ padding: "4px 10px", borderRadius: 8, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#EF4444", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                    נסה שוב
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
