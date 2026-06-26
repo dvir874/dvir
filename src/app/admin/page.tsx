@@ -2098,7 +2098,12 @@ export default function AdminPage() {
         )}
 
         {/* ── Tabs ───────────────────────────────────── */}
-        <div className="flex gap-1 mb-5 p-1 rounded-2xl flex-wrap" style={{ background: "rgba(197,164,109,0.08)", width: "fit-content" }}>
+        {/* F1 Mobile Admin: tab bar scrolls horizontally on mobile */}
+        <style>{`
+          .admin-tab-bar { scrollbar-width: none; }
+          .admin-tab-bar::-webkit-scrollbar { display: none; }
+        `}</style>
+        <div className="admin-tab-bar flex gap-1 mb-5 p-1 rounded-2xl" style={{ background: "rgba(197,164,109,0.08)", overflowX: "auto", WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"], flexWrap: "nowrap", width: "100%" }}>
           {([
             ["command-center","מרכז בקרה"],
             ["guests","רשימת אורחים"],
@@ -2119,9 +2124,11 @@ export default function AdminPage() {
                 onClick={() => setActiveTab(id)}
                 className="px-4 py-2 rounded-xl text-sm font-medium transition-all"
                 style={{
-                  background: activeTab === id ? C.ivory : "transparent",
-                  color:      activeTab === id ? C.dark  : C.muted,
-                  boxShadow:  activeTab === id ? "0 1px 6px rgba(197,164,109,0.12)" : "none",
+                  background:  activeTab === id ? C.ivory : "transparent",
+                  color:       activeTab === id ? C.dark  : C.muted,
+                  boxShadow:   activeTab === id ? "0 1px 6px rgba(197,164,109,0.12)" : "none",
+                  whiteSpace:  "nowrap",
+                  flexShrink:  0,
                 }}
               >
                 {label}
@@ -2235,8 +2242,8 @@ export default function AdminPage() {
             {showAddGuest && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
                 <div
-                  className="w-full max-w-sm rounded-3xl p-6"
-                  style={{ background: C.ivory, border: `1px solid ${C.border}`, boxShadow: "0 20px 60px rgba(0,0,0,0.12)" }}
+                  className="w-full rounded-3xl p-6"
+                  style={{ background: C.ivory, border: `1px solid ${C.border}`, boxShadow: "0 20px 60px rgba(0,0,0,0.12)", width: "min(480px,95vw)" }}
                 >
                   <h3 className="text-lg font-bold mb-4" style={{ color: C.dark, fontFamily: "Frank Ruhl Libre, serif" }}>
                     הוספת אורח
@@ -2274,10 +2281,20 @@ export default function AdminPage() {
               </div>
             )}
 
+            {/* F1 Mobile Admin: responsive guest table */}
+            <style>{`
+              @media (max-width: 640px) {
+                .guest-table thead { display: none; }
+                .guest-table tbody tr { display: block; margin-bottom: 0.75rem; border-radius: 12px; border: 1px solid rgba(197,164,109,0.20); padding: 0.75rem; background: #fff; }
+                .guest-table tbody td { display: flex; justify-content: space-between; padding: 0.25rem 0; font-size: 13px; border: none !important; }
+                .guest-table tbody td::before { content: attr(data-label); font-weight: 600; color: rgba(28,16,8,0.55); margin-left: 0.5rem; }
+              }
+            `}</style>
+
             {/* Table */}
             <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${C.border}`, boxShadow: "0 2px 16px rgba(197,164,109,0.06)" }}>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm guest-table">
                   <thead>
                     <tr style={{ background: "rgba(197,164,109,0.07)", borderBottom: `1px solid ${C.borderS}` }}>
                       {["שם","טלפון","סטטוס","מוזמנים","מנה","זמן תגובה","נפתח","פעולות"].map((h) => (
@@ -2308,8 +2325,8 @@ export default function AdminPage() {
                           borderBottom: `1px solid ${C.borderS}`,
                         }}
                       >
-                        <td className="px-4 py-3 font-medium" style={{ color: C.dark }}>{g.name}</td>
-                        <td className="px-4 py-3" style={{ color: C.muted }}>{g.phone || "—"}</td>
+                        <td className="px-4 py-3 font-medium" data-label="שם" style={{ color: C.dark }}>{g.name}</td>
+                        <td className="px-4 py-3" data-label="טלפון" style={{ color: C.muted }}>{g.phone || "—"}</td>
                         <td className="px-4 py-3">
                           <select
                             value={g.status}
