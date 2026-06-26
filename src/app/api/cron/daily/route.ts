@@ -45,10 +45,10 @@ export async function GET(request: NextRequest) {
   const supabase = createServerClient();
   const now = Date.now();
 
-  // Fetch all active events
+  // Fetch all active events (including reminder_days_before for F3)
   const { data: events, error } = await supabase
     .from("events")
-    .select("id, name, date, address")
+    .select("id, name, date, address, reminder_days_before")
     .gte("date", new Date(now - 86_400_000).toISOString().split("T")[0]); // today or future
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -101,10 +101,41 @@ export async function GET(request: NextRequest) {
 
   const tasks = generateTasks(contexts);
 
-  // TODO (when CRON_ENABLED=true): persist tasks to `tasks` table
-  // if (!dryRun && process.env.CRON_ENABLED === "true") {
-  //   await supabase.from("tasks").insert(tasks.map(t => ({ ... })));
-  // }
+  // F3 — Auto Reminder: insert message_queue rows for events hitting their reminder window
+  let reminderQueued = 0;
+  if (!dryRun && process.env.CRON_ENABLED === "true") {
+    for (const ctx of contexts) {
+      const ev = events.find(e => e.id === ctx.id);
+      const reminderDays = (ev as Record<string, unknown>)?.reminder_days_before as number | null;
+      if (!reminderDays || ctx.daysUntilEvent !== reminderDays) continue;
+
+      // Fetch guests with phones who haven't confirmed yet
+      const { data: pendingGuests } = await supabase
+        .from("guests")
+        .select("id, phone, name")
+        .eq("event_id", ctx.id)
+        .eq("status", "pending")
+        .not("phone", "is", null);
+
+      if (!pendingGuests?.length) continue;
+
+      const messageText = `💍 משפחה וחברים יקרים!\n\nעוד ${ctx.daysUntilEvent} ימים לחתונה של ${ctx.name} 🎊\nנשמח לקבל ממכם אישור הגעה:\n`;
+
+      const rows = pendingGuests.map(g => ({
+        event_id:     ctx.id,
+        guest_id:     g.id,
+        phone:        g.phone,
+        message_text: messageText,
+        template_key: "auto_reminder",
+        wa_link:      `https://wa.me/${g.phone.replace(/[^0-9]/g,"").replace(/^0/,"972")}?text=${encodeURIComponent(messageText)}`,
+        status:       "pending",
+        scheduled_at: new Date().toISOString(),
+      }));
+
+      await supabase.from("message_queue").insert(rows);
+      reminderQueued += rows.length;
+    }
+  }
 
   return NextResponse.json({
     jobId:        JOB_IDS.DAILY_TASK_GENERATION,
@@ -112,6 +143,7 @@ export async function GET(request: NextRequest) {
     dryRun,
     processed:    events.length,
     tasksGenerated: tasks.length,
+    reminderQueued,
     tasks:        tasks.map((t) => ({ eventName: t.eventName, priority: t.priority, title: t.title })),
   });
 }

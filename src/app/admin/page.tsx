@@ -992,6 +992,30 @@ export default function AdminPage() {
               ))}
             </select>
           )}
+          {/* F3 — Auto reminder days selector */}
+          {selectedEventId && (
+            <select
+              defaultValue={(selectedEvent as unknown as Record<string, unknown>)?.reminder_days_before as number ?? 7}
+              onChange={async (e) => {
+                const val = Number(e.target.value);
+                await fetch(`/api/events/${selectedEventId}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json", "x-admin-token": process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "" },
+                  body: JSON.stringify({ reminder_days_before: val === -1 ? null : val }),
+                });
+              }}
+              className="text-xs rounded-xl px-2 py-2 outline-none font-medium"
+              style={{ background: "rgba(197,164,109,0.10)", border: `1px solid rgba(197,164,109,0.25)`, color: C.gold }}
+              title="⏰ תזכורת אוטומטית"
+            >
+              <option value={-1}>⏰ כבויה</option>
+              <option value={14}>⏰ 14 ימים</option>
+              <option value={7}>⏰ 7 ימים</option>
+              <option value={3}>⏰ 3 ימים</option>
+              <option value={1}>⏰ יום לפני</option>
+            </select>
+          )}
+
           <a
             href="/admin/wizard"
             className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
