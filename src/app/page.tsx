@@ -1,10 +1,10 @@
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
+import JourneyStrip from "@/components/JourneyStrip";
+import WhatYouGet from "@/components/WhatYouGet";
 import WhyUs from "@/components/WhyUs";
-import DashboardDemo from "@/components/DashboardDemo";
-import LiveInvitationDemo from "@/components/LiveInvitationDemo";
-import LiveDashboardWidget from "@/components/LiveDashboardWidget";
-import LiveSeatingWidget from "@/components/LiveSeatingWidget";
+import Testimonials from "@/components/Testimonials";
+import ComparisonSection from "@/components/ComparisonSection";
 import BookDemoCTA from "@/components/BookDemoCTA";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
@@ -16,11 +16,11 @@ export default function Home() {
     <main className="relative">
       <Header />
       <Hero />
+      <JourneyStrip />
+      <WhatYouGet />
       <WhyUs />
-      <DashboardDemo />
-      <LiveInvitationDemo />
-      <LiveDashboardWidget />
-      <LiveSeatingWidget />
+      <Testimonials />
+      <ComparisonSection />
       <BookDemoCTA />
       <Contact />
       <Footer />

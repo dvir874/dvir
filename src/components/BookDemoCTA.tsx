@@ -27,14 +27,16 @@ export default function BookDemoCTA() {
             className="text-2xl md:text-3xl font-bold text-white mb-3"
             style={{ fontFamily: "Frank Ruhl Libre, serif" }}
           >
-            קבלו הצעת מחיר תוך 24 שעות
+            מוכנים לנהל את החתונה שלכם בשקט?
           </h2>
           <div className="w-14 h-px mx-auto mb-5" style={{ background: "rgba(197,164,109,0.5)" }} />
           <p
             className="text-sm text-white/65 max-w-md mx-auto mb-8 leading-relaxed"
             style={{ fontFamily: "Heebo, sans-serif" }}
           >
-            ספרו לנו על האירוע. ונחזור אליכם עם הצעה מותאמת אישית, בלי התחייבות
+            הצטרפו לעשרות זוגות שהחליטו לעזוב את האקסלים מאחור.
+            <br />
+            ספרו לנו על האירוע — ונחזור תוך 24 שעות עם הצעה מותאמת.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">

@@ -388,26 +388,29 @@ export default function Hero() {
               transition: "opacity 0.8s ease, transform 0.8s ease",
             }}
           >
-            <p className="text-sm mb-3 font-medium" style={{ color: "#6B7B5A", fontFamily: "Heebo, sans-serif" }}>
-              שלום, אני דביר. מנהל אירועים דיגיטלי
+            <p
+              className="text-xs font-semibold uppercase tracking-[0.20em] mb-4"
+              style={{ color: "#6B7B5A", fontFamily: "Heebo, sans-serif" }}
+            >
+              ✦ לא עוד כלי לאישורי הגעה ✦
             </p>
 
             <h1
               className="text-4xl md:text-5xl xl:text-[3.1rem] font-bold text-dark leading-[1.22] mb-5"
               style={{ fontFamily: "Frank Ruhl Libre, serif", letterSpacing: "-0.02em" }}
             >
-              תגיעו לחתונה שלכם
+              כל החתונה שלכם —
               <br />
-              <span style={{ color: "#C5A46D" }}>רגועים ונינוחים</span>
+              <span style={{ color: "#C5A46D" }}>במערכת אחת</span>
             </h1>
 
             <p
               className="text-base md:text-lg leading-[1.85] max-w-lg mb-7"
               style={{ color: "rgba(51,51,51,0.60)", fontFamily: "Heebo, sans-serif", fontWeight: 300 }}
             >
-              אנחנו מנהלים את הלוגיסטיקה. אתם נהנים מהדרך.
+              מהרגע שהתארסתם ועד הרבה אחרי האירוע.
               <br className="hidden md:block" />
-              אורחים, הושבה, תקציב, מתנות ומשימות. הכל במקום אחד.
+              לא עוד אקסלים ווואטסאפ — מערכת שמלווה אתכם לאורך כל הדרך.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mb-3">
