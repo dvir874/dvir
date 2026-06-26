@@ -115,6 +115,28 @@ Anything that changes UX flow for an existing couple → Feature Flag first.
 
 ---
 
+## Mobile First — Couple Area (Permanent Rule)
+
+**רוב הזוגות משתמשים מהטלפון.** כל פיצ'ר חדש באזור הזוג חייב להיבנות Mobile First.
+
+**לפני כל פיצ'ר חדש — ענה:**
+- איך זה נראה באייפון/אנדרואיד?
+- האם כל הכפתורים ≥ 44px?
+- האם ניתן לבצע בידיים אחת עם האגודל?
+- האם אין גלילה מיותרת?
+
+**UX Rules — Couple area:**
+- Bottom Navigation כאשר מתאים
+- Cards במקום טבלאות
+- Safe Area: `env(safe-area-inset-bottom)` על כל fixed elements
+- אנימציות עדינות בלבד (no heavy animations)
+- מינימום קליקים לכל פעולה
+- Premium + Minimal — לא עמוס, לא צבעוני
+
+**Admin area** = Desktop First (טבלאות, גרפים, ריבוי מידע מותר).
+
+---
+
 ## Tech Stack (quick reference)
 
 - **Framework:** Next.js 14 App Router, `"use client"` pages
