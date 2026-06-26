@@ -115,25 +115,36 @@ Anything that changes UX flow for an existing couple → Feature Flag first.
 
 ---
 
-## UI/UX Design Workflow — Permanent Policy (7 Steps)
+## 🎨 Stitch Design First — Permanent Policy
 
-**Every significant frontend feature follows this order. No skipping.**
+**Every significant frontend feature requires Stitch approval before any code is written.**
+
+### 7-Step Workflow (no skipping)
 
 | Step | Who | Action |
 |------|-----|--------|
-| 1. Product Thinking | Claude | Think as Founder + PM + UX Researcher + Wedding Planner. Understand what user truly needs. |
-| 2. UX Flow | Claude | Map user journey: entry point → what they see → first action → completion. Count clicks. |
-| 3. Stitch Design | Stitch | Layout, hierarchy, spacing, components, mobile UX, visual balance. **NO code yet.** |
-| 4. Review | Dvir | Is it Premium? Clear? Minimal? Natural flow? Iterate in Stitch if not. |
-| 5. Implementation | Claude | Pixel-accurate reproduction of approved design. Not "similar" — **exact**. |
-| 6. QA | Claude | Desktop / Tablet / iPhone / Android / RTL / Accessibility / Responsive |
-| 7. Production Review | Dvir | Backward compatible? Mobile First? Feels like one coherent product? |
+| 1 Product Thinking | Claude | Think as Founder + PM + UX Researcher + Wedding Planner. What does the user truly need? |
+| 2 UX Flow | Claude | Map journey: entry → first action → second action → completion. Count clicks. |
+| 3 Stitch Design | Stitch | Layout · Hierarchy · Spacing · Typography · Mobile UX · Visual balance. **No code yet.** |
+| 4 Review | Dvir | Premium? Clear? Minimal? Natural flow? Iterate in Stitch if not. |
+| 5 Implementation | Claude | **Pixel-accurate** reproduction of approved design. Not "similar" — exact. |
+| 6 QA | Claude | Desktop / Tablet / iPhone / Android / RTL / Accessibility / Responsive |
+| 7 Production Review | Dvir | Backward compatible? Mobile First? Coherent product feel? |
 
-**Stitch חובה:** מסכים חדשים · זרימות משתמש · דפי שיווק · קומפוננטות מרכזיות · Dashboards · Wizards · ניווט · Empty States · Bottom Sheets · Dialogs · Landing Pages · Cards · Galleries · Timelines · כל אזור שהמשתמש רואה.
+### Stitch חובה
+מסכים חדשים · Dashboards · Landing Pages · Couple Dashboard · Guest Experience · RSVP · Wedding Mode · Journey · Wizards · Navigation · Bottom Navigation · Dialogs · Bottom Sheets · Empty States · Success States · Error States · Loading States · Cards · Timelines · Galleries · Pricing · Marketing Pages · כל זרימת משתמש · כל קומפוננטה מרכזית
 
-**Stitch לא חובה:** תיקוני CSS קטנים · שינויי מרווחים · תיקוני באגים · תחזוקה · DB · API · Supabase · auth · security · backend · business logic · refactoring.
+### Stitch לא חובה
+Backend · Database · API · Supabase · Auth · Security · Business Logic · Bug Fixes · Refactoring · Performance · Infrastructure · תיקוני CSS קטנים · שינויי ריווח · שינויי צבע קטנים · תחזוקה שוטפת
 
-**Design Language Goals:** Premium · Minimal · Elegant · Apple-level polish · Notion simplicity · Linear cleanliness · Wedding atmosphere · Mobile First · RTL · White space · Consistent tokens.
+### אם Stitch אינו זמין
+**אסור להמציא עיצוב גנרי.** במקום זאת:
+1. עצור ותאר מה צריך
+2. הכן Prompt מקצועי ל-Stitch הכולל: מטרת המסך · קהל יעד · פונקציות · מבנה · User Flow · Design Requirements · Mobile First · RTL · צבעי מותג · קומפוננטות · מצבי Empty/Loading/Success/Error · Accessibility
+3. המתן לעיצוב מאושר, ואז ממש pixel-accurately
+
+### Design Language
+Premium · Modern · Elegant · Minimal · Mobile First · RTL מלא · White Space · כפתורים גדולים · Cards מודרניים · טיפוגרפיה עקבית · צבעי מותג בלבד · אנימציות עדינות · תחושת יוקרה
 
 ---
 
