@@ -195,6 +195,32 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
   if (screen === "choose") return (
     <Shell event={event}>
       <p style={{ textAlign: "center", fontSize: 13, color: C.muted, marginBottom: "1.25rem" }}>שלום {guestName}! מה תרצו לשתף?</p>
+
+      {/* F6 — Photo Challenge prompts */}
+      <div style={{ marginBottom: "1.25rem" }}>
+        <p style={{ fontSize: 12, fontWeight: 700, color: C.gold, marginBottom: "0.6rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>📸 אתגר תמונות</p>
+        <div style={{ display: "flex", gap: "0.6rem", overflowX: "auto", paddingBottom: "0.25rem", scrollbarWidth: "none" }}>
+          {[
+            { emoji: "💑", text: "תמונה עם הזוג" },
+            { emoji: "🥂", text: "הדלקת נרות" },
+            { emoji: "💃", text: "ריקוד ראשון" },
+            { emoji: "👪", text: "תמונה משפחתית" },
+            { emoji: "😄", text: "תמונה מצחיקה" },
+            { emoji: "🌹", text: "ליד החופה" },
+          ].map(prompt => (
+            <button key={prompt.text}
+              onClick={() => { setUploadType("photo"); setScreen("upload"); }}
+              style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.3rem", flexShrink: 0,
+                       padding: "0.75rem 0.85rem", borderRadius: 14, border: `1px solid ${C.border}`,
+                       background: C.ivory, cursor: "pointer", minWidth: 88, fontFamily: "Heebo, sans-serif" }}>
+              <span style={{ fontSize: 24 }}>{prompt.emoji}</span>
+              <span style={{ fontSize: 11, color: C.muted, textAlign: "center", lineHeight: 1.3 }}>{prompt.text}</span>
+              <span style={{ fontSize: 10, color: C.gold, fontWeight: 600 }}>העלה ←</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
         {([
           { type: "photo" as UploadType,   icon: Camera,             emoji: "📸", label: "תמונה",          sub: "שתפו רגע מהחגיגה" },
