@@ -4132,16 +4132,27 @@ function AdminRequestsTab({ selectedEventId }: { selectedEventId: string | null 
 
 /* ── Admin Messages Tab (WhatsApp Center Pro) ──────────── */
 function AdminMessagesTab({ selectedEventId, events }: { selectedEventId: string | null; events: { id: string; name: string }[] }) {
-  const [queue, setQueue] = React.useState<Record<string, unknown>[]>([]);
-  const [guests, setGuests] = React.useState<{ id: string; name: string; phone: string; status: string; side?: string }[]>([]);
-  const [loading, setLoading] = React.useState(false);
-  const [templateText, setTemplateText] = React.useState("💍 משפחה וחברים יקרים!\n\nרצינו להזכיר לכם את האירוע שלנו.\n\nנשמח לראותכם! ❤️");
-  const [sending, setSending] = React.useState(false);
-  const [filterSide, setFilterSide] = React.useState<"all" | "bride" | "groom">("all");
-  const [filterStatus, setFilterStatus] = React.useState<"all" | "pending" | "confirmed">("all");
+  const C = { gold: "#C5A46D", dark: "#1C1008", muted: "rgba(28,16,8,0.55)", border: "rgba(197,164,109,0.20)", card: "#FFFFFF", ivory: "#FDFAF5", cream: "#F6F1E8" };
 
-  const C = { gold: "#C5A46D", dark: "#1C1008", muted: "rgba(28,16,8,0.55)", border: "rgba(197,164,109,0.20)", card: "#FFFFFF", ivory: "#FDFAF5" };
-  const event = events.find(e => e.id === selectedEventId);
+  const TEMPLATES = [
+    { key: "invite",    label: "💍 הזמנה ל-RSVP",    text: "💍 משפחה וחברים יקרים!\n\nאנחנו שמחים להזמין אתכם לחתונה שלנו 🎊\nנשמח מאוד לראות אתכם!\n\nלאישור הגעה:\n" },
+    { key: "reminder",  label: "⏰ תזכורת לאישור",    text: "💍 משפחה וחברים יקרים!\n\nעדיין לא קיבלנו ממכם אישור הגעה 🙏\nנשמח אם תאשרו מוקדם ככל האפשר:\n" },
+    { key: "seating",   label: "🪑 שובצתם לשולחן",   text: "💍 משפחה וחברים יקרים!\n\nשמחים לעדכן שמקומכם מוכן ✨\nנתראה בקרוב!\n" },
+    { key: "thanks",    label: "❤️ תודה שבאתם",       text: "💍 משפחה וחברים יקרים!\n\nתודה על שהיותכם חלק מהיום המיוחד שלנו ❤️\nאתם תמיד בלבנו!\n" },
+    { key: "photos",    label: "📸 העלו תמונות",       text: "💍 משפחה וחברים יקרים!\n\nהעלו את התמונות שלכם מהחתונה ויחד נבנה גלריה משפחתית 📸\n" },
+    { key: "custom",    label: "✏️ הודעה מותאמת",     text: "💍 משפחה וחברים יקרים!\n\n" },
+  ];
+
+  type Stage = "templates" | "preview" | "audience" | "queue" | "send";
+
+  const [stage, setStage] = React.useState<Stage>("templates");
+  const [selectedTemplate, setSelectedTemplate] = React.useState(TEMPLATES[0]);
+  const [customText, setCustomText] = React.useState(TEMPLATES[0].text);
+  const [audience, setAudience] = React.useState<"all"|"bride"|"groom"|"pending"|"vip">("all");
+  const [queue, setQueue] = React.useState<Record<string, unknown>[]>([]);
+  const [guests, setGuests] = React.useState<{ id: string; name: string; phone: string; status: string; side?: string; is_vip?: boolean }[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [queueing, setQueueing] = React.useState(false);
 
   React.useEffect(() => {
     if (!selectedEventId) return;
@@ -4155,140 +4166,207 @@ function AdminMessagesTab({ selectedEventId, events }: { selectedEventId: string
     }).finally(() => setLoading(false));
   }, [selectedEventId]);
 
-  const pending = queue.filter(m => m.status === "pending").length;
-  const sent = queue.filter(m => m.status === "sent").length;
-  const failed = queue.filter(m => m.status === "failed").length;
+  function getFilteredGuests() {
+    return guests.filter(g => {
+      if (!g.phone) return false;
+      if (audience === "bride") return g.side === "bride";
+      if (audience === "groom") return g.side === "groom";
+      if (audience === "pending") return g.status === "pending";
+      if (audience === "vip") return g.is_vip;
+      return true;
+    });
+  }
 
-  const filteredGuests = guests.filter(g => {
-    if (filterSide !== "all" && g.side !== filterSide) return false;
-    if (filterStatus === "pending" && g.status !== "pending") return false;
-    if (filterStatus === "confirmed" && g.status !== "confirmed") return false;
-    return true;
-  });
-
-  async function sendToAll() {
-    if (!selectedEventId || !templateText.trim()) return;
-    setSending(true);
-    const messages = filteredGuests.filter(g => g.phone).map(g => ({
+  async function addToQueue() {
+    if (!selectedEventId) return;
+    const filtered = getFilteredGuests();
+    if (filtered.length === 0) return;
+    setQueueing(true);
+    const messages = filtered.map(g => ({
       guest_id: g.id,
       phone: g.phone,
-      message_text: templateText,
-      template_key: "custom",
+      message_text: customText,
+      template_key: selectedTemplate.key,
     }));
     await fetch("/api/admin/message-queue", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-admin-token": process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "" },
       body: JSON.stringify({ event_id: selectedEventId, messages }),
     });
-    const r = await fetch(`/api/admin/message-queue?event_id=${selectedEventId}`, { headers: { "x-admin-token": process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "" } });
-    const d = await r.json();
-    if (Array.isArray(d)) setQueue(d);
-    setSending(false);
+    const q = await fetch(`/api/admin/message-queue?event_id=${selectedEventId}`, { headers: { "x-admin-token": process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "" } }).then(r => r.json());
+    if (Array.isArray(q)) setQueue(q);
+    setQueueing(false);
+    setStage("send");
   }
 
-  if (!selectedEventId) return <p style={{ padding: "2rem", color: C.muted, textAlign: "center" }}>בחרו אירוע מהתפריט</p>;
+  async function markSent(id: string) {
+    await fetch("/api/admin/message-queue", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-admin-token": process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "" },
+      body: JSON.stringify({ id, status: "sent" }),
+    });
+    setQueue(prev => prev.map(m => m.id === id ? { ...m, status: "sent", sent_at: new Date().toISOString() } : m));
+  }
+
+  const pending = queue.filter(m => m.status === "pending");
+  const sent    = queue.filter(m => m.status === "sent");
+  const STAGES: { key: Stage; label: string }[] = [
+    { key: "templates", label: "1 · תבנית" },
+    { key: "preview",   label: "2 · תצוגה" },
+    { key: "audience",  label: "3 · קהל" },
+    { key: "queue",     label: "4 · תור" },
+    { key: "send",      label: "5 · שליחה" },
+  ];
+
+  if (!selectedEventId) return <p style={{ color: C.muted, padding: "2rem", textAlign: "center" }}>בחרו אירוע תחילה</p>;
 
   return (
-    <div dir="rtl" style={{ padding: "1.5rem 1rem" }}>
-      <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 20, fontWeight: 700, color: C.dark, marginBottom: "0.5rem" }}>💬 WhatsApp Center Pro</h2>
-      <p style={{ fontSize: 13, color: C.muted, marginBottom: "1.5rem" }}>{event?.name}</p>
-
-      {/* Progress */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginBottom: "1.5rem" }}>
-        {[
-          { label: "ממתינות", value: pending, color: "#D97706" },
-          { label: "נשלחו", value: sent, color: "#059669" },
-          { label: "נכשלו", value: failed, color: "#EF4444" },
-        ].map(s => (
-          <div key={s.label} style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: "0.85rem", textAlign: "center" }}>
-            <p style={{ fontSize: 24, fontWeight: 900, fontFamily: "Frank Ruhl Libre, serif", color: s.color }}>{s.value}</p>
-            <p style={{ fontSize: 11, color: C.muted }}>{s.label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Template editor */}
-      <div style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, padding: "1.25rem", marginBottom: "1.25rem" }}>
-        <p style={{ fontSize: 13, fontWeight: 700, color: C.dark, marginBottom: "0.65rem" }}>📝 תבנית הודעה</p>
-        <p style={{ fontSize: 11, color: "#EF4444", marginBottom: "0.5rem" }}>⚠️ אל תתחילו עם שם אישי — השתמשו בפנייה קבוצתית</p>
-        <textarea
-          value={templateText}
-          onChange={e => setTemplateText(e.target.value)}
-          rows={5}
-          style={{ width: "100%", padding: "0.75rem", borderRadius: 10, border: `1px solid ${C.border}`, fontSize: 14, fontFamily: "Heebo, sans-serif", resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: 1.6 }}
-        />
-        {/* Phone mockup preview */}
-        <div style={{ marginTop: "0.75rem", background: "#E8F5E9", borderRadius: 12, padding: "0.75rem 1rem", maxWidth: 280, border: "1px solid rgba(37,211,102,0.3)" }}>
-          <p style={{ fontSize: 10, color: "#555", marginBottom: "0.35rem" }}>📱 תצוגה מקדימה</p>
-          <p style={{ fontSize: 13, whiteSpace: "pre-line", color: C.dark, lineHeight: 1.6 }}>{templateText}</p>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1rem" }}>
-        {(["all", "bride", "groom"] as const).map(s => (
-          <button key={s} onClick={() => setFilterSide(s)}
-            style={{ padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: filterSide === s ? 700 : 400, border: `1.5px solid ${filterSide === s ? C.gold : C.border}`, background: filterSide === s ? "rgba(197,164,109,0.12)" : "transparent", color: filterSide === s ? C.gold : C.muted, cursor: "pointer" }}>
-            {s === "all" ? "כולם" : s === "bride" ? "צד כלה" : "צד חתן"}
-          </button>
-        ))}
-        <span style={{ color: C.border }}>|</span>
-        {(["all", "pending", "confirmed"] as const).map(s => (
-          <button key={s} onClick={() => setFilterStatus(s)}
-            style={{ padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: filterStatus === s ? 700 : 400, border: `1.5px solid ${filterStatus === s ? C.gold : C.border}`, background: filterStatus === s ? "rgba(197,164,109,0.12)" : "transparent", color: filterStatus === s ? C.gold : C.muted, cursor: "pointer" }}>
-            {s === "all" ? "כל הסטטוסים" : s === "pending" ? "לא ענו" : "מאושרים"}
+    <div dir="rtl" style={{ fontFamily: "'Heebo',sans-serif" }}>
+      {/* Stage tabs */}
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", overflowX: "auto", paddingBottom: "0.25rem" }}>
+        {STAGES.map(s => (
+          <button key={s.key} onClick={() => setStage(s.key)}
+            style={{ padding: "0.4rem 0.9rem", borderRadius: 999, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap",
+                     border: `1.5px solid ${stage === s.key ? C.gold : C.border}`,
+                     background: stage === s.key ? C.gold : "transparent",
+                     color: stage === s.key ? "#fff" : C.muted,
+                     fontWeight: stage === s.key ? 700 : 400, fontFamily: "inherit" }}>
+            {s.label}
           </button>
         ))}
       </div>
 
-      <p style={{ fontSize: 12, color: C.muted, marginBottom: "0.75rem" }}>{filteredGuests.length} אורחים בפילטר הנוכחי</p>
-
-      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-        <button
-          onClick={sendToAll}
-          disabled={sending || filteredGuests.length === 0}
-          style={{ padding: "0.7rem 1.5rem", borderRadius: 12, background: filteredGuests.length > 0 ? `linear-gradient(135deg, ${C.gold}, #9B7A42)` : "rgba(197,164,109,0.2)", border: "none", color: filteredGuests.length > 0 ? "white" : C.muted, fontSize: 14, fontWeight: 700, cursor: filteredGuests.length > 0 ? "pointer" : "not-allowed", fontFamily: "Heebo, sans-serif" }}>
-          {sending ? "מכין..." : `📋 הוסף ${filteredGuests.length} לתור הודעות`}
-        </button>
-
-        {/* Open wa.me for first in queue */}
-        {queue.filter(m => m.status === "pending").slice(0, 1).map(m => (
-          <a key={m.id as string} href={m.wa_link as string} target="_blank" rel="noopener noreferrer"
-            onClick={() => fetch("/api/admin/message-queue", { method: "PATCH", headers: { "Content-Type": "application/json", "x-admin-token": process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "" }, body: JSON.stringify({ id: m.id, status: "sent" }) })}
-            style={{ padding: "0.7rem 1.5rem", borderRadius: 12, background: "#25D366", color: "white", textDecoration: "none", fontSize: 14, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}>
-            💬 שלח הבא בתור
-          </a>
-        ))}
-
-        {/* Backup download */}
-        {selectedEventId && (
-          <a href={`/api/admin/backup?event_id=${selectedEventId}`}
-            style={{ padding: "0.7rem 1.25rem", borderRadius: 12, background: "rgba(107,123,90,0.1)", border: "1px solid rgba(107,123,90,0.25)", color: "#6B7B5A", textDecoration: "none", fontSize: 14, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}>
-            📦 גיבוי JSON
-          </a>
-        )}
-      </div>
-
-      {/* Queue list */}
-      {queue.length > 0 && (
-        <div style={{ marginTop: "1.5rem" }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: C.dark, marginBottom: "0.65rem" }}>תור ההודעות</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxHeight: 300, overflowY: "auto" }}>
-            {queue.slice(0, 20).map(m => (
-              <div key={m.id as string} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.65rem 1rem", background: C.ivory, borderRadius: 10, border: `1px solid ${C.border}` }}>
-                <span style={{ fontSize: 16 }}>{m.status === "sent" ? "✅" : m.status === "failed" ? "❌" : "⏳"}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 13, color: C.dark, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.phone as string}</p>
-                  <p style={{ fontSize: 11, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(m.message_text as string).slice(0, 60)}...</p>
+      {/* Stage 1 — Templates */}
+      {stage === "templates" && (
+        <div>
+          <h3 style={{ fontWeight: 700, color: C.dark, marginBottom: "1rem", fontSize: 16 }}>בחרו תבנית הודעה</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: "0.75rem" }}>
+            {TEMPLATES.map(t => (
+              <button key={t.key} onClick={() => { setSelectedTemplate(t); setCustomText(t.text); setStage("preview"); }}
+                style={{ padding: "1rem", borderRadius: 12, textAlign: "right", cursor: "pointer",
+                         border: `1.5px solid ${selectedTemplate.key === t.key ? C.gold : C.border}`,
+                         background: selectedTemplate.key === t.key ? "rgba(197,164,109,0.08)" : C.card,
+                         fontFamily: "inherit" }}>
+                <div style={{ fontWeight: 700, color: C.dark, fontSize: 14 }}>{t.label}</div>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: "0.25rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {t.text.slice(0, 50)}...
                 </div>
-                {m.status === "failed" && (
-                  <button onClick={() => fetch("/api/admin/message-queue", { method: "PATCH", headers: { "Content-Type": "application/json", "x-admin-token": process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "" }, body: JSON.stringify({ id: m.id, status: "pending" }) }).then(() => setQueue(q => q.map(x => x.id === m.id ? { ...x, status: "pending" } : x)))}
-                    style={{ padding: "4px 10px", borderRadius: 8, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#EF4444", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                    נסה שוב
-                  </button>
-                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Stage 2 — Preview (phone mockup) */}
+      {stage === "preview" && (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.5rem" }}>
+          <div style={{ width: 280, background: "#111", borderRadius: 36, padding: "1.5rem 0.75rem", boxShadow: "0 8px 40px rgba(0,0,0,0.3)" }}>
+            <div style={{ background: "#E5DDD5", borderRadius: 24, minHeight: 360, padding: "1rem", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+              <div style={{ background: "#DCF8C6", borderRadius: "12px 12px 0 12px", padding: "0.75rem 0.85rem", maxWidth: "85%", alignSelf: "flex-end", boxShadow: "0 1px 2px rgba(0,0,0,0.12)" }}>
+                <p style={{ margin: 0, fontSize: 13, whiteSpace: "pre-wrap", lineHeight: 1.5, color: "#111", fontFamily: "Heebo, sans-serif" }}>{customText}</p>
+                <p style={{ margin: "0.35rem 0 0", fontSize: 10, color: "#888", textAlign: "right" }}>עכשיו ✓✓</p>
+              </div>
+            </div>
+          </div>
+          <div style={{ width: "100%", maxWidth: 480 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: "0.4rem", display: "block" }}>ערכו את ההודעה</label>
+            <textarea value={customText} onChange={e => setCustomText(e.target.value)} rows={6}
+              style={{ width: "100%", padding: "0.75rem", borderRadius: 10, border: `1.5px solid ${C.border}`,
+                       fontSize: 14, resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }} />
+            {customText.trim().match(/^[א-ת]/) && !customText.startsWith("💍") && (
+              <p style={{ color: "#d97706", fontSize: 12, marginTop: "0.25rem" }}>⚠️ ההודעה חייבת להתחיל עם 💍 — לא עם שם אישי</p>
+            )}
+            <button onClick={() => setStage("audience")} style={{ marginTop: "0.75rem", background: C.gold, color: "#fff", border: "none", borderRadius: 10, padding: "0.65rem 1.5rem", fontWeight: 700, cursor: "pointer", fontSize: 14, fontFamily: "inherit" }}>
+              המשך →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Stage 3 — Audience */}
+      {stage === "audience" && (
+        <div>
+          <h3 style={{ fontWeight: 700, color: C.dark, marginBottom: "1rem", fontSize: 16 }}>בחרו קהל יעד</h3>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "1.5rem" }}>
+            {([["all","כולם"],["bride","צד כלה"],["groom","צד חתן"],["pending","לא ענו"],["vip","VIP"]] as const).map(([val, label]) => (
+              <button key={val} onClick={() => setAudience(val as typeof audience)}
+                style={{ padding: "0.45rem 1rem", borderRadius: 999, fontSize: 13, cursor: "pointer",
+                         border: `1.5px solid ${audience === val ? C.gold : C.border}`,
+                         background: audience === val ? C.gold : "transparent",
+                         color: audience === val ? "#fff" : C.muted,
+                         fontWeight: audience === val ? 700 : 400, fontFamily: "inherit" }}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div style={{ background: C.cream, borderRadius: 10, padding: "1rem", marginBottom: "1rem" }}>
+            <p style={{ margin: 0, fontWeight: 600, color: C.dark }}>
+              {getFilteredGuests().length} אורחים עם טלפון יקבלו את ההודעה
+            </p>
+          </div>
+          <button onClick={() => setStage("queue")} style={{ background: C.gold, color: "#fff", border: "none", borderRadius: 10, padding: "0.65rem 1.5rem", fontWeight: 700, cursor: "pointer", fontSize: 14, fontFamily: "inherit" }}>
+            המשך →
+          </button>
+        </div>
+      )}
+
+      {/* Stage 4 — Queue */}
+      {stage === "queue" && (
+        <div>
+          <h3 style={{ fontWeight: 700, color: C.dark, marginBottom: "0.5rem", fontSize: 16 }}>אישור ושליחה לתור</h3>
+          <div style={{ background: C.cream, borderRadius: 12, padding: "1.25rem", marginBottom: "1.25rem" }}>
+            <p style={{ margin: "0 0 0.35rem", fontWeight: 700, color: C.dark }}>תבנית: {selectedTemplate.label}</p>
+            <p style={{ margin: "0 0 0.35rem", color: C.muted, fontSize: 13 }}>קהל: {getFilteredGuests().length} אורחים</p>
+            <p style={{ margin: 0, color: C.muted, fontSize: 12, whiteSpace: "pre-wrap", fontStyle: "italic" }}>{customText.slice(0, 120)}{customText.length > 120 ? "..." : ""}</p>
+          </div>
+          <button onClick={addToQueue} disabled={queueing || getFilteredGuests().length === 0}
+            style={{ background: C.gold, color: "#fff", border: "none", borderRadius: 10, padding: "0.75rem 2rem",
+                     fontWeight: 700, cursor: queueing ? "wait" : "pointer", fontSize: 15, fontFamily: "inherit",
+                     opacity: getFilteredGuests().length === 0 ? 0.5 : 1 }}>
+            {queueing ? "מוסיף לתור..." : `הוסף ${getFilteredGuests().length} אורחים לתור`}
+          </button>
+        </div>
+      )}
+
+      {/* Stage 5 — Send */}
+      {stage === "send" && (
+        <div>
+          <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
+            {[["ממתין",pending.length,"#d97706"],["נשלח",sent.length,"#16a34a"]].map(([label, count, color]) => (
+              <div key={label as string} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: "0.75rem 1.25rem", minWidth: 100 }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: color as string }}>{count as number}</div>
+                <div style={{ fontSize: 12, color: C.muted }}>{label}</div>
               </div>
             ))}
+          </div>
+
+          {loading && <p style={{ color: C.muted }}>טוען...</p>}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            {pending.slice(0, 50).map(m => {
+              const guest = guests.find(g => g.id === m.guest_id);
+              const waLink = m.wa_link as string;
+              return (
+                <div key={m.id as string} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem",
+                                                    background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: "0.6rem 0.85rem" }}>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: C.dark }}>{guest?.name ?? m.phone as string}</p>
+                    <p style={{ margin: 0, fontSize: 12, color: C.muted }}>{m.phone as string}</p>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.4rem" }}>
+                    <a href={waLink} target="_blank" rel="noreferrer"
+                       style={{ background: "#25D366", color: "#fff", textDecoration: "none", borderRadius: 8, padding: "0.4rem 0.75rem", fontSize: 12, fontWeight: 600 }}>
+                      📱 שלח
+                    </a>
+                    <button onClick={() => markSent(m.id as string)}
+                      style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: "0.4rem 0.75rem", fontSize: 12, cursor: "pointer", color: C.muted, fontFamily: "inherit" }}>
+                      ✓
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {pending.length === 0 && <p style={{ color: C.muted, textAlign: "center", padding: "2rem" }}>אין הודעות ממתינות ✓</p>}
           </div>
         </div>
       )}
