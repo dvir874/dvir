@@ -311,7 +311,7 @@ const STATUS_COLOR: Record<GuestStatus, { bg: string; color: string }> = {
 };
 
 const PAGE_SIZE = 20;
-type Tab = "guests" | "reminders" | "import-export" | "command-center" | "recommendations" | "couple-view" | "calendar" | "history" | "analytics" | "service-center" | "requests" | "messages";
+type Tab = "guests" | "reminders" | "import-export" | "command-center" | "recommendations" | "couple-view" | "calendar" | "history" | "analytics" | "service-center" | "requests" | "messages" | "design-requests";
 
 interface CouponRow {
   id: string;
@@ -2141,6 +2141,7 @@ export default function AdminPage() {
             ["service-center","🛎 מרכז שירות"],
             ["requests","📬 בקשות זוג"],
             ["messages","💬 WhatsApp Pro"],
+            ["design-requests","✨ בקשות עיצוב"],
           ] as [Tab, string][]).map(
             ([id, label]) => (
               <button
@@ -3085,6 +3086,13 @@ export default function AdminPage() {
         ══════════════════════════════════════════════ */}
         {activeTab === "messages" && (
           <AdminMessagesTab selectedEventId={selectedEventId} events={events} />
+        )}
+
+        {/* ══════════════════════════════════════════════
+            TAB: Design Requests (Invitation Gallery)
+        ══════════════════════════════════════════════ */}
+        {activeTab === "design-requests" && (
+          <DesignRequestsTab />
         )}
 
       </div>
@@ -4172,6 +4180,59 @@ function AdminRequestsTab({ selectedEventId }: { selectedEventId: string | null 
 }
 
 /* ── Admin Messages Tab (WhatsApp Center Pro) ──────────── */
+function DesignRequestsTab() {
+  const Cd = { gold: "#C5A46D", dark: "#1C1008", muted: "rgba(28,16,8,0.55)", border: "rgba(197,164,109,0.20)", ivory: "#FDFAF5" };
+  const [requests, setRequests] = React.useState<Record<string, unknown>[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetch("/api/design-requests", { headers: { "x-admin-token": process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "" } })
+      .then(r => r.json())
+      .then(d => { if (d.requests) setRequests(d.requests); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div style={{ padding: "2rem", color: Cd.muted, textAlign: "center" }}>טוען...</div>;
+
+  return (
+    <div style={{ padding: "1.5rem 1rem" }}>
+      <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 20, fontWeight: 700, color: Cd.dark, marginBottom: "1rem" }}>
+        ✨ בקשות עיצוב הזמנה
+      </p>
+      {requests.length === 0 ? (
+        <div style={{ padding: "2rem", textAlign: "center", color: Cd.muted, fontSize: 14 }}>
+          אין בקשות עדיין
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          {requests.map((req, i) => (
+            <div key={String(req.id ?? i)} style={{ background: "#FFFFFF", border: `1px solid ${Cd.border}`, borderRadius: "1rem", padding: "1rem 1.25rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                <div>
+                  <p style={{ fontWeight: 700, fontSize: 15, color: Cd.dark, fontFamily: "Frank Ruhl Libre, serif" }}>
+                    {String(req.invitation_name ?? "")}
+                  </p>
+                  <p style={{ fontSize: 12, color: Cd.muted, marginTop: 2 }}>{String(req.name ?? "—")} · {String(req.phone ?? "")}</p>
+                </div>
+                <span style={{ fontSize: 10, background: "rgba(197,164,109,0.12)", color: Cd.gold, padding: "2px 8px", borderRadius: 20, fontWeight: 600 }}>
+                  {String(req.status ?? "new")}
+                </span>
+              </div>
+              {req.message != null && (
+                <p style={{ fontSize: 12, color: Cd.muted, fontStyle: "italic", lineHeight: 1.6 }}>{String(req.message)}</p>
+              )}
+              <p style={{ fontSize: 10, color: "rgba(28,16,8,0.30)", marginTop: 6 }}>
+                {new Date(String(req.created_at ?? "")).toLocaleDateString("he-IL")}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminMessagesTab({ selectedEventId, events }: { selectedEventId: string | null; events: { id: string; name: string }[] }) {
   const C = { gold: "#C5A46D", dark: "#1C1008", muted: "rgba(28,16,8,0.55)", border: "rgba(197,164,109,0.20)", card: "#FFFFFF", ivory: "#FDFAF5", cream: "#F6F1E8" };
 

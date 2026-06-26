@@ -10,6 +10,7 @@ import {
 import type { WeddingScore, SmartAlert } from "@/lib/wedding-score";
 import ChatWidget from "@/components/ChatWidget";
 import HelpButton from "@/components/HelpButton";
+import WeddingHealthCard from "@/components/WeddingHealthCard";
 
 // F7 — 50 daily quotes, deterministic by day (not random)
 const INSPIRATION_QUOTES = [
@@ -1183,32 +1184,21 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
           </div>
         )}
 
-        {/* F7 Readiness Meter */}
-        {briefing && (briefing.readinessPct ?? 0) > 0 && (
-          <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1rem 1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>🎯 מוכנות לחתונה</p>
-              <p style={{ fontSize: 20, fontWeight: 900, fontFamily: "Frank Ruhl Libre, serif", color: briefing.readinessPct >= 80 ? "#059669" : briefing.readinessPct >= 50 ? "#D97706" : "#EF4444" }}>{briefing.readinessPct}%</p>
-            </div>
-            <div style={{ height: 8, background: "rgba(197,164,109,0.15)", borderRadius: 4, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${briefing.readinessPct}%`, borderRadius: 4, transition: "width 1s", background: briefing.readinessPct >= 80 ? "linear-gradient(90deg,#059669,#34D399)" : briefing.readinessPct >= 50 ? "linear-gradient(90deg,#D97706,#FCD34D)" : "linear-gradient(90deg,#EF4444,#FCA5A5)" }} />
-            </div>
-            {/* F9 Smart stat pills */}
-            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.85rem" }}>
-              {[
-                { label: `📋 ${tasks.filter(t=>!t.completed).length} משימות נותרו`, show: tasks.length > 0 },
-                { label: `👥 ${stats.confirmed} אורחים מאושרים`, show: true },
-                { label: `🤝 ${Object.values(vendors).filter(Boolean).length} ספקים`, show: Object.keys(vendors).length > 0 },
-                { label: `💪 ${briefing.readinessPct}% מוכנות`, show: true },
-              ].filter(p => p.show).map((p, i) => (
-                <span key={i} style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, background: "rgba(197,164,109,0.08)", border: `1px solid ${C.border}`, color: C.muted, fontWeight: 500 }}>{p.label}</span>
-              ))}
-            </div>
-            {/* F8 — Context-aware daily tip by daysLeft bucket */}
-            <p style={{ fontSize: 12, color: C.gold, marginTop: "0.6rem", fontStyle: "italic" }}>
-              {getDailyTip(daysLeft)}
-            </p>
-          </div>
+        {/* ❤️ Wedding Health Score */}
+        {briefing?.score && (briefing.readinessPct ?? 0) >= 0 && (
+          <WeddingHealthCard
+            score={briefing.score}
+            readiness={briefing.readinessPct ?? 0}
+            token={token}
+            daysLeft={daysLeft}
+          />
+        )}
+
+        {/* F8 — Daily tip (shown below health card) */}
+        {briefing && daysLeft > 0 && (
+          <p style={{ fontSize: 12, color: C.gold, marginBottom: "0.75rem", fontStyle: "italic", paddingRight: "0.25rem" }}>
+            {getDailyTip(daysLeft)}
+          </p>
         )}
 
         {/* F3 Updates Center */}

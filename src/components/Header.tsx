@@ -8,7 +8,7 @@ import Logo from "./Logo";
 
 const navLinks = [
   { label: "פיצ'רים",    href: "/features"      },
-  { label: "איך זה עובד", href: "/how-it-works"  },
+  { label: "✨ הזמנות",   href: "/invitations"   },
   { label: "מחירים",      href: "/pricing"        },
   { label: "שאלות",       href: "/faq"            },
   { label: "צור קשר",    href: "/#contact"       },
