@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { WeddingScore, SmartAlert } from "@/lib/wedding-score";
 import ChatWidget from "@/components/ChatWidget";
+import HelpButton from "@/components/HelpButton";
 
 // F7 — 50 daily quotes, deterministic by day (not random)
 const INSPIRATION_QUOTES = [
@@ -1651,6 +1652,9 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         )}
 
       </div>
+
+      {/* F9 — floating help button */}
+      <HelpButton token={token} />
     </div>
   );
 }

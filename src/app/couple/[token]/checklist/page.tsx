@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import HelpButton from "@/components/HelpButton";
 
 const C = {
   ivory: "#FDFAF5", gold: "#C5A46D", olive: "#6B7B5A",
@@ -249,6 +250,8 @@ export default function ChecklistPage() {
       )}
 
       <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }`}</style>
+
+      <HelpButton token={token} />
     </div>
   );
 }

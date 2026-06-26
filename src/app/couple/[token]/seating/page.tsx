@@ -3,6 +3,7 @@
 import { use, useEffect, useState, useCallback } from "react";
 import { Plus, Users, ArrowRight, Search } from "lucide-react";
 import SeatingFloorPlan from "@/components/SeatingFloorPlan";
+import HelpButton from "@/components/HelpButton";
 
 const GOLD  = "#C5A46D";
 const OLIVE = "#6B7B5A";
@@ -313,6 +314,7 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
           </div>
         )}
       </div>
+      <HelpButton token={token} />
     </div>
   );
 }

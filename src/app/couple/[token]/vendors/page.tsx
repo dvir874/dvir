@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import HelpButton from "@/components/HelpButton";
 
 const C = {
   ivory: "#FDFAF5", cream: "#F6F1E8", gold: "#C5A46D", goldL: "#D4BC8A",
@@ -407,6 +408,7 @@ export default function VendorsPage() {
           </div>
         </div>
       )}
+    <HelpButton token={token} />
     </div>
   );
 }
