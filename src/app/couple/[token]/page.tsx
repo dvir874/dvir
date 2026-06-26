@@ -187,7 +187,7 @@ interface BriefingData {
   alerts:         SmartAlert[];
   keyFacts:       string[];
   readinessPct:   number;
-  event?:         { id: string; name: string; date: string; service_steps?: unknown[] };
+  event?:         { id: string; name: string; date: string; address?: string | null; service_steps?: unknown[]; event_timeline?: { time: string; title: string }[] };
 }
 
 const VENDOR_CATEGORIES = [
@@ -603,6 +603,162 @@ function DayBeforeScreen({ token, event, vendors: vendorMap }: {
   );
 }
 
+// ─── F5: Wedding Mode — shown when daysLeft === 0 ────────────────────────────
+function WeddingDayScreen({ token, event, briefing }: {
+  token: string;
+  event: { name: string; date: string; address?: string | null };
+  briefing: BriefingData | null;
+}) {
+  const [timeline, setTimeline] = useState<{ time: string; title: string }[]>(
+    briefing?.event?.event_timeline ?? []
+  );
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newTime, setNewTime]   = useState("");
+  const [newTitle, setNewTitle] = useState("");
+  const [saving, setSaving]     = useState(false);
+  const eventId = briefing?.event?.id;
+
+  const wazeLink = event.address
+    ? `https://waze.com/ul?q=${encodeURIComponent(event.address)}`
+    : "https://waze.com";
+
+  async function addTimelineItem() {
+    if (!newTime || !newTitle || !eventId) return;
+    setSaving(true);
+    const updated = [...timeline, { time: newTime, title: newTitle }]
+      .sort((a, b) => a.time.localeCompare(b.time));
+    try {
+      await fetch(`/api/events/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event_timeline: updated }),
+      });
+      setTimeline(updated);
+      setNewTime("");
+      setNewTitle("");
+      setShowAddModal(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const actions = [
+    { icon: "📍", label: "נווט ב-Waze",    href: wazeLink },
+    { icon: "📞", label: "אנשי קשר",       href: `/couple/${token}/vendors` },
+    { icon: "🪑", label: "הושבה",          href: `/couple/${token}/seating` },
+    { icon: "📸", label: "גלריה",          href: `/gallery/${token}` },
+    { icon: "💬", label: "הודעה לאורחים",  href: `/couple/${token}/requests` },
+  ];
+
+  return (
+    <div dir="rtl" style={{ minHeight: "100vh", background: C.cream, fontFamily: "'Heebo',sans-serif" }}>
+      {/* Hero */}
+      <div style={{
+        background: "linear-gradient(160deg,#3D2B1F 0%,#1C1008 100%)",
+        padding: "3rem 1.5rem 2.5rem",
+        textAlign: "center",
+        position: "relative",
+        overflow: "hidden",
+      }}>
+        <div style={{ fontSize: 52, marginBottom: "0.5rem" }}>💍</div>
+        <h1 style={{ fontFamily: "'Frank Ruhl Libre',serif", fontWeight: 900, fontSize: "clamp(1.8rem,6vw,3rem)", color: C.gold, margin: 0, lineHeight: 1.2 }}>
+          היום הגדול הגיע!
+        </h1>
+        <p style={{ color: "rgba(232,213,168,0.8)", fontSize: 16, marginTop: "0.5rem" }}>{event.name}</p>
+        <p style={{ color: "rgba(232,213,168,0.55)", fontSize: 13, marginTop: "0.25rem" }}>
+          {new Date(event.date).toLocaleDateString("he-IL", { weekday:"long", day:"numeric", month:"long", year:"numeric" })}
+        </p>
+      </div>
+
+      <div style={{ maxWidth: 520, margin: "0 auto", padding: "1.5rem" }}>
+        {/* Quick actions */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1.5rem" }}>
+          {actions.slice(0, 4).map(a => (
+            <a key={a.label} href={a.href} target={a.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer"
+               style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"0.4rem", padding:"1.25rem 0.5rem",
+                        background: C.card, borderRadius: 14, boxShadow: C.shadow, textDecoration:"none",
+                        border: `1.5px solid ${C.border}` }}>
+              <span style={{ fontSize: 26 }}>{a.icon}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{a.label}</span>
+            </a>
+          ))}
+        </div>
+        <a href={actions[4].href}
+           style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"0.5rem",
+                    padding:"1rem", background: C.gold, borderRadius: 14, textDecoration:"none",
+                    color: "#fff", fontWeight: 700, fontSize: 15, marginBottom: "1.5rem",
+                    boxShadow: "0 4px 16px rgba(197,164,109,0.35)" }}>
+          <span>💬</span> הודעה לאורחים
+        </a>
+
+        {/* Event timeline */}
+        <div style={{ background: C.card, borderRadius: 16, padding: "1.25rem", boxShadow: C.shadow, border: `1px solid ${C.border}` }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"1rem" }}>
+            <h2 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontWeight:700, fontSize:18, color:C.dark, margin:0 }}>
+              📅 לוז האירוע
+            </h2>
+            {eventId && (
+              <button onClick={() => setShowAddModal(true)}
+                      style={{ background:"none", border:`1.5px solid ${C.gold}`, borderRadius:8, padding:"0.3rem 0.75rem",
+                               color:C.gold, fontWeight:600, fontSize:12, cursor:"pointer" }}>
+                + הוסף
+              </button>
+            )}
+          </div>
+
+          {timeline.length === 0 ? (
+            <div style={{ textAlign:"center", padding:"1.5rem 0" }}>
+              <p style={{ color: C.muted, fontSize: 14, marginBottom:"0.75rem" }}>עדיין לא הוסיפו לוז לאירוע</p>
+              {eventId && (
+                <button onClick={() => setShowAddModal(true)}
+                        style={{ background:C.gold, color:"#fff", border:"none", borderRadius:10,
+                                 padding:"0.6rem 1.5rem", fontWeight:600, cursor:"pointer", fontSize:14 }}>
+                  הוסיפו את לוז האירוע
+                </button>
+              )}
+            </div>
+          ) : (
+            <div style={{ display:"flex", flexDirection:"column", gap:"0.5rem" }}>
+              {timeline.map((item, i) => (
+                <div key={i} style={{ display:"flex", alignItems:"center", gap:"0.75rem",
+                                      padding:"0.6rem 0.75rem", borderRadius:10,
+                                      background: C.cream, border:`1px solid ${C.border}` }}>
+                  <span style={{ fontWeight:700, color:C.gold, fontSize:14, minWidth:44 }}>{item.time}</span>
+                  <span style={{ fontSize:14, color:C.dark }}>{item.title}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Add timeline modal */}
+      {showAddModal && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(28,16,8,0.55)", zIndex:300, display:"flex", alignItems:"flex-end", justifyContent:"center" }}
+             onClick={() => setShowAddModal(false)}>
+          <div style={{ background:C.card, borderRadius:"20px 20px 0 0", padding:"1.5rem", width:"100%", maxWidth:520 }}
+               onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontWeight:700, fontSize:18, color:C.dark, marginBottom:"1rem" }}>הוסיפו פריט ללוז</h3>
+            <div style={{ display:"grid", gridTemplateColumns:"120px 1fr", gap:"0.75rem", marginBottom:"1rem" }}>
+              <input type="time" value={newTime} onChange={e => setNewTime(e.target.value)}
+                     style={{ padding:"0.6rem", borderRadius:8, border:`1.5px solid ${C.border}`, fontSize:14, fontFamily:"inherit" }} />
+              <input type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)}
+                     placeholder="תיאור (למשל: קבלת פנים)"
+                     style={{ padding:"0.6rem", borderRadius:8, border:`1.5px solid ${C.border}`, fontSize:14, fontFamily:"inherit" }} />
+            </div>
+            <button onClick={addTimelineItem} disabled={saving || !newTime || !newTitle}
+                    style={{ width:"100%", background:C.gold, color:"#fff", border:"none", borderRadius:10,
+                             padding:"0.8rem", fontWeight:700, fontSize:15, cursor:saving?"wait":"pointer",
+                             opacity: (!newTime||!newTitle) ? 0.5 : 1 }}>
+              {saving ? "שומר..." : "הוסף"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Confetti (one-time burst on load) ────────────────────────────────────────
 function useConfetti() {
   useEffect(() => {
@@ -835,6 +991,11 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
   // Post-event mode
   if (daysLeft < 0) {
     return <PostEventDashboard token={token} eventName={event.name} />;
+  }
+
+  // F5: Wedding day screen
+  if (daysLeft === 0) {
+    return <WeddingDayScreen token={token} event={event} briefing={briefing} />;
   }
 
   // Day-before special screen

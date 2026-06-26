@@ -136,7 +136,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
       id:             event.id,
       name:           event.name,
       date:           event.date,
+      address:        (event as Record<string, unknown>).address as string ?? null,
       service_steps:  (event as Record<string, unknown>).service_steps ?? [],
+      event_timeline: (event as Record<string, unknown>).event_timeline ?? [],
     },
     keyFacts: [
       guests.length > 0
