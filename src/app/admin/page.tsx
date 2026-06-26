@@ -6,6 +6,8 @@ import {
   Trash2, Copy, MessageCircle, ChevronLeft, ChevronRight,
   Loader2, Plus, ExternalLink, RefreshCw, Percent, Zap,
   Send, AlertTriangle, Bell, Wand2, Palette,
+  LayoutDashboard, CalendarDays, BarChart3, Sparkles, Eye,
+  History, LifeBuoy, Inbox, Armchair, MapPin, ArrowLeft, Heart,
 } from "lucide-react";
 import type { Event, EventSummary, Forecast, Guest, GuestEvent, GuestStatus, HealthScore, EventStatus, ApprovalRequest } from "@/lib/types";
 import { EVENT_STATUS_LABEL, EVENT_STATUS_COLOR } from "@/lib/types";
@@ -818,7 +820,15 @@ export default function AdminPage() {
      Main Dashboard
   ══════════════════════════════════════════════════ */
   return (
-    <div className="min-h-screen" style={{ background: C.cream, fontFamily: "Heebo, sans-serif" }}>
+    <>
+    <AdminSidebar
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      pendingCount={pending}
+      recCount={generateReminderRecommendations(overview).length}
+      onCreate={() => setShowCreate(true)}
+    />
+    <div className="min-h-screen md:mr-[260px]" style={{ background: C.cream, fontFamily: "Heebo, sans-serif" }}>
       {/* ── Top bar ─────────────────────────────────── */}
       <header
         className="sticky top-0 z-40 px-4 md:px-8 py-3.5 flex items-center gap-4 flex-wrap"
@@ -832,7 +842,21 @@ export default function AdminPage() {
         <div>
           <p className="text-xs uppercase tracking-widest" style={{ color: C.gold }}>רגע לפני</p>
           <p className="text-sm font-bold" style={{ color: C.dark, fontFamily: "Frank Ruhl Libre, serif" }}>
-            ניהול אורחים
+            {({
+              "command-center":  "מרכז בקרה",
+              "guests":          "ניהול אורחים",
+              "reminders":       "תזכורות",
+              "analytics":       "אנליטיקה",
+              "couple-view":     "מבט הזוג",
+              "calendar":        "לוח שנה",
+              "history":         "היסטוריה",
+              "recommendations": "מרכז המלצות",
+              "import-export":   "ייבוא / ייצוא",
+              "service-center":  "מרכז שירות",
+              "requests":        "בקשות זוג",
+              "messages":        "WhatsApp Pro",
+              "design-requests": "בקשות עיצוב",
+            } as Record<Tab, string>)[activeTab]}
           </p>
         </div>
 
@@ -2127,7 +2151,7 @@ export default function AdminPage() {
           .admin-tab-bar { scrollbar-width: none; }
           .admin-tab-bar::-webkit-scrollbar { display: none; }
         `}</style>
-        <div className="admin-tab-bar flex gap-1 mb-5 p-1 rounded-2xl" style={{ background: "rgba(197,164,109,0.08)", overflowX: "auto", WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"], flexWrap: "nowrap", width: "100%" }}>
+        <div className="admin-tab-bar md:hidden flex gap-1 mb-5 p-1 rounded-2xl" style={{ background: "rgba(197,164,109,0.08)", overflowX: "auto", WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"], flexWrap: "nowrap", width: "100%" }}>
           {([
             ["command-center","מרכז בקרה"],
             ["guests","רשימת אורחים"],
@@ -2782,7 +2806,67 @@ export default function AdminPage() {
                 <Loader2 size={28} className="animate-spin" style={{ color: C.gold }} />
               </div>
             ) : (
-              <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-8">
+
+                {/* ── Stitch: Today's focus banner ── */}
+                {(() => {
+                  const upcoming = [...overview].filter((e) => e.daysUntilEvent > 0).sort((a, b) => a.daysUntilEvent - b.daysUntilEvent);
+                  const next = upcoming[0] ?? null;
+                  const hour = new Date().getHours();
+                  const greet = hour < 12 ? "בוקר טוב" : hour < 18 ? "צהריים טובים" : "ערב טוב";
+                  return (
+                    <section className="relative overflow-hidden flex items-center"
+                      style={{ borderRadius: 32, background: "linear-gradient(135deg,#2E2A24,#1C1008)", color: "#fff", minHeight: 200, boxShadow: "0 18px 48px rgba(28,16,8,0.18)" }}>
+                      <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.22 }}>
+                        <div style={{ position: "absolute", top: "-50%", right: "-10%", width: 480, height: 480, background: "#C5A46D", borderRadius: "50%", filter: "blur(120px)" }} />
+                        <div style={{ position: "absolute", bottom: "-50%", left: "-10%", width: 360, height: 360, background: "#6B7B5A", borderRadius: "50%", filter: "blur(100px)" }} />
+                      </div>
+                      <div className="relative z-10 w-full px-8 md:px-12 py-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                        <div className="space-y-3">
+                          <p className="uppercase" style={{ color: "#E5C188", fontSize: 12, letterSpacing: "0.12em", fontFamily: "Heebo, sans-serif" }}>
+                            {new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                          </p>
+                          <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 40, lineHeight: 1.1 }}>{greet}, דביר</h2>
+                          {next && (
+                            <div className="flex items-center gap-3 px-5 py-3 rounded-2xl max-w-fit"
+                              style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.10)", backdropFilter: "blur(6px)" }}>
+                              <MapPin size={18} style={{ color: "#E5C188", flexShrink: 0 }} />
+                              <span style={{ fontFamily: "Heebo, sans-serif", fontSize: 15 }}>
+                                {next.name} — <span style={{ fontWeight: 700, color: "#fff" }}>עוד {next.daysUntilEvent} ימים.</span>{" "}
+                                {next.pending > 0 && `${next.pending} אורחים טרם אישרו.`}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        {next && (
+                          <button onClick={() => { setSelectedEventId(next.id); setActiveTab("reminders"); }}
+                            className="flex items-center gap-2 px-7 py-4 rounded-2xl font-bold transition-all hover:scale-105 active:scale-95 shrink-0"
+                            style={{ background: "#E5C188", color: "#1C1008", fontFamily: "Heebo, sans-serif" }}>
+                            שלח תזכורות <ArrowLeft size={18} />
+                          </button>
+                        )}
+                      </div>
+                    </section>
+                  );
+                })()}
+
+                {/* ── Stitch: KPI cards ── */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[
+                    { icon: <CalendarDays size={22} />, iconBg: "rgba(107,123,90,0.14)", iconColor: C.olive, label: "אירועים פעילים", value: overview.filter((e) => e.daysUntilEvent > 0).length },
+                    { icon: <Users size={22} />,        iconBg: "rgba(197,164,109,0.18)", iconColor: C.gold,  label: "סה״כ מוזמנים",   value: overview.reduce((s, e) => s + e.total, 0).toLocaleString("he-IL") },
+                    { icon: <CheckCircle size={22} />,  iconBg: "rgba(107,123,90,0.10)",  iconColor: C.olive, label: "ממוצע מענה",      value: overview.length ? `${Math.round(overview.reduce((s, e) => s + e.responseRate, 0) / overview.length)}%` : "—" },
+                    { icon: <Heart size={22} />,        iconBg: "rgba(197,164,109,0.14)", iconColor: C.gold,  label: "ממוצע בריאות",    value: overview.length ? Math.round(overview.reduce((s, e) => s + e.healthScore, 0) / overview.length) : "—" },
+                  ].map((k, i) => (
+                    <div key={i} className="p-6 transition-all duration-300 hover:-translate-y-1"
+                      style={{ background: "#fff", borderRadius: 24, border: `1px solid ${C.border}`, boxShadow: "0 4px 20px rgba(28,16,8,0.04)" }}>
+                      <div className="flex items-center justify-center mb-4"
+                        style={{ width: 48, height: 48, borderRadius: 16, background: k.iconBg, color: k.iconColor }}>{k.icon}</div>
+                      <p style={{ color: C.muted, fontSize: 13, marginBottom: 4, fontFamily: "Heebo, sans-serif" }}>{k.label}</p>
+                      <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 32, color: C.dark }}>{k.value}</h3>
+                    </div>
+                  ))}
+                </div>
 
                 {/* Task Queue */}
                 {tasks.length > 0 && (
@@ -2841,22 +2925,6 @@ export default function AdminPage() {
                     <p className="text-sm" style={{ color: C.olive }}>✅ אין משימות דחופות כרגע</p>
                   </div>
                 )}
-
-                {/* Global stats strip */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {[
-                    { label: "אירועים פעילים",   value: overview.filter((e) => e.daysUntilEvent > 0).length },
-                    { label: "סה״כ מוזמנים",      value: overview.reduce((s, e) => s + e.total, 0) },
-                    { label: "ממוצע מענה",         value: overview.length > 0 ? `${Math.round(overview.reduce((s, e) => s + e.responseRate, 0) / overview.length)}%` : "—" },
-                    { label: "דורשים תשומת לב",   value: overview.filter((e) => e.needsAttention).length },
-                  ].map(({ label, value }) => (
-                    <div key={label} className="rounded-2xl p-4 text-center"
-                      style={{ background: C.ivory, border: `1px solid ${C.border}` }}>
-                      <p className="text-2xl font-bold mb-0.5" style={{ color: C.dark, fontFamily: "Frank Ruhl Libre, serif" }}>{value}</p>
-                      <p className="text-xs" style={{ color: C.muted }}>{label}</p>
-                    </div>
-                  ))}
-                </div>
 
                 {/* Needs attention */}
                 {overview.filter((e) => e.needsAttention).length > 0 && (
@@ -3110,6 +3178,124 @@ export default function AdminPage() {
         />
       )}
     </div>
+    </>
+  );
+}
+
+/* ── Admin Sidebar — Stitch dashboard shell (desktop) ── */
+function AdminSidebar({
+  activeTab, setActiveTab, pendingCount, recCount, onCreate,
+}: {
+  activeTab: Tab;
+  setActiveTab: (t: Tab) => void;
+  pendingCount: number;
+  recCount: number;
+  onCreate: () => void;
+}) {
+  const SC = {
+    bg:        "#586151",              // secondary — matches approved Stitch render
+    gold:      "#E5C188",              // primary-fixed-dim accent
+    textDim:   "rgba(255,255,255,0.62)",
+    textFaint: "rgba(255,255,255,0.40)",
+  };
+  const groups: { title: string; items: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] }[] = [
+    { title: "ניהול", items: [
+      { id: "command-center", label: "מרכז בקרה",   icon: <LayoutDashboard size={20} /> },
+      { id: "guests",         label: "אורחים",      icon: <Users size={20} /> },
+      { id: "calendar",       label: "לוח שנה",     icon: <CalendarDays size={20} /> },
+      { id: "analytics",      label: "אנליטיקה",    icon: <BarChart3 size={20} /> },
+    ] },
+    { title: "תקשורת", items: [
+      { id: "messages",        label: "WhatsApp",    icon: <MessageCircle size={20} /> },
+      { id: "reminders",       label: "תזכורות",     icon: <Bell size={20} />, badge: pendingCount },
+      { id: "recommendations", label: "מרכז המלצות", icon: <Sparkles size={20} />, badge: recCount },
+    ] },
+    { title: "מעקב", items: [
+      { id: "couple-view",   label: "מבט הזוג",     icon: <Eye size={20} /> },
+      { id: "history",       label: "היסטוריה",     icon: <History size={20} /> },
+      { id: "import-export", label: "ייבוא / ייצוא", icon: <Upload size={20} /> },
+    ] },
+    { title: "שירות", items: [
+      { id: "service-center",  label: "מרכז שירות",  icon: <LifeBuoy size={20} /> },
+      { id: "requests",        label: "בקשות זוג",   icon: <Inbox size={20} /> },
+      { id: "design-requests", label: "בקשות עיצוב", icon: <Palette size={20} /> },
+    ] },
+  ];
+  const links = [
+    { href: "/admin/crm",         label: "CRM לידים",  icon: <Users size={20} /> },
+    { href: "/admin/seating",     label: "הושבה",      icon: <Armchair size={20} /> },
+    { href: "/admin/automations", label: "אוטומציות",  icon: <Zap size={20} /> },
+  ];
+
+  return (
+    <aside
+      className="hidden md:flex fixed right-0 top-0 h-screen flex-col z-50"
+      style={{ width: 260, background: SC.bg, boxShadow: "-4px 0 24px rgba(0,0,0,0.12)" }}
+    >
+      {/* Brand */}
+      <div className="px-7 py-7 flex items-center gap-2 shrink-0">
+        <span style={{ color: SC.gold, fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 24 }}>רגע לפני</span>
+        <span style={{ color: SC.gold, fontSize: 18 }}>✦</span>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 px-3 py-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+        {groups.map((g) => (
+          <div key={g.title} className="mb-6">
+            <p className="px-4 mb-2" style={{ color: SC.textFaint, fontSize: 11, fontWeight: 700, letterSpacing: "0.12em" }}>{g.title}</p>
+            <div className="flex flex-col gap-0.5">
+              {g.items.map((it) => {
+                const active = activeTab === it.id;
+                return (
+                  <button
+                    key={it.id}
+                    onClick={() => setActiveTab(it.id)}
+                    className="flex items-center gap-3 px-4 py-3 transition-all duration-200 text-right"
+                    style={{
+                      color:       active ? "#fff" : SC.textDim,
+                      background:   active ? "rgba(255,255,255,0.10)" : "transparent",
+                      borderRight: `4px solid ${active ? SC.gold : "transparent"}`,
+                    }}
+                  >
+                    <span style={{ color: active ? SC.gold : "inherit", display: "flex" }}>{it.icon}</span>
+                    <span style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, fontWeight: 500 }}>{it.label}</span>
+                    {!!it.badge && it.badge > 0 && (
+                      <span className="mr-auto text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+                        style={{ background: SC.gold, color: SC.bg }}>{it.badge}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
+        <div className="mb-6">
+          <p className="px-4 mb-2" style={{ color: SC.textFaint, fontSize: 11, fontWeight: 700, letterSpacing: "0.12em" }}>כלים</p>
+          <div className="flex flex-col gap-0.5">
+            {links.map((l) => (
+              <a key={l.href} href={l.href}
+                className="flex items-center gap-3 px-4 py-3 transition-all duration-200 hover:bg-white/5"
+                style={{ color: SC.textDim, borderRight: "4px solid transparent" }}>
+                <span style={{ display: "flex" }}>{l.icon}</span>
+                <span style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, fontWeight: 500 }}>{l.label}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      </nav>
+
+      {/* Footer CTA */}
+      <div className="p-5 shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.10)" }}>
+        <button
+          onClick={onCreate}
+          className="w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 hover:opacity-90"
+          style={{ border: `1px solid ${SC.gold}`, color: SC.gold, fontFamily: "Heebo, sans-serif", fontSize: 14, fontWeight: 600 }}
+        >
+          <Plus size={16} /> אירוע חדש
+        </button>
+      </div>
+    </aside>
   );
 }
 
