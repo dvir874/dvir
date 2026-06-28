@@ -8,7 +8,7 @@ import {
 import type { SeatingTable, SeatingAssignment, Guest } from "@/lib/types";
 import { PRESET_TAGS } from "@/lib/seating-ai";
 import type { SeatingResult } from "@/lib/seating-ai";
-import SeatingFloorPlan from "@/components/SeatingFloorPlan";
+import SeatingGridPanel from "@/components/SeatingGridPanel";
 
 const CARD = { background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.22)", borderRadius: "1.25rem" };
 const GOLD = "#C5A46D";
@@ -335,23 +335,19 @@ export default function SeatingPage() {
 
               {loading && <p style={{ textAlign: "center", color: "rgba(51,51,51,0.4)", padding: "2rem" }}>טוען...</p>}
 
-              <SeatingFloorPlan
-                tables={data.tables}
-                assignments={data.assignments}
-                guests={data.guests}
-                selectedGuest={selectedGuest}
-                saving={saving}
-                onAssign={(gId, tId) => assignGuest(gId, tId)}
-                onRemove={(gId) => assignGuest(gId, null)}
-                onDelete={(tId) => deleteTable(tId)}
-                onMoveTable={async (tId, x, y) => {
-                  await fetch(`/api/seating/${tId}`, {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ pos_x: x, pos_y: y }),
-                  });
-                }}
-              />
+              <div style={{ ...CARD, overflow: "hidden" }}>
+                <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(197,164,109,0.12)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, fontWeight: 600, color: DARK }}>תרשים אולם</span>
+                  <span style={{ fontFamily: "Heebo, sans-serif", fontSize: 12, color: "rgba(51,51,51,0.4)" }}>{data.tables.length} שולחנות</span>
+                </div>
+                <SeatingGridPanel
+                  tables={data.tables}
+                  assignments={data.assignments}
+                  guests={data.guests}
+                  onDropGuest={(gId, tId) => assignGuest(gId, tId)}
+                  onRemoveGuest={(gId) => assignGuest(gId, null)}
+                />
+              </div>
             </div>
 
             {/* Unassigned guests */}
