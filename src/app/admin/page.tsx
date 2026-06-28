@@ -4519,21 +4519,52 @@ function AdminMessagesTab({ selectedEventId, events }: { selectedEventId: string
 
   if (!selectedEventId) return <p style={{ color: C.muted, padding: "2rem", textAlign: "center" }}>בחרו אירוע תחילה</p>;
 
+  const stageOrder: Stage[] = ["templates","preview","audience","queue","send"];
+  const currentIdx = stageOrder.indexOf(stage);
+  const OLIVE = "#6B7B5A";
+
   return (
     <div dir="rtl" style={{ fontFamily: "'Heebo',sans-serif" }}>
-      {/* Stage tabs */}
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", overflowX: "auto", paddingBottom: "0.25rem" }}>
-        {STAGES.map(s => (
-          <button key={s.key} onClick={() => setStage(s.key)}
-            style={{ padding: "0.4rem 0.9rem", borderRadius: 999, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap",
-                     border: `1.5px solid ${stage === s.key ? C.gold : C.border}`,
-                     background: stage === s.key ? C.gold : "transparent",
-                     color: stage === s.key ? "#fff" : C.muted,
-                     fontWeight: stage === s.key ? 700 : 400, fontFamily: "inherit" }}>
-            {s.label}
-          </button>
-        ))}
+      {/* ── E4-S2: Step Indicator (spec: gold circle active, olive checkmark completed, dashed connector) ── */}
+      <div style={{ display: "flex", alignItems: "center", marginBottom: "1.5rem", overflowX: "auto", paddingBottom: "0.25rem" }}>
+        {STAGES.map((s, i) => {
+          const isActive    = stage === s.key;
+          const isCompleted = currentIdx > i;
+          return (
+            <React.Fragment key={s.key}>
+              <button onClick={() => setStage(s.key)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: "50%",
+                  background: isCompleted ? OLIVE : isActive ? C.gold : "transparent",
+                  border: `2px solid ${isCompleted ? OLIVE : isActive ? C.gold : C.border}`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  transition: "all 0.2s",
+                }}>
+                  {isCompleted
+                    ? <span style={{ color: "#fff", fontSize: 14, lineHeight: 1 }}>✓</span>
+                    : <span style={{ color: isActive ? "#fff" : C.muted, fontSize: 12, fontWeight: 700 }}>{i + 1}</span>
+                  }
+                </div>
+                <span style={{ fontSize: 11, color: isActive ? C.gold : isCompleted ? OLIVE : C.muted, whiteSpace: "nowrap", fontWeight: isActive ? 700 : 400 }}>
+                  {s.label.replace(/^\d+ · /, "")}
+                </span>
+              </button>
+              {i < STAGES.length - 1 && (
+                <div style={{ flex: 1, height: 0, minWidth: 16, borderTop: `2px dashed ${currentIdx > i ? OLIVE : C.border}`, margin: "0 4px", marginBottom: 18 }} />
+              )}
+            </React.Fragment>
+          );
+        })}
       </div>
+
+      {/* ← חזרה back nav */}
+      {currentIdx > 0 && (
+        <button onClick={() => setStage(stageOrder[currentIdx - 1])}
+          style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "Heebo, sans-serif", fontSize: 13, marginBottom: "1rem", padding: 0 }}>
+          <span style={{ fontSize: 16 }}>←</span>
+          <span>חזרה</span>
+        </button>
+      )}
 
       {/* Stage 1 — Templates */}
       {stage === "templates" && (
