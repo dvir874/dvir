@@ -354,15 +354,18 @@ export default function OnboardingPage({ params }: { params: Promise<{ token: st
         fontFamily: "Heebo, sans-serif",
       }}>
         <style>{CSS}</style>
-        <div style={{ animation: "fadeUp 0.4s ease both", textAlign: "center", maxWidth: 340 }}>
-          <div style={{ marginBottom: 8 }}><BotanicalIllustration /></div>
+        <div style={{ textAlign: "center", maxWidth: 340 }}>
+          {/* Phase 1: illustration 400ms */}
+          <div style={{ marginBottom: 8, animation: "fadeUp 0.4s ease both" }}><BotanicalIllustration /></div>
+          {/* Phase 2: text 400ms, 100ms delay */}
           <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 32, color: C.dark, margin: "0 0 12px", lineHeight: 1.25, animation: "fadeUp 0.4s ease 0.1s both" }}>
             ברוכים הבאים לרגע לפני
           </h1>
-          <p style={{ fontFamily: "Heebo, sans-serif", fontWeight: 300, fontSize: 18, color: C.muted, margin: "0 0 2.5rem", lineHeight: 1.6, animation: "fadeUp 0.4s ease 0.2s both" }}>
+          <p style={{ fontFamily: "Heebo, sans-serif", fontWeight: 300, fontSize: 18, color: C.muted, margin: "0 0 2.5rem", lineHeight: 1.6, animation: "fadeUp 0.4s ease 0.1s both" }}>
             המקום שבו חתונה הופכת לחוויה שלמה
           </p>
-          <div style={{ animation: "fadeUp 0.4s ease 0.3s both" }}>
+          {/* Phase 3: CTA 300ms, 200ms delay */}
+          <div style={{ animation: "fadeUp 0.3s ease 0.2s both" }}>
             <GoldCTA label="בואו נתחיל 💍" onClick={advance} />
           </div>
         </div>

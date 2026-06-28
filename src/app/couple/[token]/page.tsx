@@ -994,6 +994,22 @@ function MilestoneList({ tasks, token }: { tasks:WeddingTask[]; token:string }) 
   );
 }
 
+function useCountUp(target: number, duration = 600): number {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (target === 0) { setValue(0); return; }
+    const start = Date.now();
+    const frame = () => {
+      const elapsed = Date.now() - start;
+      const pct = Math.min(elapsed / duration, 1);
+      setValue(Math.round(pct * target));
+      if (pct < 1) requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  }, [target, duration]);
+  return value;
+}
+
 export default function CoupleDashboard({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
   const router    = useRouter();
@@ -1016,6 +1032,8 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
   const [missingLoading, setMissingLoading] = useState(false);
   const [showCalendar,   setShowCalendar]   = useState(false);
   const prevConfirmedRef = useRef<number | null>(null);
+  const daysLeftTarget   = briefing?.daysUntilEvent ?? 0;
+  const animatedDays     = useCountUp(daysLeftTarget, 600);
 
   const load = useCallback(async () => {
     const [mainRes, briefRes, onboardRes] = await Promise.all([
@@ -1232,7 +1250,7 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         </p>
         <div aria-label={`${daysLeft} ימים עד ליום החתונה`}>
           <p role="timer" style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"80px", fontWeight:900, color:"#8B6914", lineHeight:1, margin:"0 0 4px" }}>
-            {daysLeft}
+            {animatedDays}
           </p>
           <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"20px", fontWeight:300, color:C.muted, margin:"0 0 4px" }}>ימים</p>
           <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"16px", fontWeight:300, color:C.muted, margin:0 }}>עד היום הגדול 💍</p>
