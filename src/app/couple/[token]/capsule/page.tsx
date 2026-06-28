@@ -1,13 +1,17 @@
 "use client";
 
 import { use, useEffect, useState, useCallback } from "react";
-import { ArrowRight, Lock, Unlock, Loader2, Heart } from "lucide-react";
+import { Settings, ArrowLeft, Loader2, Unlock } from "lucide-react";
 
 const C = {
-  cream: "#F6F1E8", ivory: "#FDFAF5", gold: "#C5A46D",
-  olive: "#6B7B5A", dark: "#333333", muted: "rgba(51,51,51,0.55)",
-  border: "rgba(197,164,109,0.22)",
-};
+  ivory:   "#FDFAF5",
+  cream:   "#F6F1E8",
+  gold:    "#C5A46D",
+  goldText:"#8B6914",
+  dark:    "#1C1008",
+  muted:   "rgba(28,16,8,0.52)",
+  border:  "#E8E0D4",
+} as const;
 
 interface CapsuleMessage {
   id: string;
@@ -21,26 +25,32 @@ interface CapsuleMessage {
   created_at: string;
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  advice: "עצה", blessing: "ברכה", story: "סיפור", prediction: "תחזית",
-};
 const TYPE_EMOJI: Record<string, string> = {
   advice: "💎", blessing: "💛", story: "📖", prediction: "🔮",
 };
 
+function PadlockSVG() {
+  return (
+    <svg width="56" height="56" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="28" cy="28" r="28" fill={C.cream} />
+      <rect x="17" y="26" width="22" height="16" rx="4" fill="none" stroke={C.gold} strokeWidth="2" />
+      <path d="M21 26V21a7 7 0 0 1 14 0v5" stroke={C.gold} strokeWidth="2" strokeLinecap="round" />
+      <circle cx="28" cy="34" r="2.5" fill={C.gold} />
+    </svg>
+  );
+}
+
 export default function CapsulePage({ params }: { params: Promise<{ token: string }> }) {
-  const { token }   = use(params);
-  const [items,     setItems]   = useState<CapsuleMessage[]>([]);
-  const [loading,   setLoading] = useState(true);
-  const [eventName, setEventName] = useState("");
+  const { token }      = use(params);
+  const [items,        setItems]       = useState<CapsuleMessage[]>([]);
+  const [loading,      setLoading]     = useState(true);
+  const [weddingDate,  setWeddingDate] = useState<Date | null>(null);
 
   const load = useCallback(async () => {
-    // We need the vault token from the couple token — fetch via briefing
     const evRes = await fetch(`/api/couple/${token}/briefing`);
     const ev    = await evRes.json();
-    if (ev.eventName) setEventName(ev.eventName);
+    if (ev.event?.date) setWeddingDate(new Date(ev.event.date));
 
-    // Get vault token for this event
     const vtRes = await fetch(`/api/memory/vault-token?couple_token=${token}`);
     const vt    = await vtRes.json();
     if (!vt.token) { setLoading(false); return; }
@@ -56,130 +66,143 @@ export default function CapsulePage({ params }: { params: Promise<{ token: strin
   const locked   = items.filter(m => !m.unlocked);
   const unlocked = items.filter(m => m.unlocked);
 
-  const byYear = locked.reduce<Record<number, CapsuleMessage[]>>((acc, m) => {
-    (acc[m.unlock_years] ??= []).push(m);
-    return acc;
-  }, {});
+  const unlockDate = weddingDate
+    ? new Date(weddingDate.getFullYear() + 1, weddingDate.getMonth(), weddingDate.getDate())
+    : null;
+  const daysToUnlock = unlockDate
+    ? Math.max(0, Math.ceil((unlockDate.getTime() - Date.now()) / 86_400_000))
+    : 0;
 
   return (
-    <div dir="rtl" style={{ minHeight: "100vh", background: `linear-gradient(160deg, #1a0f0a 0%, #2d1a12 50%, #1a0f0a 100%)`, fontFamily: "Heebo, sans-serif", color: "white" }}>
+    <div dir="rtl" style={{ minHeight: "100svh", background: C.ivory, fontFamily: "Heebo, sans-serif", color: C.dark, paddingBottom: 80 }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@700;900&family=Heebo:wght@300;400;600&display=swap');
+        * { box-sizing: border-box; }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
 
-      {/* Header */}
-      <div style={{ padding: "2rem 1.5rem 1.5rem" }}>
-        <div style={{ maxWidth: 600, margin: "0 auto" }}>
-          <a href={`/couple/${token}`} style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "rgba(197,164,109,0.7)", textDecoration: "none", fontSize: 13, marginBottom: "1.5rem" }}>
-            <ArrowRight size={14} />חזרה ללוח הבקרה
-          </a>
-          <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(197,164,109,0.12)", border: "1px solid rgba(197,164,109,0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem" }}>
-              <Lock size={28} style={{ color: C.gold }} />
-            </div>
-            <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1.5rem,5vw,2rem)", fontWeight: 700, marginBottom: "0.5rem" }}>
-              כמוסת הזמן שלכם
-            </h1>
-            <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 1.5 }}>
-              אורחים כתבו לכם הודעות שיתגלו בעתיד.
-              {items.length > 0 && ` ${items.length} הודעות ממתינות.`}
-            </p>
-          </div>
-        </div>
+      {/* Top bar */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
+        <Settings size={20} style={{ color: C.muted, cursor: "pointer" }} />
+        <span style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 16, color: C.goldText }}>
+          קפסולת הזמן
+        </span>
+        <a href={`/couple/${token}`} style={{ color: C.muted, textDecoration: "none", display: "flex" }}>
+          <ArrowLeft size={20} />
+        </a>
       </div>
 
-      <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 1rem 4rem" }}>
+      <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 20px" }}>
 
-        {loading && (
-          <div style={{ textAlign: "center", padding: "3rem" }}>
+        {loading ? (
+          <div style={{ textAlign: "center", paddingTop: 80 }}>
             <Loader2 size={28} style={{ color: C.gold, animation: "spin 1s linear infinite" }} />
           </div>
-        )}
+        ) : (
+          <div style={{ animation: "fadeIn 0.4s ease" }}>
 
-        {!loading && items.length === 0 && (
-          <div style={{ textAlign: "center", padding: "3rem 1rem" }}>
-            <Heart size={40} style={{ color: "rgba(197,164,109,0.3)", margin: "0 auto 1rem" }} />
-            <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.1rem", marginBottom: "0.5rem" }}>
-              עדיין אין הודעות
-            </p>
-            <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13 }}>
-              שתפו את האורחים בקישור להשארת הודעה לעתיד
-            </p>
-          </div>
-        )}
-
-        {/* Unlocked messages */}
-        {unlocked.length > 0 && (
-          <div style={{ marginBottom: "2rem" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "1rem" }}>
-              <Unlock size={14} style={{ color: C.gold }} />
-              <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", color: C.gold, margin: 0 }}>נפתח!</h2>
-              <div style={{ flex: 1, height: 1, background: "rgba(197,164,109,0.15)" }} />
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              {unlocked.map((m) => (
-                <div key={m.id} style={{ padding: "1.25rem", borderRadius: "1.25rem", background: "rgba(197,164,109,0.08)", border: "1px solid rgba(197,164,109,0.25)" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.875rem" }}>
-                    <span style={{ fontSize: 20 }}>{TYPE_EMOJI[m.message_type] ?? "💌"}</span>
-                    <div>
-                      <p style={{ fontWeight: 600, fontSize: 13, color: "white" }}>{m.guest_name}</p>
-                      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{TYPE_LABELS[m.message_type]} · נכתב ב-{new Date(m.created_at).toLocaleDateString("he-IL")}</p>
-                    </div>
-                  </div>
-                  <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", lineHeight: 1.7, color: "rgba(255,255,255,0.9)" }}>
-                    &ldquo;{m.content}&rdquo;
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Locked by year */}
-        {[1, 5, 10].map((years) => {
-          const group = byYear[years];
-          if (!group?.length) return null;
-          const sampleItem = group[0];
-          const unlockDate = new Date(sampleItem.unlock_at).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" });
-          return (
-            <div key={years} style={{ marginBottom: "1.5rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.875rem" }}>
-                <Lock size={13} style={{ color: "rgba(255,255,255,0.4)" }} />
-                <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "0.9rem", color: "rgba(255,255,255,0.6)", margin: 0 }}>
-                  נפתח ב-{unlockDate} ({years} {years === 1 ? "שנה" : "שנים"})
-                </h2>
-                <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
+            {/* Hero */}
+            <div style={{ textAlign: "center", padding: "40px 0 28px" }}>
+              <div style={{ marginBottom: 20, display: "inline-block" }}>
+                <PadlockSVG />
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                {group.map((m) => (
-                  <div key={m.id} style={{ padding: "1rem 1.25rem", borderRadius: "1.25rem", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", gap: "1rem", alignItems: "center" }}>
-                    <div style={{ width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <Lock size={16} style={{ color: "rgba(255,255,255,0.3)" }} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontWeight: 600, fontSize: 13, color: "rgba(255,255,255,0.7)" }}>{m.guest_name}</p>
-                      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
-                        {TYPE_LABELS[m.message_type]} · {m.daysToUnlock} ימים עד הפתיחה
+              <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 24, color: C.dark, marginBottom: 6 }}>
+                קפסולת הזמן שלכם ❤️
+              </h1>
+              <p style={{ fontSize: 14, color: C.muted, fontWeight: 300 }}>
+                {items.length > 0
+                  ? `${locked.length} ברכות נשמרו בפנים`
+                  : "אורחים כתבו לכם הודעות שיתגלו בעתיד"}
+              </p>
+            </div>
+
+            {/* Countdown card */}
+            {locked.length > 0 && unlockDate && (
+              <div style={{ background: C.cream, borderRadius: 20, padding: "24px", border: `1px solid ${C.border}`, marginBottom: 28, textAlign: "center" }}>
+                <p style={{ fontSize: 11, color: C.muted, fontWeight: 600, letterSpacing: "0.1em", marginBottom: 8, textTransform: "uppercase" }}>
+                  הייפתח בעוד
+                </p>
+                <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 900, fontSize: 56, color: C.goldText, lineHeight: 1, marginBottom: 4 }}>
+                  {daysToUnlock}
+                </p>
+                <p style={{ fontSize: 14, color: C.muted, marginBottom: 12 }}>ימים</p>
+                <p style={{ fontSize: 13, color: C.muted, fontWeight: 300 }}>
+                  {unlockDate.toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}
+                </p>
+              </div>
+            )}
+
+            {/* Empty state */}
+            {items.length === 0 && (
+              <div style={{ textAlign: "center", padding: "12px 0 32px" }}>
+                <p style={{ fontSize: 32, marginBottom: 12 }}>🕰️</p>
+                <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 18, color: C.dark, marginBottom: 6 }}>עדיין אין הודעות</p>
+                <p style={{ fontSize: 14, color: C.muted, fontWeight: 300 }}>שתפו את האורחים בקישור להשארת הודעה לעתיד</p>
+              </div>
+            )}
+
+            {/* Unlocked messages */}
+            {unlocked.length > 0 && (
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                  <Unlock size={14} style={{ color: C.gold }} />
+                  <span style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 15, color: C.goldText, fontWeight: 700 }}>נפתחו!</span>
+                  <div style={{ flex: 1, height: 1, background: C.border }} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {unlocked.map(m => (
+                    <div key={m.id} style={{ padding: "16px", borderRadius: 16, background: C.cream, border: `1px solid ${C.border}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                        <span style={{ fontSize: 20 }}>{TYPE_EMOJI[m.message_type] ?? "💌"}</span>
+                        <div>
+                          <p style={{ fontWeight: 600, fontSize: 14, color: C.dark }}>{m.guest_name}</p>
+                          <p style={{ fontSize: 11, color: C.muted }}>{new Date(m.created_at).toLocaleDateString("he-IL")}</p>
+                        </div>
+                      </div>
+                      <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 16, lineHeight: 1.7, color: C.dark }}>
+                        &ldquo;{m.content}&rdquo;
                       </p>
                     </div>
-                    <span style={{ fontSize: 20 }}>{TYPE_EMOJI[m.message_type] ?? "💌"}</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            )}
 
-        {/* Stats */}
-        {items.length > 0 && (
-          <div style={{ marginTop: "2rem", padding: "1.25rem", borderRadius: "1.25rem", background: "rgba(197,164,109,0.05)", border: "1px solid rgba(197,164,109,0.12)", textAlign: "center" }}>
-            <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.5rem", fontWeight: 700, color: C.gold }}>{items.length}</p>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>הודעות נשמרו לכם מהאורחים</p>
-            <div style={{ display: "flex", gap: "1.5rem", justifyContent: "center", marginTop: "0.75rem" }}>
-              {[1, 5, 10].map(y => {
-                const count = (byYear[y] ?? []).length;
-                if (!count) return null;
-                return <div key={y}><p style={{ fontSize: 16, fontWeight: 700, color: "white" }}>{count}</p><p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>לעוד {y} {y === 1 ? "שנה" : "שנים"}</p></div>;
-              })}
-              {unlocked.length > 0 && <div><p style={{ fontSize: 16, fontWeight: 700, color: C.gold }}>{unlocked.length}</p><p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>נפתחו</p></div>}
-            </div>
+            {/* Locked items — blurred preview (security: gibberish only, never real content) */}
+            {locked.length > 0 && (
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                  <span>🔒</span>
+                  <span style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 15, color: C.dark, fontWeight: 700 }}>ממתינים לפתיחה</span>
+                  <div style={{ flex: 1, height: 1, background: C.border }} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {locked.map(m => (
+                    <div key={m.id} style={{ padding: "14px 16px", borderRadius: 16, background: C.cream, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: "50%", background: C.ivory, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18 }}>
+                        {TYPE_EMOJI[m.message_type] ?? "💌"}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontWeight: 600, fontSize: 14, color: C.dark, marginBottom: 4 }}>{m.guest_name}</p>
+                        {/* Security: placeholder chars only — never actual content in DOM */}
+                        <p aria-hidden="true" style={{ fontSize: 12, color: C.muted, overflow: "hidden", whiteSpace: "nowrap", filter: "blur(3.5px)", userSelect: "none" }}>
+                          {"א".repeat(28)}
+                        </p>
+                      </div>
+                      <span style={{ fontSize: 12, color: C.muted, flexShrink: 0, fontWeight: 300 }}>
+                        {m.daysToUnlock > 0 ? `${m.daysToUnlock} ימים` : "נפתח בקרוב"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {locked.length > 3 && (
+                  <p style={{ textAlign: "center", fontSize: 12, color: C.muted, marginTop: 16, fontWeight: 300 }}>
+                    ועוד {locked.length - 3} הפתעות נוספות...
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
