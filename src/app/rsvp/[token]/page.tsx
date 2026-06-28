@@ -2,17 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { use } from "react";
-import { CheckCircle, XCircle, Users, Loader2, AlertCircle, Share2, Clock } from "lucide-react";
-import { getTheme, type EventTheme } from "@/lib/themes";
 
+/* ─── Types ───────────────────────────────────────────────────── */
 type Status = "confirmed" | "declined" | "pending";
 type MealOption = "regular" | "vegetarian" | "vegan" | "mehadrin";
+type Screen = "loading" | "error" | "form" | "done" | "wrong-person";
 
-const MEAL_OPTIONS: { value: MealOption; label: string; emoji: string }[] = [
-  { value: "regular",     label: "רגיל",          emoji: "🍽️" },
-  { value: "vegetarian",  label: "צמחוני",         emoji: "🥗" },
-  { value: "vegan",       label: "טבעוני",         emoji: "🌱" },
-  { value: "mehadrin",    label: "כשר מהדרין",     emoji: "✡️" },
+const MEAL_OPTIONS: { value: MealOption; label: string }[] = [
+  { value: "regular",    label: "רגיל" },
+  { value: "vegetarian", label: "צמחוני" },
+  { value: "vegan",      label: "טבעוני" },
+  { value: "mehadrin",   label: "כשר מהדרין" },
 ];
 
 interface GuestInfo {
@@ -28,626 +28,794 @@ interface EventInfo {
   date: string;
   address?: string | null;
   theme?: string | null;
-  rsvp_deadline?: string | null;
 }
 
-type Screen = "loading" | "error" | "form" | "done" | "closed" | "wrong-person";
+/* ─── Design tokens (inline — same values as SYS-02 CSS vars) ── */
+const T = {
+  ivory:        "#FDFAF5",
+  cream:        "#F6F1E8",
+  gold:         "#C5A46D",
+  goldText:     "#8B6914",
+  dark:         "#1C1008",
+  muted:        "#8C7B6E",
+  olive:        "#6B7B5A",
+  border:       "#E8E0D4",
+  shadowCard:   "0 2px 8px rgba(28,16,8,0.06)",
+  shadowCta:    "0 4px 12px rgba(197,164,109,0.4)",
+} as const;
 
+/* ─── Botanical sprig SVG ──────────────────────────────────────── */
+function BotanicalSprig({ size = 40 }: { size?: number }) {
+  return (
+    <svg
+      width={size} height={size} viewBox="0 0 40 40"
+      fill="none" xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      style={{ display: "block", margin: "0 auto" }}
+    >
+      <path d="M20 32 C20 32 20 18 20 8" stroke={T.olive} strokeWidth="1.2" strokeLinecap="round"/>
+      <path d="M20 22 C20 22 14 18 10 14" stroke={T.olive} strokeWidth="1" strokeLinecap="round"/>
+      <path d="M20 22 C20 22 26 18 30 14" stroke={T.olive} strokeWidth="1" strokeLinecap="round"/>
+      <path d="M20 16 C20 16 15 13 12 10" stroke={T.olive} strokeWidth="0.8" strokeLinecap="round"/>
+      <path d="M20 16 C20 16 25 13 28 10" stroke={T.olive} strokeWidth="0.8" strokeLinecap="round"/>
+      <ellipse cx="10" cy="13" rx="3.5" ry="2" transform="rotate(-30 10 13)" fill={T.olive} opacity="0.5"/>
+      <ellipse cx="30" cy="13" rx="3.5" ry="2" transform="rotate(30 30 13)" fill={T.olive} opacity="0.4"/>
+      <ellipse cx="12" cy="10" rx="2.5" ry="1.5" transform="rotate(-40 12 10)" fill={T.olive} opacity="0.4"/>
+      <ellipse cx="28" cy="10" rx="2.5" ry="1.5" transform="rotate(40 28 10)" fill={T.olive} opacity="0.4"/>
+    </svg>
+  );
+}
+
+/* ─── Ring SVG (custom — never emoji, per spec P1-003) ─────────── */
+function RingSVG() {
+  return (
+    <svg width="56" height="56" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="30" cy="36" r="14" stroke={T.gold} strokeWidth="4" fill="none"/>
+      <path d="M22 20 L30 12 L38 20 L34 27 L26 27 Z" fill={T.gold}/>
+      <path d="M26 27 L30 20 L34 27" stroke={T.ivory} strokeWidth="0.8" fill="none"/>
+      <path d="M30 12 L30 20" stroke={T.ivory} strokeWidth="0.8"/>
+    </svg>
+  );
+}
+
+/* ─── Confetti (CSS-only, respects prefers-reduced-motion) ──────── */
+function Confetti() {
+  const pieces = [
+    { x: 15, delay: 0,    size: 6,  color: T.gold,  shape: "circle" },
+    { x: 30, delay: 0.1,  size: 4,  color: T.cream, shape: "rect" },
+    { x: 50, delay: 0.05, size: 5,  color: T.olive, shape: "circle" },
+    { x: 65, delay: 0.2,  size: 6,  color: T.gold,  shape: "rect" },
+    { x: 80, delay: 0.15, size: 4,  color: T.cream, shape: "circle" },
+    { x: 22, delay: 0.25, size: 5,  color: T.olive, shape: "rect" },
+    { x: 44, delay: 0.08, size: 7,  color: T.gold,  shape: "circle" },
+    { x: 70, delay: 0.3,  size: 4,  color: T.cream, shape: "rect" },
+    { x: 88, delay: 0.12, size: 5,  color: T.gold,  shape: "circle" },
+  ];
+  return (
+    <>
+      <style>{`
+        @media (prefers-reduced-motion: no-preference) {
+          @keyframes confettiFall {
+            0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(120px) rotate(360deg); opacity: 0; }
+          }
+          .confetti-piece { animation: confettiFall 2.5s ease-in forwards; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .confetti-piece { opacity: 0.6; }
+        }
+      `}</style>
+      <div aria-hidden="true" style={{ position:"absolute", top:0, left:0, right:0, height:"160px", overflow:"hidden", pointerEvents:"none" }}>
+        {pieces.map((p, i) => (
+          <div
+            key={i}
+            className="confetti-piece"
+            style={{
+              position: "absolute",
+              left: `${p.x}%`,
+              top: "-8px",
+              width: p.size,
+              height: p.size,
+              background: p.color,
+              borderRadius: p.shape === "circle" ? "50%" : "2px",
+              animationDelay: `${p.delay}s`,
+            }}
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
+/* ─── Warm card ──────────────────────────────────────────────────── */
+function WarmCard({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <div style={{
+      background: T.cream,
+      border: `1px solid ${T.border}`,
+      borderRadius: "16px",
+      padding: "20px",
+      boxShadow: T.shadowCard,
+      ...style,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+/* ─── Gold CTA button (COMP-02) ─────────────────────────────────── */
+function GoldCTA({
+  children, onClick, href, disabled = false, loading = false,
+  size = "lg", fullWidth = true,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  href?: string;
+  disabled?: boolean;
+  loading?: boolean;
+  size?: "lg" | "md";
+  fullWidth?: boolean;
+}) {
+  const style: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    width: fullWidth ? "100%" : undefined,
+    padding: size === "lg" ? "16px 24px" : "12px 20px",
+    background: disabled ? "#D4C4A8" : T.gold,
+    color: "#FFFFFF",
+    border: "none",
+    borderRadius: "12px",
+    fontSize: "18px",
+    fontWeight: 700,
+    fontFamily: "'Heebo', sans-serif",
+    cursor: disabled ? "not-allowed" : "pointer",
+    boxShadow: disabled ? "none" : T.shadowCta,
+    transition: "transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease",
+    textDecoration: "none",
+    minHeight: "56px",
+    opacity: loading ? 0.8 : 1,
+  };
+
+  if (href) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" style={style}>
+        {children}
+      </a>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || loading}
+      style={style}
+      onMouseEnter={e => {
+        if (!disabled && !loading) {
+          (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
+          (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 20px rgba(197,164,109,0.5)";
+        }
+      }}
+      onMouseLeave={e => {
+        (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+        (e.currentTarget as HTMLButtonElement).style.boxShadow = T.shadowCta;
+      }}
+    >
+      {loading ? <span style={{ display: "inline-block", animation: "spin 1s linear infinite", fontSize: "16px" }}>⟳</span> : null}
+      {children}
+    </button>
+  );
+}
+
+/* ─── Warm alert card (COMP-05) ─────────────────────────────────── */
+function WarmAlertCard({ message }: { message: string }) {
+  return (
+    <div
+      role="alert"
+      style={{
+        background: "rgba(184,92,56,0.08)",
+        border: `1px solid rgba(184,92,56,0.25)`,
+        borderRadius: "12px",
+        padding: "12px 16px",
+        marginBottom: "16px",
+        color: "#B85C38",
+        fontFamily: "'Heebo', sans-serif",
+        fontSize: "14px",
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+      }}
+    >
+      <span aria-hidden="true">⚠</span>
+      {message}
+    </div>
+  );
+}
+
+/* ─── Simple ivory shell (error / wrong-person / done screens) ──── */
+function PageShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      dir="rtl"
+      style={{
+        minHeight: "100dvh",
+        background: T.ivory,
+        fontFamily: "'Heebo', sans-serif",
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "center",
+        padding: "24px 16px 40px",
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: "420px" }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MAIN PAGE
+═══════════════════════════════════════════════════════════════════ */
 export default function RsvpPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
 
-  const [screen,      setScreen]      = useState<Screen>("loading");
-  const [guest,       setGuest]       = useState<GuestInfo | null>(null);
-  const [event,       setEvent]       = useState<EventInfo | null>(null);
-  const [choice,      setChoice]      = useState<"confirmed" | "declined" | null>(null);
-  const [guestCount,  setGuestCount]  = useState(1);
-  const [meal,        setMeal]        = useState<MealOption | null>(null);
-  const [mealNote,    setMealNote]    = useState("");
-  const [submitting,  setSubmitting]  = useState(false);
-  const [errorMsg,    setErrorMsg]    = useState("");
-  const [envelopeOpen, setEnvelopeOpen] = useState(false);
-  const [cardVisible,  setCardVisible]  = useState(false);
-  const [tableName,    setTableName]    = useState<string | null>(null);
+  const [screen,     setScreen]     = useState<Screen>("loading");
+  const [guest,      setGuest]      = useState<GuestInfo | null>(null);
+  const [event,      setEvent]      = useState<EventInfo | null>(null);
+  const [choice,     setChoice]     = useState<"confirmed" | "declined" | null>(null);
+  const [guestCount, setGuestCount] = useState(1);
+  const [meal,       setMeal]       = useState<MealOption | null>(null);
+  const [mealNote,   setMealNote]   = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg,   setErrorMsg]   = useState("");
+  const [tableName,  setTableName]  = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/rsvp/${token}`)
-      .then((r) => r.json())
-      .then((data) => {
+      .then(r => r.json())
+      .then(data => {
         if (data.error) { setScreen("error"); return; }
         setGuest(data.guest);
         setEvent(data.event);
         setTableName(data.tableName ?? null);
         setGuestCount(data.guest.guest_count ?? 1);
-
-        // Check deadline
-        if (data.event?.rsvp_deadline) {
-          const deadline = new Date(data.event.rsvp_deadline);
-          deadline.setHours(23, 59, 59);
-          if (new Date() > deadline && data.guest.status === "pending") {
-            setScreen("closed");
-            return;
-          }
-        }
-
-        if (data.guest.status !== "pending") {
-          setScreen("done");
-        } else {
-          // Start envelope animation
-          setTimeout(() => setEnvelopeOpen(true), 400);
-          setTimeout(() => setCardVisible(true), 1200);
-          setTimeout(() => setScreen("form"), 1400);
-        }
+        setScreen(data.guest.status !== "pending" ? "done" : "form");
       })
       .catch(() => setScreen("error"));
   }, [token]);
 
-  async function handleSubmit() {
-    if (!choice) return;
+  async function handleSubmit(newChoice: "confirmed" | "declined") {
+    setChoice(newChoice);
     setSubmitting(true);
+    setErrorMsg("");
     try {
       const res = await fetch(`/api/rsvp/${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          status: choice,
+          status: newChoice,
           guest_count: guestCount,
-          meal_preference: choice === "confirmed" ? (meal ?? "regular") : null,
-          meal_note: choice === "confirmed" && mealNote.trim() ? mealNote.trim() : null,
+          meal_preference: newChoice === "confirmed" ? (meal ?? "regular") : null,
+          meal_note: newChoice === "confirmed" && mealNote.trim() ? mealNote.trim() : null,
         }),
       });
-      if (!res.ok) throw new Error("Server error");
-      setGuest((g) => g ? { ...g, status: choice, guest_count: guestCount } : g);
+      if (!res.ok) throw new Error("server error");
+      setGuest(g => g ? { ...g, status: newChoice, guest_count: guestCount } : g);
       setScreen("done");
-      if (choice === "confirmed") {
-        try {
-          const text = `🎉 מגיעים לחתונה של ${event?.name ?? ""}! מחכים לחגוג ביחד 🤍`;
-          if (navigator.share) { navigator.share({ text }).catch(() => {}); }
-        } catch { /* ignore */ }
-      }
     } catch {
-      setErrorMsg("אירעה שגיאה. נסו שוב.");
+      setErrorMsg("אירעה שגיאה. אנא נסו שוב.");
     } finally {
       setSubmitting(false);
     }
   }
 
-  const theme = getTheme(event?.theme);
-
   const formattedDate = event?.date
-    ? new Date(event.date).toLocaleDateString("he-IL", {
-        day: "numeric", month: "long", year: "numeric",
-      })
+    ? new Date(event.date).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })
     : "";
 
-  const deadlineStr = event?.rsvp_deadline
-    ? new Date(event.rsvp_deadline).toLocaleDateString("he-IL", { day: "numeric", month: "long" })
+  const calUrl = (() => {
+    if (!event?.date) return null;
+    const d = new Date(event.date);
+    const fmt = (dt: Date) => dt.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+    const start = fmt(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 19, 0, 0));
+    const end   = fmt(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 0));
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.name)}&dates=${start}/${end}&location=${encodeURIComponent(event.address ?? "")}`;
+  })();
+
+  const wazeUrl = event?.address
+    ? `https://waze.com/ul?q=${encodeURIComponent(event.address)}&navigate=yes`
     : null;
 
+  /* ── Loading — E2-S1: 3 pulsing gold dots + spec copy ────────── */
   if (screen === "loading") {
-    // Show envelope animation while loading
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#F2EDE3" }}>
+      <div
+        dir="rtl"
+        style={{ minHeight: "100dvh", background: T.ivory, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "20px" }}
+      >
         <style>{`
-          @keyframes envelopeOpen {
-            0%   { transform: perspective(600px) rotateX(0deg); }
-            100% { transform: perspective(600px) rotateX(-180deg); }
+          @keyframes dotPulse {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.35; }
+            40%            { transform: scale(1);   opacity: 1; }
           }
-          @keyframes cardRise {
-            0%   { opacity:0; transform: translateY(30px); }
-            100% { opacity:1; transform: translateY(0); }
-          }
-          @keyframes envelopeFade {
-            0%   { opacity:1; transform: scale(1); }
-            100% { opacity:0; transform: scale(0.85); }
-          }
-          .envelope-flap-open { animation: envelopeOpen 0.7s cubic-bezier(0.4,0,0.2,1) forwards; transform-origin: top center; }
-          .card-rise { animation: cardRise 0.5s ease forwards; }
-          .envelope-fade { animation: envelopeFade 0.4s ease forwards; }
+          .loading-dot { width: 10px; height: 10px; border-radius: 50%; background: ${T.gold}; animation: dotPulse 1.2s ease-in-out infinite; }
+          .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+          .loading-dot:nth-child(3) { animation-delay: 0.4s; }
         `}</style>
-        <LoadingSpinner theme={theme} />
+        <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "22px", fontWeight: 900, color: T.goldText, letterSpacing: "-0.01em" }}>
+          רגע לפני
+        </p>
+        <BotanicalSprig size={28} />
+        <div style={{ display: "flex", gap: "8px" }}>
+          <div className="loading-dot" />
+          <div className="loading-dot" />
+          <div className="loading-dot" />
+        </div>
+        <p role="status" aria-live="polite" style={{ color: T.muted, fontFamily: "'Heebo', sans-serif", fontSize: "14px", fontWeight: 300, marginTop: "-4px" }}>
+          מכינים את ההזמנה שלך...
+        </p>
       </div>
     );
   }
 
-  if (screen === "error") return <Shell theme={theme}><ErrorScreen theme={theme} /></Shell>;
+  /* ── Error ────────────────────────────────────────────────────── */
+  if (screen === "error") {
+    return (
+      <PageShell>
+        <div style={{ textAlign: "center", paddingTop: "48px" }}>
+          <BotanicalSprig size={48} />
+          <h2 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "22px", fontWeight: 700, color: T.dark, marginTop: "16px", marginBottom: "8px" }}>
+            לא מצאנו את ההזמנה
+          </h2>
+          <p style={{ color: T.muted, fontSize: "14px", lineHeight: 1.7 }}>
+            ייתכן שהקישור פג תוקף או שגוי.<br />פנו ישירות לבעלי השמחה.
+          </p>
+        </div>
+      </PageShell>
+    );
+  }
 
+  /* ── Wrong person ─────────────────────────────────────────────── */
   if (screen === "wrong-person") {
     return (
-      <Shell theme={theme}>
-        <div className="text-center py-4">
-          <div className="text-5xl mb-4">🤷</div>
-          <h2 className="text-xl font-bold mb-3" style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif" }}>
+      <PageShell>
+        <div style={{ textAlign: "center", paddingTop: "48px" }}>
+          <BotanicalSprig size={48} />
+          <h2 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "22px", fontWeight: 700, color: T.dark, marginTop: "16px", marginBottom: "8px" }}>
             קיבלתם בטעות?
           </h2>
-          <p className="text-sm mb-2" style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif", lineHeight: 1.7 }}>
-            ייתכן שהקישור נשלח למספר הטלפון הלא נכון.
-          </p>
-          <p className="text-sm" style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif" }}>
-            פנו ישירות לבעלי השמחה כדי לתקן את הטעות 🙏
+          <p style={{ color: T.muted, fontSize: "14px", lineHeight: 1.7 }}>
+            ייתכן שהקישור נשלח למספר הטלפון הלא נכון.<br />פנו ישירות לבעלי השמחה כדי לתקן.
           </p>
         </div>
-      </Shell>
+      </PageShell>
     );
   }
 
-  if (screen === "closed") {
-    return (
-      <Shell theme={theme}>
-        <div className="text-center py-4">
-          <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5"
-            style={{ background: `rgba(197,164,109,0.1)`, border: `1.5px solid rgba(197,164,109,0.3)` }}>
-            <Clock size={38} style={{ color: theme.accentColor }} strokeWidth={1.5} />
-          </div>
-          <h2 className="text-2xl font-bold mb-2" style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif" }}>
-            ההזמנה נסגרה
-          </h2>
-          <p className="text-sm mb-2" style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif", lineHeight: 1.7 }}>
-            תאריך האחרון לאישור הגעה עבר.
-          </p>
-          <p className="text-sm" style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif" }}>
-            לפרטים נוספים, פנו ישירות לבעלי השמחה.
-          </p>
-        </div>
-      </Shell>
-    );
-  }
-
+  /* ── Done (confirmed or declined) ────────────────────────────── */
   if (screen === "done") {
     const confirmed = guest?.status === "confirmed";
 
-    const calUrl = (() => {
-      if (!event?.date) return null;
-      const d     = new Date(event.date);
-      const ymd   = (dt: Date) => dt.toISOString().replace(/-/g, "").replace(/:/g, "").split(".")[0] + "Z";
-      const start = ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 19, 0, 0));
-      const end   = ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 0));
-      const calParams = new URLSearchParams({
-        action: "TEMPLATE", text: event.name,
-        dates: `${start}/${end}`,
-        details: event.address ?? "",
-        location: event.address ?? "",
-      });
-      return `https://calendar.google.com/calendar/render?${calParams.toString()}`;
-    })();
-
-    const wazeUrl = event?.address
-      ? `https://waze.com/ul?q=${encodeURIComponent(event.address)}&navigate=yes`
-      : null;
-
-    return (
-      <Shell theme={theme}>
-        <div className="text-center" style={{ animation: "rsvpFadeUp 0.5s ease both" }}>
-          {confirmed && (
-            <div className="flex justify-center gap-3 mb-4" style={{ animation: "rsvpFadeUp 0.4s ease 0.1s both" }}>
-              {["✦", "💛", "✦"].map((s, i) => (
-                <span key={i} className="text-base" style={{
-                  color: theme.accentColor,
-                  animation: `float ${2.5 + i * 0.4}s ease-in-out ${i * 0.15}s infinite`,
-                  opacity: i === 1 ? 1 : 0.6,
-                }}>
-                  {s}
-                </span>
-              ))}
-            </div>
-          )}
-          <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-5"
-            style={{
-              background: confirmed
-                ? `radial-gradient(circle, ${theme.accentColor}22 0%, ${theme.accentColor}0a 100%)`
-                : "rgba(197,164,109,0.08)",
-              border: `1.5px solid ${theme.accentColor}44`,
-              animation: "rsvpPop 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.15s both",
-            }}>
-            {confirmed
-              ? <CheckCircle size={44} style={{ color: theme.accentColor }} strokeWidth={1.5} />
-              : <XCircle    size={44} style={{ color: theme.accentColor }} strokeWidth={1.5} />}
+    if (!confirmed) {
+      /* ── Declined state — olive branch, gracious copy ─────────── */
+      return (
+        <div dir="rtl" style={{ minHeight: "100dvh", background: T.ivory, fontFamily: "'Heebo', sans-serif" }}>
+          <div style={{ width: "100%", height: "220px", overflow: "hidden" }}>
+            <img
+              src="https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=800&q=80"
+              alt=""
+              style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
+            />
           </div>
 
-          <h2 className="text-2xl font-bold mb-2"
-            style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif", lineHeight: 1.3 }}>
-            {confirmed ? "תודה שאישרתם!" : "קיבלנו את תגובתכם"}
-          </h2>
-
-          {confirmed && (
-            <p className="text-base font-light mb-1" style={{ color: theme.mutedColor, fontFamily: "Frank Ruhl Libre, serif" }}>
-              מחכים לכם ביום המיוחד 🤍
+          <div style={{ maxWidth: "420px", margin: "0 auto", padding: "32px 24px 40px", textAlign: "center" }}>
+            <h2 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "26px", fontWeight: 700, color: T.dark, marginBottom: "12px", lineHeight: 1.3 }}>
+              קיבלנו את תגובתכם.
+            </h2>
+            <p style={{ color: T.muted, fontSize: "16px", fontWeight: 300, marginBottom: "24px", lineHeight: 1.7 }}>
+              מאחלים לכם כל טוב 💛
             </p>
-          )}
 
-          <p className="text-sm mb-1" style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif" }}>
-            {confirmed
-              ? `${guest?.guest_count} ${(guest?.guest_count ?? 1) === 1 ? "אורח" : "אורחים"} רשומים להגיע`
-              : "חבל שלא תוכלו להגיע — נשמח לראותכם בפעם אחרת 💛"}
+            <div style={{ margin: "0 auto 24px", display: "flex", justifyContent: "center" }}>
+              <BotanicalSprig size={44} />
+            </div>
+
+            <p style={{ color: T.muted, fontSize: "14px", lineHeight: 1.7, marginBottom: "32px" }}>
+              חבל שלא תוכלו להגיע —<br />נשמח לראותכם בפעם אחרת.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => { setScreen("form"); }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: T.goldText, fontSize: "14px", fontFamily: "'Heebo', sans-serif", fontWeight: 400, textDecoration: "underline", textUnderlineOffset: "3px", minHeight: "44px" }}
+            >
+              טעיתי — אני כן מגיע/ה
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    /* ── Confirmed state ──────────────────────────────────────────── */
+    return (
+      <div dir="rtl" style={{ minHeight: "100dvh", background: T.ivory, fontFamily: "'Heebo', sans-serif", position: "relative", overflow: "hidden" }}>
+        <style>{`
+          @keyframes spin { to { transform: rotate(360deg); } }
+          @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+        `}</style>
+        <Confetti />
+
+        <div style={{ maxWidth: "420px", margin: "0 auto", padding: "48px 24px 40px", textAlign: "center" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px", animation: "fadeUp 0.5s ease both" }}>
+            <RingSVG />
+          </div>
+
+          <h2 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "28px", fontWeight: 700, color: T.dark, marginBottom: "8px", animation: "fadeUp 0.5s ease 0.1s both" }}>
+            תודה שאישרתם!
+          </h2>
+          <p style={{ color: T.muted, fontSize: "16px", fontWeight: 300, marginBottom: "4px", animation: "fadeUp 0.5s ease 0.15s both" }}>
+            מחכים לכם ביום המיוחד 💛
+          </p>
+          <p style={{ color: T.muted, fontSize: "14px", marginBottom: "24px", animation: "fadeUp 0.5s ease 0.2s both" }}>
+            {guest?.guest_count} {(guest?.guest_count ?? 1) === 1 ? "אורח" : "אורחים"} רשומים להגיע
           </p>
 
           {event && (
-            <div className="mt-4 mb-5 py-3 px-4 rounded-2xl"
-              style={{ background: theme.accentBg, border: `1px solid ${theme.accentColor}22` }}>
-              <p className="text-sm font-semibold" style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif" }}>
+            <WarmCard style={{ marginBottom: "16px", animation: "fadeUp 0.5s ease 0.25s both" }}>
+              <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "18px", fontWeight: 700, color: T.dark, marginBottom: "4px" }}>
                 {event.name}
               </p>
-              <p className="text-xs mt-0.5" style={{ color: theme.accentColor, fontFamily: "Heebo, sans-serif" }}>
+              <p style={{ color: T.muted, fontSize: "13px" }}>{formattedDate}</p>
+            </WarmCard>
+          )}
+
+          {tableName && (
+            <WarmCard style={{ marginBottom: "24px", background: `linear-gradient(135deg,rgba(197,164,109,0.10),rgba(197,164,109,0.05))`, border: `1.5px solid rgba(197,164,109,0.3)`, animation: "fadeUp 0.5s ease 0.3s both" }}>
+              <p style={{ color: T.muted, fontSize: "12px", marginBottom: "4px" }}>מקום ישיבה</p>
+              <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "22px", fontWeight: 700, color: T.goldText }}>
+                שולחן {tableName}
+              </p>
+            </WarmCard>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", animation: "fadeUp 0.5s ease 0.35s both" }}>
+            {calUrl && (
+              <GoldCTA href={calUrl} fullWidth>
+                📅 הוסיפו ליומן Google
+              </GoldCTA>
+            )}
+            {wazeUrl && (
+              <a
+                href={wazeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                  padding: "14px 24px", background: T.cream, color: T.dark,
+                  border: `1px solid ${T.border}`, borderRadius: "12px",
+                  fontSize: "16px", fontWeight: 500, fontFamily: "'Heebo', sans-serif",
+                  textDecoration: "none", minHeight: "52px",
+                  boxShadow: T.shadowCard,
+                }}
+              >
+                🚗 נווטו לאולם — Waze
+              </a>
+            )}
+          </div>
+
+          <div style={{ width: "64px", height: "1px", background: `linear-gradient(90deg,transparent,${T.gold},transparent)`, margin: "28px auto 0" }} />
+        </div>
+      </div>
+    );
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     FORM SCREEN — E2-S2 / E2-S3
+     Mobile: full-bleed photo + gradient overlay with event info in white
+     Tablet (768px+): sticky photo panel left, ivory form panel right
+  ═══════════════════════════════════════════════════════════════ */
+  return (
+    <>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+
+        .rsvp-page {
+          min-height: 100dvh;
+          background: ${T.ivory};
+          direction: rtl;
+          font-family: 'Heebo', sans-serif;
+        }
+
+        /* ── Mobile: photo is a full-bleed hero with gradient overlay ── */
+        .rsvp-photo-panel {
+          position: relative;
+          width: 100%;
+          height: 300px;
+          overflow: hidden;
+          flex-shrink: 0;
+        }
+        .rsvp-photo-panel img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          object-position: center top;
+        }
+        /* Gradient overlay (bottom 60% darkens for text legibility) */
+        .rsvp-photo-panel::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(to top, rgba(28,16,8,0.72) 0%, rgba(28,16,8,0.35) 50%, rgba(28,16,8,0.05) 100%);
+        }
+        /* Event info overlaid on photo — visible on mobile only */
+        .rsvp-photo-overlay {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          z-index: 1;
+          padding: 20px 24px 24px;
+          text-align: center;
+        }
+        /* Event header inside ivory form panel — hidden on mobile, shown on tablet */
+        .rsvp-event-header { display: none; }
+
+        .rsvp-form-panel {
+          display: flex;
+          align-items: flex-start;
+          justify-content: center;
+        }
+        .rsvp-inner {
+          max-width: 420px;
+          width: 100%;
+          padding: 28px 20px 48px;
+        }
+
+        .meal-chip {
+          display: inline-flex; align-items: center; justify-content: center;
+          padding: 10px 16px; border-radius: 24px; font-size: 14px;
+          font-family: 'Heebo', sans-serif; cursor: pointer;
+          border: 1.5px solid ${T.border}; background: ${T.ivory}; color: ${T.dark};
+          min-height: 44px; transition: all 0.15s ease;
+        }
+        .meal-chip.selected {
+          background: ${T.cream}; border-color: ${T.gold}; color: ${T.goldText}; font-weight: 600;
+        }
+        .stepper-btn {
+          width: 44px; height: 44px; border-radius: 10px;
+          border: 1.5px solid ${T.border}; background: ${T.cream}; color: ${T.goldText};
+          font-size: 22px; font-weight: 500;
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer; transition: all 0.15s ease;
+        }
+        .stepper-btn:hover { border-color: ${T.gold}; }
+        .secondary-cta {
+          background: none; border: none; cursor: pointer; color: ${T.goldText};
+          font-size: 14px; font-family: 'Heebo', sans-serif; font-weight: 400;
+          text-decoration: underline; text-underline-offset: 3px; min-height: 44px;
+        }
+        .wrong-person-btn {
+          background: none; border: none; cursor: pointer; color: ${T.muted};
+          font-size: 12px; font-family: 'Heebo', sans-serif;
+          opacity: 0.7; text-decoration: underline; min-height: 44px;
+        }
+
+        /* ── Tablet (768px+): sticky left photo, scrollable right form ── */
+        @media (min-width: 768px) {
+          .rsvp-page { display: flex; }
+          .rsvp-photo-panel {
+            flex: 1;
+            position: sticky;
+            top: 0;
+            height: 100dvh;
+          }
+          /* Remove mobile fixed height — panel fills viewport height */
+          .rsvp-photo-panel::after {
+            background: linear-gradient(to top, rgba(28,16,8,0.4) 0%, transparent 60%);
+          }
+          /* Hide mobile overlay on tablet */
+          .rsvp-photo-overlay { display: none; }
+          /* Show event header in ivory form panel on tablet */
+          .rsvp-event-header { display: block; }
+          .rsvp-form-panel { flex: 1; overflow-y: auto; }
+          .rsvp-inner { max-width: 480px; width: 100%; padding: 48px 40px; }
+        }
+      `}</style>
+
+      <div className="rsvp-page">
+
+        {/* Photo panel */}
+        <div className="rsvp-photo-panel">
+          <img
+            src="https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80"
+            alt="הזמנה לחתונה"
+          />
+
+          {/* Mobile-only: event info overlaid on photo in white text (E2-S2 spec) */}
+          {event && (
+            <div className="rsvp-photo-overlay">
+              <p style={{ fontSize: "10px", letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(255,255,255,0.7)", fontFamily: "'Heebo', sans-serif", marginBottom: "6px" }}>
+                אתם מוזמנים
+              </p>
+              <h1 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "26px", fontWeight: 700, color: "#FFFFFF", marginBottom: "4px", lineHeight: 1.2 }}>
+                {event.name}
+              </h1>
+              <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "14px", fontWeight: 300, marginBottom: "2px" }}>
                 {formattedDate}
               </p>
-            </div>
-          )}
-
-          {confirmed && tableName && (
-            <div className="mt-2 mb-4 py-3 px-4 rounded-2xl text-center"
-              style={{ background: `linear-gradient(135deg,${theme.accentColor}18,${theme.accentColor}08)`, border: `1.5px solid ${theme.accentColor}33` }}>
-              <p className="text-xs mb-1" style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif" }}>מקום ישיבה</p>
-              <p className="text-xl font-bold" style={{ color: theme.accentColor, fontFamily: "Frank Ruhl Libre, serif" }}>
-                🪑 שולחן {tableName}
-              </p>
-            </div>
-          )}
-
-          {confirmed && (calUrl || wazeUrl) && (
-            <div className="flex flex-col gap-2.5" style={{ animation: "rsvpFadeUp 0.4s ease 0.35s both" }}>
-              {calUrl && (
-                <a href={calUrl} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2.5 w-full py-3.5 rounded-2xl text-sm font-medium transition-all duration-200 hover:opacity-85 hover:-translate-y-0.5"
-                  style={{ background: theme.accentBg, color: theme.accentColor, border: `1px solid ${theme.accentColor}33`, fontFamily: "Heebo, sans-serif", boxShadow: `0 2px 10px ${theme.accentColor}14` }}>
-                  📅 הוסיפו ליומן Google
-                </a>
-              )}
-              {wazeUrl && (
-                <a href={wazeUrl} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2.5 w-full py-3.5 rounded-2xl text-sm font-medium transition-all duration-200 hover:opacity-85 hover:-translate-y-0.5"
-                  style={{ background: "rgba(51,204,255,0.08)", color: "#0099CC", border: "1px solid rgba(51,204,255,0.25)", fontFamily: "Heebo, sans-serif" }}>
-                  🚗 נווטו לאולם — Waze
-                </a>
+              {event.address && (
+                <p style={{ color: "rgba(255,255,255,0.65)", fontSize: "13px", fontWeight: 300 }}>
+                  📍 {event.address}
+                </p>
               )}
             </div>
           )}
-
-          {confirmed && (
-            <button
-              onClick={async () => {
-                const text = `🎉 מגיעים לחתונה של ${event?.name ?? ""}! מחכים לחגוג ביחד 🤍`;
-                if (navigator.share) {
-                  try { await navigator.share({ text }); } catch { /* cancelled */ }
-                } else {
-                  await navigator.clipboard.writeText(text);
-                  alert("הטקסט הועתק! שתפו בסטטוס 🎉");
-                }
-              }}
-              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-sm font-medium mt-3 transition-all duration-200 hover:opacity-85"
-              style={{ background: `${theme.accentColor}10`, color: theme.accentColor, border: `1px solid ${theme.accentColor}33`, fontFamily: "Heebo, sans-serif" }}>
-              <Share2 size={15} />
-              שתפו שאתם מגיעים!
-            </button>
-          )}
-
-          <div className="w-16 h-px mx-auto mt-6"
-            style={{ background: `linear-gradient(90deg,transparent,${theme.accentColor},transparent)` }} />
         </div>
-      </Shell>
-    );
-  }
 
-  /* ── Envelope animation screen ───────────── */
-  if (!cardVisible) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4"
-        style={{ background: theme.bodyBg === "#FFFFFF" || theme.bodyBg === "#111111"
-          ? theme.bodyBg
-          : `linear-gradient(160deg,${theme.bodyBg} 0%,${theme.bodyBg}ee 100%)` }}>
-        <style>{`
-          @keyframes envelopeFlap {
-            0%   { transform: perspective(400px) rotateX(0deg); }
-            100% { transform: perspective(400px) rotateX(-175deg); }
-          }
-          @keyframes letterRise {
-            0%   { transform: translateY(0); opacity:0.3; }
-            100% { transform: translateY(-55px); opacity:1; }
-          }
-          @keyframes envFade {
-            0%   { opacity:1; transform:scale(1); }
-            100% { opacity:0; transform:scale(0.92) translateY(12px); }
-          }
-          .env-body { position:relative; width:220px; height:140px; background:linear-gradient(145deg,#FDF5E6,#F5E8C8); border-radius:6px 6px 14px 14px; border:1.5px solid rgba(197,164,109,0.5); box-shadow:0 8px 32px rgba(197,164,109,0.2); }
-          .env-flap { position:absolute; top:0; left:0; right:0; height:0; border-right:110px solid transparent; border-left:110px solid transparent; border-top:70px solid #EDD99A; transform-origin:top center; }
-          .env-flap-open { animation: envelopeFlap 0.7s cubic-bezier(0.4,0,0.2,1) 0.3s forwards; }
-          .env-letter { position:absolute; bottom:10px; left:14px; right:14px; height:80px; background:white; border-radius:6px; border:1px solid rgba(197,164,109,0.3); display:flex;align-items:center;justify-content:center; }
-          .letter-rise { animation: letterRise 0.6s cubic-bezier(0.34,1.4,0.64,1) 0.9s forwards; }
-          .env-fade  { animation: envFade 0.4s ease 1.1s forwards; }
-        `}</style>
+        {/* Form panel */}
+        <div className="rsvp-form-panel">
+          <div className="rsvp-inner">
 
-        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:16 }}>
-          <div className={`env-body ${envelopeOpen ? "env-fade" : ""}`}>
-            <div className={`env-flap ${envelopeOpen ? "env-flap-open" : ""}`} />
-            <div style={{ position:"absolute", bottom:0, left:0, right:0, height:0, borderRight:"110px solid transparent", borderLeft:"110px solid transparent", borderBottom:"60px solid #E8D5A0" }} />
-            <div style={{ position:"absolute", top:"50%", left:0, right:0, height:0, borderRight:"110px solid #F0E2B2", borderLeft:"110px solid transparent" }} />
-            <div className={`env-letter ${envelopeOpen ? "letter-rise" : ""}`}>
-              <p style={{ fontFamily:"Frank Ruhl Libre, serif", fontSize:15, color:"#C5A46D", textAlign:"center", padding:"0 8px", lineHeight:1.4 }}>
-                {event?.name ?? "ההזמנה שלכם"}
+            {/* Tablet-only event header (inside ivory area) */}
+            {event && (
+              <div className="rsvp-event-header" style={{ textAlign: "center", marginBottom: "24px" }}>
+                <p style={{ fontSize: "11px", letterSpacing: "0.22em", textTransform: "uppercase", color: T.goldText, fontFamily: "'Heebo', sans-serif", marginBottom: "8px" }}>
+                  אתם מוזמנים
+                </p>
+                <h1 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "28px", fontWeight: 700, color: T.dark, marginBottom: "4px", lineHeight: 1.25 }}>
+                  {event.name}
+                </h1>
+                <p style={{ color: T.muted, fontSize: "14px", marginBottom: "8px" }}>{formattedDate}</p>
+                {event.address && (
+                  <p style={{ color: T.muted, fontSize: "13px" }}>📍 {event.address}</p>
+                )}
+                <div style={{ width: "56px", height: "1px", background: `linear-gradient(90deg,transparent,${T.gold},transparent)`, margin: "16px auto 0" }} />
+              </div>
+            )}
+
+            {/* Guest greeting */}
+            <div style={{ textAlign: "center", marginBottom: "24px", animation: "fadeUp 0.4s ease 0.08s both" }}>
+              <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "18px", fontWeight: 700, color: T.dark, marginBottom: "4px" }}>
+                שלום {guest?.name} 🤍
+              </p>
+              <p style={{ color: T.muted, fontSize: "14px" }}>
+                מתרגשים לראות אתכם בשמחה כזו
               </p>
             </div>
-          </div>
-          <p style={{ fontSize:13, color:"rgba(28,16,8,0.45)", fontFamily:"Heebo, sans-serif" }}>
-            {envelopeOpen ? "פותח את ההזמנה..." : "יש לכם הזמנה 💌"}
-          </p>
-        </div>
-      </div>
-    );
-  }
 
-  /* ── Form screen ─────────────────────────────────── */
-  return (
-    <Shell theme={theme}>
-      {/* Event header */}
-      {event && (
-        <div className="text-center mb-6" style={{ animation: "rsvpFadeUp 0.4s ease both" }}>
-          <div className="flex justify-center gap-2 mb-3" style={{ color: theme.accentColor, opacity: 0.55 }}>
-            <span style={{ fontSize: 10 }}>✦</span>
-            <span style={{ fontSize: 10 }}>✦</span>
-            <span style={{ fontSize: 10 }}>✦</span>
-          </div>
-          <p className="text-[10px] tracking-[0.26em] uppercase mb-2"
-            style={{ color: theme.accentColor, fontFamily: "Heebo, sans-serif" }}>
-            אתם מוזמנים
-          </p>
-          <h1 className="text-3xl font-bold mb-1.5 leading-tight"
-            style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif" }}>
-            {event.name}
-          </h1>
-          <p className="text-sm" style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif" }}>
-            {formattedDate}
-          </p>
-          {event.address && (
-            <div className="flex items-center justify-center gap-2 mt-1 flex-wrap">
-              <p className="text-xs" style={{ color: `${theme.accentColor}bb`, fontFamily: "Heebo, sans-serif" }}>
-                📍 {event.address}
-              </p>
-              <a
-                href={`https://waze.com/ul?q=${encodeURIComponent(event.address)}&navigate=yes`}
-                target="_blank" rel="noopener noreferrer"
-                className="text-xs px-2 py-0.5 rounded-full"
-                style={{ background: "rgba(51,204,255,0.12)", color: "#0099CC", fontFamily: "Heebo, sans-serif", textDecoration: "none" }}>
-                🚗 Waze
-              </a>
-            </div>
-          )}
-          {/* Deadline badge */}
-          {deadlineStr && (
-            <div className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full"
-              style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
-              <Clock size={11} style={{ color: "#EF4444" }} />
-              <span style={{ fontSize: 11, color: "#EF4444", fontFamily: "Heebo, sans-serif" }}>
-                אנא אשרו עד {deadlineStr}
-              </span>
-            </div>
-          )}
-          <div className="w-14 h-px mx-auto mt-4"
-            style={{ background: `linear-gradient(90deg,transparent,${theme.accentColor}88,transparent)` }} />
-        </div>
-      )}
+            {errorMsg && <WarmAlertCard message={errorMsg} />}
 
-      <p className="text-center text-base font-semibold mb-1"
-        style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif", animation: "rsvpFadeUp 0.4s ease 0.08s both" }}>
-        שלום {guest?.name} 🤍
-      </p>
-      <p className="text-center text-sm mb-6"
-        style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif", animation: "rsvpFadeUp 0.4s ease 0.12s both" }}>
-        האם תוכלו להגיע לאירוע?
-      </p>
+            {/* Main form card */}
+            <WarmCard style={{ marginBottom: "16px", animation: "fadeUp 0.4s ease 0.12s both" }}>
 
-      <div className="flex flex-col gap-3 mb-6" style={{ animation: "rsvpFadeUp 0.4s ease 0.18s both" }}>
-        <button
-          onClick={() => { setChoice("confirmed"); setGuestCount(guest?.guest_count ?? 1); }}
-          className="w-full py-4 rounded-2xl font-semibold text-base flex items-center justify-center gap-2.5 transition-all duration-250"
-          style={{
-            fontFamily: "Heebo, sans-serif",
-            background: choice === "confirmed"
-              ? `linear-gradient(135deg,${theme.accentColor} 0%,${theme.accentColor}dd 100%)`
-              : theme.cardBg,
-            color: choice === "confirmed" ? "white" : theme.accentColor,
-            border: `2px solid ${choice === "confirmed" ? "transparent" : theme.accentBorder}`,
-            boxShadow: choice === "confirmed"
-              ? `0 6px 24px ${theme.accentColor}30, 0 2px 8px ${theme.accentColor}18`
-              : `0 1px 4px rgba(0,0,0,0.04)`,
-            transform: choice === "confirmed" ? "scale(1.015)" : "scale(1)",
-          }}>
-          <CheckCircle size={20} strokeWidth={choice === "confirmed" ? 2 : 1.5} />
-          כן, נגיע! 🎉
-        </button>
+              {/* Guest count stepper */}
+              <div style={{ marginBottom: "20px" }}>
+                <p style={{ fontSize: "14px", fontWeight: 500, color: T.dark, marginBottom: "12px" }}>
+                  כמה אנשים מגיעים?
+                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: "16px", justifyContent: "center" }}>
+                  <button
+                    type="button"
+                    className="stepper-btn"
+                    onClick={() => setGuestCount(c => Math.max(1, c - 1))}
+                    aria-label="הפחת אורח"
+                  >
+                    −
+                  </button>
+                  <span
+                    style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "32px", fontWeight: 700, color: T.dark, minWidth: "48px", textAlign: "center" }}
+                    aria-live="polite"
+                    aria-label={`${guestCount} אורחים`}
+                  >
+                    {guestCount}
+                  </span>
+                  <button
+                    type="button"
+                    className="stepper-btn"
+                    onClick={() => setGuestCount(c => Math.min(20, c + 1))}
+                    aria-label="הוסף אורח"
+                  >
+                    +
+                  </button>
+                </div>
+                <p style={{ textAlign: "center", fontSize: "12px", color: T.muted, marginTop: "6px" }}>
+                  כולל אתם
+                </p>
+              </div>
 
-        <button
-          onClick={() => { setChoice("declined"); setGuestCount(1); }}
-          className="w-full py-3.5 rounded-2xl font-medium text-sm flex items-center justify-center gap-2 transition-all duration-250"
-          style={{
-            fontFamily: "Heebo, sans-serif",
-            background: choice === "declined" ? "rgba(90,75,65,0.08)" : "transparent",
-            color: choice === "declined" ? "#7A6A5A" : theme.mutedColor,
-            border: `1.5px solid ${choice === "declined" ? "rgba(90,75,65,0.3)" : theme.cardBorder}`,
-          }}>
-          <XCircle size={16} strokeWidth={1.5} />
-          לא נוכל להגיע
-        </button>
-      </div>
+              <div style={{ height: "1px", background: T.border, marginBottom: "20px" }} />
 
-      <div className="text-center mb-4" style={{ animation: "rsvpFadeUp 0.4s ease 0.22s both" }}>
-        <button
-          onClick={() => setScreen("wrong-person")}
-          className="text-xs underline-offset-2"
-          style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", opacity: 0.6 }}>
-          קיבלתם בטעות? זה לא אני
-        </button>
-      </div>
+              {/* Meal preference */}
+              <div style={{ marginBottom: "4px" }}>
+                <p style={{ fontSize: "14px", fontWeight: 500, color: T.dark, marginBottom: "12px" }}>
+                  העדפת מזון
+                </p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                  {MEAL_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={`meal-chip${meal === opt.value ? " selected" : ""}`}
+                      onClick={() => setMeal(m => m === opt.value ? null : opt.value)}
+                      aria-pressed={meal === opt.value}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </WarmCard>
 
-      {choice === "confirmed" && (
-        <div className="rounded-2xl p-5 mb-5"
-          style={{ background: theme.accentBg, border: `1px solid ${theme.accentBorder}` }}>
-          <p className="text-sm font-semibold mb-3 flex items-center gap-2"
-            style={{ color: theme.headingColor, fontFamily: "Heebo, sans-serif" }}>
-            <Users size={16} style={{ color: theme.accentColor }} />
-            כמה אורחים מגיעים?
-          </p>
-          <div className="flex items-center gap-4">
-            <button onClick={() => setGuestCount((c) => Math.max(1, c - 1))}
-              className="w-10 h-10 rounded-xl text-xl font-bold flex items-center justify-center transition-all"
-              style={{ background: theme.cardBg, border: `1px solid ${theme.accentBorder}`, color: theme.accentColor }}>
-              −
-            </button>
-            <span className="text-3xl font-bold w-12 text-center"
-              style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif" }}>
-              {guestCount}
-            </span>
-            <button onClick={() => setGuestCount((c) => Math.min(20, c + 1))}
-              className="w-10 h-10 rounded-xl text-xl font-bold flex items-center justify-center transition-all"
-              style={{ background: theme.cardBg, border: `1px solid ${theme.accentBorder}`, color: theme.accentColor }}>
-              +
-            </button>
-          </div>
-        </div>
-      )}
-
-      {choice === "confirmed" && (
-        <div className="rounded-2xl p-5 mb-5"
-          style={{ background: theme.accentBg, border: `1px solid ${theme.accentBorder}` }}>
-          <p className="text-sm font-semibold mb-3"
-            style={{ color: theme.headingColor, fontFamily: "Heebo, sans-serif" }}>
-            העדפת מנה
-          </p>
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            {MEAL_OPTIONS.map((opt) => (
-              <button key={opt.value} type="button" onClick={() => setMeal(opt.value)}
-                className="py-3 px-3 rounded-xl text-sm font-medium flex items-center gap-2 transition-all"
+            {/* Phone field */}
+            <div style={{ marginBottom: "24px", animation: "fadeUp 0.4s ease 0.18s both" }}>
+              <label htmlFor="rsvp-phone" style={{ display: "block", fontSize: "13px", color: T.muted, marginBottom: "6px" }}>
+                מספר טלפון <span style={{ fontSize: "11px" }}>(אופציונלי)</span>
+              </label>
+              <input
+                id="rsvp-phone"
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel-national"
+                placeholder="050-0000000"
                 style={{
-                  fontFamily: "Heebo, sans-serif",
-                  background: meal === opt.value
-                    ? `linear-gradient(135deg,${theme.accentColor},${theme.accentColor}cc)`
-                    : theme.cardBg,
-                  color: meal === opt.value ? "white" : theme.accentColor,
-                  border: `1.5px solid ${meal === opt.value ? "transparent" : theme.accentBorder}`,
-                }}>
-                <span>{opt.emoji}</span>
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          <input type="text" placeholder="הערה למנה (אופציונלי)"
-            value={mealNote} onChange={(e) => setMealNote(e.target.value)} maxLength={120}
-            className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
-            style={{ fontFamily: "Heebo, sans-serif", background: theme.cardBg, border: `1px solid ${theme.accentBorder}`, color: theme.headingColor }} />
-        </div>
-      )}
-
-      {errorMsg && (
-        <p className="text-sm text-red-500 text-center mb-3" style={{ fontFamily: "Heebo, sans-serif" }}>
-          {errorMsg}
-        </p>
-      )}
-
-      <button onClick={handleSubmit} disabled={!choice || submitting}
-        className="w-full py-4 rounded-2xl font-semibold text-base flex items-center justify-center gap-2.5 transition-all duration-200 disabled:opacity-40"
-        style={{
-          fontFamily: "Heebo, sans-serif",
-          background: `linear-gradient(135deg,${theme.accentColor},${theme.accentColor}bb)`,
-          color: "white",
-          boxShadow: choice ? `0 4px 20px ${theme.accentColor}33` : "none",
-        }}>
-        {submitting ? <Loader2 size={18} className="animate-spin" /> : "שלחו אישור ✓"}
-      </button>
-
-      <p className="text-center text-xs mt-5" style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif" }}>
-        התגובה שלכם תישמר מיד
-      </p>
-    </Shell>
-  );
-}
-
-function Shell({ theme, children }: { theme: EventTheme; children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: theme.bodyBg === "#FFFFFF" || theme.bodyBg === "#111111"
-        ? theme.bodyBg
-        : `linear-gradient(160deg,${theme.bodyBg} 0%,${theme.bodyBg}ee 100%)` }}>
-      {(["top-6 right-6","top-6 left-6 scale-x-[-1]","bottom-6 right-6 scale-y-[-1]","bottom-6 left-6 -scale-x-100 scale-y-[-1]"] as const).map((p) => (
-        <div key={p} className={`fixed ${p} opacity-20 pointer-events-none`}>
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-            <path d="M2 2L13 2" stroke={theme.accentColor} strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M2 2L2 13" stroke={theme.accentColor} strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        </div>
-      ))}
-      <div className="w-full max-w-sm flex flex-col gap-4">
-        <div className="rounded-3xl p-7"
-          style={{ background: theme.cardBg, border: `1px solid ${theme.cardBorder}`, boxShadow: theme.cardShadow }}>
-          {children}
-        </div>
-
-        {/* ── Promo banner ── */}
-        <a
-          href="https://wa.me/972533318177?text=%D7%94%D7%99%D7%99%20%F0%9F%91%8B%20%D7%A8%D7%90%D7%99%D7%AA%D7%99%20%D7%90%D7%AA%20%D7%94%D7%94%D7%96%D7%9E%D7%A0%D7%94%20%D7%95%D7%AA%D7%95%D7%9B%D7%9C%D7%AA%D7%99%20%D7%9C%D7%A9%D7%9E%D7%95%D7%A2%20%D7%99%D7%95%D7%AA%D7%A8%20%D7%A2%D7%9C%20%D7%94%D7%A9%D7%99%D7%A8%D7%95%D7%AA"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ textDecoration: "none", display: "block" }}
-        >
-          <div className="rounded-3xl p-5 text-center"
-            style={{
-              background: "linear-gradient(135deg,#1C1008 0%,#2D1A0E 50%,#1C1008 100%)",
-              border: "1px solid rgba(197,164,109,0.25)",
-              boxShadow: "0 8px 32px rgba(28,16,8,0.3)",
-              position: "relative",
-              overflow: "hidden",
-            }}>
-            {/* Shimmer line */}
-            <div style={{
-              position: "absolute", top: 0, left: 0, right: 0, height: 1,
-              background: "linear-gradient(90deg,transparent,rgba(197,164,109,0.6),transparent)",
-            }} />
-
-            <p style={{ fontSize: 10, letterSpacing: "0.2em", color: "rgba(197,164,109,0.7)", fontFamily: "Heebo, sans-serif", marginBottom: 6, textTransform: "uppercase" }}>
-              ✦ רגע לפני ✦
-            </p>
-            <p style={{ fontSize: 20, fontWeight: 700, color: "#F2EDE3", fontFamily: "Frank Ruhl Libre, serif", lineHeight: 1.3, marginBottom: 4 }}>
-              מתחתנים בקרוב?
-            </p>
-            <p style={{ fontSize: 12, color: "rgba(242,237,227,0.6)", fontFamily: "Heebo, sans-serif", lineHeight: 1.6, marginBottom: 14 }}>
-              ניהול אירוע מקצה לקצה —<br/>
-              רשימות אורחים · הושבה · ספקים · תקציב<br/>
-              הכל במקום אחד, בלי בלגן
-            </p>
-
-            <div style={{
-              display: "inline-flex", alignItems: "center", gap: 8,
-              background: "linear-gradient(135deg,#C5A46D,#A07840)",
-              color: "white", borderRadius: 50, padding: "10px 22px",
-              fontSize: 13, fontWeight: 600, fontFamily: "Heebo, sans-serif",
-              boxShadow: "0 4px 16px rgba(197,164,109,0.35)",
-            }}>
-              💬 דברו איתנו
+                  width: "100%", padding: "12px 14px",
+                  border: `1.5px solid ${T.border}`,
+                  borderRadius: "10px", background: T.ivory,
+                  fontFamily: "'Heebo', sans-serif", fontSize: "15px",
+                  color: T.dark, direction: "ltr", textAlign: "right",
+                  boxSizing: "border-box",
+                }}
+              />
+              <p style={{ fontSize: "11px", color: T.muted, marginTop: "4px" }}>
+                הטלפון רק לתיאום ישיר עם הזוג — לא לשיווק
+              </p>
             </div>
 
-            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg,transparent,rgba(197,164,109,0.4),transparent)" }} />
+            {/* Primary CTA */}
+            <div style={{ marginBottom: "12px", animation: "fadeUp 0.4s ease 0.22s both" }}>
+              <GoldCTA
+                onClick={() => handleSubmit("confirmed")}
+                loading={submitting && choice === "confirmed"}
+                disabled={submitting}
+                fullWidth
+              >
+                אני מגיע/ה 🎉
+              </GoldCTA>
+            </div>
+
+            {/* Decline CTA */}
+            <div style={{ textAlign: "center", animation: "fadeUp 0.4s ease 0.26s both" }}>
+              <button
+                type="button"
+                className="secondary-cta"
+                onClick={() => handleSubmit("declined")}
+                disabled={submitting}
+              >
+                {submitting && choice === "declined" ? "שולח..." : "לא אוכל להגיע"}
+              </button>
+              <p style={{ fontSize: "11px", color: T.muted, marginTop: "4px" }}>
+                אפשר לעדכן מאוחר יותר
+              </p>
+            </div>
+
+            {/* Wrong person */}
+            <div style={{ textAlign: "center", marginTop: "24px" }}>
+              <button
+                type="button"
+                className="wrong-person-btn"
+                onClick={() => setScreen("wrong-person")}
+              >
+                קיבלתם בטעות? זה לא אני
+              </button>
+            </div>
+
           </div>
-        </a>
+        </div>
       </div>
-    </div>
-  );
-}
-
-function LoadingSpinner({ theme }: { theme: EventTheme }) {
-  return (
-    <div className="flex flex-col items-center gap-4 py-8">
-      <Loader2 size={32} className="animate-spin" style={{ color: theme.accentColor }} />
-      <p className="text-sm" style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif" }}>טוען…</p>
-    </div>
-  );
-}
-
-function ErrorScreen({ theme }: { theme: EventTheme }) {
-  return (
-    <div className="text-center py-8">
-      <AlertCircle size={40} className="mx-auto mb-4" style={{ color: theme.accentColor }} />
-      <p className="font-semibold mb-1" style={{ color: theme.headingColor, fontFamily: "Frank Ruhl Libre, serif" }}>
-        הקישור אינו תקין
-      </p>
-      <p className="text-sm" style={{ color: theme.mutedColor, fontFamily: "Heebo, sans-serif" }}>
-        בדקו שהקישור שלם ונסו שוב, או פנו אלינו ישירות.
-      </p>
-    </div>
+    </>
   );
 }

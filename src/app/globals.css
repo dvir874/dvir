@@ -5,10 +5,35 @@
 @tailwind utilities;
 
 :root {
+  /* Legacy tokens — kept for backward compatibility with non-RSVP pages */
   --cream: #F6F1E8;
   --olive: #6B7B5A;
   --gold: #C5A46D;
   --dark: #333333;
+
+  /* SYS-02 Design token system — use these in all new components */
+  --color-ivory:          #FDFAF5;
+  --color-cream:          #F6F1E8;
+  --color-gold:           #C5A46D;
+  --color-gold-text:      #8B6914;
+  --color-dark:           #1C1008;
+  --color-muted:          #8C7B6E;
+  --color-olive:          #6B7B5A;
+  --color-border-default: #E8E0D4;
+  --color-border-strong:  #C5A46D;
+  --color-focus-ring:     #8B6914;
+  --color-overlay:        rgba(28,16,8,0.6);
+  --color-status-confirmed:  #4A7C59;
+  --color-status-pending:    #8B6914;
+  --color-status-declined:   #8C7B6E;
+  --color-status-urgent:     #B85C38;
+
+  /* Shadow tokens */
+  --shadow-card:       0 2px 8px rgba(28,16,8,0.06);
+  --shadow-card-hover: 0 4px 12px rgba(197,164,109,0.2);
+  --shadow-featured:   0 4px 16px rgba(197,164,109,0.35);
+  --shadow-modal:      0 8px 32px rgba(28,16,8,0.16);
+  --shadow-cta:        0 4px 12px rgba(197,164,109,0.4);
 }
 
 * {
@@ -275,14 +300,12 @@ body.modal-open {
   }
 }
 
-/* Focus-visible ring for accessibility */
-button:focus-visible,
-a:focus-visible {
-  outline: 2px solid rgba(197,164,109,0.7);
-  outline-offset: 3px;
+/* Focus-visible ring — WCAG 2.1 SC 1.4.11 compliant */
+:focus-visible {
+  outline: 2px solid var(--color-focus-ring); /* #8B6914 — 4.7:1 on ivory */
+  outline-offset: 2px;
   border-radius: 4px;
 }
-button:focus:not(:focus-visible),
-a:focus:not(:focus-visible) {
+:focus:not(:focus-visible) {
   outline: none;
 }
