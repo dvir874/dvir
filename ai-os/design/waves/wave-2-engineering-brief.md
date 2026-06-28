@@ -1,7 +1,7 @@
 # Wave 2 Engineering Brief — Guest Memory & Post-Event Experiences
 ## רגע לפני | Awaiting CEO Authorization | 2026-06-28
 
-**Status:** ⏸ PENDING CEO APPROVAL — Do not begin implementation.  
+**Status:** ✅ COMPLETE — Commit `fb7436f` on main → deployed.  
 **Scope:** E2-S6 through E2-S10 (5 screens from E2-SCREENS.md)  
 **Prerequisite:** Wave 1 (`6f146de`) merged and deployed.
 

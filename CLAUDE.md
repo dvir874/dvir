@@ -115,9 +115,33 @@ Anything that changes UX flow for an existing couple → Feature Flag first.
 
 ---
 
-## 🎨 Stitch Design First — Permanent Policy
+## 🏗️ EXECUTION MODE — ACTIVE (AI Company OS v1.0 Frozen)
 
-**Every significant frontend feature requires Stitch approval before any code is written.**
+**Primary KPI: product progress. Build. Ship. Learn. Repeat.**
+
+The AI Company OS is in Governance Freeze. No new governance documents, frameworks, boards, or policies unless a real implementation problem exposes a missing capability and existing documents cannot solve it.
+
+**Design state:** Pending Design Freeze (Product Design Validation score must reach ≥ 9.5).
+- 2 P0 issues in OIE Registry: RSVP tablet layout + RSVP copy friction
+- 6 P1 issues: touch targets, WhatsApp back nav, nav consistency, design system audit, guest import clarity, "צד" label
+- Resolve these via spec corrections + targeted Stitch iterations, then re-validate
+
+**Implementation source of truth (priority order):**
+1. Spec Pack (`ai-os/design/specs/`) — binding
+2. Approved Stitch screen — visual reference
+3. CLAUDE.md — engineering rules
+
+**Design decisions that have NOT been resolved by spec take precedence over Stitch visuals.**
+
+---
+
+## 🎨 Stitch Design Authority — SUPREME DESIGN LAW
+
+**Stitch הוא Lead Product Designer. Claude הוא Lead Engineer. לעולם לא להיפך.**
+
+**CLAUDE CANNOT INVENT DESIGN.** No new Layout, Dashboard, Wizard, Screen, Navigation, Card, Form, Dialog, Empty State, Success State, Error State, or any meaningful visual component — unless it is based on an approved Stitch design.
+
+Full policy: `ai-os/governance/stitch-design-authority.md`
 
 ### 7-Step Workflow (no skipping)
 
@@ -137,11 +161,48 @@ Anything that changes UX flow for an existing couple → Feature Flag first.
 ### Stitch לא חובה
 Backend · Database · API · Supabase · Auth · Security · Business Logic · Bug Fixes · Refactoring · Performance · Infrastructure · תיקוני CSS קטנים · שינויי ריווח · שינויי צבע קטנים · תחזוקה שוטפת
 
+### Stitch Integration Protocol v2.0 (supersedes all prior design rules)
+
+**Journey First:** map the full User Journey before designing any single screen.
+**3 Directions:** every Wave gets Direction A (Luxury Editorial) + B (Modern Minimal) + C (Warm Romantic). CoS recommends, CEO chooses.
+**Design Pack:** all screens + all components + all 12 interaction states ready BEFORE any code.
+**Rationale:** every design decision must be explained. No arbitrary choices.
+Full protocol: `ai-os/governance/stitch-integration-v2.md`
+
+### Stitch-First Execution + Design Intelligence — Mandatory Wave Workflow
+
+```
+Research → Experience Pack → Design Pack →
+Stitch Design → Design Review → Design Decision Log →
+Design Memory Update → Design Library Update →
+Experience Intelligence Report → CEO Approval →
+Implementation Plan → Implementation → QA → Release
+```
+
+**Cannot skip. Cannot reorder. Cannot begin Implementation without all knowledge steps complete.**
+
+Full protocol: `ai-os/governance/design-intelligence-protocol.md`
+
+### Design Intelligence Gate (mandatory before implementation)
+
+```
+✓ Design Review completed (16 criteria, 7 lenses)
+✓ Design Decision Log created → ai-os/design/decisions/
+✓ Design Memory updated → ai-os/design/memory/design-memory.md
+✓ Design Library updated → ai-os/design/library/
+✓ Experience Intelligence report → ai-os/design/intelligence/
+✓ CEO approved the design
+```
+
+All 6 must be ✓ before Implementation Plan is written.
+
 ### אם Stitch אינו זמין
-**אסור להמציא עיצוב גנרי.** במקום זאת:
-1. עצור ותאר מה צריך
-2. הכן Prompt מקצועי ל-Stitch הכולל: מטרת המסך · קהל יעד · פונקציות · מבנה · User Flow · Design Requirements · Mobile First · RTL · צבעי מותג · קומפוננטות · מצבי Empty/Loading/Success/Error · Accessibility
-3. המתן לעיצוב מאושר, ואז ממש pixel-accurately
+1. הכן Prompt מקצועי ל-Stitch (20 פרמטרים — ראה `ai-os/governance/stitch-design-authority.md`)
+2. **עצור את ה-Workflow לחלוטין**
+3. המתן שה-CEO יחזיר תוצאת Stitch
+4. המשך מ-Design Review באופן אוטומטי
+
+**אסור להמציא עיצוב. אסור להמשיך בלי עיצוב מאושר.**
 
 ### Design Language
 Premium · Modern · Elegant · Minimal · Mobile First · RTL מלא · White Space · כפתורים גדולים · Cards מודרניים · טיפוגרפיה עקבית · צבעי מותג בלבד · אנימציות עדינות · תחושת יוקרה
@@ -167,6 +228,24 @@ Premium · Modern · Elegant · Minimal · Mobile First · RTL מלא · White S
 - Premium + Minimal — לא עמוס, לא צבעוני
 
 **Admin area** = Desktop First (טבלאות, גרפים, ריבוי מידע מותר).
+
+---
+
+## 🔒 Time Capsule Security Rule (Permanent)
+
+The time capsule locked page must NEVER expose blessing content in the HTML source, even blurred.
+
+**Required implementation:**
+- `/api/time-capsule/[token]` — when locked: return ONLY `sender_name`, `created_at`, `id`. NEVER return `blessing_text`.
+- Locked page renders placeholder characters (e.g. `"א".repeat(n)`) in the blurred preview, NOT actual content.
+- A user inspecting `document.querySelector('.blessing-content').textContent` must see gibberish, not actual blessings.
+- This is a security requirement, not a visual one. DEC-010.
+
+**Required WhatsApp template enforcement:**
+- ALL WhatsApp message templates must begin with `💍 משפחה וחברים יקרים!`
+- `/api/admin/message-queue` POST rejects (HTTP 400) any message_text missing this prefix
+- PhoneMockup component auto-prepends prefix if missing and logs a console warning
+- DEC-007.
 
 ---
 
