@@ -11,6 +11,7 @@ import type { WeddingScore, SmartAlert } from "@/lib/wedding-score";
 import ChatWidget from "@/components/ChatWidget";
 import HelpButton from "@/components/HelpButton";
 import WeddingHealthCard from "@/components/WeddingHealthCard";
+import CoupleBottomNav from "@/components/CoupleBottomNav";
 
 // F7 — 50 daily quotes, deterministic by day (not random)
 const INSPIRATION_QUOTES = [
@@ -814,6 +815,100 @@ function useConfetti() {
   }, []);
 }
 
+// ── E3-S6: Circular Progress Arc ─────────────────────────────────────────────
+function CircularProgressArc({ value, label }: { value: number; label: string }) {
+  const r     = 52;
+  const circ  = 2 * Math.PI * r;
+  const arc   = circ * 0.75;
+  const filled = (Math.min(value, 100) / 100) * arc;
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", padding:"20px 0 24px", position:"relative" }}>
+      <svg width="140" height="140" viewBox="0 0 140 140" aria-label={`${label}: ${value}%`} style={{ transform:"rotate(135deg)" }}>
+        <circle cx="70" cy="70" r={r} fill="none" stroke="rgba(197,164,109,0.14)" strokeWidth="8" strokeLinecap="round"
+          strokeDasharray={`${arc} ${circ - arc}`}/>
+        <circle cx="70" cy="70" r={r} fill="none" stroke="#C5A46D" strokeWidth="8" strokeLinecap="round"
+          strokeDasharray={`${filled} ${circ - filled}`} style={{ transition:"stroke-dasharray .8s ease" }}/>
+      </svg>
+      <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-46%)", textAlign:"center" }}>
+        <p style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"28px", fontWeight:900, color:"#8B6914", margin:0, lineHeight:1 }}>{value}%</p>
+        <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"13px", fontWeight:300, color:"#8C7B6E", margin:0 }}>{label}</p>
+      </div>
+    </div>
+  );
+}
+
+// ── E3-S7: Quick Action Card ──────────────────────────────────────────────────
+function QuickCard({ emoji, value, label, caption, href, rawValue }: {
+  emoji:string; value:number|string; label:string; caption:string; href:string; rawValue?:boolean;
+}) {
+  const display = rawValue ? String(value) : typeof value === "number" ? value.toLocaleString("he-IL") : value;
+  return (
+    <a href={href} style={{ textDecoration:"none" }}>
+      <div style={{ background:"#F6F1E8", borderRadius:"16px", border:"1px solid #E8E0D4", padding:"16px 14px 14px", display:"flex", flexDirection:"column", gap:"2px", minHeight:"88px" }}>
+        <span style={{ fontSize:"22px", alignSelf:"flex-end" }}>{emoji}</span>
+        <p style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"28px", fontWeight:700, color:"#1C1008", margin:0, lineHeight:1 }}>{display}</p>
+        <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"13px", fontWeight:300, color:"#8C7B6E", margin:0 }}>{label}</p>
+        <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"11px", fontWeight:600, color:"#C5A46D", margin:"4px 0 0", letterSpacing:".03em" }}>{caption} ←</p>
+      </div>
+    </a>
+  );
+}
+
+// ── E3-S7: Smart Alert Strip (max 1 alert, highest urgency first) ─────────────
+function SmartAlertStrip({ stats, seating, daysLeft, token }: { stats:Stats; seating:Seating; daysLeft:number; token:string }) {
+  const unseated = Math.max(0, stats.attendees - seating.assignedSeats);
+  let text: string | null = null;
+  let href = `/couple/${token}/seating`;
+  if (unseated > 0 && daysLeft < 30)         { text = `${unseated} אורחים לא שובצו — ${daysLeft} ימים נותרו`; href = `/couple/${token}/seating`; }
+  else if (stats.pending > 0 && daysLeft < 14){ text = `עדיין ממתינים ל-${stats.pending} אישורים`; href = `/couple/${token}/guests`; }
+  else if (stats.total === 0)                  { text = "הוסיפו את האורחים הראשונים שלכם"; href = `/couple/${token}/guests`; }
+  if (!text) return null;
+  return (
+    <a href={href} style={{ textDecoration:"none" }}>
+      <div style={{ background:"rgba(197,164,109,0.08)", borderRadius:"12px", border:"1px solid rgba(197,164,109,0.25)", padding:"12px 16px", marginBottom:"12px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"14px", fontWeight:400, color:"#1C1008", margin:0 }}>{text}</p>
+        <span style={{ color:"#C5A46D", fontFamily:"Heebo,sans-serif", fontSize:"16px", flexShrink:0 }}>←</span>
+      </div>
+    </a>
+  );
+}
+
+// ── E3-S7: Milestone Cards ────────────────────────────────────────────────────
+const MILESTONE_CTA: Record<string,string> = {
+  venue:"קבעו מועד ביקור", payment:"שלמו מקדמה", vendor:"אשרו חוזה",
+  decoration:"אשרו פרטים", catering:"סגרו תפריט",
+};
+
+function MilestoneCard({ task, token }: { task:WeddingTask; token:string }) {
+  const isUrgent = task.due_date && (new Date(task.due_date).getTime() - Date.now()) < 14 * 86_400_000;
+  const cta = MILESTONE_CTA[task.category] ?? "המשיכו ←";
+  const dueLabel = task.due_date ? new Date(task.due_date).toLocaleDateString("he-IL",{ day:"numeric", month:"short" }) : null;
+  return (
+    <a href={`/couple/${token}/checklist`} style={{ textDecoration:"none" }}>
+      <div style={{ background:"#F6F1E8", borderRadius:"12px", padding:"12px 14px", border:`1px solid ${isUrgent ? "#C5A46D" : "#E8E0D4"}`, borderRightWidth: isUrgent ? "3px" : "1px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <div>
+          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"14px", fontWeight:600, color:"#1C1008", margin:"0 0 2px" }}>{task.title}</p>
+          {dueLabel && <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"12px", fontWeight:300, color:"#8C7B6E", margin:0 }}>{dueLabel}</p>}
+        </div>
+        <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"13px", fontWeight:600, color:"#C5A46D", margin:0, flexShrink:0, paddingRight:"8px" }}>{cta}</p>
+      </div>
+    </a>
+  );
+}
+
+function MilestoneList({ tasks, token }: { tasks:WeddingTask[]; token:string }) {
+  const upcoming = tasks.filter(t => !t.completed && t.due_date)
+    .sort((a,b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime())
+    .slice(0,3);
+  const shown = upcoming.length > 0 ? upcoming : tasks.filter(t => !t.completed).slice(0,3);
+  if (shown.length === 0) return null;
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:"8px", marginBottom:"16px" }}>
+      {shown.map(t => <MilestoneCard key={t.id} task={t} token={token} />)}
+    </div>
+  );
+}
+
 export default function CoupleDashboard({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
   const router    = useRouter();
@@ -1011,640 +1106,81 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
   const urgents    = alerts.filter(a => a.severity === "urgent");
   const others     = alerts.filter(a => a.severity !== "urgent");
 
+  const CSS_DASH = `
+    @import url('https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;700;900&family=Heebo:wght@300;400;500;600&display=swap');
+    @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes dotPulse{0%,80%,100%{transform:scale(.6);opacity:.35}40%{transform:scale(1);opacity:1}}
+    @keyframes slideCard{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+    .loading-dot{width:10px;height:10px;border-radius:50%;background:#C5A46D;animation:dotPulse 1.2s ease-in-out infinite}
+    .loading-dot:nth-child(2){animation-delay:.2s}
+    .loading-dot:nth-child(3){animation-delay:.4s}
+  `;
+
   return (
-    <div dir="rtl" style={{ minHeight: "100vh", background: theme.bgPage, fontFamily: "Heebo, sans-serif", color: C.dark }}>
+    <div dir="rtl" style={{ minHeight:"100dvh", background:"#FDFAF5", fontFamily:"Heebo,sans-serif", paddingBottom:"80px" }}>
+      <style>{CSS_DASH}</style>
 
-      {/* ── Splash + effects ── */}
+      {/* Splash + RSVP toast */}
       {data && <SplashScreen name={event.name} />}
-
-      {/* Live RSVP toast */}
       {rsvpToast && (
-        <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: C.olive, color: "white", padding: "0.65rem 1.5rem", borderRadius: 30, fontSize: 14, fontFamily: "Heebo, sans-serif", fontWeight: 600, boxShadow: "0 4px 20px rgba(107,123,90,0.4)", animation: "slideCard 0.3s ease", whiteSpace: "nowrap" }}>
+        <div style={{ position:"fixed", top:20, left:"50%", transform:"translateX(-50%)", zIndex:9999, background:C.olive, color:"white", padding:"0.65rem 1.5rem", borderRadius:30, fontSize:14, fontFamily:"Heebo,sans-serif", fontWeight:600, boxShadow:"0 4px 20px rgba(107,123,90,0.4)", animation:"slideCard .3s ease", whiteSpace:"nowrap" }}>
           {rsvpToast}
         </div>
       )}
 
-      {/* Header */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;700;900&family=Heebo:wght@300;400;500;600&display=swap');
-        @keyframes coupleFloat   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
-        @keyframes coupleGlow    { 0%,100%{opacity:0.5} 50%{opacity:1} }
-        @keyframes slideCard     { from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes goldShimmer   { 0%{background-position:-300% center} 100%{background-position:300% center} }
-        @keyframes fadeIn        { from{opacity:0} to{opacity:1} }
-        .couple-card { animation: slideCard 0.55s cubic-bezier(0.22,1,0.36,1) both; }
-        .couple-card:nth-child(2){animation-delay:0.07s}
-        .couple-card:nth-child(3){animation-delay:0.14s}
-        .couple-card:nth-child(4){animation-delay:0.21s}
-        .couple-card:nth-child(5){animation-delay:0.28s}
-        .gold-shimmer-text {
-          background: linear-gradient(90deg, #C5A46D 0%, #E8D5A8 40%, #C5A46D 60%, #9B7A42 100%);
-          background-size: 300% auto;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: goldShimmer 4s linear infinite;
-        }
-        @media print {
-          .no-print { display: none !important; }
-          body { background: white !important; }
-          * { box-shadow: none !important; animation: none !important; }
-        }
-      `}</style>
+      {/* ── E3-S6: Header bar ── */}
+      <header style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", position:"sticky", top:0, background:"rgba(253,250,245,0.96)", zIndex:10, backdropFilter:"blur(8px)", borderBottom:"1px solid rgba(197,164,109,0.15)" }}>
+        <p style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"18px", fontWeight:700, color:C.gold, margin:0, letterSpacing:".05em" }}>רגע לפני</p>
+        <button style={{ background:"none", border:"none", cursor:"pointer", padding:"8px", display:"flex", flexDirection:"column", gap:"5px" }} aria-label="תפריט">
+          <div style={{ width:20, height:1.5, background:C.dark, borderRadius:1 }}/>
+          <div style={{ width:14, height:1.5, background:C.dark, borderRadius:1 }}/>
+          <div style={{ width:20, height:1.5, background:C.dark, borderRadius:1 }}/>
+        </button>
+      </header>
 
-      {/* ═══ LUXURY HERO HEADER ═══ */}
-      <div style={{
-        background: "linear-gradient(170deg, #100A04 0%, #1C1008 40%, #0A0604 100%)",
-        padding: "3rem 1.5rem 0",
-        position: "relative",
-        overflow: "hidden",
-      }}>
-        {/* Gold particles canvas */}
-        <GoldParticles />
-        {/* Radial gold glow top-center */}
-        <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 70% 50% at 50% -10%, rgba(197,164,109,0.22) 0%, transparent 70%)", pointerEvents:"none" }} />
-        {/* Grain texture overlay */}
-        <div style={{ position:"absolute", inset:0, opacity:0.035, backgroundImage:"url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")", backgroundSize:"200px", pointerEvents:"none" }} />
-        {/* Floating rings */}
-        <div style={{ position:"absolute", width:400, height:400, borderRadius:"50%", border:"1px solid rgba(197,164,109,0.07)", top:-160, right:-120, animation:"coupleFloat 10s ease-in-out infinite", pointerEvents:"none" }} />
-        <div style={{ position:"absolute", width:250, height:250, borderRadius:"50%", border:"1px solid rgba(197,164,109,0.05)", bottom:-80, left:-80, animation:"coupleFloat 7s ease-in-out infinite 2s", pointerEvents:"none" }} />
-
-        <div style={{ maxWidth: 640, margin: "0 auto", position: "relative", textAlign: "center" }}>
-
-          {/* Brand name */}
-          <p style={{ fontSize: 10, letterSpacing: "0.45em", color: "rgba(197,164,109,0.85)", fontFamily: "Heebo, sans-serif", fontWeight: 400, marginBottom: "1.25rem", textTransform: "uppercase" }}>
-            ✦ &nbsp; ר ג ע &nbsp; ל פ נ י &nbsp; ✦
+      {/* ── E3-S6: Greeting + Countdown ── */}
+      <section style={{ padding:"28px 20px 0", textAlign:"right", animation:"fadeUp .4s ease both" }}>
+        <p style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"32px", fontWeight:700, color:C.dark, margin:"0 0 20px" }}>
+          שלום {event.name}
+        </p>
+        <div aria-label={`${daysLeft} ימים עד ליום החתונה`}>
+          <p role="timer" style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"80px", fontWeight:900, color:"#8B6914", lineHeight:1, margin:"0 0 4px" }}>
+            {daysLeft}
           </p>
-
-          {/* Wedding rings */}
-          <WeddingRings />
-
-          {/* Ornamental top divider */}
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"0.75rem", marginBottom:"1.5rem" }}>
-            <div style={{ flex:1, height:1, background:"linear-gradient(90deg, transparent, rgba(197,164,109,0.55))" }} />
-            <span style={{ fontSize:12, color:"rgba(197,164,109,0.85)", letterSpacing:"0.15em" }}>✦</span>
-            <div style={{ flex:1, height:1, background:"linear-gradient(90deg, rgba(197,164,109,0.55), transparent)" }} />
-          </div>
-
-          {/* Time greeting — small & elegant */}
-          <p style={{ fontSize: 13, letterSpacing: "0.18em", color: "rgba(232,213,168,0.80)", fontFamily: "Heebo, sans-serif", fontWeight: 300, marginBottom: "0.6rem" }}>
-            {briefing?.phaseLabel ?? theme.label}
-          </p>
-
-          {/* Event name — the hero */}
-          <h1 className="gold-shimmer-text" style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(2.4rem,8vw,3.4rem)", fontWeight: 900, lineHeight: 1.1, letterSpacing: "-0.02em", marginBottom: "0.5rem" }}>
-            {briefing?.greeting ?? event.name}
-          </h1>
-
-          {/* Event date — formatted elegantly */}
-          <p style={{ fontSize: 13, color: "rgba(232,213,168,0.72)", fontFamily: "Heebo, sans-serif", fontWeight: 300, letterSpacing: "0.08em", marginBottom: "1.5rem" }}>
-            {new Date(event.date).toLocaleDateString("he-IL", { weekday:"long", day:"numeric", month:"long", year:"numeric" })}
-          </p>
-
-          {/* Quote */}
-          <p style={{ fontSize: 13, fontStyle: "italic", color: "rgba(255,240,200,0.58)", marginBottom: "2rem", lineHeight: 1.75, maxWidth: 340, margin: "0 auto 2rem", fontFamily: "Frank Ruhl Libre, serif", fontWeight: 400 }}>
-            &ldquo;{quote}&rdquo;
-          </p>
-
-          {/* Key stats pills */}
-          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center", marginBottom: "2.5rem" }}>
-            {(briefing?.keyFacts ?? [
-              `${stats.confirmed + stats.declined}/${stats.total} ענו`,
-              `${tasks.filter(t => t.completed).length}/${tasks.length} משימות`,
-              `${daysLeft} ימים`,
-            ]).map((fact, i) => (
-              <div key={i} style={{
-                padding: "0.35rem 1rem", borderRadius: 20,
-                background: "rgba(197,164,109,0.08)",
-                border: "1px solid rgba(197,164,109,0.22)",
-                backdropFilter: "blur(10px)",
-                fontSize: 12, color: "rgba(255,240,200,0.75)", fontFamily: "Heebo, sans-serif", fontWeight: 400, letterSpacing: "0.03em",
-              }}>
-                {fact}
-              </div>
-            ))}
-          </div>
-
-          {/* Countdown embedded in hero */}
-          <div style={{ background: "rgba(197,164,109,0.05)", borderTop: "1px solid rgba(197,164,109,0.12)", margin: "0 -1.5rem", padding: "1.5rem 1.5rem 2rem" }}>
-            <p style={{ textAlign: "center", fontSize: 9, letterSpacing: "0.35em", textTransform: "uppercase", color: "rgba(197,164,109,0.45)", marginBottom: "1rem", fontFamily: "Heebo, sans-serif" }}>
-              ס פ י ר ה &nbsp; ל א ח ו ר
-            </p>
-            <CountdownInline targetDate={event.date} />
-          </div>
+          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"20px", fontWeight:300, color:C.muted, margin:"0 0 4px" }}>ימים</p>
+          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"16px", fontWeight:300, color:C.muted, margin:0 }}>עד היום הגדול 💍</p>
         </div>
-      </div>
+      </section>
 
+      {/* ── E3-S6: Circular Progress Arc — readiness meter ── */}
+      <CircularProgressArc value={briefing?.readinessPct ?? 0} label="מוכנות" />
 
-      <div style={{ maxWidth: 640, margin: "0 auto", padding: "1.5rem 1rem 6rem" }}>
-
-        {/* Personal Wedding Assistant */}
-        {briefing && (
-          <div style={{ background: `linear-gradient(135deg, ${C.dark} 0%, #2C1F0E 100%)`, borderRadius: "1.5rem", padding: "1.25rem 1.5rem", marginBottom: "1.25rem", position: "relative", overflow: "hidden" }}>
-            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at top right, rgba(197,164,109,0.15) 0%, transparent 60%)", pointerEvents: "none" }} />
-            <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", position: "relative" }}>
-              <div style={{ fontSize: 32, flexShrink: 0 }}>✨</div>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: 10, letterSpacing: "0.3em", color: "rgba(197,164,109,0.6)", fontFamily: "Heebo, sans-serif", marginBottom: 4 }}>מסע החתונה שלכם</p>
-                <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 17, fontWeight: 700, color: "#FDFAF5", lineHeight: 1.35, marginBottom: "0.75rem" }}>
-                  {briefing.daysUntilEvent > 0
-                    ? `${briefing.daysUntilEvent} ימים עד לרגע`
-                    : briefing.daysUntilEvent === 0 ? "היום זה הרגע! 🎊" : "המסע נמשך 💛"}
-                </p>
-                {/* Progress bar */}
-                <div style={{ marginBottom: "0.75rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(197,164,109,0.65)", marginBottom: 4 }}>
-                    <span>התקדמות כללית</span>
-                    <span style={{ fontWeight: 700 }}>
-                      {Math.round(((stats.confirmed + stats.declined) / Math.max(stats.total, 1)) * 100)}% ענו
-                    </span>
-                  </div>
-                  <div style={{ height: 5, background: "rgba(197,164,109,0.15)", borderRadius: 3, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${Math.round(((stats.confirmed + stats.declined) / Math.max(stats.total, 1)) * 100)}%`, background: "linear-gradient(90deg, #C5A46D, #E8D5A8)", borderRadius: 3, transition: "width 0.8s" }} />
-                  </div>
-                </div>
-                {/* Quick links to new pages */}
-                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                  {[
-                    { href: `/couple/${token}/guests`, label: "👥 מוזמנים" },
-                    { href: `/couple/${token}/vendors`, label: "🤝 ספקים" },
-                    { href: `/couple/${token}/checklist`, label: "📋 צ'קליסט" },
-                    { href: `/couple/${token}/gifts`, label: "🎁 מתנות" },
-                    { href: `/couple/${token}/print`, label: "🖨️ הדפסה" },
-                    { href: `/couple/${token}/requests`, label: "📬 בקשות" },
-                  ].map(link => (
-                    <a key={link.href} href={link.href}
-                      style={{ padding: "5px 12px", borderRadius: 10, background: "rgba(197,164,109,0.15)", border: "1px solid rgba(197,164,109,0.25)", color: "rgba(197,164,109,0.9)", fontSize: 12, fontFamily: "Heebo, sans-serif", fontWeight: 600, textDecoration: "none", display: "inline-block" }}>
-                      {link.label}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ❤️ Wedding Health Score */}
-        {briefing?.score && (briefing.readinessPct ?? 0) >= 0 && (
-          <WeddingHealthCard
-            score={briefing.score}
-            readiness={briefing.readinessPct ?? 0}
-            token={token}
-            daysLeft={daysLeft}
-          />
-        )}
-
-        {/* F8 — Daily tip (shown below health card) */}
-        {briefing && daysLeft > 0 && (
-          <p style={{ fontSize: 12, color: C.gold, marginBottom: "0.75rem", fontStyle: "italic", paddingRight: "0.25rem" }}>
-            {getDailyTip(daysLeft)}
-          </p>
-        )}
-
-        {/* F3 Updates Center */}
-        {briefing && data && (
-          <UpdatesCenter briefing={briefing} stats={stats} seating={{ assignedSeats: seating.assignedSeats }} />
-        )}
-
-        {/* Urgent alerts — read-only, no actions for couple */}
-        {urgents.filter(a => a.key !== "rsvp_low" && a.key !== "rsvp_pending").length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.25rem" }}>
-            {urgents.filter(a => a.key !== "rsvp_low" && a.key !== "rsvp_pending").map((a, i) => {
-              const cfg    = ALERT_CONFIG.urgent;
-              return (
-                <div key={i} style={{ padding: "0.875rem 1rem", borderRadius: 12, background: cfg.bg, border: `1px solid ${cfg.border}` }}>
-                  <div style={{ display: "flex", gap: "0.75rem" }}>
-                    <span style={{ fontSize: 18 }}>{cfg.icon}</span>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontWeight: 600, fontSize: 13, color: cfg.text, marginBottom: 2 }}>{a.title}</p>
-                      <p style={{ fontSize: 12, color: C.muted }}>{a.body}</p>
-                    </div>
-                  </div>
-                  {false && (
-                    <button
-                      disabled
-                      style={{
-                        marginTop: "0.6rem", width: "100%", padding: "0.5rem 1rem",
-                        borderRadius: 8, border: "none", cursor: "default",
-                        background: "transparent", color: "transparent",
-                        fontSize: 12, fontWeight: 600, fontFamily: "Heebo, sans-serif",
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                      }}
-                    >
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Wedding Success Score */}
-        {score && (
-          <div style={{ background: C.ivory, borderRadius: "1.5rem", border: `1px solid ${C.border}`, marginBottom: "1rem", overflow: "hidden" }}>
-            <button onClick={() => setShowScore(!showScore)}
-              style={{ width: "100%", padding: "1.25rem 1.5rem", display: "flex", alignItems: "center", gap: "1rem", background: "transparent", border: "none", cursor: "pointer", textAlign: "right" }}>
-              <ScoreGauge score={score.total} color={score.tierColor} />
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-                  <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, color: C.dark }}>ציון מוכנות</p>
-                  <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: `${score.tierColor}18`, color: score.tierColor }}>
-                    {score.tierLabel}
-                  </span>
-                </div>
-                {score.deltaLabel && (
-                  <p style={{ fontSize: 11, color: (score.delta ?? 0) > 0 ? C.olive : (score.delta ?? 0) < 0 ? "#C0392B" : C.muted, marginBottom: 4 }}>
-                    {(score.delta ?? 0) > 0 ? "↑" : (score.delta ?? 0) < 0 ? "↓" : "→"} {score.deltaLabel}
-                  </p>
-                )}
-                <p style={{ fontSize: 12, color: C.muted, lineHeight: 1.4 }}>{score.headline}</p>
-              </div>
-              {showScore ? <ChevronUp size={18} style={{ color: C.muted, flexShrink: 0 }} /> : <ChevronDown size={18} style={{ color: C.muted, flexShrink: 0 }} />}
-            </button>
-            {showScore && (
-              <div style={{ padding: "0 1.5rem 1.25rem", borderTop: `1px solid ${C.border}` }}>
-                <div style={{ paddingTop: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                  {score.components.map((c) => (
-                    <div key={c.key}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                        <span style={{ fontSize: 13, color: C.dark }}>{c.label}</span>
-                        <span style={{ fontSize: 12, color: C.muted }}>{c.points}/{c.max}</span>
-                      </div>
-                      <div style={{ height: 6, borderRadius: 3, background: "rgba(197,164,109,0.12)", overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${c.pct}%`, borderRadius: 3, background: c.pct >= 75 ? C.olive : c.pct >= 40 ? C.gold : "#C0392B", transition: "width 0.8s ease" }} />
-                      </div>
-                      <p style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{c.explanation}</p>
-                      {c.tip && <p style={{ fontSize: 11, color: C.gold, marginTop: 1 }}>→ {c.tip}</p>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* AI Recommendations */}
-        {others.length > 0 && (
-          <div style={{ marginBottom: "1rem" }}>
-            <button onClick={() => setShowAlerts(!showAlerts)}
-              style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontFamily: "Heebo, sans-serif", fontSize: 13, color: C.muted, padding: "0.25rem 0", marginBottom: "0.5rem" }}>
-              <Sparkles size={13} />המלצות
-              {showAlerts ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-            </button>
-            {showAlerts && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                {others.map((a, i) => {
-                  const cfg = ALERT_CONFIG[a.severity] ?? ALERT_CONFIG.info;
-                  return (
-                    <div key={i} style={{ padding: "0.75rem 1rem", borderRadius: 12, background: cfg.bg, border: `1px solid ${cfg.border}`, display: "flex", gap: "0.65rem" }}>
-                      <span style={{ fontSize: 15 }}>{cfg.icon}</span>
-                      <div>
-                        <p style={{ fontWeight: 600, fontSize: 12, color: cfg.text, marginBottom: 1 }}>{a.title}</p>
-                        <p style={{ fontSize: 11, color: C.muted }}>{a.body}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* RSVP */}
-        <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "1rem" }}>
-            <Users size={16} style={{ color: C.gold }} />
-            <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, margin: 0 }}>אישורי הגעה</h2>
-            <span style={{ marginRight: "auto", fontSize: 12, color: C.muted }}>{stats.responseRate}% ענו</span>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", marginBottom: "0.875rem" }}>
-            {[
-              { icon: CheckCircle, count: stats.confirmed, label: "מגיעים",    color: C.olive },
-              { icon: Clock,       count: stats.pending,   label: "ממתינים",   color: C.gold },
-              { icon: XCircle,     count: stats.declined,  label: "לא מגיעים", color: "#C0392B" },
-            ].map(({ icon: Icon, count, label, color }) => (
-              <div key={label} style={{ textAlign: "center", padding: "0.75rem 0.5rem", borderRadius: 12, background: `${color}08`, border: `1px solid ${color}25` }}>
-                <Icon size={18} style={{ color, margin: "0 auto 4px" }} />
-                <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.4rem", fontWeight: 700, color, lineHeight: 1 }}>{count}</p>
-                <p style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{label}</p>
-              </div>
-            ))}
-          </div>
-          <div style={{ height: 6, borderRadius: 3, background: "rgba(197,164,109,0.12)", overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${stats.responseRate}%`, borderRadius: 3, background: `linear-gradient(90deg, ${C.olive}, ${C.gold})`, transition: "width 0.8s" }} />
-          </div>
-          {stats.attendees > 0 && <p style={{ fontSize: 12, color: C.muted, marginTop: "0.5rem", textAlign: "center" }}>{fmt(stats.attendees)} מגיעים</p>}
+      {/* ── E3-S7: 2×2 Quick Action Grid ── */}
+      <section style={{ padding:"0 16px", animation:"fadeUp .4s ease .1s both" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"16px" }}>
+          <QuickCard emoji="👥" value={stats.confirmed} label="מגיעים"       caption="אורחים" href={`/couple/${token}/guests`} />
+          <QuickCard emoji="🪑" value={seating.assignedSeats} label="שובצו" caption="הושבה"  href={`/couple/${token}/seating`} />
+          <QuickCard emoji="📋" value={tasks.filter(t => !t.completed).length} label="משימות נותרו" caption="צ׳קליסט" href={`/couple/${token}/checklist`} />
+          <QuickCard emoji="💰" value={budget.remaining > 0 ? `₪${Math.round(budget.remaining / 1000)}K` : "₪0"} label="נותרו" caption="תקציב" href={`/couple/${token}/gifts`} rawValue />
         </div>
 
-        {/* Vendors */}
-        <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.875rem" }}>
-            <span style={{ fontSize: 16 }}>🏢</span>
-            <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, margin: 0 }}>ספקים</h2>
-            <span style={{ marginRight: "auto", fontSize: 12, color: C.muted }}>
-              {Object.values(vendors).filter(Boolean).length}/{VENDOR_CATEGORIES.length} אושרו
-            </span>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
-            {VENDOR_CATEGORIES.map((v) => {
-              const confirmed = !!vendors[v.key];
-              return (
-                <button key={v.key} onClick={() => toggleVendor(v.key)}
-                  style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.65rem 0.875rem", borderRadius: 10, textAlign: "right", border: `1.5px solid ${confirmed ? C.olive : C.border}`, background: confirmed ? "rgba(107,123,90,0.08)" : "transparent", cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
-                  <span style={{ fontSize: 16 }}>{v.emoji}</span>
-                  <span style={{ flex: 1, fontSize: 13, color: C.dark }}>{v.label}</span>
-                  {confirmed
-                    ? <CheckCircle size={14} style={{ color: C.olive, flexShrink: 0 }} />
-                    : <Clock size={14} style={{ color: "rgba(51,51,51,0.25)", flexShrink: 0 }} />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        {/* Smart Alert — max 1, highest urgency */}
+        <SmartAlertStrip stats={stats} seating={seating} daysLeft={daysLeft} token={token} />
 
-        {/* Tasks */}
-        <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.75rem" }}>
-            <ListChecks size={16} style={{ color: C.gold }} />
-            <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, margin: 0 }}>משימות</h2>
-            <span style={{ marginRight: "auto", fontSize: 12, color: C.muted }}>{taskPct}%</span>
-          </div>
-          <div style={{ height: 5, borderRadius: 3, background: "rgba(197,164,109,0.12)", overflow: "hidden", marginBottom: "0.875rem" }}>
-            <div style={{ height: "100%", width: `${taskPct}%`, borderRadius: 3, background: `linear-gradient(90deg, ${C.olive}, ${C.gold})` }} />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginBottom: "0.875rem", maxHeight: 260, overflowY: "auto" }}>
-            {tasks.map((task) => (
-              <div key={task.id} style={{ display: "flex", alignItems: "center", gap: "0.65rem", padding: "0.5rem 0", borderBottom: `1px solid rgba(197,164,109,0.1)` }}>
-                <button onClick={() => toggleTask(task)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}>
-                  {task.completed
-                    ? <CheckCircle size={18} style={{ color: C.olive }} />
-                    : <div style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid rgba(197,164,109,0.4)` }} />}
-                </button>
-                <span style={{ flex: 1, fontSize: 13, color: task.completed ? C.muted : C.dark, textDecoration: task.completed ? "line-through" : "none" }}>{task.title}</span>
-                <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(51,51,51,0.2)", padding: 2, flexShrink: 0 }}>
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: "0.5rem" }}>
-            <input value={newTask} onChange={(e) => setNewTask(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addTask()}
-              placeholder="הוסף משימה..." style={{ flex: 1, padding: "0.5rem 0.75rem", borderRadius: 8, border: `1px solid ${C.border}`, fontFamily: "Heebo, sans-serif", fontSize: 13, background: "transparent", outline: "none" }} />
-            <button onClick={addTask} disabled={saving || !newTask.trim()}
-              style={{ padding: "0.5rem 0.875rem", borderRadius: 8, border: "none", background: C.gold, color: "white", cursor: "pointer" }}>
-              <Plus size={16} />
-            </button>
-          </div>
-        </div>
+        {/* Milestone Cards */}
+        <MilestoneList tasks={tasks} token={token} />
 
-        {/* Blessing */}
-        <BlessingCard name={event.name} />
+        {/* Daily inspiration */}
+        <p style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"14px", fontWeight:400, color:C.muted, fontStyle:"italic", textAlign:"center", padding:"20px 8px 32px", lineHeight:1.7 }}>
+          &ldquo;{INSPIRATION_QUOTES[Math.floor(Date.now() / 86_400_000) % INSPIRATION_QUOTES.length]}&rdquo;
+        </p>
+      </section>
 
-        {/* Smart Recommendations */}
-        <SmartRecommendations tasks={tasks} daysLeft={daysLeft} onComplete={toggleTask} />
-
-        {/* #15 — 7-day countdown bell */}
-        {daysLeft <= 7 && daysLeft > 0 && (
-          <div style={{ background: "linear-gradient(135deg, #3D2B1F, #261810)", borderRadius: "1.25rem", padding: "1.25rem", marginBottom: "1rem", boxShadow: "0 4px 20px rgba(197,164,109,0.22)", border: "1px solid rgba(197,164,109,0.28)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 28, animation: "coupleFloat 1.5s ease-in-out infinite" }}>🔔</span>
-              <div>
-                <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.05rem", fontWeight: 700, color: "#FFF8EC", margin: 0 }}>
-                  {daysLeft === 1 ? "מחר זה הגדול! 🎊" : `עוד ${daysLeft} ימים לחתונה!`}
-                </p>
-                <p style={{ fontSize: 12, color: "rgba(197,164,109,0.85)", margin: "3px 0 0", fontFamily: "Heebo, sans-serif" }}>
-                  {daysLeft <= 3 ? "הכל מוכן? אתם מדהימים ✨" : "הגיע הזמן לסיים כל פריט אחרון ✓"}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* #16 — Admin announcements */}
-        {announcements.length > 0 && (
-          <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.875rem" }}>
-              <span style={{ fontSize: 16 }}>📢</span>
-              <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, margin: 0 }}>עדכונים ממנהל האירוע</h2>
-              <span style={{ marginRight: "auto", background: "rgba(197,164,109,0.15)", color: C.gold, borderRadius: 10, fontSize: 11, padding: "1px 8px" }}>{announcements.length}</span>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-              {announcements.map(a => (
-                <div key={a.id} style={{ padding: "0.75rem 1rem", borderRadius: 12, background: "rgba(197,164,109,0.07)", border: `1px solid ${C.border}` }}>
-                  <p style={{ fontSize: 13, color: C.dark, margin: 0, lineHeight: 1.55, fontFamily: "Heebo, sans-serif" }}>{a.message}</p>
-                  <p style={{ fontSize: 11, color: C.muted, margin: "4px 0 0", fontFamily: "Heebo, sans-serif" }}>
-                    {new Date(a.created_at).toLocaleDateString("he-IL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* #13 — Mini calendar */}
-        <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
-          <button onClick={() => setShowCalendar(c => !c)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", padding: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 16 }}>📅</span>
-              <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "0.95rem", fontWeight: 700, margin: 0, color: C.dark }}>לוח זמנים</h3>
-            </div>
-            <ChevronDown size={15} style={{ color: C.muted, transform: showCalendar ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
-          </button>
-          {showCalendar && (
-            <MiniCalendar tasks={tasks} eventDate={event.date} />
-          )}
-        </div>
-
-        {/* #14 — What's missing */}
-        <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 16 }}>🔍</span>
-              <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "0.95rem", fontWeight: 700, margin: 0, color: C.dark }}>מה עוד חסר?</h3>
-            </div>
-            <button
-              onClick={async () => {
-                if (missingOpen) { setMissingOpen(false); return; }
-                setMissingLoading(true);
-                const res = await fetch(`/api/couple/${token}/missing`);
-                const d = await res.json();
-                setMissingItems(d.missing ?? []);
-                setMissingOpen(true);
-                setMissingLoading(false);
-              }}
-              style={{ padding: "0.35rem 0.875rem", borderRadius: 20, border: `1px solid ${C.gold}`, background: "transparent", color: C.gold, cursor: "pointer", fontSize: 12, fontFamily: "Heebo, sans-serif", display: "flex", alignItems: "center", gap: 5 }}>
-              {missingLoading ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : null}
-              {missingOpen ? "סגור" : "סרוק"}
-            </button>
-          </div>
-          {missingOpen && (
-            <div style={{ marginTop: "0.875rem" }}>
-              {missingItems.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "0.75rem 0" }}>
-                  <span style={{ fontSize: 28 }}>🎉</span>
-                  <p style={{ fontSize: 13, color: C.olive, fontWeight: 600, margin: "6px 0 0", fontFamily: "Heebo, sans-serif" }}>הכל נראה מוכן! כל הכבוד</p>
-                </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                  {missingItems.map((item, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "0.6rem 0.875rem", borderRadius: 10,
-                      background: item.severity === "high" ? "rgba(192,57,43,0.06)" : item.severity === "medium" ? "rgba(197,164,109,0.08)" : "rgba(107,123,90,0.06)",
-                      border: `1px solid ${item.severity === "high" ? "rgba(192,57,43,0.2)" : item.severity === "medium" ? "rgba(197,164,109,0.25)" : "rgba(107,123,90,0.2)"}` }}>
-                      <span style={{ fontSize: 14 }}>{item.severity === "high" ? "🔴" : item.severity === "medium" ? "🟡" : "🟢"}</span>
-                      <p style={{ fontSize: 13, color: C.dark, margin: 0, fontFamily: "Heebo, sans-serif" }}>{item.label}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* RSVP Visual Counter */}
-        <RsvpCounter stats={stats} />
-
-        {/* Budget Tracker */}
-        <BudgetTracker token={token} />
-
-        {/* Gifts Tracker */}
-        <GiftsTracker token={token} />
-
-        {/* Vendor Book */}
-        <VendorBook token={token} />
-
-        {/* Gallery link — #20 enhanced */}
-        <a href={`/gallery/${token}`} style={{ textDecoration: "none", display: "block", marginBottom: "0.875rem" }}>
-          <div style={{ background: "linear-gradient(135deg, rgba(197,164,109,0.12), rgba(197,164,109,0.04))", borderRadius: "1.25rem", border: `1.5px solid rgba(197,164,109,0.30)`, padding: "1.25rem", boxShadow: C.shadow, display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 14, background: "linear-gradient(135deg, #C5A46D, #9B7040)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(197,164,109,0.3)" }}>
-              <Camera size={22} style={{ color: "white" }} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, margin: 0, color: C.dark }}>אלבום תמונות האירוע</h3>
-              <p style={{ fontSize: 12, color: C.muted, margin: "2px 0 0" }}>האורחים שלכם מעלים תמונות ישירות לאלבום המשותף</p>
-            </div>
-            <span style={{ fontSize: 11, color: C.gold, flexShrink: 0, fontWeight: 600 }}>פתח ←</span>
-          </div>
-        </a>
-
-        {/* Seating — always visible */}
-        <a href={`/couple/${token}/seating`} style={{ textDecoration: "none", display: "block", marginBottom: "0.875rem" }}>
-          <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <LayoutGrid size={14} style={{ color: C.gold }} />
-                <h3 style={{ fontSize: "0.85rem", fontWeight: 600, margin: 0, color: C.dark }}>סידורי הושבה</h3>
-              </div>
-              <span style={{ fontSize: 11, color: C.gold, fontFamily: "Heebo, sans-serif" }}>לסידור השולחנות ←</span>
-            </div>
-            {seating.assignedSeats > 0 ? (
-              <>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: "0.4rem" }}>
-                  <span style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.4rem", fontWeight: 700, color: C.dark }}>{seatingPct}%</span>
-                  <span style={{ fontSize: 12, color: C.muted }}>מוצבים</span>
-                </div>
-                <p style={{ fontSize: 11, color: C.muted, marginBottom: "0.5rem" }}>{seating.assignedSeats} מתוך {stats.attendees} אורחים קיבלו מקום</p>
-                <div style={{ height: 6, borderRadius: 3, background: "rgba(197,164,109,0.12)", overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${seatingPct}%`, background: seatingPct >= 80 ? C.olive : C.gold, transition: "width 0.8s" }} />
-                </div>
-              </>
-            ) : (
-              <p style={{ fontSize: 12, color: C.muted }}>🪑 טרם הוצב אף אורח — לחצו כדי להתחיל לסדר את השולחנות</p>
-            )}
-          </div>
-        </a>
-
-        {/* Wedding Day Timeline — editable */}
-        <TimelineEditor token={token} />
-
-        {/* Service Center link */}
-        <a href={`/couple/${token}/service`} style={{ textDecoration: "none", display: "block", marginBottom: "0.875rem" }}>
-          <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.1rem 1.25rem", boxShadow: C.shadow, display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(197,164,109,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 22 }}>🛎</div>
-            <div style={{ flex: 1 }}>
-              <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "0.95rem", fontWeight: 700, margin: 0, color: C.dark }}>מרכז שירות</h3>
-              <p style={{ fontSize: 12, color: C.muted, margin: "2px 0 0" }}>עקבו אחר תהליך הליווי שלכם</p>
-            </div>
-            <span style={{ fontSize: 11, color: C.gold, fontWeight: 600 }}>פתח ←</span>
-          </div>
-        </a>
-
-        {/* Premium Services */}
-        <div style={{ background: `linear-gradient(135deg, rgba(197,164,109,0.08), rgba(197,164,109,0.03))`, borderRadius: "1.25rem", border: `1.5px solid rgba(197,164,109,0.25)`, padding: "1.25rem", marginBottom: "0.875rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "1rem" }}>
-            <span style={{ fontSize: 18 }}>✨</span>
-            <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, margin: 0, color: C.dark }}>שדרוגים לחתונה</h2>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
-            {[
-              { icon: "💌", title: "Save the Date דיגיטלי", desc: "הזמנה מדהימה שתישלח לכל האורחים שלכם" },
-              { icon: "🎬", title: "הזמנה דיגיטלית מונפשת", desc: "סרטון אישי עם המוזיקה והנוסח שבחרתם" },
-            ].map(s => (
-              <PremiumServiceCard key={s.title} icon={s.icon} title={s.title} desc={s.desc} token={token} eventName={event.name} />
-            ))}
-          </div>
-        </div>
-
-        {/* F4 — Requests Center link (replaces WhatsApp button) */}
-        <a
-          href={`/couple/${token}/requests`}
-          style={{
-            display: "flex", alignItems: "center", gap: "1rem",
-            background: `linear-gradient(135deg, ${C.dark} 0%, #2C1F0E 100%)`,
-            borderRadius: "1.25rem", padding: "1.25rem 1.5rem",
-            boxShadow: C.shadow,
-            textDecoration: "none", marginBottom: "0.875rem",
-            border: `1px solid rgba(197,164,109,0.25)`,
-          }}
-        >
-          <div style={{ width: 46, height: 46, borderRadius: "50%", background: "rgba(197,164,109,0.15)", border: "1px solid rgba(197,164,109,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <span style={{ fontSize: 22 }}>📬</span>
-          </div>
-          <div>
-            <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, color: "#FDFAF5", margin: 0 }}>
-              מרכז הבקשות
-            </p>
-            <p style={{ fontSize: 12, color: "rgba(197,164,109,0.65)", margin: 0, fontFamily: "Heebo, sans-serif" }}>
-              שאלות ובקשות לצוות רגע לפני · מענה תוך 24 שעות
-            </p>
-          </div>
-          <span style={{ marginRight: "auto", fontSize: 18, color: "rgba(197,164,109,0.6)" }}>←</span>
-        </a>
-
-        {/* Memory Wall */}
-        <MemorySection token={token} />
-
-        {/* Chat widget */}
-        <ChatWidget
-          fetchUrl={`/api/couple/${token}/chat`}
-          postUrl={`/api/couple/${token}/chat`}
-          myRole="couple"
-          accentColor={C.gold}
-          label="שאלות לצוות רגע לפני"
-        />
-
-        {/* Recap link — shown after wedding date */}
-        {briefing && briefing.daysUntilEvent <= 0 && (
-          <a
-            href={`/couple/${token}/recap`}
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              padding: "0.9rem 1rem", borderRadius: "1.25rem",
-              background: "linear-gradient(135deg,#1a120a,#2d1f10)",
-              border: "1px solid rgba(197,164,109,0.25)", textDecoration: "none",
-              boxShadow: C.shadow,
-            }}
-          >
-            <Sparkles size={18} style={{ color: C.gold }} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: "white", fontFamily: "Heebo, sans-serif" }}>
-              צפו בסיכום החתונה שלכם ✦
-            </span>
-          </a>
-        )}
-
-      </div>
 
       {/* F9 — floating help button */}
       <HelpButton token={token} />
+      {/* E3-S7: Bottom navigation */}
+      <CoupleBottomNav token={token} />
     </div>
   );
 }

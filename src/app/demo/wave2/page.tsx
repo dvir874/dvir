@@ -306,7 +306,7 @@ export default function Wave2Demo() {
                   return (
                     <div key={item.id} className="wall-item">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={item.public_url} alt={`תמונה מאת ${item.guest_name}`} loading="lazy" style={{ width:"100%", display:"block", borderRadius:"8px", filter:"sepia(0.12) saturate(1.08) brightness(1.02)" }}/>
+                      <img src={item.public_url} alt="תמונה מהאירוע" loading="lazy" style={{ width:"100%", display:"block", borderRadius:"8px", filter:"sepia(0.12) saturate(1.08) brightness(1.02)" }}/>
                     </div>
                   );
                 }
