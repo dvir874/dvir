@@ -19,5 +19,11 @@ export async function GET(
 
   if (!album) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
-  return NextResponse.json({ album });
+  const { data: photos } = await sb
+    .from('gallery_photos')
+    .select('id, public_url, mime_type, is_video, uploader_name, uploaded_at')
+    .eq('album_id', album.id)
+    .order('uploaded_at', { ascending: false });
+
+  return NextResponse.json({ album, photos: photos ?? [] });
 }

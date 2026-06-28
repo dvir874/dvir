@@ -1,23 +1,30 @@
 "use client";
 
 import { use, useEffect, useState, useRef } from "react";
-import { Camera, MessageSquareHeart, Video, Upload, CheckCircle, Loader2, AlertCircle, Mic, Square, Lock } from "lucide-react";
+import { Upload, Loader2, Lock, X, Check } from "lucide-react";
 
-const C = {
-  cream: "#F6F1E8", ivory: "#FDFAF5", gold: "#C5A46D",
-  olive: "#6B7B5A", dark: "#333333", muted: "rgba(51,51,51,0.55)",
-  border: "rgba(197,164,109,0.22)",
-};
+const T = {
+  ivory:    "#FDFAF5",
+  cream:    "#F6F1E8",
+  gold:     "#C5A46D",
+  goldText: "#8B6914",
+  dark:     "#1C1008",
+  muted:    "#8C7B6E",
+  olive:    "#6B7B5A",
+  border:   "#E8E0D4",
+  shadowCard: "0 2px 8px rgba(28,16,8,0.06)",
+  shadowCta:  "0 4px 12px rgba(197,164,109,0.4)",
+} as const;
 
 interface EventInfo { name: string; date: string; address?: string | null }
-type UploadType = "photo" | "video" | "blessing" | "audio" | "capsule";
-type Screen = "loading" | "error" | "name" | "choose" | "upload" | "audio_rec" | "capsule_write" | "done";
+type UploadType = "photo" | "video" | "blessing" | "capsule";
+type Screen = "loading" | "error" | "choose" | "name" | "upload" | "blessing_write" | "capsule_write" | "done";
 
 const CAPSULE_TYPES = [
-  { value: "blessing",   label: "ברכה",   emoji: "💛" },
-  { value: "advice",     label: "עצה",    emoji: "💎" },
-  { value: "story",      label: "סיפור",  emoji: "📖" },
-  { value: "prediction", label: "תחזית",  emoji: "🔮" },
+  { value: "blessing",   label: "ברכה",  emoji: "💛" },
+  { value: "advice",     label: "עצה",   emoji: "💎" },
+  { value: "story",      label: "סיפור", emoji: "📖" },
+  { value: "prediction", label: "תחזית", emoji: "🔮" },
 ];
 const UNLOCK_OPTIONS = [
   { years: 1,  label: "בעוד שנה" },
@@ -25,42 +32,49 @@ const UNLOCK_OPTIONS = [
   { years: 10, label: "בעוד 10 שנים" },
 ];
 
+const CSS = `
+  @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes dotPulse { 0%,80%,100%{transform:scale(.6);opacity:.35} 40%{transform:scale(1);opacity:1} }
+  .loading-dot{width:10px;height:10px;border-radius:50%;background:#C5A46D;animation:dotPulse 1.2s ease-in-out infinite}
+  .loading-dot:nth-child(2){animation-delay:.2s}
+  .loading-dot:nth-child(3){animation-delay:.4s}
+  .type-card{background:#F6F1E8;border-radius:16px;border:1.5px solid #E8E0D4;padding:24px 16px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:border-color .15s,transform .1s;min-height:100px}
+  .type-card:hover{border-color:#C5A46D}
+  .type-card:active{transform:scale(.97)}
+  @media(prefers-reduced-motion:reduce){.type-card{transition:none}}
+`;
+
 export default function MemoryUploadPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
-  const [screen,        setScreen]        = useState<Screen>("loading");
-  const [event,         setEvent]         = useState<EventInfo | null>(null);
-  const [guestName,     setGuestName]     = useState("");
-  const [uploadType,    setUploadType]    = useState<UploadType | null>(null);
-  const [blessing,      setBlessing]      = useState("");
-  const [file,          setFile]          = useState<File | null>(null);
-  const [preview,       setPreview]       = useState<string | null>(null);
-  const [uploading,     setUploading]     = useState(false);
-  const [errorMsg,      setErrorMsg]      = useState("");
-  // Audio
-  const [recording,     setRecording]     = useState(false);
-  const [audioBlob,     setAudioBlob]     = useState<Blob | null>(null);
-  const [audioUrl,      setAudioUrl]      = useState<string | null>(null);
-  const [recSeconds,    setRecSeconds]    = useState(0);
-  const mediaRecRef  = useRef<MediaRecorder | null>(null);
-  const chunksRef    = useRef<BlobPart[]>([]);
-  const timerRef     = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Capsule
-  const [capsuleType,   setCapsuleType]   = useState("blessing");
-  const [capsuleText,   setCapsuleText]   = useState("");
-  const [unlockYears,   setUnlockYears]   = useState(1);
-
+  const [screen,       setScreen]       = useState<Screen>("loading");
+  const [event,        setEvent]        = useState<EventInfo | null>(null);
+  const [uploadType,   setUploadType]   = useState<UploadType | null>(null);
+  const [guestName,    setGuestName]    = useState("");
+  const [blessing,     setBlessing]     = useState("");
+  const [file,         setFile]         = useState<File | null>(null);
+  const [preview,      setPreview]      = useState<string | null>(null);
+  const [uploading,    setUploading]    = useState(false);
+  const [errorMsg,     setErrorMsg]     = useState("");
+  const [unlockYears,  setUnlockYears]  = useState(1);
+  const [capsuleType,  setCapsuleType]  = useState("blessing");
+  const [capsuleText,  setCapsuleText]  = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch(`/api/memory/${token}`)
-      .then((r) => r.json())
-      .then((d) => {
+      .then(r => r.json())
+      .then(d => {
         if (d.error) { setScreen("error"); return; }
         setEvent(d.event);
-        setScreen("name");
+        setScreen("choose");
       })
       .catch(() => setScreen("error"));
   }, [token]);
+
+  function selectType(type: UploadType) {
+    setUploadType(type);
+    setScreen("name");
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -69,43 +83,17 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
     setPreview(URL.createObjectURL(f));
   }
 
-  async function startRecording() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4" : "audio/webm";
-      const mr = new MediaRecorder(stream, { mimeType });
-      chunksRef.current = [];
-      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      mr.onstop = () => {
-        stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(chunksRef.current, { type: mimeType });
-        setAudioBlob(blob);
-        setAudioUrl(URL.createObjectURL(blob));
-      };
-      mr.start(200);
-      mediaRecRef.current = mr;
-      setRecording(true);
-      setRecSeconds(0);
-      timerRef.current = setInterval(() => setRecSeconds(s => {
-        if (s >= 60) { stopRecording(); return s; }
-        return s + 1;
-      }), 1000);
-    } catch {
-      setErrorMsg("לא ניתן לגשת למיקרופון — אפשרו גישה בהגדרות הדפדפן");
-    }
-  }
-
-  function stopRecording() {
-    mediaRecRef.current?.stop();
-    setRecording(false);
-    if (timerRef.current) clearInterval(timerRef.current);
+  function proceedFromName() {
+    if (!guestName.trim()) return;
+    if (uploadType === "blessing") { setScreen("blessing_write"); return; }
+    if (uploadType === "capsule")  { setScreen("capsule_write");  return; }
+    setScreen("upload");
   }
 
   async function handleUpload() {
     if (!guestName.trim()) return;
     setUploading(true);
     setErrorMsg("");
-
     try {
       if (uploadType === "capsule") {
         if (!capsuleText.trim()) { setErrorMsg("כתבו הודעה"); setUploading(false); return; }
@@ -123,13 +111,7 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
       const fd = new FormData();
       fd.append("guest_name", guestName.trim());
 
-      if (uploadType === "audio") {
-        if (!audioBlob) { setErrorMsg("הקליטו הודעה תחילה"); setUploading(false); return; }
-        const ext  = audioBlob.type.includes("mp4") ? "m4a" : "webm";
-        const audioFile = new File([audioBlob], `blessing.${ext}`, { type: audioBlob.type });
-        fd.append("type", "audio");
-        fd.append("file", audioFile);
-      } else if (uploadType === "blessing") {
+      if (uploadType === "blessing") {
         if (!blessing.trim()) { setErrorMsg("כתבו ברכה"); setUploading(false); return; }
         fd.append("type", "blessing");
         fd.append("blessing_text", blessing.trim());
@@ -150,298 +132,404 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
     }
   }
 
-  function resetForAnother() {
-    setUploadType(null); setFile(null); setPreview(null); setBlessing(""); setErrorMsg("");
-    setAudioBlob(null); setAudioUrl(null); setRecSeconds(0); setCapsuleText(""); setCapsuleType("blessing");
+  function resetFlow() {
+    setUploadType(null); setFile(null); setPreview(null);
+    setBlessing(""); setErrorMsg(""); setCapsuleText("");
+    setCapsuleType("blessing");
     setScreen("choose");
   }
 
   const formattedDate = event?.date
-    ? new Date(event.date).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })
+    ? new Date(event.date).toLocaleDateString("he-IL", { day:"numeric", month:"long", year:"numeric" })
     : "";
 
-  if (screen === "loading") return <Shell event={null}><div style={{ display: "flex", justifyContent: "center", padding: "4rem" }}><Loader2 size={28} style={{ color: C.gold, animation: "spin 1s linear infinite" }} /></div></Shell>;
+  // ──── Loading ────
+  if (screen === "loading") return (
+    <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:"20px" }}>
+      <style>{CSS}</style>
+      <p style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"22px", fontWeight:900, color:T.goldText }}>רגע לפני</p>
+      <div style={{ display:"flex", gap:"8px" }}>
+        <div className="loading-dot"/><div className="loading-dot"/><div className="loading-dot"/>
+      </div>
+      <p role="status" aria-live="polite" style={{ color:T.muted, fontFamily:"'Heebo',sans-serif", fontSize:"14px", fontWeight:300 }}>
+        מכינים את הדף...
+      </p>
+    </div>
+  );
 
+  // ──── Error ────
   if (screen === "error") return (
-    <Shell event={null}>
-      <div style={{ textAlign: "center", padding: "4rem 1rem" }}>
-        <AlertCircle size={36} style={{ color: C.gold, margin: "0 auto 1rem" }} />
-        <p style={{ fontFamily: "Frank Ruhl Libre, serif", color: C.dark }}>קישור לא תקין</p>
-        <p style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>פנו לזוג לקבלת קישור תקין</p>
-      </div>
-    </Shell>
+    <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:"12px", padding:"24px", textAlign:"center" }}>
+      <style>{CSS}</style>
+      <div style={{ width:"56px", height:"2px", background:T.gold, margin:"0 auto 16px" }}/>
+      <p style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"20px", fontWeight:700, color:T.dark }}>קישור לא תקין</p>
+      <p style={{ fontFamily:"'Heebo',sans-serif", fontSize:"14px", fontWeight:300, color:T.muted }}>פנו לזוג לקבלת קישור תקין</p>
+    </div>
   );
 
-  if (screen === "name") return (
-    <Shell event={event}>
-      <div style={{ textAlign: "center", marginBottom: "1.75rem" }}>
-        <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.4rem", color: C.dark, marginBottom: "0.25rem" }}>שמחים שאתם כאן! 💛</p>
-        <p style={{ fontSize: 13, color: C.muted }}>שתפו רגעים וברכות מהיום המיוחד</p>
-      </div>
-      <div style={{ marginBottom: "1.25rem" }}>
-        <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.dark, marginBottom: "0.5rem" }}>מה השם שלכם?</label>
-        <input autoFocus value={guestName} onChange={(e) => setGuestName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && guestName.trim() && setScreen("choose")}
-          placeholder="שם מלא"
-          style={{ width: "100%", padding: "0.875rem 1rem", borderRadius: 16, border: `1px solid ${C.border}`, background: C.ivory, color: C.dark, fontFamily: "Heebo, sans-serif", fontSize: 15, outline: "none", boxSizing: "border-box" }} />
-      </div>
-      <button onClick={() => guestName.trim() && setScreen("choose")} disabled={!guestName.trim()}
-        style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: `linear-gradient(135deg, ${C.olive}, #4A5E3A)`, color: "white", fontSize: 15, fontFamily: "Heebo, sans-serif", cursor: "pointer", opacity: !guestName.trim() ? 0.4 : 1 }}>
-        המשך →
-      </button>
-    </Shell>
-  );
-
+  // ──── E2-S7: Type Selection (landing) ────
   if (screen === "choose") return (
-    <Shell event={event}>
-      <p style={{ textAlign: "center", fontSize: 13, color: C.muted, marginBottom: "1.25rem" }}>שלום {guestName}! מה תרצו לשתף?</p>
+    <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, fontFamily:"'Heebo',sans-serif" }}>
+      <style>{CSS}</style>
 
-      {/* F6 — Photo Challenge prompts */}
-      <div style={{ marginBottom: "1.25rem" }}>
-        <p style={{ fontSize: 12, fontWeight: 700, color: C.gold, marginBottom: "0.6rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>📸 אתגר תמונות</p>
-        <div style={{ display: "flex", gap: "0.6rem", overflowX: "auto", paddingBottom: "0.25rem", scrollbarWidth: "none" }}>
-          {[
-            { emoji: "💑", text: "תמונה עם הזוג" },
-            { emoji: "🥂", text: "הדלקת נרות" },
-            { emoji: "💃", text: "ריקוד ראשון" },
-            { emoji: "👪", text: "תמונה משפחתית" },
-            { emoji: "😄", text: "תמונה מצחיקה" },
-            { emoji: "🌹", text: "ליד החופה" },
-          ].map(prompt => (
-            <button key={prompt.text}
-              onClick={() => { setUploadType("photo"); setScreen("upload"); }}
-              style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.3rem", flexShrink: 0,
-                       padding: "0.75rem 0.85rem", borderRadius: 14, border: `1px solid ${C.border}`,
-                       background: C.ivory, cursor: "pointer", minWidth: 88, fontFamily: "Heebo, sans-serif" }}>
-              <span style={{ fontSize: 24 }}>{prompt.emoji}</span>
-              <span style={{ fontSize: 11, color: C.muted, textAlign: "center", lineHeight: 1.3 }}>{prompt.text}</span>
-              <span style={{ fontSize: 10, color: C.gold, fontWeight: 600 }}>העלה ←</span>
+      {/* Botanical hero */}
+      <div style={{ textAlign:"center", padding:"40px 24px 0", animation:"fadeUp .35s ease both" }}>
+        <svg width="120" height="80" viewBox="0 0 120 80" fill="none" style={{ display:"block", margin:"0 auto 20px" }} aria-hidden="true">
+          <path d="M60 72 C60 72 60 40 60 12" stroke={T.olive} strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M60 55 C50 48 35 50 28 42" stroke={T.olive} strokeWidth="1.2" strokeLinecap="round"/>
+          <path d="M60 45 C70 38 85 40 92 32" stroke={T.olive} strokeWidth="1.2" strokeLinecap="round"/>
+          <path d="M60 65 C53 60 42 62 36 56" stroke={T.olive} strokeWidth="1" strokeLinecap="round"/>
+          <path d="M60 38 C66 32 76 34 80 28" stroke={T.olive} strokeWidth="1" strokeLinecap="round"/>
+          <circle cx="60" cy="12" r="3" fill={T.gold}/>
+          <circle cx="28" cy="42" r="2" fill={T.olive}/>
+          <circle cx="92" cy="32" r="2" fill={T.olive}/>
+          <circle cx="36" cy="56" r="1.5" fill={T.olive} opacity=".7"/>
+          <circle cx="80" cy="28" r="1.5" fill={T.olive} opacity=".7"/>
+        </svg>
+
+        <h1 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"24px", fontWeight:700, color:T.dark, marginBottom:"8px" }}>
+          מה תרצו לשתף?
+        </h1>
+        <p style={{ fontSize:"14px", fontWeight:300, color:T.muted, marginBottom:"32px" }}>
+          תרומתכם תהפוך לחלק מזכרונות החתונה
+        </p>
+        {event?.name && (
+          <p style={{ fontSize:"13px", fontWeight:600, color:T.goldText, marginBottom:"24px", letterSpacing:".03em" }}>
+            {event.name} · {formattedDate}
+          </p>
+        )}
+      </div>
+
+      {/* 2×2 type grid */}
+      <div style={{ padding:"0 20px 48px", display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", maxWidth:"400px", margin:"0 auto", animation:"fadeUp .4s ease .08s both" }}>
+        {[
+          { type:"photo"   as UploadType, emoji:"📸", label:"תמונה" },
+          { type:"video"   as UploadType, emoji:"🎥", label:"וידאו" },
+          { type:"blessing"as UploadType, emoji:"✍️", label:"ברכה" },
+          { type:"capsule" as UploadType, emoji:"💌", label:"מכתב קפסולת זמן" },
+        ].map(({ type, emoji, label }) => (
+          <button
+            key={type}
+            className="type-card"
+            onClick={() => selectType(type)}
+            aria-label={`שתף ${label}`}
+          >
+            <span style={{ fontSize:"40px", lineHeight:1 }}>{emoji}</span>
+            <span style={{ fontFamily:"'Heebo',sans-serif", fontWeight:600, fontSize:"16px", color:T.dark, textAlign:"center" }}>
+              {label}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  // ──── Name collection (after type selection) ────
+  if (screen === "name") return (
+    <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, fontFamily:"'Heebo',sans-serif", display:"flex", flexDirection:"column" }}>
+      <style>{CSS}</style>
+      <div style={{ padding:"20px 20px 0" }}>
+        <button onClick={resetFlow} style={{ background:"none", border:"none", cursor:"pointer", color:T.goldText, fontSize:"14px", display:"flex", alignItems:"center", gap:"4px", padding:"8px 0" }}>
+          ← חזרה
+        </button>
+      </div>
+      <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"center", padding:"24px", maxWidth:"400px", margin:"0 auto", width:"100%" }}>
+        <h2 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"22px", fontWeight:700, color:T.dark, marginBottom:"8px", textAlign:"center" }}>
+          מה שמכם?
+        </h2>
+        <p style={{ fontSize:"14px", fontWeight:300, color:T.muted, textAlign:"center", marginBottom:"32px" }}>
+          כדי שהזוג ידע מי שלח
+        </p>
+        <input
+          autoFocus
+          type="text"
+          placeholder="שם פרטי ושם משפחה"
+          value={guestName}
+          onChange={e => setGuestName(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") proceedFromName(); }}
+          style={{ width:"100%", padding:"14px 16px", borderRadius:"12px", border:`1.5px solid ${T.border}`, background:T.cream, color:T.dark, fontFamily:"'Heebo',sans-serif", fontSize:"16px", outline:"none", boxSizing:"border-box", marginBottom:"16px" }}
+        />
+        <button
+          onClick={proceedFromName}
+          disabled={!guestName.trim()}
+          style={{ width:"100%", padding:"16px", borderRadius:"14px", border:"none", background:`linear-gradient(135deg,${T.gold},#B8935A)`, color:"#fff", fontFamily:"'Heebo',sans-serif", fontWeight:700, fontSize:"16px", cursor:guestName.trim() ? "pointer" : "not-allowed", opacity:guestName.trim() ? 1 : 0.4, boxShadow:T.shadowCta }}
+        >
+          המשך →
+        </button>
+      </div>
+    </div>
+  );
+
+  // ──── Photo/Video upload ────
+  if (screen === "upload") return (
+    <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, fontFamily:"'Heebo',sans-serif" }}>
+      <style>{CSS}</style>
+      <div style={{ padding:"20px 20px 0" }}>
+        <button onClick={() => setScreen("name")} style={{ background:"none", border:"none", cursor:"pointer", color:T.goldText, fontSize:"14px", display:"flex", alignItems:"center", gap:"4px", padding:"8px 0" }}>
+          ← חזרה
+        </button>
+      </div>
+      <div style={{ padding:"8px 20px 48px", maxWidth:"400px", margin:"0 auto" }}>
+        <h2 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"22px", fontWeight:700, color:T.dark, textAlign:"center", marginBottom:"24px" }}>
+          {uploadType === "photo" ? "📸 העלו תמונה" : "🎥 העלו וידאו"}
+        </h2>
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept={uploadType === "photo" ? "image/*" : "video/*"}
+          capture={uploadType === "photo" ? "environment" : undefined}
+          onChange={handleFileChange}
+          style={{ display:"none" }}
+        />
+
+        {preview ? (
+          <div style={{ position:"relative", borderRadius:"16px", overflow:"hidden", marginBottom:"20px" }}>
+            {uploadType === "photo"
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={preview} alt="" style={{ width:"100%", display:"block", borderRadius:"16px" }}/>
+              : <video src={preview} controls style={{ width:"100%", display:"block", borderRadius:"16px" }}/>
+            }
+            <button
+              onClick={() => { setFile(null); setPreview(null); }}
+              style={{ position:"absolute", top:"8px", left:"8px", background:"rgba(28,16,8,0.6)", border:"none", borderRadius:"50%", width:"32px", height:"32px", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff" }}
+            >
+              <X size={16}/>
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => fileRef.current?.click()}
+            style={{ width:"100%", padding:"48px 20px", borderRadius:"16px", border:`2px dashed ${T.border}`, background:"rgba(197,164,109,0.04)", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:"12px", marginBottom:"20px" }}
+          >
+            <Upload size={32} style={{ color:T.gold }}/>
+            <p style={{ fontSize:"14px", color:T.muted, fontFamily:"'Heebo',sans-serif" }}>
+              {uploadType === "photo" ? "בחרו תמונה מהגלריה" : "בחרו וידאו"}
+            </p>
+            <p style={{ fontSize:"12px", color:T.muted, fontFamily:"'Heebo',sans-serif", opacity:.6 }}>מקסימום 50MB</p>
+          </button>
+        )}
+
+        {errorMsg && (
+          <div style={{ padding:"12px 16px", borderRadius:"10px", background:"rgba(200,50,50,0.07)", color:"rgb(190,50,50)", fontSize:"13px", marginBottom:"16px" }}>
+            {errorMsg}
+          </div>
+        )}
+
+        <button
+          onClick={handleUpload}
+          disabled={uploading || !file}
+          style={{ width:"100%", padding:"16px", borderRadius:"14px", border:"none", background:`linear-gradient(135deg,${T.gold},#B8935A)`, color:"#fff", fontFamily:"'Heebo',sans-serif", fontWeight:700, fontSize:"16px", cursor:file ? "pointer" : "not-allowed", opacity:file ? 1 : 0.4, boxShadow:T.shadowCta, display:"flex", alignItems:"center", justifyContent:"center", gap:"8px" }}
+        >
+          {uploading ? <><Loader2 size={18} style={{ animation:"spin 1s linear infinite" }}/>שולחים...</> : <><Upload size={18}/>שתפו עכשיו</>}
+        </button>
+      </div>
+    </div>
+  );
+
+  // ──── Blessing writing ────
+  if (screen === "blessing_write") return (
+    <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, fontFamily:"'Heebo',sans-serif" }}>
+      <style>{CSS}</style>
+      <div style={{ padding:"20px 20px 0" }}>
+        <button onClick={() => setScreen("name")} style={{ background:"none", border:"none", cursor:"pointer", color:T.goldText, fontSize:"14px", display:"flex", alignItems:"center", gap:"4px", padding:"8px 0" }}>
+          ← חזרה
+        </button>
+      </div>
+      <div style={{ padding:"8px 20px 48px", maxWidth:"400px", margin:"0 auto" }}>
+        <h2 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"22px", fontWeight:700, color:T.dark, textAlign:"center", marginBottom:"8px" }}>
+          ✍️ כתבו ברכה
+        </h2>
+        <p style={{ fontSize:"13px", color:T.muted, textAlign:"center", marginBottom:"24px" }}>
+          שלום {guestName}, כתבו כמה מילים לזוג המאושר
+        </p>
+
+        <textarea
+          autoFocus
+          value={blessing}
+          onChange={e => setBlessing(e.target.value.slice(0, 500))}
+          placeholder="כתבו ברכה מהלב... 💛"
+          rows={6}
+          style={{ width:"100%", padding:"14px 16px", borderRadius:"14px", border:`1.5px solid ${T.border}`, background:T.cream, color:T.dark, fontFamily:"'Heebo',sans-serif", fontSize:"15px", outline:"none", resize:"none", boxSizing:"border-box", marginBottom:"6px", lineHeight:1.6 }}
+        />
+        <p style={{ fontSize:"11px", color:T.muted, textAlign:"left", marginBottom:"20px" }}>
+          {blessing.length}/500
+        </p>
+
+        {errorMsg && (
+          <div style={{ padding:"12px 16px", borderRadius:"10px", background:"rgba(200,50,50,0.07)", color:"rgb(190,50,50)", fontSize:"13px", marginBottom:"16px" }}>
+            {errorMsg}
+          </div>
+        )}
+
+        <button
+          onClick={handleUpload}
+          disabled={uploading || !blessing.trim()}
+          style={{ width:"100%", padding:"16px", borderRadius:"14px", border:"none", background:`linear-gradient(135deg,${T.gold},#B8935A)`, color:"#fff", fontFamily:"'Heebo',sans-serif", fontWeight:700, fontSize:"16px", cursor:blessing.trim() ? "pointer" : "not-allowed", opacity:blessing.trim() ? 1 : 0.4, boxShadow:T.shadowCta, display:"flex", alignItems:"center", justifyContent:"center", gap:"8px" }}
+        >
+          {uploading ? <><Loader2 size={18} style={{ animation:"spin 1s linear infinite" }}/>שולחים...</> : <>שלחו ברכה 💛</>}
+        </button>
+      </div>
+    </div>
+  );
+
+  // ──── Time Capsule writing ────
+  if (screen === "capsule_write") return (
+    <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, fontFamily:"'Heebo',sans-serif" }}>
+      <style>{CSS}</style>
+      <div style={{ padding:"20px 20px 0" }}>
+        <button onClick={() => setScreen("name")} style={{ background:"none", border:"none", cursor:"pointer", color:T.goldText, fontSize:"14px", display:"flex", alignItems:"center", gap:"4px", padding:"8px 0" }}>
+          ← חזרה
+        </button>
+      </div>
+      <div style={{ padding:"8px 20px 48px", maxWidth:"400px", margin:"0 auto" }}>
+        <h2 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"22px", fontWeight:700, color:T.dark, textAlign:"center", marginBottom:"8px" }}>
+          💌 מכתב לעתיד
+        </h2>
+        <p style={{ fontSize:"13px", color:T.muted, textAlign:"center", marginBottom:"24px" }}>
+          כתבו מכתב לזוג שיתגלה ביום השנה שלהם
+        </p>
+
+        <div style={{ display:"flex", gap:"8px", marginBottom:"16px" }}>
+          {CAPSULE_TYPES.map(ct => (
+            <button
+              key={ct.value}
+              onClick={() => setCapsuleType(ct.value)}
+              style={{ flex:1, padding:"8px 4px", borderRadius:"10px", border:`1.5px solid ${capsuleType === ct.value ? T.gold : T.border}`, background:capsuleType === ct.value ? "rgba(197,164,109,0.1)" : "transparent", fontSize:"11px", cursor:"pointer", fontFamily:"'Heebo',sans-serif", color:T.dark, display:"flex", flexDirection:"column", alignItems:"center", gap:"2px" }}
+            >
+              <span>{ct.emoji}</span>
+              <span>{ct.label}</span>
             </button>
           ))}
         </div>
-      </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
-        {([
-          { type: "photo" as UploadType,   icon: Camera,             emoji: "📸", label: "תמונה",          sub: "שתפו רגע מהחגיגה" },
-          { type: "video" as UploadType,   icon: Video,              emoji: "🎬", label: "סרטון",          sub: "הקליטו רגע מיוחד" },
-          { type: "blessing" as UploadType,icon: MessageSquareHeart, emoji: "💌", label: "ברכה כתובה",    sub: "כתבו ברכה מהלב" },
-          { type: "audio" as UploadType,   icon: Mic,                emoji: "🎙️", label: "ברכה קולית",    sub: "הקליטו עד דקה אחת" },
-          { type: "capsule" as UploadType, icon: Lock,               emoji: "⏳", label: "הודעה לעתיד",   sub: "תיפתח בשנה הבאה ומעלה" },
-        ] as { type: UploadType; icon: React.ElementType; emoji: string; label: string; sub: string }[]).map(({ type, icon: Icon, emoji, label, sub }) => (
-          <button key={type} onClick={() => {
-            setUploadType(type);
-            setScreen(type === "audio" ? "audio_rec" : type === "capsule" ? "capsule_write" : "upload");
-          }}
-            style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "1rem 1.25rem", borderRadius: 16, border: `1px solid ${C.border}`, background: C.ivory, cursor: "pointer", textAlign: "right" }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(197,164,109,0.12)", flexShrink: 0 }}>
-              <Icon size={20} style={{ color: C.gold }} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <p style={{ fontWeight: 600, fontSize: 14, color: C.dark, fontFamily: "Frank Ruhl Libre, serif" }}>{emoji} {label}</p>
-              <p style={{ fontSize: 12, color: C.muted, marginTop: 2, fontFamily: "Heebo, sans-serif" }}>{sub}</p>
-            </div>
-            <span style={{ color: C.gold, fontSize: 16 }}>←</span>
-          </button>
-        ))}
-      </div>
-    </Shell>
-  );
+        <textarea
+          autoFocus
+          value={capsuleText}
+          onChange={e => setCapsuleText(e.target.value)}
+          placeholder={`כתבו ${CAPSULE_TYPES.find(c => c.value === capsuleType)?.label ?? "מכתב"} לזוג המאושר...`}
+          rows={7}
+          style={{ width:"100%", padding:"14px 16px", borderRadius:"14px", border:`1.5px solid ${T.border}`, background:T.cream, color:T.dark, fontFamily:"'Heebo',sans-serif", fontSize:"15px", outline:"none", resize:"none", boxSizing:"border-box", marginBottom:"16px", lineHeight:1.6 }}
+        />
 
-  if (screen === "audio_rec") return (
-    <Shell event={event}>
-      <button onClick={() => { setScreen("choose"); setAudioBlob(null); setAudioUrl(null); }}
-        style={{ background: "none", border: "none", cursor: "pointer", color: C.gold, fontFamily: "Heebo, sans-serif", fontSize: 13, marginBottom: "1.25rem" }}>→ חזרה</button>
-      <p style={{ textAlign: "center", fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.25rem", color: C.dark, marginBottom: "1.5rem" }}>🎙️ ברכה קולית</p>
-      <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-        {/* Timer display */}
-        <div style={{ fontSize: "3rem", fontFamily: "Frank Ruhl Libre, serif", color: recording ? "#C0392B" : C.dark, lineHeight: 1, marginBottom: "0.5rem" }}>
-          {String(Math.floor(recSeconds / 60)).padStart(2, "0")}:{String(recSeconds % 60).padStart(2, "0")}
-        </div>
-        {recording && <p style={{ fontSize: 12, color: C.muted }}>מקליט... {60 - recSeconds} שניות נותרו</p>}
-      </div>
-      {!audioBlob ? (
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.5rem" }}>
-          {!recording ? (
-            <button onClick={startRecording}
-              style={{ width: 80, height: 80, borderRadius: "50%", border: "none", background: `linear-gradient(135deg, #C0392B, #922B21)`, color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Mic size={30} />
+        <p style={{ fontSize:"13px", fontWeight:600, color:T.dark, marginBottom:"8px" }}>מתי לפתוח?</p>
+        <div style={{ display:"flex", gap:"8px", marginBottom:"24px" }}>
+          {UNLOCK_OPTIONS.map(o => (
+            <button
+              key={o.years}
+              onClick={() => setUnlockYears(o.years)}
+              style={{ flex:1, padding:"10px 4px", borderRadius:"10px", border:`1.5px solid ${unlockYears === o.years ? T.goldText : T.border}`, background:unlockYears === o.years ? "rgba(139,105,20,0.08)" : "transparent", fontSize:"12px", cursor:"pointer", fontFamily:"'Heebo',sans-serif", color:T.dark, fontWeight:unlockYears === o.years ? 600 : 400 }}
+            >
+              {o.label}
             </button>
-          ) : (
-            <button onClick={stopRecording}
-              style={{ width: 80, height: 80, borderRadius: "50%", border: "none", background: "#C0392B", color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", animation: "pulse 1s infinite" }}>
-              <Square size={28} />
-            </button>
-          )}
+          ))}
         </div>
-      ) : (
-        <div style={{ marginBottom: "1.5rem" }}>
-          {audioUrl && <audio src={audioUrl} controls style={{ width: "100%", borderRadius: 12, marginBottom: "0.75rem" }} />}
-          <button onClick={() => { setAudioBlob(null); setAudioUrl(null); setRecSeconds(0); }}
-            style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", fontFamily: "Heebo, sans-serif", fontSize: 13, cursor: "pointer", color: C.muted }}>
-            הקלט מחדש
-          </button>
-        </div>
-      )}
-      {errorMsg && <p style={{ textAlign: "center", fontSize: 12, color: "#C0392B", marginBottom: "0.75rem" }}>{errorMsg}</p>}
-      <button onClick={handleUpload} disabled={uploading || !audioBlob}
-        style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: `linear-gradient(135deg, ${C.gold}, ${C.olive})`, color: "white", fontSize: 15, fontFamily: "Heebo, sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: !audioBlob ? 0.4 : 1 }}>
-        {uploading ? <><Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />שולחים...</> : <><Upload size={18} />שתפו את הברכה</>}
-      </button>
-    </Shell>
-  );
 
-  if (screen === "capsule_write") return (
-    <Shell event={event}>
-      <button onClick={() => setScreen("choose")}
-        style={{ background: "none", border: "none", cursor: "pointer", color: C.gold, fontFamily: "Heebo, sans-serif", fontSize: 13, marginBottom: "1.25rem" }}>→ חזרה</button>
-      <p style={{ textAlign: "center", fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.25rem", color: C.dark, marginBottom: "0.5rem" }}>⏳ הודעה לעתיד</p>
-      <p style={{ textAlign: "center", fontSize: 12, color: C.muted, marginBottom: "1.5rem" }}>כתבו הודעה שתיפתח בעתיד</p>
+        {errorMsg && (
+          <div style={{ padding:"12px 16px", borderRadius:"10px", background:"rgba(200,50,50,0.07)", color:"rgb(190,50,50)", fontSize:"13px", marginBottom:"16px" }}>
+            {errorMsg}
+          </div>
+        )}
 
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
-        {CAPSULE_TYPES.map(t => (
-          <button key={t.value} onClick={() => setCapsuleType(t.value)}
-            style={{ flex: 1, padding: "0.5rem 0.25rem", borderRadius: 10, border: `1.5px solid ${capsuleType === t.value ? C.gold : C.border}`, background: capsuleType === t.value ? "rgba(197,164,109,0.1)" : "transparent", fontSize: 11, cursor: "pointer", fontFamily: "Heebo, sans-serif", color: C.dark, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-            <span>{t.emoji}</span>
-            <span>{t.label}</span>
-          </button>
-        ))}
+        <button
+          onClick={handleUpload}
+          disabled={uploading || !capsuleText.trim()}
+          style={{ width:"100%", padding:"16px", borderRadius:"14px", border:"none", background:`linear-gradient(135deg,#3D2B1F,#5C3D2E)`, color:"#fff", fontFamily:"'Heebo',sans-serif", fontWeight:700, fontSize:"16px", cursor:capsuleText.trim() ? "pointer" : "not-allowed", opacity:capsuleText.trim() ? 1 : 0.4, display:"flex", alignItems:"center", justifyContent:"center", gap:"8px" }}
+        >
+          {uploading ? <><Loader2 size={18} style={{ animation:"spin 1s linear infinite" }}/>שומרים...</> : <><Lock size={18}/>נעלו את המכתב</>}
+        </button>
       </div>
+    </div>
+  );
 
-      <textarea value={capsuleText} onChange={(e) => setCapsuleText(e.target.value)}
-        placeholder={`כתבו ${CAPSULE_TYPES.find(t => t.value === capsuleType)?.label ?? "הודעה"} לזוג המאושר...`}
-        rows={6} style={{ width: "100%", padding: "0.875rem 1rem", borderRadius: 16, border: `1px solid ${C.border}`, background: C.ivory, color: C.dark, fontFamily: "Heebo, sans-serif", fontSize: 14, outline: "none", resize: "none", boxSizing: "border-box", marginBottom: "1rem" }} />
+  // ──── Done / E2-S9 Locked State (for capsule) ────
+  if (screen === "done") {
+    if (uploadType === "capsule") {
+      const unlockLabel = UNLOCK_OPTIONS.find(o => o.years === unlockYears)?.label ?? `בעוד ${unlockYears} שנים`;
+      return (
+        <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, fontFamily:"'Heebo',sans-serif", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"32px 24px", textAlign:"center" }}>
+          <style>{CSS}</style>
 
-      <p style={{ fontSize: 12, fontWeight: 600, color: C.dark, marginBottom: "0.5rem" }}>מתי לפתוח?</p>
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.25rem" }}>
-        {UNLOCK_OPTIONS.map(o => (
-          <button key={o.years} onClick={() => setUnlockYears(o.years)}
-            style={{ flex: 1, padding: "0.65rem 0.25rem", borderRadius: 10, border: `1.5px solid ${unlockYears === o.years ? C.olive : C.border}`, background: unlockYears === o.years ? "rgba(107,123,90,0.1)" : "transparent", fontSize: 12, cursor: "pointer", fontFamily: "Heebo, sans-serif", color: C.dark }}>
-            {o.label}
+          {/* Gold padlock illustration */}
+          <svg width="80" height="80" viewBox="0 0 80 80" fill="none" style={{ display:"block", margin:"0 auto 24px" }} aria-hidden="true">
+            <rect x="16" y="36" width="48" height="34" rx="8" fill="#C5A46D" fillOpacity=".15" stroke="#C5A46D" strokeWidth="2"/>
+            <path d="M27 36 V26 C27 18.3 52.8 18.3 52.8 26 V36" stroke="#C5A46D" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+            <circle cx="40" cy="53" r="5" fill="#C5A46D"/>
+            <path d="M40 58 V64" stroke="#C5A46D" strokeWidth="2.5" strokeLinecap="round"/>
+          </svg>
+
+          <h1 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"28px", fontWeight:700, color:T.dark, marginBottom:"8px", animation:"fadeUp .4s ease both" }}>
+            קפסולת הזמן
+          </h1>
+          <p style={{ fontSize:"64px", fontFamily:"'Frank Ruhl Libre',serif", fontWeight:900, color:T.gold, lineHeight:1, marginBottom:"4px", animation:"fadeUp .4s ease .06s both" }}>
+            {unlockYears === 1 ? "365" : unlockYears === 5 ? "1,825" : "3,650"}
+          </p>
+          <p style={{ fontSize:"16px", fontWeight:300, color:T.muted, marginBottom:"32px", animation:"fadeUp .4s ease .12s both" }}>
+            ימים עד לפתיחה
+          </p>
+
+          {/* Blurred preview section (SECURITY: placeholder chars only) */}
+          <div style={{ width:"100%", maxWidth:"360px", marginBottom:"32px", animation:"fadeUp .4s ease .18s both" }}>
+            <p style={{ fontSize:"14px", color:T.muted, marginBottom:"12px" }}>הברכות שלכם מחכות...</p>
+            {[1, 2, 3].map(i => (
+              <div
+                key={i}
+                style={{ background:T.cream, borderRadius:"12px", padding:"12px 14px", marginBottom:"8px", textAlign:"right", border:`1px solid ${T.border}` }}
+              >
+                <span style={{ fontSize:"12px", fontWeight:600, color:T.muted, display:"block", marginBottom:"4px" }}>
+                  {guestName} ❤️
+                </span>
+                <span
+                  className="blessing-preview-content"
+                  aria-hidden="true"
+                  style={{ fontSize:"13px", color:T.dark, filter:"blur(4px)", userSelect:"none", pointerEvents:"none", display:"block" }}
+                >
+                  {"א".repeat(Math.floor(20 + i * 15))}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={resetFlow}
+            style={{ padding:"14px 32px", borderRadius:"14px", border:`1.5px solid ${T.border}`, background:"transparent", color:T.goldText, fontFamily:"'Heebo',sans-serif", fontWeight:600, fontSize:"15px", cursor:"pointer" }}
+          >
+            הוסיפו ברכה לקפסולה
           </button>
-        ))}
-      </div>
-
-      {errorMsg && <p style={{ fontSize: 12, color: "#C0392B", marginBottom: "0.75rem" }}>{errorMsg}</p>}
-      <button onClick={handleUpload} disabled={uploading || !capsuleText.trim()}
-        style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: `linear-gradient(135deg, #3D2B1F, #5C3D2E)`, color: "white", fontSize: 15, fontFamily: "Heebo, sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: !capsuleText.trim() ? 0.4 : 1 }}>
-        {uploading ? <><Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />שומרים...</> : <><Lock size={18} />נעלו את ההודעה</>}
-      </button>
-    </Shell>
-  );
-
-  if (screen === "upload") return (
-    <Shell event={event}>
-      <button onClick={() => { setScreen("choose"); setFile(null); setPreview(null); setBlessing(""); }}
-        style={{ background: "none", border: "none", cursor: "pointer", color: C.gold, fontFamily: "Heebo, sans-serif", fontSize: 13, marginBottom: "1.25rem" }}>→ חזרה</button>
-      <p style={{ textAlign: "center", fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.25rem", color: C.dark, marginBottom: "1.25rem" }}>
-        {uploadType === "photo" ? "📸 העלו תמונה" : uploadType === "video" ? "🎬 העלו סרטון" : "💌 כתבו ברכה"}
-      </p>
-      <input ref={fileRef} type="file" accept={uploadType === "photo" ? "image/*" : "video/*"}
-        capture={uploadType === "photo" ? "environment" : undefined}
-        onChange={handleFileChange} style={{ display: "none" }} />
-
-      {(uploadType === "photo" || uploadType === "video") && (
-        <div style={{ marginBottom: "1.25rem" }}>
-          {preview ? (
-            <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", marginBottom: "0.75rem", aspectRatio: uploadType === "photo" ? "4/3" : "16/9" }}>
-              {uploadType === "photo"
-                ? <img src={preview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                : <video src={preview} controls style={{ width: "100%", height: "100%" }} />}
-              <button onClick={() => { setFile(null); setPreview(null); }}
-                style={{ position: "absolute", top: 8, left: 8, padding: "4px 10px", borderRadius: 20, background: "rgba(0,0,0,0.5)", border: "none", color: "white", fontSize: 11, cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
-                החלף
-              </button>
-            </div>
-          ) : (
-            <button onClick={() => fileRef.current?.click()}
-              style={{ width: "100%", padding: "3rem 1rem", borderRadius: 16, border: `2px dashed ${C.border}`, background: "rgba(197,164,109,0.04)", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
-              <Upload size={32} style={{ color: C.gold }} />
-              <p style={{ fontSize: 13, color: C.muted, fontFamily: "Heebo, sans-serif" }}>{uploadType === "photo" ? "לחצו לבחירת תמונה" : "לחצו לבחירת סרטון"}</p>
-              <p style={{ fontSize: 11, color: "rgba(51,51,51,0.35)", fontFamily: "Heebo, sans-serif" }}>מקסימום 50MB</p>
-            </button>
-          )}
         </div>
-      )}
+      );
+    }
 
-      {uploadType === "blessing" && (
-        <div style={{ marginBottom: "1.25rem" }}>
-          <textarea value={blessing} onChange={(e) => setBlessing(e.target.value)}
-            placeholder="כתבו ברכה מהלב לזוג המאושר... 💛" rows={6}
-            style={{ width: "100%", padding: "0.875rem 1rem", borderRadius: 16, border: `1px solid ${C.border}`, background: C.ivory, color: C.dark, fontFamily: "Heebo, sans-serif", fontSize: 14, outline: "none", resize: "none", boxSizing: "border-box" }} />
-          <p style={{ fontSize: 11, color: C.muted, textAlign: "left", marginTop: 2 }}>{blessing.length} תווים</p>
+    // Photo/video/blessing done
+    return (
+      <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, fontFamily:"'Heebo',sans-serif", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"32px 24px", textAlign:"center" }}>
+        <style>{CSS}</style>
+        <div style={{ width:"72px", height:"72px", borderRadius:"50%", background:"rgba(107,123,90,0.12)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 20px" }}>
+          <Check size={36} style={{ color:T.olive }}/>
         </div>
-      )}
-
-      {errorMsg && <div style={{ padding: "0.75rem 1rem", borderRadius: 10, background: "rgba(200,50,50,0.07)", color: "rgb(190,50,50)", fontSize: 13, fontFamily: "Heebo, sans-serif", marginBottom: "0.875rem" }}>{errorMsg}</div>}
-
-      <button onClick={handleUpload}
-        disabled={uploading || (uploadType !== "blessing" && !file) || (uploadType === "blessing" && !blessing.trim())}
-        style={{ width: "100%", padding: "1rem", borderRadius: 16, border: "none", background: `linear-gradient(135deg, ${C.gold}, ${C.olive})`, color: "white", fontSize: 15, fontFamily: "Heebo, sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: ((uploadType !== "blessing" && !file) || (uploadType === "blessing" && !blessing.trim())) ? 0.4 : 1 }}>
-        {uploading ? <><Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />שולחים...</> : <><Upload size={18} />שתפו עכשיו</>}
-      </button>
-    </Shell>
-  );
-
-  if (screen === "done") return (
-    <Shell event={event}>
-      <div style={{ textAlign: "center", padding: "1.5rem 0" }}>
-        <div style={{ width: 80, height: 80, borderRadius: "50%", background: "rgba(107,123,90,0.12)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1.25rem" }}>
-          {uploadType === "capsule"
-            ? <Lock size={36} style={{ color: C.olive }} />
-            : <CheckCircle size={40} style={{ color: C.olive }} />}
-        </div>
-        <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.5rem", color: C.dark, marginBottom: "0.5rem" }}>
-          {uploadType === "capsule" ? "ההודעה ננעלה! ⏳" : "תודה! 💛"}
+        <h2 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"26px", fontWeight:700, color:T.dark, marginBottom:"8px", animation:"fadeUp .4s ease both" }}>
+          תודה! 💛
         </h2>
-        <p style={{ fontSize: 13, color: C.muted, marginBottom: "1.75rem" }}>
-          {uploadType === "capsule"
-            ? `ההודעה תיפתח בעוד ${unlockYears} ${unlockYears === 1 ? "שנה" : "שנים"}`
-            : "הרגע שלכם נשמר בארכיון החתונה"}
+        <p style={{ fontSize:"15px", fontWeight:300, color:T.muted, marginBottom:"32px", animation:"fadeUp .4s ease .08s both" }}>
+          הרגע שלכם נשמר בזיכרונות החתונה
         </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-          <button onClick={resetForAnother}
-            style={{ padding: "0.875rem", borderRadius: 16, border: "none", background: `linear-gradient(135deg, ${C.olive}, #4A5E3A)`, color: "white", fontSize: 14, fontFamily: "Heebo, sans-serif", cursor: "pointer" }}>
+        <div style={{ display:"flex", flexDirection:"column", gap:"12px", width:"100%", maxWidth:"360px", animation:"fadeUp .4s ease .16s both" }}>
+          <button
+            onClick={resetFlow}
+            style={{ padding:"16px", borderRadius:"14px", border:"none", background:`linear-gradient(135deg,${T.gold},#B8935A)`, color:"#fff", fontFamily:"'Heebo',sans-serif", fontWeight:700, fontSize:"15px", cursor:"pointer", boxShadow:T.shadowCta }}
+          >
             שתפו עוד רגע
           </button>
-          <a href={`/memory/${token}/wall`}
-            style={{ padding: "0.875rem", borderRadius: 16, border: `1px solid ${C.border}`, background: "rgba(197,164,109,0.08)", color: C.gold, fontSize: 14, fontFamily: "Heebo, sans-serif", textDecoration: "none", textAlign: "center", display: "block" }}>
+          <a
+            href={`/memory/${token}/wall`}
+            style={{ padding:"16px", borderRadius:"14px", border:`1.5px solid ${T.border}`, background:"transparent", color:T.goldText, fontFamily:"'Heebo',sans-serif", fontWeight:600, fontSize:"15px", textDecoration:"none", display:"block" }}
+          >
             צפו בכל הזכרונות →
           </a>
         </div>
       </div>
-    </Shell>
-  );
+    );
+  }
 
   return null;
-}
-
-function Shell({ event, children }: { event: EventInfo | null; children: React.ReactNode }) {
-  return (
-    <div dir="rtl" style={{ minHeight: "100vh", background: `linear-gradient(160deg, #1C1008 0%, #2C1F0E 40%, #F6F1E8 40%)`, fontFamily: "Heebo, sans-serif" }}>
-      {/* Luxury hero header */}
-      <div style={{ background: `linear-gradient(160deg, #1C1008, #2C1F0E)`, padding: "2rem 1rem 3rem", textAlign: "center", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 0%, rgba(197,164,109,0.18) 0%, transparent 60%)", pointerEvents: "none" }} />
-        <p style={{ fontSize: 9, letterSpacing: "0.4em", color: "rgba(197,164,109,0.55)", marginBottom: "0.5rem" }}>רגע לפני</p>
-        {event ? (
-          <>
-            <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.6rem", fontWeight: 700, color: "#FDFAF5", margin: 0, marginBottom: "0.25rem" }}>{event.name}</h1>
-            <p style={{ fontSize: 11, color: "rgba(197,164,109,0.65)" }}>
-              {new Date(event.date).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}
-            </p>
-            <p style={{ fontSize: 13, color: "rgba(232,213,168,0.7)", marginTop: "0.5rem" }}>📸 שתפו רגעים מהחגיגה</p>
-          </>
-        ) : (
-          <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.4rem", color: "#FDFAF5", margin: 0 }}>ארכיון זכרונות</h1>
-        )}
-      </div>
-
-      {/* Card body */}
-      <div style={{ maxWidth: 420, margin: "-1.5rem auto 0", padding: "0 1rem 3rem", position: "relative", zIndex: 1 }}>
-        <div style={{ background: "#FDFAF5", borderRadius: "20px 20px 16px 16px", padding: "1.75rem 1.25rem", boxShadow: "0 8px 32px rgba(28,16,8,0.15)" }}>
-          {children}
-        </div>
-      </div>
-    </div>
-  );
 }

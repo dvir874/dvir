@@ -1,19 +1,28 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
-import { Camera, Upload, CheckCircle2, Loader2, X, Video, Image as ImageIcon, AlertCircle } from "lucide-react";
+import { use, useEffect, useState, useCallback, useRef } from "react";
+import { X, Download, ChevronLeft, ChevronRight, Camera } from "lucide-react";
 
-const G = {
-  gold:   "#C5A46D",
-  olive:  "#6B7B5A",
-  cream:  "#F6F1E8",
-  ivory:  "#FDFAF5",
-  dark:   "#333333",
-  border: "rgba(197,164,109,0.18)",
-};
-const HEEBO = { fontFamily: "Heebo, sans-serif" } as const;
-const FRANK = { fontFamily: "Frank Ruhl Libre, serif" } as const;
+const T = {
+  ivory:     "#FDFAF5",
+  cream:     "#F6F1E8",
+  gold:      "#C5A46D",
+  goldText:  "#8B6914",
+  dark:      "#1C1008",
+  muted:     "#8C7B6E",
+  olive:     "#6B7B5A",
+  border:    "#E8E0D4",
+  shadowCard: "0 2px 8px rgba(28,16,8,0.06)",
+} as const;
 
+interface Photo {
+  id: string;
+  public_url: string | null;
+  mime_type: string | null;
+  is_video: boolean;
+  uploader_name: string | null;
+  uploaded_at: string;
+}
 interface AlbumInfo {
   id: string;
   title: string;
@@ -22,382 +31,288 @@ interface AlbumInfo {
   photo_count: number;
 }
 
-interface FileItem {
-  id: string;
-  file: File;
-  preview: string | null;
-  isVideo: boolean;
-  progress: number;   // 0–100
-  status: "pending" | "uploading" | "done" | "error";
-  error?: string;
-}
+type Screen = "loading" | "error" | "empty" | "grid";
 
-// Client-side image compression using canvas
-async function compressImage(file: File, maxSizeMB = 3): Promise<File> {
-  if (file.type.startsWith("video/")) return file;
-  if (file.size <= maxSizeMB * 1024 * 1024) return file;
+export default function GalleryPage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = use(params);
+  const [screen,   setScreen]   = useState<Screen>("loading");
+  const [album,    setAlbum]    = useState<AlbumInfo | null>(null);
+  const [photos,   setPhotos]   = useState<Photo[]>([]);
+  const [lightbox, setLightbox] = useState<number | null>(null); // index
+  const touchStartX = useRef<number | null>(null);
 
-  return new Promise((resolve) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const canvas = document.createElement("canvas");
-      let { width, height } = img;
-      const maxDim = 2400;
-      if (width > maxDim || height > maxDim) {
-        if (width > height) { height = Math.round(height * maxDim / width); width = maxDim; }
-        else                { width = Math.round(width * maxDim / height); height = maxDim; }
-      }
-      canvas.width  = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(img, 0, 0, width, height);
-      canvas.toBlob((blob) => {
-        if (!blob) { resolve(file); return; }
-        resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }));
-      }, "image/jpeg", 0.82);
-    };
-    img.onerror = () => resolve(file);
-    img.src = url;
-  });
-}
-
-export default function GalleryUploadPage({ params }: { params: Promise<{ token: string }> }) {
-  const [token,       setToken]       = useState<string>("");
-  const [album,       setAlbum]       = useState<AlbumInfo | null>(null);
-  const [loading,     setLoading]     = useState(true);
-  const [notFound,    setNotFound]    = useState(false);
-  const [closed,      setClosed]      = useState(false);
-  const [uploaderName,setUploaderName]= useState("");
-  const [nameSet,     setNameSet]     = useState(false);
-  const [files,       setFiles]       = useState<FileItem[]>([]);
-  const [allDone,     setAllDone]     = useState(false);
-  const fileInputRef  = useRef<HTMLInputElement>(null);
-  const cameraRef     = useRef<HTMLInputElement>(null);
-
-  // Resolve params
   useEffect(() => {
-    params.then((p) => setToken(p.token));
-  }, [params]);
-
-  // Fetch album info
-  useEffect(() => {
-    if (!token) return;
     fetch(`/api/gallery/${token}`)
-      .then((r) => r.json())
-      .then((d: { album?: AlbumInfo; error?: string }) => {
-        if (d.error || !d.album) { setNotFound(true); }
-        else if (d.album.status === "closed") { setClosed(true); setAlbum(d.album); }
-        else { setAlbum(d.album); }
+      .then(r => r.json())
+      .then((d: { album?: AlbumInfo; photos?: Photo[]; error?: string }) => {
+        if (d.error || !d.album) { setScreen("error"); return; }
+        setAlbum(d.album);
+        const list = (d.photos ?? []).filter(p => p.public_url);
+        setPhotos(list);
+        setScreen(list.length === 0 ? "empty" : "grid");
       })
-      .catch(() => setNotFound(true))
-      .finally(() => setLoading(false));
+      .catch(() => setScreen("error"));
   }, [token]);
 
-  const addFiles = useCallback((incoming: File[]) => {
-    const valid = incoming.filter((f) => {
-      const ok = f.type.startsWith("image/") || f.type.startsWith("video/");
-      return ok && f.size < 200 * 1024 * 1024; // 200MB max
-    });
-    const items: FileItem[] = valid.map((f) => ({
-      id:       `${Date.now()}-${Math.random()}`,
-      file:     f,
-      preview:  f.type.startsWith("image/") ? URL.createObjectURL(f) : null,
-      isVideo:  f.type.startsWith("video/"),
-      progress: 0,
-      status:   "pending",
-    }));
-    setFiles((prev) => [...prev, ...items]);
-  }, []);
+  const closeLightbox = useCallback(() => setLightbox(null), []);
+  const prev = useCallback(() => setLightbox(i => i !== null ? Math.max(0, i - 1) : null), []);
+  const next = useCallback(() => setLightbox(i => i !== null ? Math.min(photos.length - 1, i + 1) : null), [photos.length]);
 
-  const uploadAll = useCallback(async () => {
-    if (!token || !nameSet) return;
-    const pending = files.filter((f) => f.status === "pending");
-    if (pending.length === 0) return;
+  // Keyboard navigation
+  useEffect(() => {
+    if (lightbox === null) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeLightbox();
+      if (e.key === "ArrowLeft")  next();
+      if (e.key === "ArrowRight") prev();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [lightbox, closeLightbox, next, prev]);
 
-    for (const item of pending) {
-      // Mark uploading
-      setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "uploading", progress: 5 } : f));
-
-      try {
-        const compressed = await compressImage(item.file);
-
-        // Simulate progress while uploading (XHR gives real progress; fetch doesn't)
-        const progressInterval = setInterval(() => {
-          setFiles((prev) => prev.map((f) => f.id === item.id && f.progress < 80 ? { ...f, progress: f.progress + 8 } : f));
-        }, 300);
-
-        const fd = new FormData();
-        fd.append("file", compressed, compressed.name);
-        fd.append("uploader_name", uploaderName);
-
-        const res = await fetch(`/api/gallery/${token}/upload`, { method: "POST", body: fd });
-        clearInterval(progressInterval);
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({})) as { error?: string };
-          setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", progress: 0, error: err.error ?? "שגיאה" } : f));
-        } else {
-          setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "done", progress: 100 } : f));
-        }
-      } catch {
-        setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", progress: 0, error: "שגיאת רשת" } : f));
-      }
-    }
-
-    setAllDone(true);
-  }, [token, files, uploaderName, nameSet]);
-
-  const removeFile = (id: string) => {
-    setFiles((prev) => {
-      const f = prev.find((x) => x.id === id);
-      if (f?.preview) URL.revokeObjectURL(f.preview);
-      return prev.filter((x) => x.id !== id);
-    });
+  const handleDownload = async (photo: Photo) => {
+    if (!photo.public_url) return;
+    const a = document.createElement("a");
+    a.href = photo.public_url;
+    a.download = `תמונה-מהאירוע.jpg`;
+    a.target = "_blank";
+    a.click();
   };
 
-  // ——— Render states ———
+  const DOTS_STYLE = `
+    @keyframes dotPulse {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.35; }
+      40%            { transform: scale(1);   opacity: 1; }
+    }
+    .loading-dot { width:10px;height:10px;border-radius:50%;background:${T.gold};animation:dotPulse 1.2s ease-in-out infinite; }
+    .loading-dot:nth-child(2){animation-delay:.2s}
+    .loading-dot:nth-child(3){animation-delay:.4s}
+    @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+    .gallery-column { break-inside:avoid; }
+  `;
 
-  if (loading) return (
-    <div dir="rtl" className="min-h-screen flex items-center justify-center" style={{ background: G.ivory }}>
-      <Loader2 size={32} className="animate-spin" style={{ color: G.gold }} />
-    </div>
-  );
-
-  if (notFound) return (
-    <div dir="rtl" className="min-h-screen flex flex-col items-center justify-center p-6 text-center" style={{ background: G.ivory }}>
-      <AlertCircle size={48} style={{ color: G.gold }} className="mb-4" />
-      <h1 className="text-xl font-bold mb-2" style={{ color: G.dark, ...FRANK }}>הקישור אינו תקין</h1>
-      <p className="text-sm" style={{ color: "rgba(51,51,51,0.5)", ...HEEBO }}>ייתכן שהקישור פג תוקף או שגוי.</p>
-    </div>
-  );
-
-  if (closed && album) return (
-    <div dir="rtl" className="min-h-screen flex flex-col items-center justify-center p-6 text-center" style={{ background: G.ivory }}>
-      <span className="text-5xl mb-4">📸</span>
-      <h1 className="text-xl font-bold mb-2" style={{ color: G.dark, ...FRANK }}>{album.event_name}</h1>
-      <p className="text-sm mb-1" style={{ color: G.gold, ...HEEBO }}>הגלריה נסגרה</p>
-      <p className="text-sm" style={{ color: "rgba(51,51,51,0.5)", ...HEEBO }}>ההעלאות לאלבום הסתיימו. תודה!</p>
-    </div>
-  );
-
-  // All uploads done — thank you screen
-  if (allDone && files.every((f) => f.status === "done" || f.status === "error")) {
-    const doneCount  = files.filter((f) => f.status === "done").length;
-    const errorCount = files.filter((f) => f.status === "error").length;
+  // ──── Loading ────
+  if (screen === "loading") {
     return (
-      <div dir="rtl" className="min-h-screen flex flex-col items-center justify-center p-6 text-center" style={{ background: G.ivory }}>
-        <div className="text-6xl mb-5">🤍</div>
-        <h1 className="text-2xl font-bold mb-3" style={{ color: G.dark, ...FRANK }}>תודה, {uploaderName}!</h1>
-        <p className="text-base mb-1" style={{ color: G.olive, ...HEEBO }}>
-          {doneCount} {doneCount === 1 ? "קובץ הועלה" : "קבצים הועלו"} בהצלחה
+      <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:"20px" }}>
+        <style>{DOTS_STYLE}</style>
+        <p style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"22px", fontWeight:900, color:T.goldText }}>רגע לפני</p>
+        <div style={{ display:"flex", gap:"8px" }}>
+          <div className="loading-dot"/><div className="loading-dot"/><div className="loading-dot"/>
+        </div>
+        <p role="status" aria-live="polite" style={{ color:T.muted, fontFamily:"'Heebo',sans-serif", fontSize:"14px", fontWeight:300 }}>
+          טוענים את הגלריה...
         </p>
-        {errorCount > 0 && (
-          <p className="text-sm mt-1" style={{ color: "#C05050", ...HEEBO }}>{errorCount} קבצים נכשלו</p>
-        )}
-        <p className="text-sm mt-4" style={{ color: "rgba(51,51,51,0.45)", ...HEEBO }}>
-          הזוג יקבל את התמונות שצילמת. תודה שהיית חלק מהיום המיוחד!
-        </p>
-        {errorCount > 0 && (
-          <button
-            onClick={() => { setAllDone(false); }}
-            className="mt-6 px-6 py-3 rounded-xl text-sm font-semibold text-white"
-            style={{ background: `linear-gradient(135deg,${G.olive},#4A5E3A)`, ...HEEBO }}
-          >
-            נסה שנית לקבצים שנכשלו
-          </button>
-        )}
       </div>
     );
   }
 
-  // Name entry screen
-  if (!nameSet) return (
-    <div dir="rtl" className="min-h-screen flex flex-col" style={{ background: G.ivory }}>
-      {/* Header */}
-      <div className="px-5 pt-10 pb-6 text-center">
-        <div className="text-5xl mb-4">📸</div>
-        <h1 className="text-2xl font-bold mb-1" style={{ color: G.dark, ...FRANK }}>{album?.event_name}</h1>
-        <p className="text-sm" style={{ color: G.gold, ...HEEBO }}>גלריית תמונות האירוע</p>
-      </div>
-
-      <div className="flex-1 px-5 max-w-sm mx-auto w-full">
-        <div className="rounded-2xl p-6" style={{ background: "white", border: `1px solid ${G.border}`, boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
-          <p className="text-base font-semibold mb-1" style={{ color: G.dark, ...FRANK }}>מה שמך?</p>
-          <p className="text-sm mb-5" style={{ color: "rgba(51,51,51,0.5)", ...HEEBO }}>
-            כדי שהזוג ידע מי שלח כל תמונה
-          </p>
-          <input
-            type="text"
-            placeholder="שם פרטי ושם משפחה"
-            value={uploaderName}
-            onChange={(e) => setUploaderName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && uploaderName.trim().length >= 2) setNameSet(true); }}
-            className="w-full rounded-xl px-4 py-3 text-base outline-none mb-4"
-            style={{ background: G.cream, border: `1.5px solid ${G.border}`, color: G.dark, ...HEEBO }}
-            autoFocus
-          />
-          <button
-            onClick={() => { if (uploaderName.trim().length >= 2) setNameSet(true); }}
-            disabled={uploaderName.trim().length < 2}
-            className="w-full py-3.5 rounded-xl font-bold text-base text-white transition-opacity"
-            style={{
-              background: `linear-gradient(135deg,${G.gold},#B8935A)`,
-              opacity: uploaderName.trim().length >= 2 ? 1 : 0.4,
-              ...HEEBO,
-            }}
-          >
-            המשך →
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Main upload screen
-  const pendingCount   = files.filter((f) => f.status === "pending").length;
-  const uploadingCount = files.filter((f) => f.status === "uploading").length;
-  const doneCount      = files.filter((f) => f.status === "done").length;
-  const isUploading    = uploadingCount > 0;
-
-  return (
-    <div dir="rtl" className="min-h-screen flex flex-col pb-32" style={{ background: G.ivory }}>
-
-      {/* Header */}
-      <div className="px-5 pt-8 pb-4 text-center">
-        <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: G.gold, ...HEEBO }}>גלריה</p>
-        <h1 className="text-xl font-bold" style={{ color: G.dark, ...FRANK }}>{album?.event_name}</h1>
-        <p className="text-sm mt-1" style={{ color: "rgba(51,51,51,0.45)", ...HEEBO }}>
-          שלום {uploaderName} — העלה תמונות וסרטונים מהאירוע
-        </p>
-      </div>
-
-      {/* Drop zone */}
-      <div className="px-4 mb-4">
-        <div
-          className="rounded-2xl p-8 text-center border-2 border-dashed cursor-pointer"
-          style={{ borderColor: G.border, background: "white" }}
-          onClick={() => fileInputRef.current?.click()}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => { e.preventDefault(); addFiles(Array.from(e.dataTransfer.files)); }}
-        >
-          <div className="flex justify-center gap-4 mb-3">
-            <ImageIcon size={28} style={{ color: G.gold }} />
-            <Video      size={28} style={{ color: G.olive }} />
-          </div>
-          <p className="font-semibold text-sm mb-1" style={{ color: G.dark, ...HEEBO }}>גרור תמונות לכאן</p>
-          <p className="text-xs" style={{ color: "rgba(51,51,51,0.4)", ...HEEBO }}>או לחץ לבחירה מהגלריה</p>
-        </div>
-
-        {/* Hidden inputs */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,video/*"
-          multiple
-          className="hidden"
-          onChange={(e) => addFiles(Array.from(e.target.files ?? []))}
-        />
-        <input
-          ref={cameraRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={(e) => addFiles(Array.from(e.target.files ?? []))}
-        />
-      </div>
-
-      {/* Camera button */}
-      <div className="px-4 mb-4">
+  // ──── Error ────
+  if (screen === "error") {
+    return (
+      <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:"12px", padding:"24px", textAlign:"center" }}>
+        <div style={{ width:"56px", height:"2px", background:T.gold, margin:"0 auto 16px" }}/>
+        <p style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"20px", fontWeight:700, color:T.dark }}>לא הצלחנו לטעון את הגלריה</p>
+        <p style={{ fontFamily:"'Heebo',sans-serif", fontSize:"14px", fontWeight:300, color:T.muted }}>בדקו חיבור לאינטרנט ונסו שוב</p>
         <button
-          onClick={() => cameraRef.current?.click()}
-          className="w-full py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2"
-          style={{ background: G.cream, border: `1.5px solid ${G.border}`, color: G.dark, ...HEEBO }}
+          onClick={() => window.location.reload()}
+          style={{ marginTop:"16px", padding:"12px 28px", borderRadius:"12px", background:T.gold, color:"#fff", fontFamily:"'Heebo',sans-serif", fontWeight:600, fontSize:"15px", border:"none", cursor:"pointer" }}
         >
-          <Camera size={18} style={{ color: G.gold }} />
-          צלם עכשיו
+          נסו שוב
         </button>
       </div>
+    );
+  }
 
-      {/* File list */}
-      {files.length > 0 && (
-        <div className="px-4 space-y-3 mb-4">
-          {files.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-2xl overflow-hidden flex items-center gap-3 px-4 py-3"
-              style={{ background: "white", border: `1px solid ${G.border}` }}
-            >
-              {/* Thumbnail */}
-              <div className="w-14 h-14 rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center" style={{ background: G.cream }}>
-                {item.preview ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.preview} alt="" className="w-full h-full object-cover" />
-                ) : item.isVideo ? (
-                  <Video size={22} style={{ color: G.olive }} />
-                ) : (
-                  <ImageIcon size={22} style={{ color: G.gold }} />
-                )}
-              </div>
+  // ──── Empty ────
+  if (screen === "empty") {
+    return (
+      <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:"16px", padding:"24px", textAlign:"center" }}>
+        <style>{DOTS_STYLE}</style>
+        {/* Botanical sprig */}
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style={{ display:"block", margin:"0 auto" }} aria-hidden="true">
+          <path d="M24 36 C24 36 24 20 24 10" stroke={T.olive} strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M24 26 C20 22 14 22 12 18" stroke={T.olive} strokeWidth="1.2" strokeLinecap="round"/>
+          <path d="M24 22 C28 18 34 18 36 14" stroke={T.olive} strokeWidth="1.2" strokeLinecap="round"/>
+          <path d="M24 30 C21 27 17 28 15 25" stroke={T.olive} strokeWidth="1" strokeLinecap="round"/>
+          <circle cx="24" cy="10" r="2" fill={T.gold}/>
+          <circle cx="12" cy="18" r="1.5" fill={T.olive}/>
+          <circle cx="36" cy="14" r="1.5" fill={T.olive}/>
+        </svg>
+        <h1 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"24px", fontWeight:700, color:T.dark, animation:"fadeUp .4s ease both" }}>
+          התמונות בדרך...
+        </h1>
+        <p style={{ fontFamily:"'Heebo',sans-serif", fontSize:"16px", fontWeight:300, color:T.muted, animation:"fadeUp .4s ease .08s both" }}>
+          שתפו את הגלריה עם האורחים כדי שיעלו תמונות
+        </p>
+        <a
+          href={`/memory/${token}`}
+          style={{ marginTop:"8px", padding:"16px 32px", borderRadius:"14px", background:`linear-gradient(135deg,${T.gold},#B8935A)`, color:"#fff", fontFamily:"'Heebo',sans-serif", fontWeight:700, fontSize:"16px", textDecoration:"none", boxShadow:`0 4px 12px rgba(197,164,109,0.4)`, animation:"fadeUp .4s ease .16s both", display:"inline-block" }}
+        >
+          העלו תמונה ראשונה
+        </a>
+      </div>
+    );
+  }
 
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate" style={{ color: G.dark, ...HEEBO }}>
-                  {item.isVideo ? "📹 סרטון" : "📷 תמונה"}
-                </p>
-                <p className="text-xs" style={{ color: "rgba(51,51,51,0.4)", ...HEEBO }}>
-                  {(item.file.size / 1024 / 1024).toFixed(1)} MB
-                </p>
+  // ──── Grid ────
+  const currentPhoto = lightbox !== null ? photos[lightbox] : null;
 
-                {/* Progress bar */}
-                {item.status === "uploading" && (
-                  <div className="mt-1.5 rounded-full overflow-hidden h-1.5" style={{ background: G.cream }}>
-                    <div
-                      className="h-full rounded-full transition-all duration-300"
-                      style={{ width: `${item.progress}%`, background: G.gold }}
-                    />
-                  </div>
-                )}
-                {item.status === "error" && (
-                  <p className="text-xs mt-0.5" style={{ color: "#C05050", ...HEEBO }}>{item.error}</p>
-                )}
-              </div>
+  return (
+    <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, fontFamily:"'Heebo',sans-serif" }}>
+      <style>{DOTS_STYLE}</style>
 
-              {/* Status icon */}
-              <div className="flex-shrink-0">
-                {item.status === "pending"   && <button onClick={() => removeFile(item.id)}><X size={18} style={{ color: "rgba(51,51,51,0.3)" }} /></button>}
-                {item.status === "uploading" && <Loader2 size={18} className="animate-spin" style={{ color: G.gold }} />}
-                {item.status === "done"      && <CheckCircle2 size={20} style={{ color: "#3D8B5C" }} />}
-                {item.status === "error"     && <AlertCircle size={18} style={{ color: "#C05050" }} />}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Fixed bottom bar */}
-      {files.length > 0 && !isUploading && pendingCount > 0 && (
-        <div className="fixed bottom-0 inset-x-0 px-4 pb-6 pt-3" style={{ background: "rgba(253,250,245,0.95)", backdropFilter: "blur(12px)", borderTop: `1px solid ${G.border}` }}>
-          <button
-            onClick={uploadAll}
-            className="w-full py-4 rounded-xl font-bold text-base text-white flex items-center justify-center gap-2"
-            style={{ background: `linear-gradient(135deg,${G.gold},#B8935A)`, ...HEEBO }}
+      {/* Header */}
+      <div style={{ padding:"20px 20px 12px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <h1 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"22px", fontWeight:700, color:T.dark, margin:0 }}>
+          גלריה
+        </h1>
+        <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
+          <span style={{ fontFamily:"'Heebo',sans-serif", fontSize:"13px", color:T.muted }}>
+            {photos.length} תמונות
+          </span>
+          <a
+            href={`/memory/${token}`}
+            style={{ padding:"8px 16px", borderRadius:"10px", background:`linear-gradient(135deg,${T.gold},#B8935A)`, color:"#fff", fontFamily:"'Heebo',sans-serif", fontWeight:600, fontSize:"14px", textDecoration:"none", display:"flex", alignItems:"center", gap:"6px" }}
           >
-            <Upload size={18} />
-            העלה {pendingCount} {pendingCount === 1 ? "קובץ" : "קבצים"}
-            {doneCount > 0 && ` (${doneCount} כבר הועלו)`}
-          </button>
+            <Camera size={14} style={{ flexShrink:0 }}/>
+            העלו
+          </a>
         </div>
+      </div>
+
+      {/* Album name */}
+      {album?.event_name && (
+        <p style={{ textAlign:"center", color:T.goldText, fontFamily:"'Heebo',sans-serif", fontSize:"13px", fontWeight:600, marginBottom:"12px", letterSpacing:".03em" }}>
+          {album.event_name}
+        </p>
       )}
 
-      {isUploading && (
-        <div className="fixed bottom-0 inset-x-0 px-4 pb-6 pt-3" style={{ background: "rgba(253,250,245,0.95)", backdropFilter: "blur(12px)", borderTop: `1px solid ${G.border}` }}>
-          <div className="w-full py-4 rounded-xl font-semibold text-base text-white flex items-center justify-center gap-2" style={{ background: `linear-gradient(135deg,${G.olive},#4A5E3A)`, ...HEEBO }}>
-            <Loader2 size={18} className="animate-spin" />
-            מעלה... {doneCount}/{files.length}
+      {/* Masonry grid — CSS column-count (zero deps, native, RTL-safe) */}
+      <div style={{ padding:"0 4px", columnCount:2, columnGap:"4px" }}>
+        {photos.map((photo, idx) => (
+          <div
+            key={photo.id}
+            className="gallery-column"
+            style={{ marginBottom:"4px", cursor:"pointer", borderRadius:"8px", overflow:"hidden", display:"block" }}
+            onClick={() => setLightbox(idx)}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={photo.public_url!}
+              alt={`תמונה מהאירוע${photo.uploader_name ? ` מאת ${photo.uploader_name}` : ""}`}
+              loading="lazy"
+              style={{
+                width:"100%",
+                display:"block",
+                borderRadius:"8px",
+                filter:"sepia(0.12) saturate(1.08) brightness(1.02)",
+              }}
+            />
           </div>
+        ))}
+      </div>
+
+      {/* Safe-area padding */}
+      <div style={{ height:"100px" }}/>
+
+      {/* FAB */}
+      <a
+        href={`/memory/${token}`}
+        aria-label="העלאת תמונה"
+        style={{
+          position:"fixed",
+          bottom:`calc(24px + env(safe-area-inset-bottom))`,
+          right:"20px",
+          width:"56px",
+          height:"56px",
+          borderRadius:"50%",
+          background:`linear-gradient(135deg,${T.gold},#B8935A)`,
+          boxShadow:"0 4px 16px rgba(197,164,109,0.5)",
+          display:"flex",
+          alignItems:"center",
+          justifyContent:"center",
+          textDecoration:"none",
+        }}
+      >
+        <Camera size={22} color="#fff"/>
+      </a>
+
+      {/* Lightbox */}
+      {lightbox !== null && currentPhoto && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="תצוגת תמונה"
+          style={{
+            position:"fixed", inset:0, zIndex:50,
+            background:"rgba(28,16,8,0.92)",
+            display:"flex", flexDirection:"column",
+          }}
+          onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+          onTouchEnd={(e) => {
+            if (touchStartX.current === null) return;
+            const dx = e.changedTouches[0].clientX - touchStartX.current;
+            if (dx > 50)  prev();
+            if (dx < -50) next();
+            touchStartX.current = null;
+          }}
+        >
+          {/* Top bar */}
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"16px 20px", flexShrink:0 }}>
+            <button
+              onClick={closeLightbox}
+              aria-label="סגור"
+              style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", padding:"8px", borderRadius:"8px", display:"flex" }}
+            >
+              <X size={24}/>
+            </button>
+            <span style={{ color:"rgba(255,255,255,0.6)", fontFamily:"'Heebo',sans-serif", fontSize:"13px" }}>
+              {lightbox + 1} / {photos.length}
+            </span>
+            <button
+              onClick={() => handleDownload(currentPhoto)}
+              aria-label="הורד תמונה"
+              style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", padding:"8px", borderRadius:"8px", display:"flex" }}
+            >
+              <Download size={22}/>
+            </button>
+          </div>
+
+          {/* Image */}
+          <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", padding:"0 48px" }}>
+            {lightbox > 0 && (
+              <button
+                onClick={prev}
+                aria-label="תמונה קודמת"
+                style={{ position:"absolute", right:"8px", background:"rgba(255,255,255,0.15)", border:"none", borderRadius:"50%", width:"36px", height:"36px", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff" }}
+              >
+                <ChevronRight size={20}/>
+              </button>
+            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={currentPhoto.public_url!}
+              alt={`תמונה מהאירוע${currentPhoto.uploader_name ? ` מאת ${currentPhoto.uploader_name}` : ""}`}
+              style={{ maxWidth:"100%", maxHeight:"70dvh", objectFit:"contain", borderRadius:"8px" }}
+            />
+            {lightbox < photos.length - 1 && (
+              <button
+                onClick={next}
+                aria-label="תמונה הבאה"
+                style={{ position:"absolute", left:"8px", background:"rgba(255,255,255,0.15)", border:"none", borderRadius:"50%", width:"36px", height:"36px", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff" }}
+              >
+                <ChevronLeft size={20}/>
+              </button>
+            )}
+          </div>
+
+          {/* Uploader name */}
+          {currentPhoto.uploader_name && (
+            <div style={{ textAlign:"center", padding:"16px", color:"rgba(255,255,255,0.5)", fontFamily:"'Heebo',sans-serif", fontSize:"13px" }}>
+              📷 {currentPhoto.uploader_name}
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -6,6 +6,18 @@ import { validateUploadFile, MAX_GALLERY_SIZE } from '@/lib/file-validation';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
+const HEIC_MIMES = new Set(['image/heic', 'image/heif']);
+
+async function convertHeicToWebp(bytes: ArrayBuffer): Promise<{ data: Buffer; mime: string } | null> {
+  try {
+    const sharp = (await import('sharp')).default;
+    const webp = await sharp(Buffer.from(bytes)).webp({ quality: 85 }).toBuffer();
+    return { data: webp, mime: 'image/webp' };
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ token: string }> },
@@ -16,7 +28,6 @@ export async function POST(
   if (!rl.ok) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   const sb = createServerClient();
 
-  // Verify album exists and is open
   const { data: album } = await sb
     .from('gallery_albums')
     .select('id, status, event_id, photo_count')
@@ -26,8 +37,8 @@ export async function POST(
   if (!album) return NextResponse.json({ error: 'album not found' }, { status: 404 });
   if (album.status === 'closed') return NextResponse.json({ error: 'album closed' }, { status: 403 });
 
-  const formData   = await req.formData();
-  const file       = formData.get('file') as File | null;
+  const formData     = await req.formData();
+  const file         = formData.get('file') as File | null;
   const uploaderName = (formData.get('uploader_name') as string | null)?.trim() || 'אורח';
 
   if (!file) return NextResponse.json({ error: 'no file' }, { status: 400 });
@@ -35,13 +46,30 @@ export async function POST(
   const validation = validateUploadFile(file, { allowVideo: true, maxBytes: MAX_GALLERY_SIZE });
   if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 400 });
 
-  const isVideo    = validation.isVideo ?? false;
-  const ext        = validation.safeExt ?? (isVideo ? 'mp4' : 'jpg');
-  const path       = `${album.event_id}/${album.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  const bytes      = await file.arrayBuffer();
+  const isVideo = validation.isVideo ?? false;
+  let bytes     = await file.arrayBuffer();
+  let mimeType  = file.type;
+  let ext       = validation.safeExt ?? (isVideo ? 'mp4' : 'jpg');
+
+  // HEIC → WebP conversion (server-side, transparent to user)
+  if (!isVideo && HEIC_MIMES.has(mimeType)) {
+    const converted = await convertHeicToWebp(bytes);
+    if (converted) {
+      bytes    = converted.data.buffer as ArrayBuffer;
+      mimeType = converted.mime;
+      ext      = 'webp';
+    } else {
+      return NextResponse.json(
+        { error: 'לא הצלחנו לעבד את קובץ ה-HEIC. נסו להעלות כ-JPEG.' },
+        { status: 422 },
+      );
+    }
+  }
+
+  const path = `${album.event_id}/${album.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
   const { error: storageErr } = await sb.storage.from('gallery').upload(path, bytes, {
-    contentType: file.type,
+    contentType: mimeType,
     upsert: false,
   });
 
@@ -50,7 +78,6 @@ export async function POST(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 
-  // Get signed URL (valid 10 years — for admin view)
   const { data: signed } = await sb.storage.from('gallery').createSignedUrl(path, 315_360_000);
 
   const { error: dbErr } = await sb.from('gallery_photos').insert({
@@ -60,7 +87,7 @@ export async function POST(
     public_url:    signed?.signedUrl ?? null,
     uploader_name: uploaderName,
     file_size:     file.size,
-    mime_type:     file.type,
+    mime_type:     mimeType,
     is_video:      isVideo,
     uploaded_by:   'guest',
   });
@@ -70,7 +97,6 @@ export async function POST(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 
-  // Increment photo_count
   await sb
     .from('gallery_albums')
     .update({ photo_count: album.photo_count + 1 })
