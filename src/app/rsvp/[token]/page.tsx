@@ -400,64 +400,100 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
     const confirmed = guest?.status === "confirmed";
 
     if (!confirmed) {
-      /* ── Declined state — olive branch, gracious copy ─────────── */
+      /* ── Declined state — E2-S5: MAZAL TOV header + heart + event card ── */
       return (
-        <div dir="rtl" style={{ minHeight: "100dvh", background: T.ivory, fontFamily: "'Heebo', sans-serif" }}>
-          <div style={{ width: "100%", height: "220px", overflow: "hidden" }}>
-            <img
-              src="https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=800&q=80"
-              alt=""
-              style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
-            />
+        <div dir="rtl" style={{ minHeight: "100dvh", background: T.ivory, fontFamily: "'Heebo', sans-serif", display: "flex", flexDirection: "column" }}>
+          <style>{`@keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }`}</style>
+
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: `1px solid ${T.border}` }}>
+            <button
+              type="button"
+              onClick={() => setScreen("form")}
+              style={{ background: "none", border: "none", cursor: "pointer", color: T.dark, fontSize: "20px", minWidth: "44px", minHeight: "44px", display: "flex", alignItems: "center", justifyContent: "center" }}
+              aria-label="חזרה"
+            >
+              ×
+            </button>
+            <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontWeight: 700, fontSize: "16px", color: T.goldText, letterSpacing: "0.12em" }}>
+              MAZAL TOV
+            </p>
+            <div style={{ width: "44px" }} />
           </div>
 
-          <div style={{ maxWidth: "420px", margin: "0 auto", padding: "32px 24px 40px", textAlign: "center" }}>
-            <h2 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "26px", fontWeight: 700, color: T.dark, marginBottom: "12px", lineHeight: 1.3 }}>
-              קיבלנו את תגובתכם.
-            </h2>
-            <p style={{ color: T.muted, fontSize: "16px", fontWeight: 300, marginBottom: "24px", lineHeight: 1.7 }}>
-              מאחלים לכם כל טוב 💛
-            </p>
-
-            <div style={{ margin: "0 auto 24px", display: "flex", justifyContent: "center" }}>
-              <BotanicalSprig size={44} />
+          <div style={{ flex: 1, maxWidth: "420px", margin: "0 auto", width: "100%", padding: "40px 24px 48px", textAlign: "center" }}>
+            {/* Heart circle */}
+            <div style={{ width: "80px", height: "80px", borderRadius: "50%", background: T.gold, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", animation: "fadeUp 0.4s ease both", boxShadow: "0 8px 24px rgba(197,164,109,0.35)" }}>
+              <span style={{ fontSize: "36px", lineHeight: 1 }}>♡</span>
             </div>
 
-            <p style={{ color: T.muted, fontSize: "14px", lineHeight: 1.7, marginBottom: "32px" }}>
-              חבל שלא תוכלו להגיע —<br />נשמח לראותכם בפעם אחרת.
+            <h2 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "26px", fontWeight: 700, color: T.dark, marginBottom: "10px", animation: "fadeUp 0.4s ease 0.08s both" }}>
+              קיבלנו את תגובתכם
+            </h2>
+            <p style={{ color: T.muted, fontSize: "15px", fontWeight: 300, marginBottom: "28px", lineHeight: 1.7, animation: "fadeUp 0.4s ease 0.12s both" }}>
+              חבל שלא תוכלו להגיע — מאחלים לכם כל טוב 💛
+            </p>
+
+            {/* Event card */}
+            {event && (
+              <WarmCard style={{ marginBottom: "16px", animation: "fadeUp 0.4s ease 0.16s both", textAlign: "right" }}>
+                <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "17px", fontWeight: 700, color: T.dark, marginBottom: "6px" }}>
+                  {event.name}
+                </p>
+                <p style={{ color: T.muted, fontSize: "13px", marginBottom: "4px" }}>📅 {formattedDate}</p>
+                {event.address && <p style={{ color: T.muted, fontSize: "13px" }}>📍 {event.address}</p>}
+              </WarmCard>
+            )}
+
+            <p style={{ color: T.muted, fontSize: "13px", marginBottom: "28px", animation: "fadeUp 0.4s ease 0.2s both" }}>
+              התגובה נשמרה במערכת
             </p>
 
             <button
               type="button"
-              onClick={() => { setScreen("form"); }}
+              onClick={() => setScreen("form")}
               style={{ background: "none", border: "none", cursor: "pointer", color: T.goldText, fontSize: "14px", fontFamily: "'Heebo', sans-serif", fontWeight: 400, textDecoration: "underline", textUnderlineOffset: "3px", minHeight: "44px" }}
             >
               טעיתי — אני כן מגיע/ה
             </button>
+
+            {/* Footer */}
+            <p style={{ marginTop: "40px", color: T.muted, fontSize: "11px", letterSpacing: "0.08em", opacity: 0.6 }}>
+              MAZAL TOV © 2024
+            </p>
           </div>
         </div>
       );
     }
 
-    /* ── Confirmed state ──────────────────────────────────────────── */
+    /* ── Confirmed state — E2-S4: MAZAL TOV header + checkmark ──── */
     return (
-      <div dir="rtl" style={{ minHeight: "100dvh", background: T.ivory, fontFamily: "'Heebo', sans-serif", position: "relative", overflow: "hidden" }}>
+      <div dir="rtl" style={{ minHeight: "100dvh", background: T.ivory, fontFamily: "'Heebo', sans-serif", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
         <style>{`
           @keyframes spin { to { transform: rotate(360deg); } }
           @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+          @keyframes scaleIn { from { opacity:0; transform:scale(0.7); } to { opacity:1; transform:scale(1); } }
         `}</style>
         <Confetti />
 
-        <div style={{ maxWidth: "420px", margin: "0 auto", padding: "48px 24px 40px", textAlign: "center" }}>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px", animation: "fadeUp 0.5s ease both" }}>
-            <RingSVG />
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 20px", borderBottom: `1px solid ${T.border}` }}>
+          <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontWeight: 700, fontSize: "16px", color: T.goldText, letterSpacing: "0.12em", margin: 0 }}>
+            MAZAL TOV
+          </p>
+        </div>
+
+        <div style={{ flex: 1, maxWidth: "420px", margin: "0 auto", width: "100%", padding: "40px 24px 40px", textAlign: "center" }}>
+          {/* Gold checkmark circle */}
+          <div style={{ width: "72px", height: "72px", borderRadius: "50%", border: `3px solid ${T.gold}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", animation: "scaleIn 0.4s ease both" }}>
+            <span style={{ fontSize: "32px", color: T.gold, lineHeight: 1 }}>✓</span>
           </div>
 
           <h2 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "28px", fontWeight: 700, color: T.dark, marginBottom: "8px", animation: "fadeUp 0.5s ease 0.1s both" }}>
-            תודה שאישרתם!
+            תודה שאישרתם! 🎉
           </h2>
-          <p style={{ color: T.muted, fontSize: "16px", fontWeight: 300, marginBottom: "4px", animation: "fadeUp 0.5s ease 0.15s both" }}>
-            מחכים לכם ביום המיוחד 💛
+          <p style={{ color: T.muted, fontSize: "15px", fontWeight: 300, marginBottom: "4px", animation: "fadeUp 0.5s ease 0.15s both" }}>
+            מחכים לכם ביום החתונה
           </p>
           <p style={{ color: T.muted, fontSize: "14px", marginBottom: "24px", animation: "fadeUp 0.5s ease 0.2s both" }}>
             {guest?.guest_count} {(guest?.guest_count ?? 1) === 1 ? "אורח" : "אורחים"} רשומים להגיע
