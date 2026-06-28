@@ -1,290 +1,185 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Check, MessageCircle } from "lucide-react";
-import FadeIn, { StaggerContainer, staggerItem } from "./FadeIn";
-import { WA_URL_PRICING as WA_URL } from "@/lib/constants";
+import Link from "next/link";
 
-const packages = [
-  {
-    name: "דף אירוע",
-    tagline: "דף אירוע אישי עם אישורי הגעה. כל האורחים שלכם בלחיצה אחת.",
-    highlight: false,
-    badge: null as string | null,
-    features: [
-      "דף אירוע אישי עם קישור ייחודי",
-      "אישורי הגעה בוואטסאפ לכל אורח",
-      "מעקב תגובות בזמן אמת",
-      "ניווט Waze / Google Maps",
-      "Countdown לחתונה",
-    ],
-    cta: "קבלו הצעת מחיר",
-  },
-  {
-    name: "ניהול מלא",
-    tagline: "הפתרון המלא לניהול חתונה. מהאורח הראשון ועד יום האירוע.",
-    highlight: true,
-    badge: "הפופולרי ביותר" as string | null,
-    features: [
-      "דף אירוע + אישורי הגעה",
-      "תזכורות אוטומטיות בוואטסאפ",
-      "תכנון הושבה לפי שולחנות",
-      "מעקב תקציב ומתנות",
-      "לוח משימות לכל שלב",
-      "לוח בקרה זוגי משותף",
-    ],
-    cta: "דברו איתנו",
-  },
-  {
-    name: "ליווי VIP",
-    tagline: "הכל, עם ליווי אישי אינטנסיבי. אנחנו מגדירים, מנהלים ומעדכנים בשמכם.",
-    highlight: false,
-    badge: "ליווי אינטנסיבי" as string | null,
-    features: [
-      "כל מה שב'ניהול מלא'",
-      "אנחנו מגדירים את המערכת עבורכם",
-      "עדכונים שוטפים ומעקב שבועי",
-      "ליווי ישיר בוואטסאפ עד יום האירוע",
-      "סיכום סופי לפני האירוע",
-    ],
-    cta: "בואו נדבר",
-  },
+const T = {
+  ivory:    "#FDFAF5",
+  cream:    "#F6F1E8",
+  gold:     "#C5A46D",
+  goldDark: "#A8864A",
+  goldText: "#8B6914",
+  dark:     "#1C1008",
+  muted:    "#8C7B6E",
+  border:   "#E8E0D4",
+  olive:    "#6B7B5A",
+};
+
+const FREE_FEATURES = [
+  { label: "ניהול אורחים עד 50", included: true  },
+  { label: "RSVP דיגיטלי",      included: true  },
+  { label: "גלריה",              included: false },
+  { label: "קפסולת זמן",        included: false },
+  { label: "WhatsApp Center",    included: false },
+  { label: "הושבה",              included: false },
+  { label: "תמיכה",             included: true, note: "אימייל"  },
 ];
 
-const alwaysIncluded = [
-  "הגדרה ראשונית עלינו",
-  "ליווי אישי בוואטסאפ",
-  "גישה מכל מכשיר",
-  "לוח בקרה לשני בני הזוג",
+const PREMIUM_FEATURES = [
+  { label: "ניהול אורחים ללא הגבלה", included: true  },
+  { label: "RSVP דיגיטלי",           included: true  },
+  { label: "גלריה",                   included: true  },
+  { label: "קפסולת זמן",             included: true  },
+  { label: "WhatsApp Center",         included: true  },
+  { label: "הושבה",                   included: true  },
+  { label: "תמיכה",                  included: true, note: "עדיפות" },
 ];
 
 export default function Pricing() {
-  const scrollToContact = () =>
-    document.querySelector("#contact")?.scrollIntoView({ behavior: "smooth" });
-
   return (
     <section
+      dir="rtl"
       id="pricing"
-      className="section-padding bg-white relative overflow-hidden"
+      style={{
+        background:  T.ivory,
+        padding:     "80px 24px",
+        fontFamily:  "Heebo, sans-serif",
+      }}
     >
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse at 25% 50%,rgba(107,123,90,0.05) 0%,transparent 60%)," +
-            "radial-gradient(ellipse at 75% 50%,rgba(197,164,109,0.05) 0%,transparent 60%)",
-        }}
-      />
-
-      <div className="container-max mx-auto relative z-10">
-        {/* Header */}
-        <FadeIn className="text-center mb-10">
-          <span className="section-eyebrow">השירותים שלנו</span>
-          <h2 className="section-title">בחרו את רמת הניהול</h2>
-          <div className="gold-divider" />
-          <p className="section-subtitle">
-            כל חבילה כוללת הגדרה ראשונית מלאה. אתם מתחילים לעבוד ביום שאחרי
-          </p>
-        </FadeIn>
-
-        {/* Always included strip */}
-        <FadeIn delay={0.08} className="mb-12">
-          <div
-            className="rounded-2xl px-6 py-4 flex flex-wrap items-center justify-center gap-x-7 gap-y-2"
-            style={{
-              background: "linear-gradient(135deg,rgba(107,123,90,0.05) 0%,rgba(197,164,109,0.05) 100%)",
-              border: "1px solid rgba(197,164,109,0.2)",
-            }}
-          >
-            <p className="text-dark font-semibold text-sm" style={{ fontFamily: "Heebo, sans-serif" }}>
-              כלול בכל החבילות:
-            </p>
-            {alwaysIncluded.map((item) => (
-              <div key={item} className="flex items-center gap-2">
-                <div
-                  className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ background: "rgba(107,123,90,0.16)" }}
-                >
-                  <Check size={10} className="text-olive" />
-                </div>
-                <span className="text-dark/65 text-sm" style={{ fontFamily: "Heebo, sans-serif" }}>
-                  {item}
-                </span>
-              </div>
-            ))}
-          </div>
-        </FadeIn>
-
-        {/* Cards. 3 column */}
-        <StaggerContainer
-          className="grid grid-cols-1 sm:grid-cols-3 gap-5 items-start max-w-4xl mx-auto"
-          staggerDelay={0.1}
-          delayStart={0.05}
+      {/* Section header */}
+      <div style={{ textAlign: "center", marginBottom: 48 }}>
+        <h2
+          style={{
+            fontFamily:   "Frank Ruhl Libre, serif",
+            fontWeight:   700,
+            fontSize:     "clamp(28px, 5vw, 40px)",
+            color:        T.dark,
+            margin:       "0 0 12px",
+          }}
         >
-          {packages.map((pkg) => (
-            <motion.div
-              key={pkg.name}
-              variants={staggerItem}
-              className={pkg.highlight ? "sm:-mt-6" : ""}
-            >
-              <PricingCard pkg={pkg} onCta={scrollToContact} />
-            </motion.div>
-          ))}
-        </StaggerContainer>
-
-        {/* Custom quote note */}
-        <FadeIn delay={0.3} className="mt-14">
-          <div
-            className="max-w-2xl mx-auto text-center rounded-2xl px-8 py-7"
-            style={{
-              background: "linear-gradient(135deg,rgba(197,164,109,0.07) 0%,rgba(107,123,90,0.05) 100%)",
-              border: "1px solid rgba(197,164,109,0.2)",
-            }}
-          >
-            <p
-              className="text-xs tracking-[0.18em] uppercase mb-3"
-              style={{ color: "rgba(197,164,109,0.75)", fontFamily: "Heebo, sans-serif" }}
-            >
-              הצעת מחיר אישית
-            </p>
-            <h3
-              className="text-xl font-bold mb-2"
-              style={{ color: "#333333", fontFamily: "Frank Ruhl Libre, serif" }}
-            >
-              המחיר נקבע לפי האירוע שלכם
-            </h3>
-            <p
-              className="text-sm leading-relaxed"
-              style={{ color: "rgba(51,51,51,0.58)", fontFamily: "Heebo, sans-serif" }}
-            >
-              החבילות נעות בין <strong style={{ color: "#333" }}>₪400 ל-₪1,200</strong>. תלוי בכמות המוזמנים ורמת הליווי.
-              <br />
-              שלחו כמה פרטים ונחזור תוך 24 שעות עם הצעה מדויקת.
-            </p>
-          </div>
-        </FadeIn>
-
-        {/* WhatsApp CTA */}
-        <FadeIn delay={0.4} className="mt-8 text-center">
-          <a
-            href={WA_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2.5 px-8 py-4 rounded-full font-semibold text-white text-sm transition-all duration-300 hover:scale-105 active:scale-95"
-            style={{
-              background: "linear-gradient(135deg,#22c55e 0%,#16a34a 100%)",
-              fontFamily: "Heebo, sans-serif",
-              boxShadow: "0 8px 24px rgba(34,197,94,0.26)",
-            }}
-          >
-            <MessageCircle size={18} strokeWidth={2} />
-            קבלו הצעת מחיר בוואטסאפ
-          </a>
-        </FadeIn>
-      </div>
-    </section>
-  );
-}
-
-function PricingCard({
-  pkg,
-  onCta,
-}: {
-  pkg: (typeof packages)[0];
-  onCta: () => void;
-}) {
-  const highlighted = pkg.highlight;
-
-  return (
-    <motion.div
-      whileHover={{ y: highlighted ? -3 : -6 }}
-      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-      className="relative rounded-2xl p-6 flex flex-col h-full"
-      style={
-        highlighted
-          ? {
-              background: "linear-gradient(160deg,#5A6E4A 0%,#3A5030 100%)",
-              boxShadow: "0 24px 64px rgba(107,123,90,0.30), 0 0 0 1px rgba(107,123,90,0.2)",
-            }
-          : {
-              background: "#FDFAF5",
-              border: "1px solid rgba(197,164,109,0.2)",
-              boxShadow: "0 4px 24px rgba(0,0,0,0.05)",
-            }
-      }
-    >
-      {/* Badge */}
-      {pkg.badge && (
-        <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
-          <div
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[11px] font-semibold text-white shadow-lg whitespace-nowrap"
-            style={{
-              background: highlighted
-                ? "linear-gradient(90deg,#C5A46D,#D4BC8A)"
-                : "linear-gradient(90deg,#6B7B5A,#4A5E3A)",
-              fontFamily: "Heebo, sans-serif",
-            }}
-          >
-            {pkg.badge}
-          </div>
-        </div>
-      )}
-
-      {/* Name + tagline */}
-      <div className="mb-5 mt-2">
-        <h3
-          className={`text-xl font-bold mb-2 ${highlighted ? "text-white" : "text-dark"}`}
-          style={{ fontFamily: "Frank Ruhl Libre, serif" }}
-        >
-          {pkg.name}
-        </h3>
-        <p
-          className={`text-xs leading-relaxed ${highlighted ? "text-white/70" : "text-dark/55"}`}
-          style={{ fontFamily: "Heebo, sans-serif" }}
-        >
-          {pkg.tagline}
+          מחיר שקוף. ללא הפתעות.
+        </h2>
+        <p style={{ fontFamily: "Heebo, sans-serif", fontWeight: 300, fontSize: 16, color: T.muted, margin: 0 }}>
+          שתי אפשרויות. ללא דמי מנוי חודשי.
         </p>
       </div>
 
-      {/* Divider */}
+      {/* Cards grid */}
       <div
-        className="w-full h-px mb-5"
-        style={{ background: highlighted ? "rgba(255,255,255,0.14)" : "rgba(197,164,109,0.18)" }}
-      />
-
-      {/* Features */}
-      <ul className="flex flex-col gap-3 flex-1 mb-7">
-        {pkg.features.map((f) => (
-          <li key={f} className="flex items-start gap-2.5">
-            <div
-              className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-              style={{ background: highlighted ? "rgba(255,255,255,0.18)" : "rgba(107,123,90,0.14)" }}
-            >
-              <Check size={10} className={highlighted ? "text-white" : "text-olive"} />
-            </div>
-            <span
-              className={`text-xs leading-snug ${highlighted ? "text-white/88" : "text-dark/68"}`}
-              style={{ fontFamily: "Heebo, sans-serif" }}
-            >
-              {f}
-            </span>
-          </li>
-        ))}
-      </ul>
-
-      {/* CTA */}
-      <button
-        onClick={onCta}
-        className="w-full py-3 rounded-xl font-semibold text-sm transition-all duration-250 hover:scale-[1.03] active:scale-95"
         style={{
-          fontFamily: "Heebo, sans-serif",
-          ...(highlighted
-            ? { background: "white", color: "#4A6741", boxShadow: "0 4px 16px rgba(0,0,0,0.14)" }
-            : { background: "linear-gradient(135deg,#6B7B5A,#4A5E3A)", color: "white", boxShadow: "0 4px 16px rgba(107,123,90,0.22)" }),
+          display:             "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap:                 20,
+          maxWidth:            680,
+          margin:              "0 auto 48px",
+          alignItems:          "start",
         }}
       >
-        {pkg.cta}
-      </button>
-    </motion.div>
+        {/* Free plan */}
+        <div
+          style={{
+            background:   T.cream,
+            borderRadius: 20,
+            padding:      "28px 24px",
+            border:       `1px solid ${T.border}`,
+            order:        1,
+          }}
+        >
+          <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 22, color: T.dark, margin: "0 0 4px" }}>
+            חינם
+          </p>
+          <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 36, color: T.dark, margin: "0 0 4px" }}>
+            ₪0
+          </p>
+          <p style={{ fontFamily: "Heebo, sans-serif", fontWeight: 300, fontSize: 14, color: T.muted, margin: "0 0 24px" }}>
+            לתמיד
+          </p>
+
+          <ul style={{ listStyle: "none", padding: 0, margin: "0 0 28px" }}>
+            {FREE_FEATURES.map(f => (
+              <li key={f.label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: `1px solid ${T.border}`, fontFamily: "Heebo, sans-serif", fontSize: 14, color: f.included ? T.dark : T.muted }}>
+                <span style={{ color: f.included ? T.olive : T.border, fontSize: 16, flexShrink: 0 }}>{f.included ? "✓" : "✗"}</span>
+                {f.label}{f.note && <span style={{ color: T.muted, fontSize: 12 }}>({f.note})</span>}
+              </li>
+            ))}
+          </ul>
+
+          <Link href="/auth/register" style={{
+            display: "block", textAlign: "center",
+            padding: "12px",
+            borderRadius: 12,
+            border: `2px solid ${T.gold}`,
+            color: T.goldText,
+            fontFamily: "Frank Ruhl Libre, serif",
+            fontWeight: 700, fontSize: 15,
+            textDecoration: "none",
+            transition: "background 0.2s",
+          }}>
+            התחילו בחינם
+          </Link>
+        </div>
+
+        {/* Premium plan */}
+        <div
+          style={{
+            background:   T.gold,
+            borderRadius: 20,
+            padding:      "28px 24px",
+            border:       `2px solid ${T.goldDark}`,
+            position:     "relative",
+            order:        0,
+            boxShadow:    "0 12px 48px rgba(197,164,109,0.40)",
+          }}
+        >
+          {/* Badge */}
+          <div style={{
+            position: "absolute", top: 20, left: 20,
+            background: "rgba(255,255,255,0.25)",
+            borderRadius: 20, padding: "4px 12px",
+            fontFamily: "Heebo, sans-serif", fontWeight: 600, fontSize: 12, color: "#fff",
+          }}>
+            הכי פופולרי
+          </div>
+
+          <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 22, color: "#fff", margin: "0 0 4px" }}>
+            פרמיום
+          </p>
+          <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 900, fontSize: 48, color: "#fff", lineHeight: 1, margin: "0 0 4px" }}>
+            ₪299
+          </p>
+          <p style={{ fontFamily: "Heebo, sans-serif", fontWeight: 300, fontSize: 16, color: "rgba(255,255,255,0.85)", margin: "0 0 24px" }}>
+            תשלום חד-פעמי בלבד
+          </p>
+
+          <ul style={{ listStyle: "none", padding: 0, margin: "0 0 28px" }}>
+            {PREMIUM_FEATURES.map(f => (
+              <li key={f.label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.2)", fontFamily: "Heebo, sans-serif", fontSize: 14, color: "#fff" }}>
+                <span style={{ color: "#fff", fontSize: 16, flexShrink: 0 }}>✓</span>
+                {f.label}{f.note && <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}>({f.note})</span>}
+              </li>
+            ))}
+          </ul>
+
+          <Link href="/auth/register" style={{
+            display: "block", textAlign: "center",
+            padding: "14px",
+            borderRadius: 12,
+            background: "#fff",
+            color: T.goldText,
+            fontFamily: "Frank Ruhl Libre, serif",
+            fontWeight: 700, fontSize: 16,
+            textDecoration: "none",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+            transition: "opacity 0.2s",
+          }}>
+            התחילו עכשיו
+          </Link>
+        </div>
+      </div>
+
+      {/* Reassurance note */}
+      <p style={{ textAlign: "center", fontFamily: "Heebo, sans-serif", fontWeight: 300, fontSize: 13, color: T.muted }}>
+        ✦ לא נדרש כרטיס אשראי להרשמה ✦ ללא דמי מנוי ✦ ביטול בכל עת
+      </p>
+    </section>
   );
 }
