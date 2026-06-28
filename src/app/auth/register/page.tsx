@@ -141,32 +141,11 @@ export default function RegisterPage() {
 
       <div style={{ width: "100%", maxWidth: 480, background: C.ivory, borderRadius: 20, padding: "2rem 1.5rem", border: `1px solid ${C.border}`, boxShadow: "0 8px 40px rgba(28,16,8,0.06)", animation: "fadeUp 0.4s ease both" }}>
         <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 28, color: C.dark, margin: "0 0 8px", textAlign: "center" }}>
-          בואו נתחיל
+          ספרו לנו עליכם
         </h1>
         <p style={{ fontFamily: "Heebo, sans-serif", fontWeight: 300, fontSize: 14, color: C.muted, textAlign: "center", margin: "0 0 24px" }}>
-          כמה פרטים ואתם בפנים
+          צרו את החשבון החתונה שלכם
         </p>
-
-        {/* Google Sign-In */}
-        <button
-          onClick={handleGoogle}
-          style={{
-            width: "100%", padding: "12px 16px", borderRadius: 12, marginBottom: 16,
-            border: `1px solid ${C.border}`, background: "#fff", color: C.dark,
-            fontFamily: "Heebo, sans-serif", fontWeight: 600, fontSize: 15,
-            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-          }}
-        >
-          <GoogleIcon />
-          המשיכו עם Google
-        </button>
-
-        {/* Divider */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          <div style={{ flex: 1, height: 1, background: C.border }} />
-          <span style={{ fontFamily: "Heebo, sans-serif", fontSize: 12, color: C.muted }}>— או —</span>
-          <div style={{ flex: 1, height: 1, background: C.border }} />
-        </div>
 
         {/* Form */}
         <form aria-label="יצירת חשבון" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
@@ -193,8 +172,12 @@ export default function RegisterPage() {
               onBlur={() => validateField("password", password)}
             />
             <button type="button" onClick={() => setShowPw(p => !p)}
-              style={{ position: "absolute", left: 14, top: 14, background: "none", border: "none", cursor: "pointer", color: C.muted, fontSize: 12, fontFamily: "Heebo, sans-serif" }}>
-              {showPw ? "הסתר" : "הצג"}
+              style={{ position: "absolute", left: 14, top: 14, background: "none", border: "none", cursor: "pointer", color: C.muted, display: "flex", alignItems: "center" }}
+              aria-label={showPw ? "הסתר סיסמה" : "הצג סיסמה"}>
+              {showPw
+                ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              }
             </button>
           </div>
 
@@ -222,14 +205,35 @@ export default function RegisterPage() {
               boxShadow: canSubmit ? "0 6px 24px rgba(197,164,109,0.35)" : "none",
               minHeight: 52, marginBottom: 16,
             }}>
-            {saving ? "יוצרים את החשבון..." : "יאללה נתחיל 💍"}
+            {saving ? "יוצרים..." : "הצטרפו ←"}
           </button>
         </form>
 
+        {/* Divider */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "4px 0 14px" }}>
+          <div style={{ flex: 1, height: 1, background: C.border }} />
+          <span style={{ fontFamily: "Heebo, sans-serif", fontSize: 12, color: C.muted }}>או</span>
+          <div style={{ flex: 1, height: 1, background: C.border }} />
+        </div>
+
+        {/* Google Sign-In */}
+        <button
+          onClick={handleGoogle}
+          style={{
+            width: "100%", padding: "12px 16px", borderRadius: 12, marginBottom: 16,
+            border: `1px solid ${C.border}`, background: "#fff", color: C.dark,
+            fontFamily: "Heebo, sans-serif", fontWeight: 600, fontSize: 15,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+          }}
+        >
+          <GoogleIcon />
+          התחברו עם Google
+        </button>
+
         <p style={{ textAlign: "center", fontFamily: "Heebo, sans-serif", fontSize: 13, color: C.muted, margin: 0 }}>
-          כבר יש לכם חשבון?{" "}
+          יש לכם חשבון?{" "}
           <Link href="/auth/login" style={{ color: C.goldText, textDecoration: "none", fontWeight: 600 }}>
-            כנסו דרכו
+            התחברו
           </Link>
         </p>
       </div>
