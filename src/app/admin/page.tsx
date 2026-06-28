@@ -295,8 +295,8 @@ const C = {
   gold:    "#C5A46D",
   goldL:   "#D4BC8A",
   olive:   "#6B7B5A",
-  dark:    "#333333",
-  muted:   "rgba(51,51,51,0.55)",
+  dark:    "#1C1008",
+  muted:   "rgba(28,16,8,0.52)",
   border:  "rgba(197,164,109,0.20)",
   borderS: "rgba(197,164,109,0.10)",
 };
@@ -3302,7 +3302,7 @@ function AdminSidebar({
 /* ── Event Card (used in Command Center) ────────────── */
 function EventCard({ ev, approvalStatus, onSelect }: { ev: EventSummary; approvalStatus?: string; onSelect: () => void }) {
   const C = {
-    ivory: "#FDFAF5", dark: "#333333", muted: "rgba(51,51,51,0.55)",
+    ivory: "#FDFAF5", dark: "#1C1008", muted: "rgba(28,16,8,0.52)",
     gold: "#C5A46D", olive: "#6B7B5A", border: "rgba(197,164,109,0.22)",
   };
   const tierColor = ev.healthTier === "green" ? C.olive : ev.healthTier === "yellow" ? "#A07840" : "rgb(180,50,50)";
@@ -3833,7 +3833,7 @@ function ReminderCenter({
   onSelectEvent: (id: string) => void;
 }) {
   const C = {
-    ivory: "#FDFAF5", dark: "#333333", muted: "rgba(51,51,51,0.55)",
+    ivory: "#FDFAF5", dark: "#1C1008", muted: "rgba(28,16,8,0.52)",
     gold: "#C5A46D", olive: "#6B7B5A", border: "rgba(197,164,109,0.22)",
   };
 
