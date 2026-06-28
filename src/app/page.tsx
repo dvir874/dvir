@@ -1,4 +1,5 @@
 import Link from "next/link";
+import LandingStickyCTA from "@/components/LandingStickyCTA";
 
 /* ─── Design tokens — SYS-02 ───────────────────────────────────────── */
 const C = {
@@ -271,9 +272,26 @@ export default function LandingPage() {
           .hero-layout {
             grid-template-columns: 1fr;
             min-height: auto;
-            padding: 48px 0;
+            padding: 48px 0 80px;
           }
-          .hero-phone { display: none; }
+          .hero-phone { display: none !important; }
+          /* Mobile: center hero content */
+          .hero-layout > div:first-child { text-align: center; }
+          .hero-layout > div:first-child p,
+          .hero-layout > div:first-child h1 { text-align: center; }
+          /* Mobile: full-width CTAs */
+          .hero-cta-group { flex-direction: column !important; }
+          .hero-cta-group a { max-width: 100% !important; width: 100% !important; }
+          /* Mobile: hide secondary CTA (sticky bar handles it) */
+          .cta-secondary-mobile { display: none; }
+          /* Mobile: single-column features */
+          .features-grid { grid-template-columns: 1fr !important; }
+          /* Mobile: single-column testimonials */
+          .testimonials-grid { grid-template-columns: 1fr !important; }
+          /* Mobile container padding */
+          .container { padding: 0 20px; }
+          /* Mobile: add bottom padding for sticky bar */
+          .landing-page { padding-bottom: 80px; }
         }
 
         /* Skip link */
@@ -299,7 +317,7 @@ export default function LandingPage() {
       <div className="landing-page">
 
         {/* ── Top bar (logo only — conversion-focused, no nav) ──────── */}
-        <div style={{ padding: "20px 40px", display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ padding: "20px 40px", display: "flex", justifyContent: "flex-start" }}>
           <Link href="/" style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "20px", fontWeight: 700, color: C.dark, textDecoration: "none" }}>
             רגע לפני
           </Link>
@@ -356,9 +374,11 @@ export default function LandingPage() {
                 💍 800+ זוגות כבר מתכננים
               </p>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "360px" }}>
+              <div id="hero-cta-sentinel" className="hero-cta-group" style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "360px" }}>
                 <GoldCTA href="/auth/register">התחילו עכשיו →</GoldCTA>
-                <GoldCTA href="/event/demo" outline>ראו דוגמה</GoldCTA>
+                <div className="cta-secondary-mobile">
+                  <GoldCTA href="/event/demo" outline>ראו דוגמה</GoldCTA>
+                </div>
               </div>
             </div>
 
@@ -468,6 +488,8 @@ export default function LandingPage() {
         </footer>
 
       </div>
+
+      <LandingStickyCTA />
     </>
   );
 }
