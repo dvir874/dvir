@@ -23,16 +23,14 @@ At `sm` (390px):
 - Tables collapse to card layout
 
 ## Admin Sidebar (from SYS-09)
-- Background: `--color-ivory`
-- Logo: "רגע לפני" Frank Ruhl Libre 700 18px `--color-dark`
-- Navigation items (Heebo 400 16px, padding 12px 20px):
-  - 🏠 דשבורד → `/admin`
-  - 👥 אורחים → `/admin?tab=guests`
-  - 🪑 הושבה → `/admin?tab=seating`
-  - 💬 WhatsApp → `/admin?tab=whatsapp`
-  - 📊 תקציב → `/admin?tab=budget`
-  - 📋 משימות → `/admin?tab=tasks`
-- Active: background `--color-cream`, border-right 3px `--color-gold` (RTL: border-left in code)
+> **Design Authority Override (2026-06-28):** Approved Stitch render shows dark olive sidebar (`#586151`), which takes precedence over this written spec's `--color-ivory`. Implementation follows Stitch render. Spec updated to match.
+
+- Background: `#586151` (dark olive — per approved Stitch render)
+- Logo: "רגע לפני" Frank Ruhl Libre 700 24px `#E5C188` (gold-light on dark)
+- Navigation items (Heebo 500 14px, padding 12px 16px):
+  - Groups: ניהול | תקשורת | מעקב | שירות | כלים
+  - Active: background rgba(255,255,255,0.10), border-right 4px `#E5C188` (RTL), white text
+  - Inactive: rgba(255,255,255,0.62) text
 - Admin name at bottom: "שלום, דביר" Heebo 300 14px muted
 
 ---

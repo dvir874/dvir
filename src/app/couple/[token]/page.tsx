@@ -190,7 +190,7 @@ interface BriefingData {
   alerts:         SmartAlert[];
   keyFacts:       string[];
   readinessPct:   number;
-  event?:         { id: string; name: string; date: string; address?: string | null; service_steps?: unknown[]; event_timeline?: { time: string; title: string }[] };
+  event?:         { id: string; name: string; date: string; address?: string | null; bride_name?: string | null; groom_name?: string | null; mini_site_hero_path?: string | null; service_steps?: unknown[]; event_timeline?: { time: string; title: string }[] };
 }
 
 const VENDOR_CATEGORIES = [
@@ -1226,7 +1226,9 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
       {/* ── E3-S6: Greeting + Countdown ── */}
       <section style={{ padding:"28px 20px 0", textAlign:"right", animation:"fadeUp .4s ease both" }}>
         <p style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"32px", fontWeight:700, color:C.dark, margin:"0 0 20px" }}>
-          שלום {event.name}
+          {briefing?.event?.bride_name && briefing?.event?.groom_name
+            ? `שלום ${briefing.event.bride_name} ו${briefing.event.groom_name}`
+            : `שלום ${event.name}`}
         </p>
         <div aria-label={`${daysLeft} ימים עד ליום החתונה`}>
           <p role="timer" style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"80px", fontWeight:900, color:"#8B6914", lineHeight:1, margin:"0 0 4px" }}>

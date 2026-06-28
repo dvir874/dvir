@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const { data: event } = await supabase
     .from('events')
-    .select('id, name, date, client_name')
+    .select('id, name, date, client_name, bride_name, groom_name, address, mini_site_hero_path, event_timeline')
     .eq('couple_token', token)
     .single();
 
@@ -133,12 +133,15 @@ export async function GET(_req: NextRequest, { params }: Params) {
     alerts,
     readinessPct,
     event: {
-      id:             event.id,
-      name:           event.name,
-      date:           event.date,
-      address:        (event as Record<string, unknown>).address as string ?? null,
-      service_steps:  (event as Record<string, unknown>).service_steps ?? [],
-      event_timeline: (event as Record<string, unknown>).event_timeline ?? [],
+      id:                 event.id,
+      name:               event.name,
+      date:               event.date,
+      address:            (event as Record<string, unknown>).address as string ?? null,
+      bride_name:         (event as Record<string, unknown>).bride_name as string ?? null,
+      groom_name:         (event as Record<string, unknown>).groom_name as string ?? null,
+      mini_site_hero_path:(event as Record<string, unknown>).mini_site_hero_path as string ?? null,
+      service_steps:      (event as Record<string, unknown>).service_steps ?? [],
+      event_timeline:     (event as Record<string, unknown>).event_timeline ?? [],
     },
     keyFacts: [
       guests.length > 0
