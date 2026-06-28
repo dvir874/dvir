@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
@@ -21,10 +21,10 @@ const CSS = `
 `;
 
 function FloatingLabelInput({
-  label, value, onChange, type = "text", autoComplete, error, onBlur,
+  label, value, onChange, type = "text", autoComplete, error,
 }: {
   label: string; value: string; onChange: (v: string) => void;
-  type?: string; autoComplete?: string; error?: string; onBlur?: () => void;
+  type?: string; autoComplete?: string; error?: string;
 }) {
   const [focused, setFocused] = useState(false);
   const filled = value.length > 0;
@@ -44,8 +44,7 @@ function FloatingLabelInput({
       <input
         type={type} value={value} autoComplete={autoComplete}
         onChange={e => onChange(e.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => { setFocused(false); onBlur?.(); }}
+        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         style={{
           width: "100%", boxSizing: "border-box",
           padding: filled || focused ? "22px 14px 8px" : "14px",
@@ -72,51 +71,53 @@ function GoogleIcon() {
   );
 }
 
-export default function RegisterPage() {
+export default function LoginPage() {
   const router = useRouter();
+  const params = useSearchParams();
+  const errorParam = params.get("error");
 
-  const [brideName, setBrideName] = useState("");
-  const [groomName, setGroomName] = useState("");
-  const [email,     setEmail]     = useState("");
-  const [password,  setPassword]  = useState("");
-  const [showPw,    setShowPw]    = useState(false);
-  const [saving,    setSaving]    = useState(false);
-  const [error,     setError]     = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [email,    setEmail]    = useState("");
+  const [password, setPassword] = useState("");
+  const [saving,   setSaving]   = useState(false);
+  const [error,    setError]    = useState<string | null>(
+    errorParam === "callback_failed" ? "הכניסה דרך Google נכשלה. נסו שוב." : null
+  );
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
+  const [showPw, setShowPw] = useState(false);
 
-  function validateField(field: string, val: string) {
-    setFieldErrors(prev => {
-      const next = { ...prev };
-      if (field === "brideName" && val.length < 2) next.brideName = "שם חובה";
-      else if (field === "brideName") delete next.brideName;
-      if (field === "groomName" && val.length < 2) next.groomName = "שם חובה";
-      else if (field === "groomName") delete next.groomName;
-      if (field === "email" && val && !val.includes("@")) next.email = "כתובת אימייל לא תקינה";
-      else if (field === "email") delete next.email;
-      if (field === "password" && val.length > 0 && val.length < 6) next.password = "הסיסמה חייבת להכיל לפחות 6 תווים";
-      else if (field === "password") delete next.password;
-      return next;
-    });
+  function validate() {
+    const errs: { email?: string; password?: string } = {};
+    if (!email.includes("@")) errs.email = "כתובת אימייל לא תקינה";
+    if (!password) errs.password = "סיסמה חובה";
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
   }
 
-  const canSubmit = brideName.length >= 2 && groomName.length >= 2 && email.includes("@") && password.length >= 6 && !saving;
-
   async function handleSubmit() {
-    if (!canSubmit) return;
+    if (!validate()) return;
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/auth/register", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ bride_name: brideName, groom_name: groomName, email, password }),
+      const { data, error: authErr } = await supabase.auth.signInWithPassword({ email, password });
+      if (authErr) throw new Error(authErr.message);
+
+      // Find this user's event
+      const res = await fetch(`/api/auth/me`, {
+        headers: { Authorization: `Bearer ${data.session?.access_token}` },
       });
-      const data = await res.json();
-      if (res.status === 409) throw new Error("כתובת האימייל הזו כבר רשומה. רוצים להתחבר?");
-      if (!res.ok) throw new Error(data.error || "שגיאה ביצירת החשבון");
-      router.replace(`/couple/${data.couple_token}/onboarding`);
+      const me = await res.json();
+      if (me?.couple_token) {
+        router.replace(`/couple/${me.couple_token}`);
+      } else {
+        router.replace("/auth/register");
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "שגיאה לא צפויה");
+      const msg = e instanceof Error ? e.message : "שגיאה לא צפויה";
+      if (msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("credentials")) {
+        setError("האימייל או הסיסמה שגויים.");
+      } else {
+        setError(msg);
+      }
       setSaving(false);
     }
   }
@@ -129,10 +130,6 @@ export default function RegisterPage() {
     });
   }
 
-  const previewName = (brideName || groomName)
-    ? `חתונת ${brideName}${brideName && groomName ? " ו" : ""}${groomName}`
-    : null;
-
   return (
     <div dir="rtl" style={{ minHeight: "100svh", background: C.ivory, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem", fontFamily: "Heebo, sans-serif" }}>
       <style>{CSS}</style>
@@ -141,10 +138,10 @@ export default function RegisterPage() {
 
       <div style={{ width: "100%", maxWidth: 480, background: C.ivory, borderRadius: 20, padding: "2rem 1.5rem", border: `1px solid ${C.border}`, boxShadow: "0 8px 40px rgba(28,16,8,0.06)", animation: "fadeUp 0.4s ease both" }}>
         <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 28, color: C.dark, margin: "0 0 8px", textAlign: "center" }}>
-          בואו נתחיל
+          כניסה לחשבון
         </h1>
         <p style={{ fontFamily: "Heebo, sans-serif", fontWeight: 300, fontSize: 14, color: C.muted, textAlign: "center", margin: "0 0 24px" }}>
-          כמה פרטים ואתם בפנים
+          ברוכים השבים ❤️
         </p>
 
         {/* Google Sign-In */}
@@ -158,7 +155,7 @@ export default function RegisterPage() {
           }}
         >
           <GoogleIcon />
-          המשיכו עם Google
+          כניסה עם Google
         </button>
 
         {/* Divider */}
@@ -169,67 +166,39 @@ export default function RegisterPage() {
         </div>
 
         {/* Form */}
-        <form aria-label="יצירת חשבון" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
-          <FloatingLabelInput
-            label="שם הכלה" value={brideName} onChange={setBrideName}
-            autoComplete="given-name" error={fieldErrors.brideName}
-            onBlur={() => validateField("brideName", brideName)}
-          />
-          <FloatingLabelInput
-            label="שם החתן" value={groomName} onChange={setGroomName}
-            autoComplete="given-name" error={fieldErrors.groomName}
-            onBlur={() => validateField("groomName", groomName)}
-          />
-          <FloatingLabelInput
-            label="כתובת אימייל" type="email" value={email} onChange={setEmail}
-            autoComplete="email" error={fieldErrors.email}
-            onBlur={() => validateField("email", email)}
-          />
+        <form aria-label="כניסה לחשבון" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
+          <FloatingLabelInput label="כתובת אימייל" type="email" value={email} onChange={setEmail} autoComplete="email" error={fieldErrors.email} />
           <div style={{ position: "relative" }}>
-            <FloatingLabelInput
-              label="סיסמה (לפחות 6 תווים)" type={showPw ? "text" : "password"}
-              value={password} onChange={setPassword}
-              autoComplete="new-password" error={fieldErrors.password}
-              onBlur={() => validateField("password", password)}
-            />
+            <FloatingLabelInput label="סיסמה" type={showPw ? "text" : "password"} value={password} onChange={setPassword} autoComplete="current-password" error={fieldErrors.password} />
             <button type="button" onClick={() => setShowPw(p => !p)}
               style={{ position: "absolute", left: 14, top: 14, background: "none", border: "none", cursor: "pointer", color: C.muted, fontSize: 12, fontFamily: "Heebo, sans-serif" }}>
               {showPw ? "הסתר" : "הצג"}
             </button>
           </div>
 
-          {/* Live preview */}
-          {previewName && (
-            <div style={{ background: C.cream, border: `1.5px solid ${C.gold}`, borderRadius: 12, padding: "12px 16px", marginBottom: 20, textAlign: "center" }}>
-              <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontStyle: "italic", fontSize: 20, color: C.goldText, margin: 0 }}>
-                {previewName}
-              </p>
-            </div>
-          )}
-
           {error && (
-            <div role="alert" aria-live="assertive" style={{ background: "rgba(220,50,50,0.08)", border: "1px solid rgba(220,50,50,0.25)", borderRadius: 10, padding: "10px 14px", marginBottom: 16 }}>
+            <div role="alert" style={{ background: "rgba(220,50,50,0.08)", border: "1px solid rgba(220,50,50,0.25)", borderRadius: 10, padding: "10px 14px", marginBottom: 16 }}>
               <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 13, color: "#B03030", margin: 0 }}>{error}</p>
             </div>
           )}
 
-          <button type="submit" disabled={!canSubmit}
+          <button type="submit" disabled={saving}
             style={{
               width: "100%", padding: "1rem", borderRadius: 14, border: "none",
-              background: canSubmit ? `linear-gradient(135deg, ${C.gold}, #D4BC8A)` : "rgba(197,164,109,0.3)",
+              background: saving ? "rgba(197,164,109,0.3)" : `linear-gradient(135deg, ${C.gold}, #D4BC8A)`,
               color: "#fff", fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700,
-              fontSize: 17, cursor: canSubmit ? "pointer" : "not-allowed",
-              boxShadow: canSubmit ? "0 6px 24px rgba(197,164,109,0.35)" : "none",
+              fontSize: 17, cursor: saving ? "not-allowed" : "pointer",
+              boxShadow: saving ? "none" : "0 6px 24px rgba(197,164,109,0.35)",
               minHeight: 52, marginBottom: 16,
             }}>
-            {saving ? "יוצרים את החשבון..." : "יאללה נתחיל 💍"}
+            {saving ? "נכנסים..." : "כניסה"}
           </button>
         </form>
 
         <p style={{ textAlign: "center", fontFamily: "Heebo, sans-serif", fontSize: 13, color: C.muted, margin: 0 }}>
-          כבר יש לכם חשבון?{" "}
-          <Link href="/auth/login" style={{ color: C.goldText, textDecoration: "none", fontWeight: 600 }}>
-            כנסו דרכו
+          אין לכם עדיין חשבון?{" "}
+          <Link href="/auth/register" style={{ color: C.goldText, textDecoration: "none", fontWeight: 600 }}>
+            הרשמו כאן
           </Link>
         </p>
       </div>
