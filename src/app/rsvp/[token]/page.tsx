@@ -8,12 +8,13 @@ type Status = "confirmed" | "declined" | "pending";
 type MealOption = "regular" | "vegetarian" | "vegan" | "mehadrin";
 type Screen = "loading" | "error" | "form" | "done" | "wrong-person";
 
-const MEAL_OPTIONS: { value: MealOption; label: string }[] = [
-  { value: "regular",    label: "רגיל" },
-  { value: "vegetarian", label: "צמחוני" },
-  { value: "vegan",      label: "טבעוני" },
-  { value: "mehadrin",   label: "כשר מהדרין" },
+const MEAL_OPTIONS: { value: MealOption; label: string; emoji: string }[] = [
+  { value: "regular",    label: "בשרי",    emoji: "🥩" },
+  { value: "vegetarian", label: "צמחוני",  emoji: "🥕" },
+  { value: "vegan",      label: "טבעוני",  emoji: "🌿" },
+  { value: "mehadrin",   label: "דג",      emoji: "🐟" },
 ];
+const COUNT_OPTIONS = [1, 2, 3, 4] as const;
 
 interface GuestInfo {
   id: string;
@@ -550,300 +551,188 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
 
   /* ═══════════════════════════════════════════════════════════════
      FORM SCREEN — E2-S2 / E2-S3
-     Mobile: full-bleed photo + gradient overlay with event info in white
-     Tablet (768px+): sticky photo panel left, ivory form panel right
+     Stitch: YES/NO cards → count circles → meal grid → CTA
   ═══════════════════════════════════════════════════════════════ */
+  const attending = choice === "confirmed";
+
   return (
-    <>
+    <div dir="rtl" style={{ minHeight: "100dvh", background: T.ivory, fontFamily: "'Heebo', sans-serif", display: "flex", flexDirection: "column" }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
-
-        .rsvp-page {
-          min-height: 100dvh;
-          background: ${T.ivory};
-          direction: rtl;
-          font-family: 'Heebo', sans-serif;
-        }
-
-        /* ── Mobile: photo is a full-bleed hero with gradient overlay ── */
-        .rsvp-photo-panel {
-          position: relative;
-          width: 100%;
-          height: 300px;
-          overflow: hidden;
-          flex-shrink: 0;
-        }
-        .rsvp-photo-panel img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          object-position: center top;
-        }
-        /* Gradient overlay (bottom 60% darkens for text legibility) */
-        .rsvp-photo-panel::after {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(to top, rgba(28,16,8,0.72) 0%, rgba(28,16,8,0.35) 50%, rgba(28,16,8,0.05) 100%);
-        }
-        /* Event info overlaid on photo — visible on mobile only */
-        .rsvp-photo-overlay {
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          z-index: 1;
-          padding: 20px 24px 24px;
-          text-align: center;
-        }
-        /* Event header inside ivory form panel — hidden on mobile, shown on tablet */
-        .rsvp-event-header { display: none; }
-
-        .rsvp-form-panel {
-          display: flex;
-          align-items: flex-start;
-          justify-content: center;
-        }
-        .rsvp-inner {
-          max-width: 420px;
-          width: 100%;
-          padding: 28px 20px 48px;
-        }
-
-        .meal-chip {
-          display: inline-flex; align-items: center; justify-content: center;
-          padding: 10px 16px; border-radius: 24px; font-size: 14px;
-          font-family: 'Heebo', sans-serif; cursor: pointer;
-          border: 1.5px solid ${T.border}; background: ${T.ivory}; color: ${T.dark};
-          min-height: 44px; transition: all 0.15s ease;
-        }
-        .meal-chip.selected {
-          background: ${T.cream}; border-color: ${T.gold}; color: ${T.goldText}; font-weight: 600;
-        }
-        .stepper-btn {
-          width: 44px; height: 44px; border-radius: 10px;
-          border: 1.5px solid ${T.border}; background: ${T.cream}; color: ${T.goldText};
-          font-size: 22px; font-weight: 500;
-          display: flex; align-items: center; justify-content: center;
-          cursor: pointer; transition: all 0.15s ease;
-        }
-        .stepper-btn:hover { border-color: ${T.gold}; }
-        .secondary-cta {
-          background: none; border: none; cursor: pointer; color: ${T.goldText};
-          font-size: 14px; font-family: 'Heebo', sans-serif; font-weight: 400;
-          text-decoration: underline; text-underline-offset: 3px; min-height: 44px;
-        }
-        .wrong-person-btn {
-          background: none; border: none; cursor: pointer; color: ${T.muted};
-          font-size: 12px; font-family: 'Heebo', sans-serif;
-          opacity: 0.7; text-decoration: underline; min-height: 44px;
-        }
-
-        /* ── Tablet (768px+): sticky left photo, scrollable right form ── */
+        @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+        .rsvp-attend-card { transition: all 0.18s ease; }
+        .rsvp-count-circle { transition: all 0.15s ease; }
+        .rsvp-meal-card { transition: all 0.15s ease; }
         @media (min-width: 768px) {
-          .rsvp-page { display: flex; }
-          .rsvp-photo-panel {
-            flex: 1;
-            position: sticky;
-            top: 0;
-            height: 100dvh;
-          }
-          /* Remove mobile fixed height — panel fills viewport height */
-          .rsvp-photo-panel::after {
-            background: linear-gradient(to top, rgba(28,16,8,0.4) 0%, transparent 60%);
-          }
-          /* Hide mobile overlay on tablet */
-          .rsvp-photo-overlay { display: none; }
-          /* Show event header in ivory form panel on tablet */
-          .rsvp-event-header { display: block; }
-          .rsvp-form-panel { flex: 1; overflow-y: auto; }
-          .rsvp-inner { max-width: 480px; width: 100%; padding: 48px 40px; }
+          .rsvp-form-wrap { display: flex; min-height: 100dvh; }
+          .rsvp-photo-side { flex: 0 0 45%; position: sticky; top: 0; height: 100dvh; overflow: hidden; }
+          .rsvp-photo-side img { width:100%; height:100%; object-fit:cover; object-position:center; }
+          .rsvp-form-side { flex: 1; overflow-y: auto; display:flex; align-items:flex-start; justify-content:center; }
+          .rsvp-form-inner { max-width: 480px; width:100%; padding: 48px 40px; }
+        }
+        @media (max-width: 767px) {
+          .rsvp-photo-side { display: none; }
+          .rsvp-form-side { flex: 1; display:flex; align-items:flex-start; justify-content:center; }
+          .rsvp-form-inner { max-width: 420px; width:100%; padding: 28px 20px 56px; }
         }
       `}</style>
 
-      <div className="rsvp-page">
+      <div className="rsvp-form-wrap" style={{ flex: 1 }}>
 
-        {/* Photo panel */}
-        <div className="rsvp-photo-panel">
-          <img
-            src="https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80"
-            alt="הזמנה לחתונה"
-          />
-
-          {/* Mobile-only: event info overlaid on photo in white text (E2-S2 spec) */}
-          {event && (
-            <div className="rsvp-photo-overlay">
-              <p style={{ fontSize: "10px", letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(255,255,255,0.7)", fontFamily: "'Heebo', sans-serif", marginBottom: "6px" }}>
-                אתם מוזמנים
-              </p>
-              <h1 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "26px", fontWeight: 700, color: "#FFFFFF", marginBottom: "4px", lineHeight: 1.2 }}>
-                {event.name}
-              </h1>
-              <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "14px", fontWeight: 300, marginBottom: "2px" }}>
-                {formattedDate}
-              </p>
-              {event.address && (
-                <p style={{ color: "rgba(255,255,255,0.65)", fontSize: "13px", fontWeight: 300 }}>
-                  📍 {event.address}
-                </p>
-              )}
-            </div>
-          )}
+        {/* Tablet: sticky photo panel */}
+        <div className="rsvp-photo-side">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80" alt="" />
         </div>
 
-        {/* Form panel */}
-        <div className="rsvp-form-panel">
-          <div className="rsvp-inner">
+        <div className="rsvp-form-side">
+          <div className="rsvp-form-inner">
 
-            {/* Tablet-only event header (inside ivory area) */}
+            {/* Event headline */}
+            <h1 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontWeight: 700, fontSize: "28px", color: T.dark, textAlign: "center", margin: "0 0 6px", animation: "fadeUp 0.4s ease both" }}>
+              {event?.name ?? ""}
+            </h1>
             {event && (
-              <div className="rsvp-event-header" style={{ textAlign: "center", marginBottom: "24px" }}>
-                <p style={{ fontSize: "11px", letterSpacing: "0.22em", textTransform: "uppercase", color: T.goldText, fontFamily: "'Heebo', sans-serif", marginBottom: "8px" }}>
-                  אתם מוזמנים
-                </p>
-                <h1 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "28px", fontWeight: 700, color: T.dark, marginBottom: "4px", lineHeight: 1.25 }}>
-                  {event.name}
-                </h1>
-                <p style={{ color: T.muted, fontSize: "14px", marginBottom: "8px" }}>{formattedDate}</p>
-                {event.address && (
-                  <p style={{ color: T.muted, fontSize: "13px" }}>📍 {event.address}</p>
-                )}
-                <div style={{ width: "56px", height: "1px", background: `linear-gradient(90deg,transparent,${T.gold},transparent)`, margin: "16px auto 0" }} />
-              </div>
+              <p style={{ textAlign: "center", color: T.muted, fontSize: "14px", marginBottom: "24px", animation: "fadeUp 0.4s ease 0.06s both" }}>
+                {formattedDate}{event.address ? ` | ${event.address}` : ""}
+              </p>
             )}
 
-            {/* Guest greeting */}
-            <div style={{ textAlign: "center", marginBottom: "24px", animation: "fadeUp 0.4s ease 0.08s both" }}>
-              <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "18px", fontWeight: 700, color: T.dark, marginBottom: "4px" }}>
-                שלום {guest?.name} 🤍
-              </p>
-              <p style={{ color: T.muted, fontSize: "14px" }}>
-                מתרגשים לראות אתכם בשמחה כזו
-              </p>
+            {/* Gold divider */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "24px" }}>
+              <div style={{ flex: 1, height: 1, background: T.border }} />
+              <span style={{ color: T.gold, fontSize: 14 }}>✦</span>
+              <div style={{ flex: 1, height: 1, background: T.border }} />
             </div>
 
             {errorMsg && <WarmAlertCard message={errorMsg} />}
 
-            {/* Main form card */}
-            <WarmCard style={{ marginBottom: "16px", animation: "fadeUp 0.4s ease 0.12s both" }}>
-
-              {/* Guest count stepper */}
-              <div style={{ marginBottom: "20px" }}>
-                <p style={{ fontSize: "14px", fontWeight: 500, color: T.dark, marginBottom: "12px" }}>
-                  כמה אנשים מגיעים?
-                </p>
-                <div style={{ display: "flex", alignItems: "center", gap: "16px", justifyContent: "center" }}>
-                  <button
-                    type="button"
-                    className="stepper-btn"
-                    onClick={() => setGuestCount(c => Math.max(1, c - 1))}
-                    aria-label="הפחת אורח"
-                  >
-                    −
-                  </button>
-                  <span
-                    style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "32px", fontWeight: 700, color: T.dark, minWidth: "48px", textAlign: "center" }}
-                    aria-live="polite"
-                    aria-label={`${guestCount} אורחים`}
-                  >
-                    {guestCount}
-                  </span>
-                  <button
-                    type="button"
-                    className="stepper-btn"
-                    onClick={() => setGuestCount(c => Math.min(20, c + 1))}
-                    aria-label="הוסף אורח"
-                  >
-                    +
-                  </button>
-                </div>
-                <p style={{ textAlign: "center", fontSize: "12px", color: T.muted, marginTop: "6px" }}>
-                  כולל אתם
-                </p>
-              </div>
-
-              <div style={{ height: "1px", background: T.border, marginBottom: "20px" }} />
-
-              {/* Meal preference */}
-              <div style={{ marginBottom: "4px" }}>
-                <p style={{ fontSize: "14px", fontWeight: 500, color: T.dark, marginBottom: "12px" }}>
-                  העדפת מזון
-                </p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                  {MEAL_OPTIONS.map(opt => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      className={`meal-chip${meal === opt.value ? " selected" : ""}`}
-                      onClick={() => setMeal(m => m === opt.value ? null : opt.value)}
-                      aria-pressed={meal === opt.value}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </WarmCard>
-
-            {/* Phone field */}
-            <div style={{ marginBottom: "24px", animation: "fadeUp 0.4s ease 0.18s both" }}>
-              <label htmlFor="rsvp-phone" style={{ display: "block", fontSize: "13px", color: T.muted, marginBottom: "6px" }}>
-                מספר טלפון <span style={{ fontSize: "11px" }}>(אופציונלי)</span>
-              </label>
-              <input
-                id="rsvp-phone"
-                type="tel"
-                inputMode="numeric"
-                autoComplete="tel-national"
-                placeholder="050-0000000"
+            {/* YES / NO cards */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "24px", animation: "fadeUp 0.4s ease 0.1s both" }}>
+              {/* NO card */}
+              <button
+                type="button"
+                className="rsvp-attend-card"
+                onClick={() => setChoice(c => c === "declined" ? null : "declined")}
                 style={{
-                  width: "100%", padding: "12px 14px",
-                  border: `1.5px solid ${T.border}`,
-                  borderRadius: "10px", background: T.ivory,
-                  fontFamily: "'Heebo', sans-serif", fontSize: "15px",
-                  color: T.dark, direction: "ltr", textAlign: "right",
-                  boxSizing: "border-box",
+                  padding: "18px 12px", borderRadius: "16px", cursor: "pointer",
+                  border: `2px solid ${choice === "declined" ? "#B85C38" : T.border}`,
+                  background: choice === "declined" ? "rgba(184,92,56,0.08)" : T.cream,
+                  textAlign: "center",
                 }}
-              />
-              <p style={{ fontSize: "11px", color: T.muted, marginTop: "4px" }}>
-                הטלפון רק לתיאום ישיר עם הזוג — לא לשיווק
-              </p>
+              >
+                <div style={{ fontSize: "22px", marginBottom: "6px" }}>✗</div>
+                <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "15px", fontWeight: 700, color: choice === "declined" ? "#B85C38" : T.dark, margin: 0, lineHeight: 1.3 }}>
+                  מצטערים,<br />לא נוכל
+                </p>
+              </button>
+
+              {/* YES card */}
+              <button
+                type="button"
+                className="rsvp-attend-card"
+                onClick={() => setChoice(c => c === "confirmed" ? null : "confirmed")}
+                style={{
+                  padding: "18px 12px", borderRadius: "16px", cursor: "pointer",
+                  border: `2px solid ${attending ? T.gold : T.border}`,
+                  background: attending ? T.gold : T.cream,
+                  textAlign: "center",
+                }}
+              >
+                <div style={{ fontSize: "22px", marginBottom: "6px", color: attending ? "#fff" : T.dark }}>✓</div>
+                <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "15px", fontWeight: 700, color: attending ? "#fff" : T.dark, margin: 0, lineHeight: 1.3 }}>
+                  כן, נשמח<br />להגיע
+                </p>
+              </button>
             </div>
 
-            {/* Primary CTA */}
-            <div style={{ marginBottom: "12px", animation: "fadeUp 0.4s ease 0.22s both" }}>
+            {/* Guest count — circles (shown when attending) */}
+            {attending && (
+              <div style={{ marginBottom: "20px", animation: "fadeUp 0.3s ease both" }}>
+                <p style={{ fontSize: "14px", fontWeight: 600, color: T.dark, marginBottom: "12px", textAlign: "center" }}>
+                  כמות אורחים
+                </p>
+                <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
+                  {COUNT_OPTIONS.map(n => {
+                    const isLast = n === 4;
+                    const selected = isLast ? guestCount >= 4 : guestCount === n;
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        className="rsvp-count-circle"
+                        onClick={() => setGuestCount(n)}
+                        aria-pressed={selected}
+                        style={{
+                          width: "52px", height: "52px", borderRadius: "50%",
+                          border: `2px solid ${selected ? T.gold : T.border}`,
+                          background: selected ? T.gold : T.cream,
+                          color: selected ? "#fff" : T.dark,
+                          fontFamily: "'Frank Ruhl Libre', serif", fontSize: "18px", fontWeight: 700,
+                          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                        }}
+                      >
+                        {isLast ? "4+" : n}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Meal choice grid — 2×2 (shown when attending) */}
+            {attending && (
+              <div style={{ marginBottom: "24px", animation: "fadeUp 0.3s ease 0.05s both" }}>
+                <p style={{ fontSize: "14px", fontWeight: 600, color: T.dark, marginBottom: "12px", textAlign: "center" }}>
+                  בחירת מנות
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                  {MEAL_OPTIONS.map(opt => {
+                    const selected = meal === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        className="rsvp-meal-card"
+                        onClick={() => setMeal(m => m === opt.value ? null : opt.value)}
+                        aria-pressed={selected}
+                        style={{
+                          padding: "16px 8px", borderRadius: "14px", cursor: "pointer", textAlign: "center",
+                          border: `2px solid ${selected ? T.gold : T.border}`,
+                          background: selected ? `rgba(197,164,109,0.12)` : T.cream,
+                        }}
+                      >
+                        <div style={{ fontSize: "28px", marginBottom: "6px" }}>{opt.emoji}</div>
+                        <p style={{ fontFamily: "'Heebo', sans-serif", fontSize: "14px", fontWeight: selected ? 600 : 400, color: selected ? T.goldText : T.dark, margin: 0 }}>
+                          {opt.label}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* CTA */}
+            <div style={{ marginBottom: "12px" }}>
               <GoldCTA
-                onClick={() => handleSubmit("confirmed")}
-                loading={submitting && choice === "confirmed"}
-                disabled={submitting}
+                onClick={() => {
+                  if (choice === "confirmed") handleSubmit("confirmed");
+                  else if (choice === "declined") handleSubmit("declined");
+                }}
+                loading={submitting}
+                disabled={submitting || !choice}
                 fullWidth
               >
-                אני מגיע/ה 🎉
+                {submitting ? "שולח..." : "אישור והמשך"}
               </GoldCTA>
             </div>
 
-            {/* Decline CTA */}
-            <div style={{ textAlign: "center", animation: "fadeUp 0.4s ease 0.26s both" }}>
+            <div style={{ textAlign: "center", marginTop: "16px" }}>
               <button
                 type="button"
-                className="secondary-cta"
-                onClick={() => handleSubmit("declined")}
-                disabled={submitting}
-              >
-                {submitting && choice === "declined" ? "שולח..." : "לא אוכל להגיע"}
-              </button>
-              <p style={{ fontSize: "11px", color: T.muted, marginTop: "4px" }}>
-                אפשר לעדכן מאוחר יותר
-              </p>
-            </div>
-
-            {/* Wrong person */}
-            <div style={{ textAlign: "center", marginTop: "24px" }}>
-              <button
-                type="button"
-                className="wrong-person-btn"
                 onClick={() => setScreen("wrong-person")}
+                style={{ background: "none", border: "none", cursor: "pointer", color: T.muted, fontSize: "12px", fontFamily: "'Heebo', sans-serif", opacity: 0.7, textDecoration: "underline", minHeight: "44px" }}
               >
                 קיבלתם בטעות? זה לא אני
               </button>
@@ -852,6 +741,6 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
