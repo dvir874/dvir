@@ -1,83 +1,228 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { ArrowRight, ArrowLeft, Loader2, Heart, Sparkles, Check } from "lucide-react";
 
 const C = {
-  gold:   "#C5A46D",
-  olive:  "#6B7B5A",
-  dark:   "#1C1008",
-  cream:  "#F6F1E8",
-  ivory:  "#FDFAF5",
-  border: "rgba(197,164,109,0.22)",
-  muted:  "rgba(28,16,8,0.52)",
+  ivory:    "#FDFAF5",
+  cream:    "#F6F1E8",
+  gold:     "#C5A46D",
+  goldText: "#8B6914",
+  olive:    "#6B7B5A",
+  dark:     "#1C1008",
+  muted:    "#8C7B6E",
+  border:   "#E8E0D4",
 };
 
-const TOTAL_STEPS = 7; // steps 0-6 (not counting welcome)
+const CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;700;900&family=Heebo:wght@300;400;600&display=swap');
+  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes dotPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+  @keyframes confettiFall{0%{transform:translateY(-10px) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
+  @keyframes ringScale{0%{transform:scale(0.6);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+`;
 
-function ProgressBar({ step, total }: { step: number; total: number }) {
+function BotanicalIllustration() {
   return (
-    <div style={{ width: "100%", height: 3, borderRadius: 4, overflow: "hidden", background: "rgba(197,164,109,0.15)" }}>
-      <div
+    <svg width="220" height="200" viewBox="0 0 220 200" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M110 180 Q110 140 110 100" stroke="#C5A46D" strokeWidth="1.5" fill="none" opacity="0.5"/>
+      <path d="M110 150 Q90 130 70 120" stroke="#6B7B5A" strokeWidth="1.5" fill="none"/>
+      <ellipse cx="60" cy="115" rx="18" ry="10" fill="#6B7B5A" opacity="0.25" transform="rotate(-30 60 115)"/>
+      <ellipse cx="75" cy="108" rx="14" ry="8" fill="#6B7B5A" opacity="0.2" transform="rotate(-20 75 108)"/>
+      <path d="M110 140 Q130 120 155 112" stroke="#6B7B5A" strokeWidth="1.5" fill="none"/>
+      <ellipse cx="163" cy="108" rx="18" ry="10" fill="#6B7B5A" opacity="0.25" transform="rotate(25 163 108)"/>
+      <ellipse cx="148" cy="100" rx="14" ry="8" fill="#6B7B5A" opacity="0.2" transform="rotate(15 148 100)"/>
+      <path d="M110 120 Q85 100 68 85" stroke="#C5A46D" strokeWidth="1" fill="none" opacity="0.4"/>
+      <ellipse cx="62" cy="80" rx="15" ry="8" fill="#C5A46D" opacity="0.15" transform="rotate(-40 62 80)"/>
+      <path d="M110 115 Q138 95 155 78" stroke="#C5A46D" strokeWidth="1" fill="none" opacity="0.4"/>
+      <ellipse cx="160" cy="74" rx="15" ry="8" fill="#C5A46D" opacity="0.15" transform="rotate(35 160 74)"/>
+      <path d="M110 100 Q108 80 106 65" stroke="#6B7B5A" strokeWidth="1.2" fill="none"/>
+      <circle cx="106" cy="60" r="6" fill="#C5A46D" opacity="0.3"/>
+      <circle cx="106" cy="60" r="3" fill="#C5A46D" opacity="0.5"/>
+      <circle cx="67" cy="117" r="4" fill="#C5A46D" opacity="0.4"/>
+      <circle cx="162" cy="110" r="4" fill="#C5A46D" opacity="0.4"/>
+      <circle cx="63" cy="82" r="3" fill="#6B7B5A" opacity="0.4"/>
+      <circle cx="159" cy="76" r="3" fill="#6B7B5A" opacity="0.4"/>
+      <circle cx="110" cy="92" r="12" stroke="#C5A46D" strokeWidth="2" fill="none" opacity="0.6"/>
+      <circle cx="110" cy="92" r="4" fill="#C5A46D" opacity="0.4"/>
+    </svg>
+  );
+}
+
+function RingSVG() {
+  return (
+    <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
+         style={{ animation: "ringScale 0.6s ease both" }}>
+      <circle cx="30" cy="34" r="14" stroke="#C5A46D" strokeWidth="4" fill="none"/>
+      <path d="M22 20 L30 12 L38 20 L34 26 L26 26 Z" fill="#C5A46D"/>
+      <path d="M26 26 L30 20 L34 26" stroke="#FDFAF5" strokeWidth="0.8" fill="none"/>
+      <path d="M30 12 L30 20" stroke="#FDFAF5" strokeWidth="0.8"/>
+    </svg>
+  );
+}
+
+function Confetti() {
+  const particles = useRef(
+    Array.from({ length: 40 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      delay: Math.random() * 2,
+      duration: 2.5 + Math.random() * 1.5,
+      size: 5 + Math.random() * 6,
+      color: ["#C5A46D","#F6F1E8","#6B7B5A","#FFFFFF","#E8E0D4"][i % 5],
+      shape: i % 2 === 0 ? "circle" : "rect",
+    }))
+  ).current;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }} aria-hidden="true">
+      {particles.map(p => (
+        <div key={p.id} style={{
+          position: "absolute",
+          left: `${p.x}%`,
+          top: -10,
+          width:  p.shape === "circle" ? p.size : p.size * 0.6,
+          height: p.shape === "circle" ? p.size : p.size * 1.4,
+          borderRadius: p.shape === "circle" ? "50%" : 2,
+          background: p.color,
+          animation: `confettiFall ${p.duration}s ${p.delay}s ease-in both`,
+        }}/>
+      ))}
+    </div>
+  );
+}
+
+function ProgressDots({ step, total }: { step: number; total: number }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 28 }}>
+      {Array.from({ length: total }, (_, i) => {
+        const done   = i < step;
+        const active = i === step;
+        return (
+          <div key={i} style={{
+            width:        done ? 8 : 10,
+            height:       done ? 8 : 10,
+            borderRadius: "50%",
+            background:   done ? C.olive : active ? C.gold : "transparent",
+            border:       done ? "none" : active ? "none" : `1.5px solid ${C.border}`,
+            animation:    active ? "dotPulse 1.5s infinite" : "none",
+            transition:   "all 0.3s",
+          }}/>
+        );
+      })}
+    </div>
+  );
+}
+
+function FloatingLabelInput({
+  label, value, onChange, type = "text", min,
+}: {
+  label: string; value: string; onChange: (v: string) => void;
+  type?: string; min?: string;
+}) {
+  const [focused, setFocused] = useState(false);
+  const filled = value.length > 0;
+  return (
+    <div style={{ position: "relative", marginBottom: 16 }}>
+      <label style={{
+        position: "absolute", right: 14,
+        top: focused || filled ? 6 : "50%",
+        transform: focused || filled ? "none" : "translateY(-50%)",
+        fontSize: focused || filled ? 10 : 14,
+        color: focused ? C.gold : C.muted,
+        transition: "all 0.2s",
+        pointerEvents: "none",
+        fontFamily: "Heebo, sans-serif", fontWeight: 300,
+      }}>
+        {label}
+      </label>
+      <input
+        type={type}
+        value={value}
+        min={min}
+        onChange={e => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         style={{
-          height:     "100%",
-          borderRadius: 4,
-          transition: "width 0.5s ease",
-          width:      `${(step / total) * 100}%`,
-          background: `linear-gradient(90deg, ${C.gold}, #D4BC8A)`,
+          width: "100%", boxSizing: "border-box",
+          padding: filled || focused ? "22px 14px 8px" : "14px",
+          borderRadius: 12,
+          border: `1.5px solid ${focused ? C.gold : C.border}`,
+          background: C.ivory,
+          color: C.dark,
+          fontFamily: "Heebo, sans-serif",
+          fontSize: 16, outline: "none",
+          transition: "border-color 0.2s",
         }}
       />
     </div>
   );
 }
 
-function SelectCard({ children, selected, onClick }: {
-  children: React.ReactNode; selected?: boolean; onClick: () => void;
+function GoldCTA({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        width: "100%", padding: "1rem",
+        borderRadius: 14,
+        background: disabled ? "rgba(197,164,109,0.3)" : `linear-gradient(135deg, ${C.gold}, #D4BC8A)`,
+        border: "none",
+        color: "#FFFFFF",
+        fontFamily: "Frank Ruhl Libre, serif",
+        fontSize: 17, fontWeight: 700,
+        cursor: disabled ? "not-allowed" : "pointer",
+        boxShadow: disabled ? "none" : "0 6px 24px rgba(197,164,109,0.35)",
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+        minHeight: 52,
+        transition: "opacity 0.2s",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function ImportCard({
+  icon, label, sub, outline, selected, onClick,
+}: {
+  icon: string; label: string; sub?: string; outline?: boolean; selected?: boolean; onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       style={{
-        width:      "100%",
-        padding:    "1rem",
-        borderRadius: "1rem",
-        border:     `1.5px solid ${selected ? C.gold : C.border}`,
-        background: selected ? "rgba(197,164,109,0.10)" : C.ivory,
-        boxShadow:  selected ? "0 4px 16px rgba(197,164,109,0.18)" : "none",
-        cursor:     "pointer",
-        textAlign:  "right",
+        width: "100%", padding: "1rem 1.25rem",
+        borderRadius: 14,
+        border: selected
+          ? `2px solid ${C.gold}`
+          : outline
+            ? `1.5px dashed ${C.muted}`
+            : `1.5px solid ${C.border}`,
+        background: selected ? `rgba(197,164,109,0.08)` : "transparent",
+        display: "flex", alignItems: "center", gap: 14,
+        textAlign: "right", cursor: "pointer",
+        marginBottom: 10,
+        boxShadow: selected ? "0 4px 16px rgba(197,164,109,0.18)" : "none",
         transition: "all 0.18s",
+        minHeight: 60,
       }}
     >
-      {children}
-    </button>
-  );
-}
-
-function SkipBtn({ onSkip }: { onSkip: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onSkip}
-      style={{
-        display:    "block",
-        width:      "100%",
-        marginTop:  "0.75rem",
-        padding:    "0.75rem",
-        borderRadius: "0.875rem",
-        background: "transparent",
-        border:     "none",
-        color:      C.muted,
-        fontFamily: "Heebo, sans-serif",
-        fontSize:   13,
-        cursor:     "pointer",
-        textAlign:  "center",
-      }}
-    >
-      דלגו לעכשיו ←
+      <div style={{
+        width: 40, height: 40, borderRadius: "50%",
+        background: outline ? `rgba(140,123,110,0.1)` : `rgba(107,123,90,0.15)`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        flexShrink: 0, fontSize: 20,
+      }}>
+        {icon}
+      </div>
+      <div style={{ flex: 1 }}>
+        <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 15, fontWeight: 600, color: outline ? C.muted : C.dark, margin: 0 }}>{label}</p>
+        {sub && <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 12, fontWeight: 300, color: C.muted, margin: "2px 0 0" }}>{sub}</p>}
+      </div>
+      {selected && <span style={{ color: C.gold, fontSize: 18, flexShrink: 0 }}>✓</span>}
     </button>
   );
 }
@@ -86,50 +231,57 @@ export default function OnboardingPage({ params }: { params: Promise<{ token: st
   const { token } = use(params);
   const router    = useRouter();
 
-  // -1 = welcome screen, 0-6 = wizard steps
-  const [step,          setStep]          = useState(-1);
-  const [mounted,       setMounted]       = useState(false);
-  const [animating,     setAnimating]     = useState(false);
-  const [saving,        setSaving]        = useState(false);
-  const [showSuccess,   setShowSuccess]   = useState(false);
+  const [step,        setStep]        = useState<number>(-1);
+  const [mounted,     setMounted]     = useState(false);
+  const [saving,      setSaving]      = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  // Form values
-  const [weddingDate,   setWeddingDate]   = useState("");
-  const [guestCount,    setGuestCount]    = useState(150);
-  const [venue,         setVenue]         = useState<"hall"|"garden"|"abroad"|"unknown">("hall");
-  const [hasInvitation, setHasInvitation] = useState<boolean|null>(null);
-  const [wantsRsvp,     setWantsRsvp]     = useState<boolean|null>(null);
-  const [wantsBudget,   setWantsBudget]   = useState<boolean|null>(null);
-  const [manager,       setManager]       = useState("both");
+  const [brideName,    setBrideName]    = useState("");
+  const [groomName,    setGroomName]    = useState("");
+  const [weddingDate,  setWeddingDate]  = useState("");
+  const [venueName,    setVenueName]    = useState("");
+  const [importMethod, setImportMethod] = useState<string|null>(null);
+
+  const daysLeft = weddingDate
+    ? Math.ceil((new Date(weddingDate).getTime() - Date.now()) / 86_400_000)
+    : null;
+
+  const previewName = (brideName || groomName)
+    ? `חתונת ${brideName}${brideName && groomName ? " ו" : ""}${groomName}`
+    : null;
 
   useEffect(() => {
     setMounted(true);
     fetch(`/api/couple/${token}/onboarding`)
       .then(r => r.json())
-      .then(d => { if (d.onboarding_completed) router.replace(`/couple/${token}`); });
+      .then(d => {
+        if (d.onboarding_completed) router.replace(`/couple/${token}`);
+        if (d.event?.bride_name) setBrideName(d.event.bride_name);
+        if (d.event?.groom_name) setGroomName(d.event.groom_name);
+      })
+      .catch(() => {});
   }, [token, router]);
 
-  function advance() {
-    setAnimating(true);
-    setTimeout(() => { setStep(s => s + 1); setAnimating(false); }, 200);
-  }
-  function back() {
-    setAnimating(true);
-    setTimeout(() => { setStep(s => s - 1); setAnimating(false); }, 200);
-  }
+  function advance() { setStep(s => s + 1); }
+  function back()    { setStep(s => s - 1); }
 
   async function finish() {
     setSaving(true);
-    // Map preferences to existing API fields
-    const style  = hasInvitation === false ? "needs_design" : hasInvitation ? "has_design" : "";
-    const fears: string[] = [];
-    if (wantsRsvp)    fears.push("rsvp");
-    if (wantsBudget)  fears.push("budget");
     try {
       await fetch(`/api/couple/${token}/onboarding`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ guestCount, style, fears, moment: "", manager }),
+        body:    JSON.stringify({
+          guestCount:   150,
+          style:        importMethod === "skip" ? "needs_list" : "has_list",
+          fears:        [],
+          moment:       "",
+          manager:      "both",
+          bride_name:   brideName  || undefined,
+          groom_name:   groomName  || undefined,
+          venue_name:   venueName  || undefined,
+          date:         weddingDate || undefined,
+        }),
       });
       setShowSuccess(true);
     } catch {
@@ -139,629 +291,164 @@ export default function OnboardingPage({ params }: { params: Promise<{ token: st
 
   if (!mounted) return null;
 
-  /* ── Success screen ─────────────────────────────────────────────────────── */
+  /* ── Celebration (E3-S5) ─── */
   if (showSuccess) {
     return (
-      <div
-        style={{
-          minHeight:      "100svh",
-          background:     C.cream,
-          display:        "flex",
-          flexDirection:  "column",
-          alignItems:     "center",
-          justifyContent: "center",
-          padding:        "2rem 1.5rem",
-        }}
-        dir="rtl"
-      >
-        {/* Ring */}
-        <div
-          style={{
-            width:      96,
-            height:     96,
-            borderRadius: "50%",
-            background: `linear-gradient(135deg, ${C.gold}, #D4BC8A)`,
-            display:    "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            marginBottom: "1.5rem",
-            boxShadow:  "0 12px 40px rgba(197,164,109,0.35)",
-          }}
-        >
-          <Sparkles size={40} color="white" />
-        </div>
+      <div dir="rtl" style={{
+        minHeight: "100svh", background: C.ivory,
+        display: "flex", flexDirection: "column", alignItems: "center",
+        justifyContent: "center", padding: "2rem 1.5rem",
+        position: "relative", overflow: "hidden",
+        fontFamily: "Heebo, sans-serif",
+      }}>
+        <style>{CSS}</style>
+        <Confetti />
+        <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 360, textAlign: "center", animation: "fadeUp 0.5s ease both" }}>
+          <div style={{ marginBottom: 20 }}><RingSVG /></div>
 
-        <h1
-          style={{
-            fontFamily:  "Frank Ruhl Libre, serif",
-            fontSize:    28,
-            fontWeight:  800,
-            color:       C.dark,
-            textAlign:   "center",
-            marginBottom: "0.5rem",
-          }}
-        >
-          תוכנית החתונה שלכם מוכנה ✦
-        </h1>
-        <p
-          style={{
-            fontFamily:  "Heebo, sans-serif",
-            fontSize:    14,
-            color:       C.muted,
-            textAlign:   "center",
-            lineHeight:  1.65,
-            maxWidth:    300,
-            marginBottom: "2rem",
-          }}
-        >
-          הכנו עבורכם רשימת משימות מותאמת אישית ולוח זמנים.
-          <br />המשימה הראשונה שלכם:
-        </p>
+          <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 36, color: C.dark, margin: "0 0 8px" }}>
+            הכל מוכן! 🎉
+          </h1>
 
-        {/* First task card */}
-        <Link
-          href={`/couple/${token}/guests`}
-          style={{
-            width:          "100%",
-            maxWidth:       360,
-            display:        "flex",
-            alignItems:     "center",
-            gap:            "1rem",
-            padding:        "1.1rem 1.25rem",
-            borderRadius:   "1.125rem",
-            background:     "#FFFFFF",
-            border:         `1.5px solid ${C.gold}`,
-            boxShadow:      "0 6px 24px rgba(197,164,109,0.18)",
-            textDecoration: "none",
-            marginBottom:   "1.5rem",
-          }}
-        >
-          <span style={{ fontSize: 28 }}>👥</span>
-          <div style={{ flex: 1, textAlign: "right" }}>
-            <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 15, fontWeight: 700, color: C.dark, marginBottom: 2 }}>
-              הוסיפו את האורח הראשון
+          {previewName && (
+            <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontStyle: "italic", fontSize: 28, color: C.goldText, margin: "0 0 20px" }}>
+              {previewName}
             </p>
-            <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 12, color: C.muted }}>
-              מכאן מתחיל הכל — אפשר לייבא מאקסל
-            </p>
-          </div>
-          <ArrowLeft size={18} style={{ color: C.gold, flexShrink: 0 }} />
-        </Link>
-
-        <button
-          onClick={() => router.replace(`/couple/${token}`)}
-          style={{
-            fontFamily:  "Heebo, sans-serif",
-            fontSize:    13,
-            color:       C.muted,
-            background:  "transparent",
-            border:      "none",
-            cursor:      "pointer",
-          }}
-        >
-          קחו אותי ללוח הבקרה ←
-        </button>
-      </div>
-    );
-  }
-
-  /* ── Welcome screen ─────────────────────────────────────────────────────── */
-  if (step === -1) {
-    return (
-      <div
-        style={{
-          minHeight:      "100svh",
-          background:     `linear-gradient(160deg, #1C1008 0%, #2E1F10 60%, #3A2A18 100%)`,
-          display:        "flex",
-          flexDirection:  "column",
-          alignItems:     "center",
-          justifyContent: "center",
-          padding:        "2.5rem 1.5rem",
-        }}
-        dir="rtl"
-      >
-        <p style={{ fontFamily: "Frank Ruhl Libre, serif", color: C.gold, fontSize: 13, letterSpacing: "0.18em", marginBottom: "2rem", opacity: 0.9 }}>
-          ✦ רגע לפני
-        </p>
-
-        <div style={{ marginBottom: "1.5rem", fontSize: 64, textAlign: "center" }}>💍</div>
-
-        <h1
-          style={{
-            fontFamily:  "Frank Ruhl Libre, serif",
-            fontSize:    32,
-            fontWeight:  900,
-            color:       "#FDFAF5",
-            textAlign:   "center",
-            lineHeight:  1.25,
-            marginBottom: "1rem",
-          }}
-        >
-          ברוכים הבאים
-          <br />
-          <span style={{ color: C.gold }}>לחתונה שלכם</span>
-        </h1>
-
-        <p
-          style={{
-            fontFamily:  "Heebo, sans-serif",
-            fontSize:    15,
-            color:       "rgba(253,250,245,0.70)",
-            textAlign:   "center",
-            lineHeight:  1.7,
-            maxWidth:    300,
-            marginBottom: "2.5rem",
-          }}
-        >
-          נשאל אתכם כמה שאלות קצרות כדי להכין תוכנית מותאמת אישית.
-          <br />
-          פחות מ-2 דקות.
-        </p>
-
-        <button
-          onClick={advance}
-          style={{
-            width:         "100%",
-            maxWidth:      360,
-            padding:       "1.1rem",
-            borderRadius:  "1rem",
-            background:    `linear-gradient(135deg, ${C.gold}, #D4BC8A)`,
-            border:        "none",
-            color:         "#FFFFFF",
-            fontFamily:    "Frank Ruhl Libre, serif",
-            fontSize:      17,
-            fontWeight:    700,
-            cursor:        "pointer",
-            display:       "flex",
-            alignItems:    "center",
-            justifyContent: "center",
-            gap:           8,
-            boxShadow:     "0 8px 32px rgba(197,164,109,0.40)",
-          }}
-        >
-          בואו נתחיל <ArrowLeft size={18} />
-        </button>
-
-        <button
-          onClick={() => finish()}
-          style={{
-            marginTop:   "1rem",
-            background:  "transparent",
-            border:      "none",
-            color:       "rgba(253,250,245,0.45)",
-            fontFamily:  "Heebo, sans-serif",
-            fontSize:    13,
-            cursor:      "pointer",
-          }}
-        >
-          דלגו לעכשיו ←
-        </button>
-      </div>
-    );
-  }
-
-  /* ── Step render ────────────────────────────────────────────────────────── */
-  const stepContent = () => {
-    switch (step) {
-
-      /* ─── 0: Date ──────────────────────────────────────────────────────── */
-      case 0: return (
-        <>
-          <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 11, color: C.gold, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 8 }}>
-            שלב 1 מתוך {TOTAL_STEPS}
-          </p>
-          <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 26, fontWeight: 800, color: C.dark, marginBottom: 6 }}>
-            📅 מתי היום הגדול?
-          </h2>
-          <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, color: C.muted, marginBottom: 28, lineHeight: 1.55 }}>
-            התאריך הוא הבסיס לתוכנית שלכם — כל משימה תתוזמן בהתאם
-          </p>
-          <input
-            type="date"
-            value={weddingDate}
-            onChange={e => setWeddingDate(e.target.value)}
-            min={new Date().toISOString().slice(0, 10)}
-            style={{
-              width:        "100%",
-              padding:      "1rem 1.25rem",
-              borderRadius: "1rem",
-              border:       `1.5px solid ${weddingDate ? C.gold : C.border}`,
-              background:   C.ivory,
-              color:        C.dark,
-              fontFamily:   "Heebo, sans-serif",
-              fontSize:     16,
-              outline:      "none",
-              boxSizing:    "border-box",
-            }}
-          />
-          <button
-            onClick={advance}
-            disabled={!weddingDate}
-            style={{
-              width:       "100%",
-              marginTop:   24,
-              padding:     "1rem",
-              borderRadius: "1rem",
-              background:  weddingDate ? `linear-gradient(135deg, ${C.gold}, #D4BC8A)` : "rgba(197,164,109,0.3)",
-              border:      "none",
-              color:       "#FFFFFF",
-              fontFamily:  "Heebo, sans-serif",
-              fontSize:    16,
-              fontWeight:  600,
-              cursor:      weddingDate ? "pointer" : "not-allowed",
-              display:     "flex",
-              alignItems:  "center",
-              justifyContent: "center",
-              gap:         8,
-            }}
-          >
-            המשיכו <ArrowLeft size={18} />
-          </button>
-          <SkipBtn onSkip={advance} />
-        </>
-      );
-
-      /* ─── 1: Venue ─────────────────────────────────────────────────────── */
-      case 1: return (
-        <>
-          <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 11, color: C.gold, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 8 }}>
-            שלב 2 מתוך {TOTAL_STEPS}
-          </p>
-          <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 26, fontWeight: 800, color: C.dark, marginBottom: 6 }}>
-            🏛 היכן האירוע?
-          </h2>
-          <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, color: C.muted, marginBottom: 20 }}>
-            סוג המקום משפיע על המשימות שניצור עבורכם
-          </p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: 24 }}>
-            {[
-              { id: "hall",    label: "אולם אירועים", emoji: "🏛️" },
-              { id: "garden",  label: "גן / חוץ",      emoji: "🌿" },
-              { id: "abroad",  label: "חוץ לארץ",      emoji: "✈️" },
-              { id: "unknown", label: "עוד לא יודעים", emoji: "🤷" },
-            ].map(v => (
-              <SelectCard key={v.id} selected={venue === v.id} onClick={() => setVenue(v.id as typeof venue)}>
-                <span style={{ display: "block", fontSize: 24, marginBottom: 4 }}>{v.emoji}</span>
-                <span style={{ fontFamily: "Heebo, sans-serif", fontSize: 13, fontWeight: 600, color: C.dark }}>{v.label}</span>
-              </SelectCard>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: "0.625rem" }}>
-            <button onClick={back} style={{ padding: "1rem 1.25rem", borderRadius: "1rem", background: C.ivory, border: `1px solid ${C.border}`, cursor: "pointer" }}>
-              <ArrowRight size={18} style={{ color: C.dark }} />
-            </button>
-            <button onClick={advance} style={{ flex: 1, padding: "1rem", borderRadius: "1rem", background: `linear-gradient(135deg, ${C.gold}, #D4BC8A)`, border: "none", color: "#FFFFFF", fontFamily: "Heebo, sans-serif", fontSize: 15, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              המשיכו <ArrowLeft size={18} />
-            </button>
-          </div>
-          <SkipBtn onSkip={advance} />
-        </>
-      );
-
-      /* ─── 2: Guest count ───────────────────────────────────────────────── */
-      case 2: return (
-        <>
-          <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 11, color: C.gold, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 8 }}>
-            שלב 3 מתוך {TOTAL_STEPS}
-          </p>
-          <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 26, fontWeight: 800, color: C.dark, marginBottom: 6 }}>
-            👥 כמה אורחים בערך?
-          </h2>
-          <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, color: C.muted, marginBottom: 24 }}>
-            אפשר לשנות אחר כך — זה רק כדי לכייל את התקציב
-          </p>
-          <div style={{ textAlign: "center", marginBottom: 16 }}>
-            <span style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 64, fontWeight: 900, color: C.gold }}>{guestCount}</span>
-            <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 13, color: C.muted, marginTop: 2 }}>אורחים</p>
-          </div>
-          <input
-            type="range" min={50} max={600} step={10}
-            value={guestCount}
-            onChange={e => setGuestCount(Number(e.target.value))}
-            style={{ width: "100%", marginBottom: 8, accentColor: C.gold }}
-          />
-          <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Heebo, sans-serif", fontSize: 11, color: C.muted, marginBottom: 24 }}>
-            <span>600+</span><span>300</span><span>150</span><span>50</span>
-          </div>
-          <div style={{ display: "flex", gap: "0.625rem" }}>
-            <button onClick={back} style={{ padding: "1rem 1.25rem", borderRadius: "1rem", background: C.ivory, border: `1px solid ${C.border}`, cursor: "pointer" }}>
-              <ArrowRight size={18} style={{ color: C.dark }} />
-            </button>
-            <button onClick={advance} style={{ flex: 1, padding: "1rem", borderRadius: "1rem", background: `linear-gradient(135deg, ${C.gold}, #D4BC8A)`, border: "none", color: "#FFFFFF", fontFamily: "Heebo, sans-serif", fontSize: 15, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              המשיכו <ArrowLeft size={18} />
-            </button>
-          </div>
-          <SkipBtn onSkip={advance} />
-        </>
-      );
-
-      /* ─── 3: Invitation ────────────────────────────────────────────────── */
-      case 3: return (
-        <>
-          <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 11, color: C.gold, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 8 }}>
-            שלב 4 מתוך {TOTAL_STEPS}
-          </p>
-          <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 26, fontWeight: 800, color: C.dark, marginBottom: 6 }}>
-            🎨 כבר יש לכם הזמנה?
-          </h2>
-          <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, color: C.muted, marginBottom: 24 }}>
-            נוכל לעזור לכם לעצב הזמנה דיגיטלית מרשימה
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: 16 }}>
-            <SelectCard selected={hasInvitation === true} onClick={() => setHasInvitation(true)}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 24 }}>✅</span>
-                <div style={{ textAlign: "right" }}>
-                  <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, fontWeight: 700, color: C.dark }}>כן, יש לנו הזמנה</p>
-                  <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 12, color: C.muted }}>מצוין! נוסיף אותה למערכת</p>
-                </div>
-              </div>
-            </SelectCard>
-            <SelectCard selected={hasInvitation === false} onClick={() => setHasInvitation(false)}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 24 }}>🎨</span>
-                <div style={{ textAlign: "right" }}>
-                  <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, fontWeight: 700, color: C.dark }}>עדיין לא</p>
-                  <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 12, color: C.muted }}>נשמח לעצב עבורכם</p>
-                </div>
-              </div>
-            </SelectCard>
-          </div>
-
-          {/* Design service upsell — shows when they don't have invitation */}
-          {hasInvitation === false && (
-            <div
-              style={{
-                padding:      "1rem 1.25rem",
-                borderRadius: "1rem",
-                background:   "rgba(197,164,109,0.07)",
-                border:       `1px solid ${C.border}`,
-                marginBottom: 16,
-              }}
-            >
-              <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 14, fontWeight: 700, color: C.dark, marginBottom: 4 }}>
-                ✨ עיצוב הזמנה אישי
-              </p>
-              <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 12, color: C.muted, lineHeight: 1.55, marginBottom: 10 }}>
-                דביר מעצב הזמנות דיגיטליות יוקרתיות — ניתן לשלוח ב-WhatsApp, SMS ואימייל.
-              </p>
-              <a
-                href={`https://wa.me/972533318177?text=${encodeURIComponent("💍 שלום! אני מתחיל להשתמש במערכת ואשמח לשמוע על עיצוב הזמנה.")}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display:        "inline-flex",
-                  alignItems:     "center",
-                  gap:            6,
-                  padding:        "6px 14px",
-                  borderRadius:   20,
-                  background:     C.gold,
-                  color:          "#FFFFFF",
-                  fontFamily:     "Heebo, sans-serif",
-                  fontSize:       12,
-                  fontWeight:     600,
-                  textDecoration: "none",
-                }}
-              >
-                📩 בקשו הצעת מחיר
-              </a>
-            </div>
           )}
 
-          <div style={{ display: "flex", gap: "0.625rem" }}>
-            <button onClick={back} style={{ padding: "1rem 1.25rem", borderRadius: "1rem", background: C.ivory, border: `1px solid ${C.border}`, cursor: "pointer" }}>
-              <ArrowRight size={18} style={{ color: C.dark }} />
-            </button>
-            <button onClick={advance} style={{ flex: 1, padding: "1rem", borderRadius: "1rem", background: `linear-gradient(135deg, ${C.gold}, #D4BC8A)`, border: "none", color: "#FFFFFF", fontFamily: "Heebo, sans-serif", fontSize: 15, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              המשיכו <ArrowLeft size={18} />
-            </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "center", marginBottom: 20 }}>
+            <div style={{ height: 1, flex: 1, background: C.border }}/>
+            <span style={{ color: C.gold, fontSize: 18 }}>✦</span>
+            <div style={{ height: 1, flex: 1, background: C.border }}/>
           </div>
-          <SkipBtn onSkip={advance} />
-        </>
-      );
 
-      /* ─── 4: RSVP management ───────────────────────────────────────────── */
-      case 4: return (
-        <>
-          <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 11, color: C.gold, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 8 }}>
-            שלב 5 מתוך {TOTAL_STEPS}
-          </p>
-          <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 26, fontWeight: 800, color: C.dark, marginBottom: 6 }}>
-            📱 אישורי הגעה
-          </h2>
-          <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, color: C.muted, marginBottom: 24, lineHeight: 1.6 }}>
-            האם תרצו שנהל עבורכם את אישורי ההגעה — כולל הודעות WhatsApp אוטומטיות לאורחים?
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: 24 }}>
-            <SelectCard selected={wantsRsvp === true} onClick={() => setWantsRsvp(true)}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 24 }}>✅</span>
-                <div style={{ textAlign: "right" }}>
-                  <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, fontWeight: 700, color: C.dark }}>כן, תנהלו בשבילנו</p>
-                  <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 12, color: C.muted }}>הוספת אורחים + שליחת הודעות + מעקב</p>
-                </div>
-              </div>
-            </SelectCard>
-            <SelectCard selected={wantsRsvp === false} onClick={() => setWantsRsvp(false)}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 24 }}>🙋</span>
-                <div style={{ textAlign: "right" }}>
-                  <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, fontWeight: 700, color: C.dark }}>אנחנו נעשה זאת לבד</p>
-                  <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 12, color: C.muted }}>נשתמש במערכת כעזרה בלבד</p>
-                </div>
-              </div>
-            </SelectCard>
-          </div>
-          <div style={{ display: "flex", gap: "0.625rem" }}>
-            <button onClick={back} style={{ padding: "1rem 1.25rem", borderRadius: "1rem", background: C.ivory, border: `1px solid ${C.border}`, cursor: "pointer" }}>
-              <ArrowRight size={18} style={{ color: C.dark }} />
-            </button>
-            <button onClick={advance} style={{ flex: 1, padding: "1rem", borderRadius: "1rem", background: `linear-gradient(135deg, ${C.gold}, #D4BC8A)`, border: "none", color: "#FFFFFF", fontFamily: "Heebo, sans-serif", fontSize: 15, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              המשיכו <ArrowLeft size={18} />
-            </button>
-          </div>
-          <SkipBtn onSkip={advance} />
-        </>
-      );
+          {daysLeft !== null && daysLeft > 0 && (
+            <p style={{ fontFamily: "Heebo, sans-serif", fontWeight: 300, fontSize: 16, color: C.muted, marginBottom: 24 }}>
+              {daysLeft} ימים עד היום הגדול
+            </p>
+          )}
 
-      /* ─── 5: Budget ────────────────────────────────────────────────────── */
-      case 5: return (
-        <>
-          <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 11, color: C.gold, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 8 }}>
-            שלב 6 מתוך {TOTAL_STEPS}
-          </p>
-          <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 26, fontWeight: 800, color: C.dark, marginBottom: 6 }}>
-            💰 תקציב החתונה
-          </h2>
-          <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, color: C.muted, marginBottom: 24, lineHeight: 1.6 }}>
-            האם תרצו להתחיל לבנות תקציב מותאם למספר האורחים שלכם?
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: 24 }}>
-            <SelectCard selected={wantsBudget === true} onClick={() => setWantsBudget(true)}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 24 }}>📊</span>
-                <div style={{ textAlign: "right" }}>
-                  <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, fontWeight: 700, color: C.dark }}>כן, תכינו לנו הצעת תקציב</p>
-                  <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 12, color: C.muted }}>לפי {guestCount} אורחים — ניתן לשנות</p>
-                </div>
+          <div style={{ background: C.cream, borderRadius: 14, padding: "16px 20px", marginBottom: 28, textAlign: "right", border: `1px solid ${C.border}` }}>
+            {["פרטי החתונה נשמרו", "RSVP מוכן לשליחה", "הפלטפורמה מוכנה"].map((item, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: i < 2 ? `1px solid ${C.border}` : "none" }}>
+                <span style={{ color: C.olive, fontSize: 16, flexShrink: 0 }}>✓</span>
+                <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, fontWeight: 400, color: C.dark, margin: 0 }}>{item}</p>
               </div>
-            </SelectCard>
-            <SelectCard selected={wantsBudget === false} onClick={() => setWantsBudget(false)}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 24 }}>⏭️</span>
-                <div style={{ textAlign: "right" }}>
-                  <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, fontWeight: 700, color: C.dark }}>לא עכשיו</p>
-                  <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 12, color: C.muted }}>אוסיף מידע בהמשך</p>
-                </div>
-              </div>
-            </SelectCard>
-          </div>
-          <div style={{ display: "flex", gap: "0.625rem" }}>
-            <button onClick={back} style={{ padding: "1rem 1.25rem", borderRadius: "1rem", background: C.ivory, border: `1px solid ${C.border}`, cursor: "pointer" }}>
-              <ArrowRight size={18} style={{ color: C.dark }} />
-            </button>
-            <button onClick={advance} style={{ flex: 1, padding: "1rem", borderRadius: "1rem", background: `linear-gradient(135deg, ${C.gold}, #D4BC8A)`, border: "none", color: "#FFFFFF", fontFamily: "Heebo, sans-serif", fontSize: 15, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              המשיכו <ArrowLeft size={18} />
-            </button>
-          </div>
-          <SkipBtn onSkip={advance} />
-        </>
-      );
-
-      /* ─── 6: Manager (final) ───────────────────────────────────────────── */
-      case 6: return (
-        <>
-          <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 11, color: C.gold, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 8 }}>
-            שלב 7 מתוך {TOTAL_STEPS} — האחרון!
-          </p>
-          <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 26, fontWeight: 800, color: C.dark, marginBottom: 6 }}>
-            🤝 מי מנהל את התכנון?
-          </h2>
-          <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, color: C.muted, marginBottom: 20 }}>
-            נתאים את עדכוני המערכת בהתאם
-          </p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: 20 }}>
-            {[
-              { id: "bride",  label: "הכלה",            emoji: "👰" },
-              { id: "groom",  label: "החתן",            emoji: "🤵" },
-              { id: "both",   label: "שנינו ביחד",      emoji: "💑" },
-              { id: "other",  label: "בן משפחה / יועץ", emoji: "🙋" },
-            ].map(m => (
-              <SelectCard key={m.id} selected={manager === m.id} onClick={() => setManager(m.id)}>
-                <span style={{ display: "block", fontSize: 24, marginBottom: 4 }}>{m.emoji}</span>
-                <span style={{ fontFamily: "Heebo, sans-serif", fontSize: 13, fontWeight: 600, color: C.dark }}>{m.label}</span>
-              </SelectCard>
             ))}
           </div>
 
-          {/* Summary box */}
-          <div style={{ padding: "0.875rem 1rem", borderRadius: "1rem", background: "rgba(197,164,109,0.07)", border: `1px solid ${C.border}`, marginBottom: 20 }}>
-            <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 11, fontWeight: 700, color: C.gold, marginBottom: 6 }}>✦ סיכום מה שסיפרתם לנו</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              {[
-                weddingDate && `📅 ${new Date(weddingDate).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}`,
-                `👥 ${guestCount} אורחים`,
-                hasInvitation === false && "🎨 מעוניינים בעיצוב הזמנה",
-                hasInvitation === true  && "✅ יש הזמנה",
-                wantsRsvp     && "📱 ניהול אישורי הגעה",
-                wantsBudget   && "💰 הכנת תקציב",
-              ].filter(Boolean).map((line, i) => (
-                <p key={i} style={{ fontFamily: "Heebo, sans-serif", fontSize: 12, color: C.muted }}>{line as string}</p>
-              ))}
-            </div>
+          <GoldCTA label="לדשבורד שלי" onClick={() => router.replace(`/couple/${token}`)} />
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Welcome (E3-S1) ─── */
+  if (step === -1) {
+    return (
+      <div dir="rtl" style={{
+        minHeight: "100svh", background: C.ivory,
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        padding: "2.5rem 1.5rem",
+        fontFamily: "Heebo, sans-serif",
+      }}>
+        <style>{CSS}</style>
+        <div style={{ animation: "fadeUp 0.4s ease both", textAlign: "center", maxWidth: 340 }}>
+          <div style={{ marginBottom: 8 }}><BotanicalIllustration /></div>
+          <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 32, color: C.dark, margin: "0 0 12px", lineHeight: 1.25, animation: "fadeUp 0.4s ease 0.1s both" }}>
+            ברוכים הבאים לרגע לפני
+          </h1>
+          <p style={{ fontFamily: "Heebo, sans-serif", fontWeight: 300, fontSize: 18, color: C.muted, margin: "0 0 2.5rem", lineHeight: 1.6, animation: "fadeUp 0.4s ease 0.2s both" }}>
+            המקום שבו חתונה הופכת לחוויה שלמה
+          </p>
+          <div style={{ animation: "fadeUp 0.4s ease 0.3s both" }}>
+            <GoldCTA label="בואו נתחיל 💍" onClick={advance} />
           </div>
+        </div>
+      </div>
+    );
+  }
 
-          <div style={{ display: "flex", gap: "0.625rem" }}>
-            <button onClick={back} style={{ padding: "1rem 1.25rem", borderRadius: "1rem", background: C.ivory, border: `1px solid ${C.border}`, cursor: "pointer" }}>
-              <ArrowRight size={18} style={{ color: C.dark }} />
-            </button>
-            <button
-              onClick={finish}
-              disabled={saving}
-              style={{
-                flex:       1,
-                padding:    "1rem",
-                borderRadius: "1rem",
-                background: `linear-gradient(135deg, ${C.olive}, #4A6640)`,
-                border:     "none",
-                color:      "#FFFFFF",
-                fontFamily: "Heebo, sans-serif",
-                fontSize:   15,
-                fontWeight: 600,
-                cursor:     saving ? "wait" : "pointer",
-                display:    "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap:        8,
-                opacity:    saving ? 0.7 : 1,
-              }}
-            >
-              {saving ? <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} /> : <Heart size={18} />}
-              {saving ? "בונה את התוכנית שלכם..." : "בנו את תוכנית החתונה ✦"}
-            </button>
-          </div>
-        </>
-      );
-
-      default: return null;
-    }
-  };
-
+  /* ── Wizard wrapper ─── */
   return (
-    <div style={{ minHeight: "100svh", background: C.cream }} dir="rtl">
-      {/* Header */}
-      <div style={{ padding: "1.5rem 1.5rem 1rem" }}>
-        <div style={{ maxWidth: 480, margin: "0 auto" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
-            <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 13, fontWeight: 700, color: C.gold, letterSpacing: "0.1em" }}>
-              רגע לפני ✦
-            </p>
-            <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 11, color: C.muted }}>
-              {step + 1} / {TOTAL_STEPS}
-            </p>
+    <div dir="rtl" style={{ minHeight: "100svh", background: C.ivory, display: "flex", flexDirection: "column", fontFamily: "Heebo, sans-serif" }}>
+      <style>{CSS}</style>
+
+      <div style={{ padding: "16px 20px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        {step > 0
+          ? <button onClick={back} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, fontSize: 24, lineHeight: 1, minHeight: 44, minWidth: 44 }}>←</button>
+          : <div style={{ width: 44 }}/>}
+        <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 16, fontWeight: 700, color: C.gold, margin: 0 }}>רגע לפני</p>
+        <div style={{ width: 44 }}/>
+      </div>
+
+      <div style={{ flex: 1, padding: "20px 20px 40px", maxWidth: 480, margin: "0 auto", width: "100%", boxSizing: "border-box" }}>
+        <ProgressDots step={step} total={4} />
+
+        {/* Step 0 — Names (E3-S2) */}
+        {step === 0 && (
+          <div key="step0" style={{ animation: "fadeUp 0.3s ease both" }}>
+            <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 28, color: C.dark, margin: "0 0 24px" }}>
+              מה השמות שלכם?
+            </h2>
+            <FloatingLabelInput label="שם הכלה" value={brideName} onChange={setBrideName} />
+            <FloatingLabelInput label="שם החתן"  value={groomName} onChange={setGroomName} />
+            {previewName && (
+              <div style={{ background: C.cream, border: `1.5px solid ${C.gold}`, borderRadius: 14, padding: "16px 20px", marginBottom: 24, textAlign: "center" }}>
+                <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontStyle: "italic", fontSize: 22, color: C.goldText, margin: 0 }}>
+                  {previewName}
+                </p>
+              </div>
+            )}
+            <GoldCTA label="המשך" onClick={advance} disabled={brideName.length < 2 || groomName.length < 2} />
           </div>
-          <ProgressBar step={step + 1} total={TOTAL_STEPS} />
-        </div>
-      </div>
+        )}
 
-      {/* Content */}
-      <div style={{ padding: "0 1.5rem 3rem" }}>
-        <div
-          style={{
-            maxWidth:   480,
-            margin:     "0 auto",
-            opacity:    animating ? 0 : 1,
-            transform:  animating ? "translateX(16px)" : "none",
-            transition: "opacity 0.18s ease, transform 0.18s ease",
-          }}
-        >
-          {stepContent()}
-        </div>
-      </div>
+        {/* Step 1 — Date + Venue (E3-S3) */}
+        {step === 1 && (
+          <div key="step1" style={{ animation: "fadeUp 0.3s ease both" }}>
+            <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 28, color: C.dark, margin: "0 0 24px" }}>
+              מתי ואיפה?
+            </h2>
+            <FloatingLabelInput
+              label="תאריך החתונה" type="date" value={weddingDate} onChange={setWeddingDate}
+              min={new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)}
+            />
+            <FloatingLabelInput label="שם האולם / מקום" value={venueName} onChange={setVenueName} />
+            {daysLeft !== null && daysLeft > 0 && (
+              <div style={{ background: C.cream, borderRadius: 14, border: `1px solid ${C.border}`, padding: "14px 20px", marginBottom: 20, textAlign: "center", animation: "fadeUp 0.3s ease both" }}>
+                <p style={{ fontFamily: "Heebo, sans-serif", fontWeight: 300, fontSize: 14, color: C.muted, margin: 0 }}>
+                  {daysLeft} ימים עד היום הגדול
+                </p>
+              </div>
+            )}
+            <GoldCTA label="המשך" onClick={advance} disabled={!weddingDate} />
+          </div>
+        )}
 
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
+        {/* Step 2 — Guest Import (E3-S4) */}
+        {step === 2 && (
+          <div key="step2" style={{ animation: "fadeUp 0.3s ease both" }}>
+            <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 24, color: C.dark, margin: "0 0 6px" }}>
+              הוסיפו את האורחים הראשונים שלכם
+            </h2>
+            <p style={{ fontFamily: "Heebo, sans-serif", fontWeight: 300, fontSize: 14, color: C.muted, margin: "0 0 24px" }}>
+              תוכלו להוסיף עוד מאוחר יותר
+            </p>
+            <ImportCard icon="👥" label="ייבוא מאנשי קשר"   sub="בוחרים מי נכנס — לא מעלים הכל"  selected={importMethod==="contacts"} onClick={() => setImportMethod("contacts")} />
+            <ImportCard icon="📄" label="ייבוא מקובץ"        sub="Excel, Google Sheets, CSV"         selected={importMethod==="file"}     onClick={() => setImportMethod("file")} />
+            <ImportCard icon="✏️" label="הכנסה ידנית"        sub="הוסיפו אחד אחד"                   selected={importMethod==="manual"}   onClick={() => setImportMethod("manual")} />
+            <ImportCard icon="➡️" label="אין רשימה עדיין — דלגו לשלב הבא" outline selected={importMethod==="skip"} onClick={() => setImportMethod("skip")} />
+            {!importMethod && (
+              <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 13, color: C.muted, textAlign: "center", margin: "0 0 12px" }}>
+                בחרו אפשרות כדי להמשיך
+              </p>
+            )}
+            <GoldCTA label={saving ? "שומר..." : "המשיכו"} onClick={finish} disabled={!importMethod || saving} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

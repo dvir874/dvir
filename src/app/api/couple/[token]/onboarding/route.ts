@@ -29,7 +29,7 @@ export async function POST(
 ) {
   const { token } = await params;
   const body       = await req.json();
-  const { guestCount, style, fears, moment, manager } = body;
+  const { guestCount, style, fears, moment, manager, bride_name, groom_name, venue_name, date } = body;
 
   const supabase = createServerClient();
 
@@ -43,6 +43,7 @@ export async function POST(
   if (event.onboarding_completed) return NextResponse.json({ already: true });
 
   // Save onboarding preferences
+  const coupleName = bride_name && groom_name ? `חתונת ${bride_name} ו${groom_name}` : undefined;
   await supabase.from('events').update({
     onboarding_completed: true,
     onboarding_style:     style     || null,
@@ -50,6 +51,11 @@ export async function POST(
     onboarding_moment:    moment    || null,
     onboarding_manager:   manager   || 'both',
     guest_count_estimate: guestCount || null,
+    ...(bride_name  ? { bride_name }  : {}),
+    ...(groom_name  ? { groom_name }  : {}),
+    ...(venue_name  ? { venue_name }  : {}),
+    ...(coupleName  ? { name: coupleName } : {}),
+    ...(date        ? { date }         : {}),
   }).eq('id', event.id);
 
   const weddingDate = new Date(event.date);

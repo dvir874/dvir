@@ -460,70 +460,122 @@ function UpdatesCenter({ briefing, stats, seating }: {
 }
 
 // ─── Post-Event Dashboard ──────────────────────────────────────────────────────
-function PostEventDashboard({ token, eventName }: { token: string; eventName: string }) {
-  const COUPLE_PHONE = "972533318177";
+function PostEventDashboard({ token, eventName, eventDate }: { token: string; eventName: string; eventDate?: string }) {
+  const [photoCount,    setPhotoCount]    = useState(0);
+  const [blessingCount, setBlessingCount] = useState(0);
+
+  useEffect(() => {
+    fetch(`/api/gallery/${token}`)
+      .then(r => r.json())
+      .then(d => setPhotoCount(Array.isArray(d.photos) ? d.photos.length : 0))
+      .catch(() => {});
+    fetch(`/api/memory/${token}/items`)
+      .then(r => r.json())
+      .then(d => setBlessingCount(Array.isArray(d.items) ? d.items.filter((i: {type?: string}) => i.type === "blessing").length : 0))
+      .catch(() => {});
+  }, [token]);
+
   const shareMsg = encodeURIComponent(`היי ❤️\nרצינו להמליץ לכם על "רגע לפני".\nקיבלנו שירות אישי ומערכת שעזרה לנו לנהל את כל החתונה במקום אחד.\nאם אתם מתחתנים בקרוב, ממליצים בחום לבדוק אותם.`);
+  const formattedDate = eventDate
+    ? new Date(eventDate).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })
+    : null;
+
+  const POST_GRID = [
+    { icon: "📸", label: "גלריה",          sub: "תמונות האירוע",     href: `/gallery/${token}` },
+    { icon: "💝", label: "ברכות",          sub: "כל הברכות שקיבלתם", href: `/memories/${token}` },
+    { icon: "⏳", label: "קפסולת זמן",     sub: "מכתבים לעתיד",      href: `/couple/${token}/capsule` },
+    { icon: "⭐", label: "ריוו",           sub: "שתפו חוות דעת",      href: "https://g.page/r/review" },
+  ];
 
   return (
-    <div dir="rtl" style={{ minHeight: "100vh", background: C.ivory, fontFamily: "Heebo, sans-serif" }}>
-      {/* Hero */}
-      <div style={{ background: `linear-gradient(160deg, ${C.dark}, #2C1F0E)`, padding: "2.5rem 1.5rem", textAlign: "center", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 0%, rgba(197,164,109,0.2) 0%, transparent 60%)", pointerEvents: "none" }} />
-        <p style={{ fontSize: 9, letterSpacing: "0.4em", color: "rgba(197,164,109,0.55)", marginBottom: "0.5rem" }}>רגע לפני</p>
-        <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "2rem", fontWeight: 900, color: "#FDFAF5", marginBottom: "0.4rem" }}>❤️ מזל טוב!</h1>
-        <p style={{ color: "rgba(232,213,168,0.75)", fontSize: 15 }}>{eventName} — מקווים שנהניתם מכל רגע</p>
-      </div>
-
-      <div style={{ maxWidth: 640, margin: "0 auto", padding: "1.5rem 1rem 4rem" }}>
-        {/* 4 big action cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1.5rem" }}>
-          {[
-            { icon: "📸", title: "העלאת תמונות", sub: "שתפו את הקישור עם האורחים", href: `/memory/${token}`, color: "#C5A46D" },
-            { icon: "📷", title: "הזיכרונות שלכם", sub: "גלריית תמונות האירוע", href: `/gallery/${token}`, color: "#6B7B5A" },
-            { icon: "💝", title: "המתנות שלכם", sub: "רשימת כל המתנות שקיבלתם", href: `/couple/${token}/gifts`, color: "#9B7A42" },
-            { icon: "🛎", title: "מרכז שירות", sub: "עקבו אחר השירות שלנו", href: `/couple/${token}/service`, color: "#6B7B5A" },
-          ].map(card => (
-            <a key={card.href} href={card.href} style={{ textDecoration: "none", background: C.card, borderRadius: 18, padding: "1.25rem 1rem", boxShadow: C.shadow, border: `1px solid ${C.border}`, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.4rem", textAlign: "center" }}>
-              <span style={{ fontSize: 32 }}>{card.icon}</span>
-              <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 14, fontWeight: 700, color: C.dark }}>{card.title}</p>
-              <p style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>{card.sub}</p>
-            </a>
-          ))}
+    <div dir="rtl" style={{ minHeight: "100vh", background: C.ivory, fontFamily: "Heebo, sans-serif", paddingBottom: 80 }}>
+      {/* Sticky header */}
+      <header style={{
+        position: "sticky", top: 0, zIndex: 50,
+        background: "rgba(253,250,245,0.97)", backdropFilter: "blur(10px)",
+        borderBottom: `1px solid ${C.border}`,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "14px 20px",
+      }}>
+        <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 18, color: C.gold, margin: 0, letterSpacing: "0.05em" }}>רגע לפני</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5, cursor: "pointer" }}>
+          <div style={{ width: 20, height: 1.5, background: C.dark, borderRadius: 1 }}/>
+          <div style={{ width: 14, height: 1.5, background: C.dark, borderRadius: 1 }}/>
+          <div style={{ width: 20, height: 1.5, background: C.dark, borderRadius: 1 }}/>
         </div>
+      </header>
 
-        {/* Post-event checklist */}
-        <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
-          <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 17, fontWeight: 700, color: C.dark, marginBottom: "0.85rem" }}>💡 דברים שכדאי לעשות עכשיו</h2>
+      <div style={{ maxWidth: 520, margin: "0 auto", padding: "28px 16px 24px" }}>
+        {/* Hero text */}
+        <section style={{ textAlign: "center", marginBottom: 24 }}>
+          <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 32, color: C.dark, margin: "0 0 8px" }}>
+            ✨ החתונה הייתה מושלמת!
+          </h1>
+          <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontStyle: "italic", fontSize: 24, color: "#8B6914", margin: "0 0 4px" }}>{eventName}</p>
+          {formattedDate && (
+            <p style={{ fontFamily: "Heebo, sans-serif", fontWeight: 300, fontSize: 14, color: C.muted, margin: 0 }}>{formattedDate}</p>
+          )}
+        </section>
+
+        {/* Memory stats row */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "center",
+          gap: 0, background: C.cream, borderRadius: 16, border: `1px solid ${C.border}`,
+          padding: "14px 0", marginBottom: 20, overflow: "hidden",
+        }}>
           {[
-            "לאסוף את כל התמונות מהאורחים",
-            "להוריד את כל הגלריה למחשב",
-            "לשמור גיבוי נוסף של התמונות",
-            "לעבור על רשימת המתנות",
-            "לשלוח הודעת תודה לאורחים שהגיעו",
-          ].map((item, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.55rem 0", borderBottom: i < 4 ? `1px solid ${C.border}` : "none" }}>
-              <span style={{ color: C.gold, fontSize: 16, flexShrink: 0 }}>✔</span>
-              <p style={{ fontSize: 14, color: C.dark }}>{item}</p>
+            { value: photoCount,    label: "תמונות" },
+            { value: blessingCount, label: "ברכות"  },
+            { value: 0,             label: "זכרונות" },
+          ].map((stat, i) => (
+            <div key={stat.label} style={{
+              flex: 1, textAlign: "center",
+              borderRight: i < 2 ? `1px solid ${C.border}` : "none",
+            }}>
+              <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 28, color: C.dark, margin: 0, lineHeight: 1 }}>{stat.value}</p>
+              <p style={{ fontFamily: "Heebo, sans-serif", fontWeight: 300, fontSize: 12, color: C.muted, margin: "4px 0 0" }}>{stat.label}</p>
             </div>
           ))}
         </div>
 
-        {/* Personal thank you card from Dvir */}
-        <div style={{ background: `linear-gradient(135deg, ${C.dark}, #2C1F0E)`, borderRadius: "1.25rem", padding: "1.5rem", marginBottom: "1rem", position: "relative", overflow: "hidden" }}>
-          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at top right, rgba(197,164,109,0.15) 0%, transparent 60%)", pointerEvents: "none" }} />
-          <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 18, fontWeight: 700, color: "#FDFAF5", marginBottom: "0.75rem" }}>🎉 תודה שבחרתם ב"רגע לפני"</p>
-          <p style={{ fontSize: 14, color: "rgba(232,213,168,0.8)", lineHeight: 1.7, marginBottom: "1rem" }}>
-            היה לנו כבוד להיות חלק מהיום הגדול שלכם.<br />
-            אנחנו מאחלים לכם חיים מאושרים ומלאי אהבה. ❤️
-          </p>
-          <p style={{ fontSize: 12, color: "rgba(197,164,109,0.6)" }}>— דביר, רגע לפני</p>
+        {/* 2×2 action grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+          {POST_GRID.map(card => (
+            <a key={card.label} href={card.href}
+               target={card.href.startsWith("http") ? "_blank" : undefined}
+               rel="noreferrer"
+               style={{
+                 textDecoration: "none", background: C.cream, borderRadius: 16,
+                 border: `1px solid ${C.border}`, padding: "20px 14px 16px",
+                 display: "flex", flexDirection: "column", alignItems: "center",
+                 gap: 4, textAlign: "center",
+               }}>
+              <span style={{ fontSize: 28, marginBottom: 4 }}>{card.icon}</span>
+              <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 15, color: C.dark, margin: 0 }}>{card.label}</p>
+              <p style={{ fontFamily: "Heebo, sans-serif", fontWeight: 300, fontSize: 12, color: C.muted, margin: 0 }}>{card.sub}</p>
+            </a>
+          ))}
         </div>
 
+        {/* Photo upload CTA */}
+        {photoCount === 0 && (
+          <a href={`/memory/${token}`}
+             style={{
+               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+               padding: "14px", borderRadius: 14, background: C.gold,
+               color: "#fff", fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700,
+               fontSize: 16, textDecoration: "none", marginBottom: 20,
+               boxShadow: "0 4px 16px rgba(197,164,109,0.35)",
+             }}>
+            📸 העלו את התמונות הראשונות
+          </a>
+        )}
+
         {/* Support Us card */}
-        <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.5rem", boxShadow: C.shadow }}>
+        <div style={{ background: C.cream, borderRadius: 16, border: `1px solid ${C.border}`, padding: "20px", marginBottom: 12 }}>
           <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 17, fontWeight: 700, color: C.dark, marginBottom: "0.5rem" }}>❤️ נהניתם מהשירות?</h2>
           <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, marginBottom: "1.25rem" }}>
-            אני, דביר, רוצה להודות לכם באופן אישי שבחרתם ב"רגע לפני". היה לי כבוד ללוות אתכם ביום הכי חשוב שלכם. אם נהניתם מהשירות, כל המלצה שלכם עוזרת לי להגיע לעוד זוגות ולהמשיך לעשות את מה שאני אוהב. ❤️ תודה ענקית!
+            כל המלצה שלכם עוזרת לנו להגיע לעוד זוגות. תודה ענקית!
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
             <a href="https://g.page/r/review" target="_blank" rel="noopener noreferrer"
@@ -536,14 +588,39 @@ function PostEventDashboard({ token, eventName }: { token: string; eventName: st
               <span style={{ fontSize: 20 }}>💬</span>
               <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>המליצו עלינו לחברים</span>
             </a>
-            <a href="https://regalifnei.vercel.app" target="_blank" rel="noopener noreferrer"
-              style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.85rem 1rem", borderRadius: 12, background: `rgba(197,164,109,0.08)`, border: `1px solid ${C.border}`, textDecoration: "none" }}>
-              <span style={{ fontSize: 20 }}>🌐</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>מעבר לאתר "רגע לפני"</span>
-            </a>
           </div>
         </div>
       </div>
+
+      {/* Post-event BottomNav: בית / גלריה / זכרונות / עוד */}
+      <nav style={{
+        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 180,
+        background: "rgba(253,250,245,0.97)", backdropFilter: "blur(16px)",
+        borderTop: `1px solid ${C.border}`,
+        display: "flex", alignItems: "stretch", height: 56,
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+      }} dir="rtl">
+        {[
+          { emoji: "🏠", label: "בית",      href: `/couple/${token}`,    active: true  },
+          { emoji: "📸", label: "גלריה",    href: `/gallery/${token}`,   active: false },
+          { emoji: "💝", label: "זכרונות",  href: `/memories/${token}`,  active: false },
+          { emoji: "☰",  label: "עוד",      href: null,                  active: false },
+        ].map(tab => (
+          tab.href ? (
+            <a key={tab.label} href={tab.href}
+               style={{ flex: 1, textDecoration: "none", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, position: "relative" }}>
+              {tab.active && <span style={{ position: "absolute", top: 4, left: "50%", transform: "translateX(-50%)", width: 20, height: 3, borderRadius: 2, background: C.gold }} />}
+              <span style={{ fontSize: 20, lineHeight: 1, filter: tab.active ? "none" : "grayscale(0.6) opacity(0.6)" }}>{tab.emoji}</span>
+              <span style={{ fontFamily: "Heebo, sans-serif", fontSize: 10, fontWeight: tab.active ? 700 : 400, color: tab.active ? C.gold : C.muted }}>{tab.label}</span>
+            </a>
+          ) : (
+            <div key={tab.label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, cursor: "pointer" }}>
+              <span style={{ fontSize: 20, lineHeight: 1, filter: "grayscale(0.6) opacity(0.6)" }}>{tab.emoji}</span>
+              <span style={{ fontFamily: "Heebo, sans-serif", fontSize: 10, fontWeight: 400, color: C.muted }}>{tab.label}</span>
+            </div>
+          )
+        ))}
+      </nav>
     </div>
   );
 }
@@ -558,11 +635,15 @@ function DayBeforeScreen({ token, event, vendors: vendorMap }: {
 
   return (
     <div dir="rtl" style={{ minHeight: "100vh", background: C.ivory, fontFamily: "Heebo, sans-serif" }}>
+      {/* Header */}
+      <header style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(253,250,245,0.97)", backdropFilter: "blur(10px)", borderBottom: `1px solid ${C.border}`, padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 18, color: C.gold, margin: 0 }}>רגע לפני</p>
+      </header>
+
       {/* Hero */}
-      <div style={{ background: `linear-gradient(160deg, ${C.dark}, #2C1F0E)`, padding: "2.5rem 1.5rem", textAlign: "center" }}>
-        <p style={{ fontSize: 9, letterSpacing: "0.4em", color: "rgba(197,164,109,0.55)", marginBottom: "0.5rem" }}>רגע לפני</p>
-        <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.8rem", fontWeight: 900, color: "#FDFAF5", marginBottom: "0.4rem" }}>🌟 מחר זה הגדול!</h1>
-        <p style={{ color: "rgba(232,213,168,0.75)", fontSize: 14 }}>{event.name}</p>
+      <div style={{ padding: "2rem 1.5rem 1.5rem", textAlign: "center", background: C.ivory }}>
+        <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 32, color: C.dark, margin: "0 0 8px" }}>🌟 מחר זה הגדול!</p>
+        <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontStyle: "italic", fontSize: 20, color: "#8B6914", margin: 0 }}>{event.name}</p>
       </div>
 
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "1.5rem 1rem 4rem" }}>
@@ -663,12 +744,11 @@ function WeddingDayScreen({ token, event, briefing }: {
         position: "relative",
         overflow: "hidden",
       }}>
-        <div style={{ fontSize: 52, marginBottom: "0.5rem" }}>💍</div>
-        <h1 style={{ fontFamily: "'Frank Ruhl Libre',serif", fontWeight: 900, fontSize: "clamp(1.8rem,6vw,3rem)", color: C.gold, margin: 0, lineHeight: 1.2 }}>
-          היום הגדול הגיע!
+        <h1 style={{ fontFamily: "'Frank Ruhl Libre',serif", fontWeight: 700, fontSize: "32px", color: "#FFFFFF", margin: "0 0 0.5rem", lineHeight: 1.2, textAlign: "center" }}>
+          היום הגדול הגיע! ❤️
         </h1>
-        <p style={{ color: "rgba(232,213,168,0.8)", fontSize: 16, marginTop: "0.5rem" }}>{event.name}</p>
-        <p style={{ color: "rgba(232,213,168,0.55)", fontSize: 13, marginTop: "0.25rem" }}>
+        <p style={{ fontFamily: "'Frank Ruhl Libre',serif", fontWeight: 700, fontStyle: "italic", fontSize: 22, color: "#8B6914", marginTop: "0.25rem" }}>{event.name}</p>
+        <p style={{ fontFamily: "'Heebo',sans-serif", fontWeight: 300, color: "rgba(255,255,255,0.7)", fontSize: 16, marginTop: "0.25rem" }}>
           {new Date(event.date).toLocaleDateString("he-IL", { weekday:"long", day:"numeric", month:"long", year:"numeric" })}
         </p>
       </div>
@@ -1087,7 +1167,7 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
 
   // Post-event mode
   if (daysLeft < 0) {
-    return <PostEventDashboard token={token} eventName={event.name} />;
+    return <PostEventDashboard token={token} eventName={event.name} eventDate={event.date} />;
   }
 
   // F5: Wedding day screen
