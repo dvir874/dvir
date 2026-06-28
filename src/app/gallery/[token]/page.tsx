@@ -127,30 +127,41 @@ export default function GalleryPage({ params }: { params: Promise<{ token: strin
   // ──── Empty ────
   if (screen === "empty") {
     return (
-      <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:"16px", padding:"24px", textAlign:"center" }}>
+      <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, fontFamily:"'Heebo',sans-serif" }}>
         <style>{DOTS_STYLE}</style>
-        {/* Botanical sprig */}
-        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style={{ display:"block", margin:"0 auto" }} aria-hidden="true">
-          <path d="M24 36 C24 36 24 20 24 10" stroke={T.olive} strokeWidth="1.5" strokeLinecap="round"/>
-          <path d="M24 26 C20 22 14 22 12 18" stroke={T.olive} strokeWidth="1.2" strokeLinecap="round"/>
-          <path d="M24 22 C28 18 34 18 36 14" stroke={T.olive} strokeWidth="1.2" strokeLinecap="round"/>
-          <path d="M24 30 C21 27 17 28 15 25" stroke={T.olive} strokeWidth="1" strokeLinecap="round"/>
-          <circle cx="24" cy="10" r="2" fill={T.gold}/>
-          <circle cx="12" cy="18" r="1.5" fill={T.olive}/>
-          <circle cx="36" cy="14" r="1.5" fill={T.olive}/>
-        </svg>
-        <h1 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"24px", fontWeight:700, color:T.dark, animation:"fadeUp .4s ease both" }}>
-          התמונות בדרך...
-        </h1>
-        <p style={{ fontFamily:"'Heebo',sans-serif", fontSize:"16px", fontWeight:300, color:T.muted, animation:"fadeUp .4s ease .08s both" }}>
-          שתפו את הגלריה עם האורחים כדי שיעלו תמונות
-        </p>
-        <a
-          href={`/memory/${token}`}
-          style={{ marginTop:"8px", padding:"16px 32px", borderRadius:"14px", background:`linear-gradient(135deg,${T.gold},#B8935A)`, color:"#fff", fontFamily:"'Heebo',sans-serif", fontWeight:700, fontSize:"16px", textDecoration:"none", boxShadow:`0 4px 12px rgba(197,164,109,0.4)`, animation:"fadeUp .4s ease .16s both", display:"inline-block" }}
-        >
-          העלו תמונה ראשונה
-        </a>
+        {/* Top bar */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", borderBottom:`1px solid ${T.border}` }}>
+          <span style={{ fontFamily:"'Frank Ruhl Libre',serif", fontWeight:700, fontSize:18, color:T.goldText }}>רגע לפני</span>
+          <span style={{ fontSize:20 }}>🤍</span>
+        </div>
+        {/* Content */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:"12px", padding:"48px 24px", textAlign:"center", animation:"fadeUp .4s ease both" }}>
+          <h1 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"26px", fontWeight:700, color:T.dark, margin:0 }}>
+            גלריית התמונות
+          </h1>
+          {album?.event_name && (
+            <p style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"16px", fontWeight:700, color:T.goldText, margin:0 }}>
+              {album.event_name}
+            </p>
+          )}
+          <p style={{ fontSize:"13px", color:T.muted, margin:0, fontWeight:300 }}>0 תמונות</p>
+
+          {/* Camera card */}
+          <div style={{ marginTop:16, background:"#fff", borderRadius:20, padding:"32px", border:`1px solid ${T.border}`, boxShadow:T.shadowCard, display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
+            <Camera size={40} style={{ color:T.border }} />
+            <span style={{ fontSize:20 }}>🤍</span>
+          </div>
+
+          <p style={{ fontSize:"15px", color:T.muted, fontWeight:300, lineHeight:1.6, maxWidth:280 }}>
+            הגלריה עדיין ריקה...<br />היי הראשונים מהחתונה לשתף את הרגעים המרגשים ❤️
+          </p>
+          <a
+            href={`/memory/${token}`}
+            style={{ marginTop:8, padding:"16px 32px", borderRadius:"14px", background:T.gold, color:"#fff", fontFamily:"'Heebo',sans-serif", fontWeight:700, fontSize:"16px", textDecoration:"none", boxShadow:`0 4px 12px rgba(197,164,109,0.35)`, display:"inline-block" }}
+          >
+            העלאת תמונות הראשונות
+          </a>
+        </div>
       </div>
     );
   }
