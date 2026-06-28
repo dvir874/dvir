@@ -475,7 +475,6 @@ function PostEventDashboard({ token, eventName, eventDate }: { token: string; ev
       .catch(() => {});
   }, [token]);
 
-  const shareMsg = encodeURIComponent(`היי ❤️\nרצינו להמליץ לכם על "רגע לפני".\nקיבלנו שירות אישי ומערכת שעזרה לנו לנהל את כל החתונה במקום אחד.\nאם אתם מתחתנים בקרוב, ממליצים בחום לבדוק אותם.`);
   const formattedDate = eventDate
     ? new Date(eventDate).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })
     : null;
@@ -484,7 +483,7 @@ function PostEventDashboard({ token, eventName, eventDate }: { token: string; ev
     { icon: "📸", label: "גלריה",          sub: "תמונות האירוע",     href: `/gallery/${token}` },
     { icon: "💝", label: "ברכות",          sub: "כל הברכות שקיבלתם", href: `/memories/${token}` },
     { icon: "⏳", label: "קפסולת זמן",     sub: "מכתבים לעתיד",      href: `/couple/${token}/capsule` },
-    { icon: "⭐", label: "ריוו",           sub: "שתפו חוות דעת",      href: "https://g.page/r/review" },
+    { icon: "⭐", label: "ריוו",           sub: "כתבו ביקורת",        href: `/survey/${token}` },
   ];
 
   return (
@@ -557,39 +556,29 @@ function PostEventDashboard({ token, eventName, eventDate }: { token: string; ev
           ))}
         </div>
 
-        {/* Photo upload CTA */}
+        {/* Photo upload CTA — dashed card per E3-S11 spec */}
         {photoCount === 0 && (
-          <a href={`/memory/${token}`}
-             style={{
-               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-               padding: "14px", borderRadius: 14, background: C.gold,
-               color: "#fff", fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700,
-               fontSize: 16, textDecoration: "none", marginBottom: 20,
-               boxShadow: "0 4px 16px rgba(197,164,109,0.35)",
-             }}>
-            📸 העלו את התמונות הראשונות
+          <a href={`/memory/${token}`} style={{ textDecoration: "none", display: "block", marginBottom: 20 }}>
+            <div style={{
+              background: C.cream,
+              border: `2px dashed ${C.gold}`,
+              borderRadius: 16,
+              padding: "24px",
+              textAlign: "center",
+            }}>
+              <div style={{ fontSize: 32, color: C.muted, marginBottom: 8 }}>📷</div>
+              <p style={{ fontFamily: "Heebo, sans-serif", fontWeight: 400, fontSize: 16, color: C.dark, margin: "0 0 6px" }}>הוסיפו תמונה מהחתונה</p>
+              <p style={{ fontFamily: "Heebo, sans-serif", fontWeight: 300, fontSize: 13, color: C.muted, margin: "0 0 16px" }}>שמרו את הרגע הכי יפה</p>
+              <span style={{
+                display: "inline-block", padding: "10px 24px", borderRadius: 10,
+                border: `1.5px solid ${C.gold}`, color: "#8B6914",
+                fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 14,
+              }}>
+                העלו תמונה
+              </span>
+            </div>
           </a>
         )}
-
-        {/* Support Us card */}
-        <div style={{ background: C.cream, borderRadius: 16, border: `1px solid ${C.border}`, padding: "20px", marginBottom: 12 }}>
-          <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 17, fontWeight: 700, color: C.dark, marginBottom: "0.5rem" }}>❤️ נהניתם מהשירות?</h2>
-          <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, marginBottom: "1.25rem" }}>
-            כל המלצה שלכם עוזרת לנו להגיע לעוד זוגות. תודה ענקית!
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
-            <a href="https://g.page/r/review" target="_blank" rel="noopener noreferrer"
-              style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.85rem 1rem", borderRadius: 12, background: "rgba(251,188,4,0.1)", border: "1px solid rgba(251,188,4,0.3)", textDecoration: "none" }}>
-              <span style={{ fontSize: 20 }}>⭐</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>כתבו לנו חוות דעת בגוגל</span>
-            </a>
-            <a href={`https://wa.me/?text=${shareMsg}`} target="_blank" rel="noopener noreferrer"
-              style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.85rem 1rem", borderRadius: 12, background: "rgba(37,211,102,0.08)", border: "1px solid rgba(37,211,102,0.25)", textDecoration: "none" }}>
-              <span style={{ fontSize: 20 }}>💬</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>המליצו עלינו לחברים</span>
-            </a>
-          </div>
-        </div>
       </div>
 
       {/* Post-event BottomNav: בית / גלריה / זכרונות / עוד */}
@@ -696,6 +685,19 @@ function WeddingDayScreen({ token, event, briefing }: {
   const [timeline, setTimeline] = useState<{ time: string; title: string }[]>(
     briefing?.event?.event_timeline ?? []
   );
+  const nowHHMM = (() => {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  })();
+  function timelineItemState(time: string): "active" | "past" | "upcoming" {
+    const diff = time.localeCompare(nowHHMM);
+    if (diff > 0) return "upcoming";
+    const [h, m] = time.split(":").map(Number);
+    const [nh, nm] = nowHHMM.split(":").map(Number);
+    const minuteDiff = (nh * 60 + nm) - (h * 60 + m);
+    if (minuteDiff <= 30) return "active";
+    return "past";
+  }
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTime, setNewTime]   = useState("");
   const [newTitle, setNewTitle] = useState("");
@@ -754,7 +756,7 @@ function WeddingDayScreen({ token, event, briefing }: {
       </div>
 
       <div style={{ maxWidth: 520, margin: "0 auto", padding: "1.5rem" }}>
-        {/* Quick actions */}
+        {/* Quick actions — 2×2 grid per E3-S10 spec */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1.5rem" }}>
           {actions.slice(0, 4).map(a => (
             <a key={a.label} href={a.href} target={a.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer"
@@ -766,13 +768,6 @@ function WeddingDayScreen({ token, event, briefing }: {
             </a>
           ))}
         </div>
-        <a href={actions[4].href}
-           style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"0.5rem",
-                    padding:"1rem", background: C.gold, borderRadius: 14, textDecoration:"none",
-                    color: "#fff", fontWeight: 700, fontSize: 15, marginBottom: "1.5rem",
-                    boxShadow: "0 4px 16px rgba(197,164,109,0.35)" }}>
-          <span>💬</span> הודעה לאורחים
-        </a>
 
         {/* Event timeline */}
         <div style={{ background: C.card, borderRadius: 16, padding: "1.25rem", boxShadow: C.shadow, border: `1px solid ${C.border}` }}>
@@ -802,14 +797,24 @@ function WeddingDayScreen({ token, event, briefing }: {
             </div>
           ) : (
             <div style={{ display:"flex", flexDirection:"column", gap:"0.5rem" }}>
-              {timeline.map((item, i) => (
-                <div key={i} style={{ display:"flex", alignItems:"center", gap:"0.75rem",
-                                      padding:"0.6rem 0.75rem", borderRadius:10,
-                                      background: C.cream, border:`1px solid ${C.border}` }}>
-                  <span style={{ fontWeight:700, color:C.gold, fontSize:14, minWidth:44 }}>{item.time}</span>
-                  <span style={{ fontSize:14, color:C.dark }}>{item.title}</span>
-                </div>
-              ))}
+              {timeline.map((item, i) => {
+                const state = timelineItemState(item.time);
+                return (
+                  <div key={i} style={{
+                    display:"flex", alignItems:"center", gap:"0.75rem",
+                    padding: state === "active" ? "0.75rem 0.75rem" : "0.6rem 0.75rem",
+                    borderRadius:10,
+                    background: C.cream,
+                    border: state === "active" ? `2px solid ${C.gold}` : `1px solid ${C.border}`,
+                    opacity: state === "past" ? 0.5 : 1,
+                    transition: "all 0.2s",
+                  }}>
+                    <span style={{ fontFamily:"'Frank Ruhl Libre',serif", fontWeight:700, color:"#8B6914", fontSize:18, minWidth:48 }}>{item.time}</span>
+                    <span style={{ fontFamily:"'Heebo',sans-serif", fontSize:15, color:C.dark }}>{item.title}</span>
+                    {state === "active" && <span style={{ marginRight:"auto", fontSize:10, fontFamily:"'Heebo',sans-serif", color:C.gold, fontWeight:700, background:"rgba(197,164,109,0.12)", borderRadius:8, padding:"2px 8px" }}>עכשיו</span>}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

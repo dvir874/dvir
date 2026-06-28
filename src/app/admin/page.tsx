@@ -387,6 +387,7 @@ export default function AdminPage() {
   const [addName,      setAddName]      = useState("");
   const [addPhone,     setAddPhone]     = useState("");
   const [addCount,     setAddCount]     = useState(1);
+  const [addSide,      setAddSide]      = useState<"bride"|"groom"|"mutual">("mutual");
   const [addLoading,   setAddLoading]   = useState(false);
 
   // Approval system
@@ -737,7 +738,7 @@ export default function AdminPage() {
     const res = await fetch("/api/guests", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event_id: selectedEventId, name: addName, phone: addPhone, guest_count: addCount }),
+      body: JSON.stringify({ event_id: selectedEventId, name: addName, phone: addPhone, guest_count: addCount, side: addSide === "mutual" ? null : addSide }),
     });
     const data: Guest = await res.json();
     setGuests((prev) => [...prev, data]);
@@ -2294,38 +2295,48 @@ export default function AdminPage() {
                   className="w-full rounded-3xl p-6"
                   style={{ background: C.ivory, border: `1px solid ${C.border}`, boxShadow: "0 20px 60px rgba(0,0,0,0.12)", width: "min(480px,95vw)" }}
                 >
-                  <h3 className="text-lg font-bold mb-4" style={{ color: C.dark, fontFamily: "Frank Ruhl Libre, serif" }}>
-                    הוספת אורח
+                  {/* OPP-009 Add Guest Modal — spec-exact fields */}
+                  <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 22, color: C.dark, margin: "0 0 20px" }}>
+                    הוסיפו אורח
                   </h3>
-                  <div className="flex flex-col gap-3 mb-4">
-                    <input placeholder="שם *" value={addName} onChange={(e) => setAddName(e.target.value)}
+                  <div className="flex flex-col gap-3 mb-5">
+                    <input placeholder="שם מלא *" value={addName} onChange={(e) => setAddName(e.target.value)}
                       className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-                      style={{ background: "white", border: `1px solid ${C.border}`, color: C.dark }} />
-                    <input placeholder="טלפון" value={addPhone} onChange={(e) => setAddPhone(e.target.value)}
+                      style={{ background: "white", border: `1px solid ${C.border}`, color: C.dark, fontFamily: "Heebo, sans-serif" }} />
+                    <input placeholder="מספר טלפון" inputMode="numeric" type="tel" value={addPhone} onChange={(e) => setAddPhone(e.target.value)}
                       className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-                      style={{ background: "white", border: `1px solid ${C.border}`, color: C.dark }} />
-                    <div className="flex items-center gap-3">
-                      <label className="text-sm" style={{ color: C.muted }}>מספר מוזמנים:</label>
-                      <div className="flex items-center gap-2">
+                      style={{ background: "white", border: `1px solid ${C.border}`, color: C.dark, fontFamily: "Heebo, sans-serif" }} />
+                    {/* מאיזה צד? — OPP-009 explicit labels */}
+                    <select value={addSide} onChange={e => setAddSide(e.target.value as "bride"|"groom"|"mutual")}
+                      className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+                      style={{ background: "white", border: `1px solid ${C.border}`, color: C.dark, fontFamily: "Heebo, sans-serif" }}>
+                      <option value="mutual">מאיזה צד? — משותף / לא ידוע</option>
+                      <option value="bride">צד הכלה</option>
+                      <option value="groom">צד החתן</option>
+                    </select>
+                    {/* כמה אנשים? — NumberStepper */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderRadius: 12, background: "white", border: `1px solid ${C.border}` }}>
+                      <div>
+                        <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, color: C.dark, margin: "0 0 2px" }}>כמה אנשים?</p>
+                        <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 11, color: C.muted, margin: 0 }}>כולל האורח הזה</p>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         <button onClick={() => setAddCount((c) => Math.max(1, c - 1))}
-                          className="w-8 h-8 rounded-lg font-bold" style={{ background: C.cream, color: C.olive }}>−</button>
-                        <span className="w-6 text-center font-bold" style={{ color: C.dark }}>{addCount}</span>
-                        <button onClick={() => setAddCount((c) => Math.min(20, c + 1))}
-                          className="w-8 h-8 rounded-lg font-bold" style={{ background: C.cream, color: C.olive }}>+</button>
+                          style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.border}`, background: C.cream, color: C.dark, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                        <span style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 20, color: C.dark, minWidth: 24, textAlign: "center" }}>{addCount}</span>
+                        <button onClick={() => setAddCount((c) => Math.min(10, c + 1))}
+                          style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.border}`, background: C.cream, color: C.dark, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-3">
-                    <button onClick={handleAddGuest} disabled={addLoading || !addName}
-                      className="flex-1 py-3 rounded-xl font-semibold text-sm text-white disabled:opacity-40"
-                      style={{ background: `linear-gradient(135deg,${C.olive},#3E5435)` }}>
-                      {addLoading ? "מוסיף…" : "הוסף"}
-                    </button>
-                    <button onClick={() => setShowAddGuest(false)}
-                      className="flex-1 py-3 rounded-xl text-sm" style={{ background: "rgba(51,51,51,0.07)", color: C.muted }}>
-                      ביטול
-                    </button>
-                  </div>
+                  <button onClick={handleAddGuest} disabled={addLoading || !addName}
+                    style={{ width: "100%", padding: "14px", borderRadius: 12, background: addLoading || !addName ? "rgba(197,164,109,0.3)" : `linear-gradient(135deg,${C.gold},#D4BC8A)`, border: "none", color: "#fff", fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 16, cursor: addLoading || !addName ? "not-allowed" : "pointer", marginBottom: 10 }}>
+                    {addLoading ? "מוסיף…" : "הוסיפו אורח"}
+                  </button>
+                  <button onClick={() => setShowAddGuest(false)}
+                    style={{ width: "100%", padding: "10px", borderRadius: 12, border: "none", background: "transparent", color: C.muted, fontFamily: "Heebo, sans-serif", fontSize: 14, cursor: "pointer" }}>
+                    ביטול
+                  </button>
                 </div>
               </div>
             )}
@@ -2850,20 +2861,20 @@ export default function AdminPage() {
                   );
                 })()}
 
-                {/* ── Stitch: KPI cards ── */}
+                {/* ── E4-S1 Stitch: KPI cards (spec: cream bg, gold number, muted label) ── */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
-                    { icon: <CalendarDays size={22} />, iconBg: "rgba(107,123,90,0.14)", iconColor: C.olive, label: "אירועים פעילים", value: overview.filter((e) => e.daysUntilEvent > 0).length },
-                    { icon: <Users size={22} />,        iconBg: "rgba(197,164,109,0.18)", iconColor: C.gold,  label: "סה״כ מוזמנים",   value: overview.reduce((s, e) => s + e.total, 0).toLocaleString("he-IL") },
-                    { icon: <CheckCircle size={22} />,  iconBg: "rgba(107,123,90,0.10)",  iconColor: C.olive, label: "ממוצע מענה",      value: overview.length ? `${Math.round(overview.reduce((s, e) => s + e.responseRate, 0) / overview.length)}%` : "—" },
-                    { icon: <Heart size={22} />,        iconBg: "rgba(197,164,109,0.14)", iconColor: C.gold,  label: "ממוצע בריאות",    value: overview.length ? Math.round(overview.reduce((s, e) => s + e.healthScore, 0) / overview.length) : "—" },
+                    { icon: <CalendarDays size={22} />, iconBg: "rgba(197,164,109,0.14)", iconColor: C.gold,  label: "אירועים פעילים",      value: overview.filter((e) => e.daysUntilEvent > 0).length },
+                    { icon: <CheckCircle size={22} />,  iconBg: "rgba(107,123,90,0.10)",  iconColor: C.olive, label: "אישורי הגעה השבוע",    value: overview.reduce((s, e) => s + (e.recentActivity ?? 0), 0) },
+                    { icon: <Users size={22} />,        iconBg: "rgba(197,164,109,0.18)", iconColor: C.gold,  label: "סה״כ מוזמנים",         value: overview.reduce((s, e) => s + e.total, 0).toLocaleString("he-IL") },
+                    { icon: <CalendarDays size={22} />, iconBg: "rgba(107,123,90,0.14)", iconColor: C.olive, label: "אירועים השבוע הקרוב",  value: overview.filter((e) => e.daysUntilEvent >= 0 && e.daysUntilEvent <= 7).length },
                   ].map((k, i) => (
-                    <div key={i} className="p-6 transition-all duration-300 hover:-translate-y-1"
-                      style={{ background: "#fff", borderRadius: 24, border: `1px solid ${C.border}`, boxShadow: "0 4px 20px rgba(28,16,8,0.04)" }}>
-                      <div className="flex items-center justify-center mb-4"
-                        style={{ width: 48, height: 48, borderRadius: 16, background: k.iconBg, color: k.iconColor }}>{k.icon}</div>
-                      <p style={{ color: C.muted, fontSize: 13, marginBottom: 4, fontFamily: "Heebo, sans-serif" }}>{k.label}</p>
-                      <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 32, color: C.dark }}>{k.value}</h3>
+                    <div key={i} className="p-5 transition-all duration-300 hover:-translate-y-1"
+                      style={{ background: C.cream, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 12px rgba(197,164,109,0.06)" }}>
+                      <div className="flex items-center justify-center mb-3"
+                        style={{ width: 40, height: 40, borderRadius: 12, background: k.iconBg, color: k.iconColor }}>{k.icon}</div>
+                      <p style={{ color: C.muted, fontSize: 13, marginBottom: 2, fontFamily: "Heebo, sans-serif", fontWeight: 300 }}>{k.label}</p>
+                      <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 36, color: C.gold, margin: 0 }}>{k.value}</h3>
                     </div>
                   ))}
                 </div>
