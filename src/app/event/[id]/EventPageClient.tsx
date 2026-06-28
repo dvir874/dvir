@@ -265,7 +265,35 @@ export default function EventPageClient({
           </div>
         ))}
 
+        {/* Hero background photo overlay */}
+        {event.mini_site_hero_path && (
+          <div className="absolute inset-0 pointer-events-none" style={{
+            backgroundImage: `url(${event.mini_site_hero_path})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            opacity: 0.18,
+          }} />
+        )}
+
         <div className="relative z-10 px-6 max-w-xl mx-auto flex flex-col items-center hero-content">
+          {/* Couple photo circle / initials fallback (E3-S10) */}
+          <div style={{
+            width: 100, height: 100, borderRadius: "50%", marginBottom: 24,
+            border: `2px solid ${theme.heroAccent}`,
+            overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center",
+            background: event.mini_site_hero_path ? "transparent" : `${theme.heroAccent}18`,
+            flexShrink: 0,
+          }}>
+            {event.mini_site_hero_path ? (
+              <img src={event.mini_site_hero_path} alt="תמונת הזוג"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              <span style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 28, color: theme.heroAccent }}>
+                {[event.partner1_name, event.partner2_name].filter(Boolean).map(n => n?.charAt(0)).join("") || "💍"}
+              </span>
+            )}
+          </div>
+
           {/* Badge */}
           <div
             className="mb-7 px-5 py-1.5 rounded-full text-xs font-semibold tracking-[0.2em] uppercase"
