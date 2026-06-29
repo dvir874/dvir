@@ -10,9 +10,12 @@ export function parseGuestsFromXlsx(
 
   return rows
     .map((row) => {
-      const name = String(
+      const firstName = String(row['שם פרטי'] ?? row['first_name'] ?? '').trim();
+      const lastName  = String(row['שם משפחה'] ?? row['last_name'] ?? '').trim();
+      const fullFromCols = [firstName, lastName].filter(Boolean).join(' ');
+      const name = (fullFromCols || String(
         row['שם'] ?? row['name'] ?? row['Name'] ?? row['שם מלא'] ?? ''
-      ).trim();
+      )).trim();
       const phone = String(
         row['טלפון'] ?? row['phone'] ?? row['Phone'] ?? row['מספר טלפון'] ?? ''
       ).trim();
