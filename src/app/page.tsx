@@ -62,33 +62,23 @@ function GoldCTA({ href, children, outline = false }: { href: string; children: 
   );
 }
 
-/* ─── Benefit card (replaces FeatureCard) ──────────────────────────── */
+/* ─── Benefit card ──────────────────────────────────────────────────── */
 function BenefitCard({ icon, title, desc }: { icon: string; title: string; desc: string }) {
   return (
     <div style={{
-      background: C.ivory,
+      background: C.cream,
       border: `1px solid ${C.border}`,
-      borderRadius: "20px",
-      padding: "36px 28px",
+      borderRadius: "16px",
+      padding: "28px 24px",
       display: "flex",
       flexDirection: "column",
-      gap: "14px",
-      boxShadow: "0 2px 16px rgba(28,16,8,0.04)",
+      gap: "10px",
     }}>
-      <div style={{
-        width: 56, height: 56,
-        background: C.cream,
-        borderRadius: "14px",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: "28px", lineHeight: 1,
-        border: `1px solid ${C.border}`,
-      }}>
-        {icon}
-      </div>
-      <h3 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "22px", fontWeight: 700, color: C.dark, margin: 0, lineHeight: 1.2 }}>
+      <span style={{ fontSize: "40px", lineHeight: 1 }}>{icon}</span>
+      <h3 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "20px", fontWeight: 700, color: C.dark, margin: 0 }}>
         {title}
       </h3>
-      <p style={{ fontFamily: "'Heebo', sans-serif", fontSize: "15px", fontWeight: 300, color: C.muted, lineHeight: 1.8, margin: 0 }}>
+      <p style={{ fontFamily: "'Heebo', sans-serif", fontSize: "14px", fontWeight: 300, color: C.muted, lineHeight: 1.7, margin: 0 }}>
         {desc}
       </p>
     </div>
@@ -308,14 +298,11 @@ export default function LandingPage() {
 
         .container { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
 
-        /* Value grid — 4 benefit cards */
+        /* Value grid — 4 benefit cards (2×2) */
         .value-grid {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: repeat(2, 1fr);
           gap: 20px;
-        }
-        @media (max-width: 1100px) {
-          .value-grid { grid-template-columns: repeat(2, 1fr); }
         }
         @media (max-width: 640px) {
           .value-grid { grid-template-columns: 1fr; }
@@ -356,7 +343,7 @@ export default function LandingPage() {
           /* Mobile: hide secondary CTA (sticky bar handles it) */
           .cta-secondary-mobile { display: none; }
           /* Mobile: single-column value cards */
-          .value-grid { grid-template-columns: 1fr !important; }
+          .value-grid { grid-template-columns: 1fr; }
           /* Mobile: single-column testimonials */
           .testimonials-grid { grid-template-columns: 1fr !important; }
           /* Mobile container padding */
@@ -455,14 +442,11 @@ export default function LandingPage() {
         {/* ── VALUE SECTION ────────────────────────────────────────── */}
         <section aria-labelledby="value-heading" style={{ padding: "40px 0 60px" }}>
           <div className="container">
-            <div style={{ textAlign: "center", marginBottom: "48px" }}>
-              <p style={{ fontFamily: "'Heebo', sans-serif", fontSize: "12px", color: C.goldText, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "10px" }}>
-                מה תקבלו
-              </p>
-              <h2 id="value-heading" style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "clamp(28px,4vw,40px)", fontWeight: 700, color: C.dark, marginBottom: "12px" }}>
-                הכל במקום אחד
+            <div style={{ textAlign: "center", marginBottom: "40px" }}>
+              <h2 id="value-heading" style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "clamp(26px,4vw,36px)", fontWeight: 700, color: C.dark, marginBottom: "10px" }}>
+                מה כלול
               </h2>
-              <p style={{ fontFamily: "'Heebo', sans-serif", fontSize: "17px", fontWeight: 300, color: C.muted }}>
+              <p style={{ fontFamily: "'Heebo', sans-serif", fontSize: "16px", fontWeight: 300, color: C.muted }}>
                 כלים שנבנו במיוחד לחתונות ישראליות
               </p>
             </div>
@@ -471,22 +455,22 @@ export default function LandingPage() {
               <BenefitCard
                 icon="💬"
                 title="אישורי הגעה בוואטסאפ"
-                desc="האורחים מאשרים הגעה ישירות בוואטסאפ — ללא אפליקציה, ללא הרשמה. אתם רואים הכל בזמן אמת."
+                desc="האורחים מאשרים הגעה ישירות בוואטסאפ — ללא אפליקציה, ללא הרשמה."
               />
               <BenefitCard
                 icon="👥"
                 title="ניהול אורחים חי"
-                desc="רשימת אורחים דינמית עם סטטוס RSVP, הושבה, צד ובקשות מיוחדות — הכל מתעדכן בלייב."
+                desc="רשימת אורחים דינמית עם סטטוס, הושבה, צד ובקשות מיוחדות — מתעדכן בלייב."
               />
               <BenefitCard
                 icon="🌐"
                 title="אתר חתונה דיגיטלי"
-                desc="מיניסייט מעוצב לאירוע שלכם: תאריך, מיקום, לו״ז, ניווט — קישור אחד שתשלחו לכולם."
+                desc="מיניסייט מעוצב עם תאריך, מיקום, לו״ז וניווט — קישור אחד שתשלחו לכולם."
               />
               <BenefitCard
                 icon="💌"
-                title="גלריית הזמנות מעוצבת"
-                desc="בחרו עיצוב שמשקף את הסגנון שלכם — רומנטי, מינימליסטי, יוקרתי. כלול בכל חבילה."
+                title="הזמנה דיגיטלית מעוצבת"
+                desc="בחרו עיצוב שמשקף את הסגנון שלכם — רומנטי, מינימליסטי, יוקרתי."
               />
             </div>
           </div>
