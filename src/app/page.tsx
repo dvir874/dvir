@@ -62,23 +62,33 @@ function GoldCTA({ href, children, outline = false }: { href: string; children: 
   );
 }
 
-/* ─── Feature card ─────────────────────────────────────────────────── */
-function FeatureCard({ icon, title, desc }: { icon: string; title: string; desc: string }) {
+/* ─── Benefit card (replaces FeatureCard) ──────────────────────────── */
+function BenefitCard({ icon, title, desc }: { icon: string; title: string; desc: string }) {
   return (
     <div style={{
-      background: C.cream,
+      background: C.ivory,
       border: `1px solid ${C.border}`,
-      borderRadius: "16px",
-      padding: "28px 24px",
+      borderRadius: "20px",
+      padding: "36px 28px",
       display: "flex",
       flexDirection: "column",
-      gap: "10px",
+      gap: "14px",
+      boxShadow: "0 2px 16px rgba(28,16,8,0.04)",
     }}>
-      <span style={{ fontSize: "40px", lineHeight: 1 }}>{icon}</span>
-      <h3 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "20px", fontWeight: 700, color: C.dark, margin: 0 }}>
+      <div style={{
+        width: 56, height: 56,
+        background: C.cream,
+        borderRadius: "14px",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: "28px", lineHeight: 1,
+        border: `1px solid ${C.border}`,
+      }}>
+        {icon}
+      </div>
+      <h3 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "22px", fontWeight: 700, color: C.dark, margin: 0, lineHeight: 1.2 }}>
         {title}
       </h3>
-      <p style={{ fontFamily: "'Heebo', sans-serif", fontSize: "14px", fontWeight: 300, color: C.muted, lineHeight: 1.7, margin: 0 }}>
+      <p style={{ fontFamily: "'Heebo', sans-serif", fontSize: "15px", fontWeight: 300, color: C.muted, lineHeight: 1.8, margin: 0 }}>
         {desc}
       </p>
     </div>
@@ -298,17 +308,17 @@ export default function LandingPage() {
 
         .container { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
 
-        /* Features grid */
-        .features-grid {
+        /* Value grid — 4 benefit cards */
+        .value-grid {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(4, 1fr);
           gap: 20px;
         }
-        @media (max-width: 1024px) {
-          .features-grid { grid-template-columns: repeat(2, 1fr); }
+        @media (max-width: 1100px) {
+          .value-grid { grid-template-columns: repeat(2, 1fr); }
         }
         @media (max-width: 640px) {
-          .features-grid { grid-template-columns: 1fr; }
+          .value-grid { grid-template-columns: 1fr; }
         }
 
         /* Testimonials grid */
@@ -345,8 +355,8 @@ export default function LandingPage() {
           .hero-cta-group a { max-width: 100% !important; width: 100% !important; }
           /* Mobile: hide secondary CTA (sticky bar handles it) */
           .cta-secondary-mobile { display: none; }
-          /* Mobile: single-column features */
-          .features-grid { grid-template-columns: 1fr !important; }
+          /* Mobile: single-column value cards */
+          .value-grid { grid-template-columns: 1fr !important; }
           /* Mobile: single-column testimonials */
           .testimonials-grid { grid-template-columns: 1fr !important; }
           /* Mobile container padding */
@@ -425,16 +435,6 @@ export default function LandingPage() {
                 ניהול אורחים, הושבה, גלריה ותכנון מלא — במקום אחד
               </p>
 
-              <p style={{
-                fontFamily: "'Heebo', sans-serif",
-                fontSize: "14px",
-                fontWeight: 400,
-                color: C.goldText,
-                marginBottom: "32px",
-              }}>
-                💍 800+ זוגות כבר מתכננים
-              </p>
-
               <div id="hero-cta-sentinel" className="hero-cta-group" style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "360px" }}>
                 <GoldCTA href="/auth/register">התחילו עכשיו →</GoldCTA>
                 <div className="cta-secondary-mobile">
@@ -452,28 +452,42 @@ export default function LandingPage() {
 
         <BotanicalDivider />
 
-        {/* ── FEATURES ─────────────────────────────────────────────── */}
-        <section aria-labelledby="features-heading" style={{ padding: "40px 0 60px" }}>
+        {/* ── VALUE SECTION ────────────────────────────────────────── */}
+        <section aria-labelledby="value-heading" style={{ padding: "40px 0 60px" }}>
           <div className="container">
-            <div style={{ textAlign: "center", marginBottom: "40px" }}>
+            <div style={{ textAlign: "center", marginBottom: "48px" }}>
               <p style={{ fontFamily: "'Heebo', sans-serif", fontSize: "12px", color: C.goldText, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "10px" }}>
                 מה תקבלו
               </p>
-              <h2 id="features-heading" style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "clamp(28px,4vw,40px)", fontWeight: 700, color: C.dark, marginBottom: "12px" }}>
+              <h2 id="value-heading" style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "clamp(28px,4vw,40px)", fontWeight: 700, color: C.dark, marginBottom: "12px" }}>
                 הכל במקום אחד
               </h2>
               <p style={{ fontFamily: "'Heebo', sans-serif", fontSize: "17px", fontWeight: 300, color: C.muted }}>
-                כל כלי שצריך לתכנן חתונה מושלמת
+                כלים שנבנו במיוחד לחתונות ישראליות
               </p>
             </div>
 
-            <div className="features-grid">
-              <FeatureCard icon="💌" title="הזמנות דיגיטליות" desc="שלחו הזמנות וקבלו אישורי הגעה בלחיצה אחת" />
-              <FeatureCard icon="👥" title="ניהול אורחים" desc="עקבו אחרי כל אורח, הושבה ובקשות מיוחדות" />
-              <FeatureCard icon="🪑" title="תרשים הושבה" desc="ערכו תרשים ישיבה חכם עם גרירה ושחרור" />
-              <FeatureCard icon="💰" title="מעקב תקציב" desc="נהלו הוצאות וספקים ביד ברזל" />
-              <FeatureCard icon="📸" title="גלריית תמונות" desc="אורחים מעלים תמונות ישירות לגלריה שלכם" />
-              <FeatureCard icon="💬" title="WhatsApp Pro" desc="שלחו הודעות מותאמות אישית לכל הרשימה בקליק" />
+            <div className="value-grid">
+              <BenefitCard
+                icon="💬"
+                title="אישורי הגעה בוואטסאפ"
+                desc="האורחים מאשרים הגעה ישירות בוואטסאפ — ללא אפליקציה, ללא הרשמה. אתם רואים הכל בזמן אמת."
+              />
+              <BenefitCard
+                icon="👥"
+                title="ניהול אורחים חי"
+                desc="רשימת אורחים דינמית עם סטטוס RSVP, הושבה, צד ובקשות מיוחדות — הכל מתעדכן בלייב."
+              />
+              <BenefitCard
+                icon="🌐"
+                title="אתר חתונה דיגיטלי"
+                desc="מיניסייט מעוצב לאירוע שלכם: תאריך, מיקום, לו״ז, ניווט — קישור אחד שתשלחו לכולם."
+              />
+              <BenefitCard
+                icon="💌"
+                title="גלריית הזמנות מעוצבת"
+                desc="בחרו עיצוב שמשקף את הסגנון שלכם — רומנטי, מינימליסטי, יוקרתי. כלול בכל חבילה."
+              />
             </div>
           </div>
         </section>
