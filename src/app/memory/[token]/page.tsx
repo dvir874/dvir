@@ -200,35 +200,6 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
         )}
       </div>
 
-      {/* F6 — Photo Challenge horizontal scroll */}
-      <div style={{ padding:"0 0 24px", animation:"fadeUp .4s ease .05s both" }}>
-        <p style={{ fontFamily:"'Heebo',sans-serif", fontSize:"13px", fontWeight:600, color:T.goldText, padding:"0 20px 10px", letterSpacing:".03em" }}>
-          רעיונות לצילומים
-        </p>
-        <div style={{ display:"flex", gap:"10px", overflowX:"auto", padding:"0 20px 4px", scrollbarWidth:"none" }}>
-          {[
-            { emoji:"📸", label:"עם הזוג",        prompt:"תמונה שלכם עם הזוג" },
-            { emoji:"🥂", label:"הדלקת נרות",     prompt:"רגע של הדלקת הנרות" },
-            { emoji:"💃", label:"ריקוד ראשון",     prompt:"הריקוד הראשון" },
-            { emoji:"👪", label:"תמונה משפחתית",   prompt:"כל המשפחה יחד" },
-            { emoji:"😄", label:"תמונה מצחיקה",   prompt:"רגע מצחיק מהאירוע" },
-            { emoji:"🌹", label:"ליד החופה",       prompt:"ליד עיצוב החופה" },
-          ].map(({ emoji, label, prompt }) => (
-            <button
-              key={label}
-              onClick={() => selectType("photo" as UploadType)}
-              title={prompt}
-              style={{ flexShrink:0, display:"flex", flexDirection:"column", alignItems:"center", gap:"6px",
-                       background:T.cream, borderRadius:"14px", padding:"14px 12px", border:`1.5px solid ${T.border}`,
-                       cursor:"pointer", minWidth:"76px" }}
-            >
-              <span style={{ fontSize:"28px", lineHeight:1 }}>{emoji}</span>
-              <span style={{ fontFamily:"'Heebo',sans-serif", fontSize:"11px", fontWeight:600, color:T.dark, whiteSpace:"nowrap" }}>{label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* 2×2 type grid */}
       <div style={{ padding:"0 20px 48px", display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", maxWidth:"400px", margin:"0 auto", animation:"fadeUp .4s ease .08s both" }}>
         {[
