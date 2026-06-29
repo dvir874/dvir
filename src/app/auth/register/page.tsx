@@ -48,12 +48,13 @@ function FloatingLabelInput({
         onBlur={() => { setFocused(false); onBlur?.(); }}
         style={{
           width: "100%", boxSizing: "border-box",
-          padding: filled || focused ? "22px 14px 8px" : "14px",
-          borderRadius: 12,
-          border: `1.5px solid ${error ? "#B03030" : focused ? C.gold : C.border}`,
-          background: C.ivory, color: C.dark,
+          padding: filled || focused ? "22px 16px 8px" : "16px",
+          borderRadius: 20,
+          border: `1.5px solid ${error ? "#B03030" : focused ? C.gold : "transparent"}`,
+          background: C.cream, color: C.dark,
           fontFamily: "Heebo, sans-serif", fontSize: 16,
           outline: "none", transition: "border-color 0.2s",
+          boxShadow: "0 1px 4px rgba(28,16,8,0.06)",
         }}
       />
       {error && <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 11, color: "#B03030", margin: "4px 0 12px 4px" }}>{error}</p>}
