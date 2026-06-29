@@ -121,10 +121,7 @@ export default function GuestCenterPage() {
       <header style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", position:"sticky", top:0, background:"rgba(253,250,245,0.96)", backdropFilter:"blur(8px)", borderBottom:`1px solid rgba(197,164,109,0.15)`, zIndex:10 }}>
         <button onClick={() => router.back()} style={{ background:"none", border:"none", cursor:"pointer", padding:"8px", color:C.muted, fontSize:20, lineHeight:1 }} aria-label="חזרה">→</button>
         <h1 style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"18px", fontWeight:700, color:C.dark, margin:0 }}>מרכז האורחים</h1>
-        <button onClick={() => router.push(`/couple/${token}/guests/import`)}
-          style={{ background:C.gold, border:"none", borderRadius:10, padding:"8px 14px", cursor:"pointer", color:"#fff", fontFamily:"Heebo,sans-serif", fontSize:13, fontWeight:600, whiteSpace:"nowrap" }}>
-          + ייבוא
-        </button>
+        <div style={{ width:44 }} />
       </header>
 
       {/* Page heading + summary pills */}
@@ -227,10 +224,10 @@ export default function GuestCenterPage() {
 
       {/* ONE floating GoldCTA — spec: no header "+" button */}
       <div style={{ position:"sticky", bottom:`calc(80px + env(safe-area-inset-bottom))`, padding:"0 16px", zIndex:5 }}>
-        <a href={`/couple/${token}/guests/add`}
-          style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%", padding:"16px", borderRadius:16, background:`linear-gradient(135deg,${C.gold},#B8935A)`, color:"white", fontFamily:"Heebo,sans-serif", fontSize:15, fontWeight:700, textDecoration:"none", boxShadow:"0 4px 16px rgba(197,164,109,0.45)" }}>
+        <button onClick={() => router.push(`/couple/${token}/guests/import`)}
+          style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%", padding:"16px", borderRadius:16, background:`linear-gradient(135deg,${C.gold},#B8935A)`, color:"white", fontFamily:"Heebo,sans-serif", fontSize:15, fontWeight:700, border:"none", cursor:"pointer", boxShadow:"0 4px 16px rgba(197,164,109,0.45)" }}>
           + הוסיפו אורח
-        </a>
+        </button>
       </div>
 
       {/* Detail Panel */}
