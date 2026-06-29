@@ -1259,19 +1259,31 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         </button>
       </header>
 
-      {/* ── E3-S6: Greeting + Countdown ── */}
-      <section style={{ padding:"28px 20px 0", textAlign:"right", animation:"fadeUp .4s ease both" }}>
-        <p style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"32px", fontWeight:700, color:C.dark, margin:"0 0 20px" }}>
-          {briefing?.event?.bride_name && briefing?.event?.groom_name
-            ? `שלום ${briefing.event.bride_name} ו${briefing.event.groom_name}`
-            : `שלום ${event.name}`}
-        </p>
-        <div aria-label={`${daysLeft} ימים עד ליום החתונה`}>
-          <p role="timer" style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"80px", fontWeight:900, color:"#8B6914", lineHeight:1, margin:"0 0 4px" }}>
-            {animatedDays}
+      {/* ── Hero card — ספירה לאחור + מאושרים ── */}
+      <section style={{ padding:"20px 16px 0", animation:"fadeUp .35s ease both" }}>
+        <div style={{ background:C.cream, borderRadius:20, padding:"24px 20px", border:`1px solid ${C.border}` }}>
+          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:13, fontWeight:500, color:C.muted, margin:"0 0 16px", letterSpacing:"0.04em" }}>
+            {briefing?.event?.bride_name && briefing?.event?.groom_name
+              ? `${briefing.event.bride_name} & ${briefing.event.groom_name}`
+              : event.name}
           </p>
-          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"20px", fontWeight:300, color:C.muted, margin:"0 0 4px" }}>ימים</p>
-          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"16px", fontWeight:300, color:C.muted, margin:0 }}>עד היום הגדול 💍</p>
+          <div style={{ display:"flex", alignItems:"flex-end", justifyContent:"space-between" }}>
+            {/* ימים */}
+            <div>
+              <p role="timer" aria-label={`${daysLeft} ימים עד ליום החתונה`}
+                style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"72px", fontWeight:900, color:"#8B6914", lineHeight:1, margin:0 }}>
+                {animatedDays}
+              </p>
+              <p style={{ fontFamily:"Heebo,sans-serif", fontSize:16, fontWeight:300, color:C.muted, margin:"4px 0 0" }}>ימים לחתונה 💍</p>
+            </div>
+            {/* מאושרים */}
+            <div style={{ textAlign:"center", background:"#fff", borderRadius:14, padding:"14px 20px", border:`1px solid ${C.border}`, minWidth:90 }}>
+              <p style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"40px", fontWeight:900, color:"#4A7C59", lineHeight:1, margin:0 }}>
+                {stats.confirmed}
+              </p>
+              <p style={{ fontFamily:"Heebo,sans-serif", fontSize:12, fontWeight:500, color:C.muted, margin:"4px 0 0" }}>מאושרים ✓</p>
+            </div>
+          </div>
         </div>
       </section>
 
