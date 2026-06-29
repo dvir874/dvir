@@ -203,11 +203,11 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
       {/* 2×2 type grid */}
       <div style={{ padding:"0 20px 48px", display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", maxWidth:"400px", margin:"0 auto", animation:"fadeUp .4s ease .08s both" }}>
         {[
-          { type:"photo"   as UploadType, emoji:"📸", label:"תמונה" },
-          { type:"video"   as UploadType, emoji:"🎥", label:"וידאו" },
-          { type:"blessing"as UploadType, emoji:"✍️", label:"ברכה" },
-          { type:"capsule" as UploadType, emoji:"💌", label:"מכתב קפסולת זמן" },
-        ].map(({ type, emoji, label }) => (
+          { type:"photo"   as UploadType, emoji:"📸", label:"תמונה",            sub:"תמונה שצילמתם מהאירוע" },
+          { type:"video"   as UploadType, emoji:"🎥", label:"סרטון",            sub:"סרטון קצר עד 2 דקות" },
+          { type:"blessing"as UploadType, emoji:"💌", label:"ברכה",             sub:"כתבו ברכה אישית" },
+          { type:"capsule" as UploadType, emoji:"⏳", label:"קפסולת זמן",      sub:"מכתב לזוג לעתיד" },
+        ].map(({ type, emoji, label, sub }) => (
           <button
             key={type}
             className="type-card"
@@ -215,8 +215,11 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
             aria-label={`שתף ${label}`}
           >
             <span style={{ fontSize:"40px", lineHeight:1 }}>{emoji}</span>
-            <span style={{ fontFamily:"'Heebo',sans-serif", fontWeight:600, fontSize:"16px", color:T.dark, textAlign:"center" }}>
+            <span style={{ fontFamily:"'Heebo',sans-serif", fontWeight:600, fontSize:"15px", color:T.dark, textAlign:"center", display:"block" }}>
               {label}
+            </span>
+            <span style={{ fontFamily:"'Heebo',sans-serif", fontWeight:300, fontSize:"12px", color:T.muted, textAlign:"center", display:"block", lineHeight:1.3 }}>
+              {sub}
             </span>
           </button>
         ))}
