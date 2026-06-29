@@ -210,8 +210,16 @@ export default function EventPageClient({
       {/* ── Hero ────────────────────────────────────── */}
       <section
         id="top"
-        className="relative min-h-screen flex flex-col items-center justify-center text-center overflow-hidden"
-        style={{ background: theme.heroBg, paddingTop: isPreview ? "56px" : "0" }}
+        className="relative overflow-hidden"
+        style={{
+          minHeight: event.mini_site_hero_path ? "442px" : "100svh",
+          display: "flex", flexDirection: "column",
+          alignItems: "center",
+          justifyContent: event.mini_site_hero_path ? "flex-end" : "center",
+          textAlign: "center",
+          background: event.mini_site_hero_path ? "transparent" : theme.heroBg,
+          paddingTop: isPreview ? "56px" : "0",
+        }}
       >
         {/* Floating decorative circles */}
         <div style={{
@@ -265,14 +273,19 @@ export default function EventPageClient({
           </div>
         ))}
 
-        {/* Hero background photo overlay */}
+        {/* Hero background photo — full-bleed when present (Stitch 2f663c5a) */}
         {event.mini_site_hero_path && (
-          <div className="absolute inset-0 pointer-events-none" style={{
-            backgroundImage: `url(${event.mini_site_hero_path})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            opacity: 0.18,
-          }} />
+          <>
+            <div className="absolute inset-0 pointer-events-none" style={{
+              backgroundImage: `url(${event.mini_site_hero_path})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }} />
+            {/* Gradient overlay: lighter version to let photo show */}
+            <div className="absolute inset-0 pointer-events-none" style={{
+              background: "linear-gradient(to top, rgba(253,250,245,1) 0%, rgba(253,250,245,0.2) 50%, transparent 100%)",
+            }} />
+          </>
         )}
 
         <div className="relative z-10 px-6 max-w-xl mx-auto flex flex-col items-center hero-content">
