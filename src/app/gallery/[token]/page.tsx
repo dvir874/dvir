@@ -173,31 +173,30 @@ export default function GalleryPage({ params }: { params: Promise<{ token: strin
     <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, fontFamily:"'Heebo',sans-serif" }}>
       <style>{DOTS_STYLE}</style>
 
-      {/* Header */}
-      <div style={{ padding:"20px 20px 12px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <h1 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"22px", fontWeight:700, color:T.dark, margin:0 }}>
-          גלריה
-        </h1>
-        <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
-          <span style={{ fontFamily:"'Heebo',sans-serif", fontSize:"13px", color:T.muted }}>
-            {photos.length} תמונות
-          </span>
-          <a
-            href={`/memory/${token}`}
-            style={{ padding:"8px 16px", borderRadius:"10px", background:`linear-gradient(135deg,${T.gold},#B8935A)`, color:"#fff", fontFamily:"'Heebo',sans-serif", fontWeight:600, fontSize:"14px", textDecoration:"none", display:"flex", alignItems:"center", gap:"6px" }}
-          >
-            <Camera size={14} style={{ flexShrink:0 }}/>
-            העלו
-          </a>
-        </div>
+      {/* Top App Bar — sticky, "רגע לפני" branding */}
+      <div style={{ position:"sticky", top:0, zIndex:40, background:"rgba(253,250,245,0.96)", backdropFilter:"blur(8px)", borderBottom:`1px solid rgba(197,164,109,0.15)`, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 16px", height:56 }}>
+        <span style={{ fontSize:22 }}>🤍</span>
+        <span style={{ fontFamily:"'Frank Ruhl Libre',serif", fontWeight:700, fontSize:17, color:T.goldText }}>רגע לפני</span>
+        <div style={{ width:28 }} />
       </div>
 
-      {/* Album name */}
-      {album?.event_name && (
-        <p style={{ textAlign:"center", color:T.goldText, fontFamily:"'Heebo',sans-serif", fontSize:"13px", fontWeight:600, marginBottom:"12px", letterSpacing:".03em" }}>
-          {album.event_name}
-        </p>
-      )}
+      {/* Heading + upload button */}
+      <div style={{ padding:"16px 16px 8px", display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12 }}>
+        <div>
+          <h1 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"22px", fontWeight:700, color:T.dark, margin:"0 0 4px", lineHeight:1.3 }}>
+            {album?.event_name ? `גלריה — ${album.event_name}` : "גלריה"}
+          </h1>
+          <p style={{ fontFamily:"'Heebo',sans-serif", fontSize:13, color:T.muted, fontWeight:300, margin:0 }}>
+            שתפו רגעים שצילמתם
+          </p>
+        </div>
+        <a
+          href={`/memory/${token}`}
+          style={{ flexShrink:0, padding:"8px 14px", borderRadius:20, background:T.gold, color:"#fff", fontFamily:"'Heebo',sans-serif", fontWeight:600, fontSize:13, textDecoration:"none", display:"flex", alignItems:"center", gap:5, boxShadow:"0 2px 8px rgba(197,164,109,0.35)" }}
+        >
+          <span style={{ fontSize:14 }}>+</span> הוספת תמונה
+        </a>
+      </div>
 
       {/* Masonry grid — CSS column-count (zero deps, native, RTL-safe) */}
       <div style={{ padding:"0 4px", columnCount:2, columnGap:"4px" }}>
