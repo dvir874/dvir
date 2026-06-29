@@ -14,7 +14,7 @@ import { EVENT_STATUS_LABEL, EVENT_STATUS_COLOR } from "@/lib/types";
 import { generateReminderRecommendations } from "@/lib/reminder-recommendations";
 import type { ReminderRecommendation } from "@/lib/reminder-recommendations";
 import { ACTION_LABEL } from "@/lib/reminder-recommendations";
-import { whatsappReminderLink, whatsappInviteLink, whatsappThankYouLink } from "@/lib/phone";
+import { whatsappReminderLink, whatsappInviteLink, whatsappThankYouLink, buildInviteMessage } from "@/lib/phone";
 import { generateTasks } from "@/lib/automation/task-engine";
 import type { Task }     from "@/lib/automation/task-engine";
 import { THEME_LIST, DEFAULT_THEME_ID } from "@/lib/themes";
@@ -1585,7 +1585,22 @@ export default function AdminPage() {
               <h2 className="text-lg font-bold" style={{ fontFamily: "Frank Ruhl Libre, serif", color: C.dark }}>{bulkMode === "reminder" ? "🔔 שליחת תזכורות" : "📨 שליחת הזמנות"}</h2>
               <button onClick={() => setShowBulkInvite(false)} style={{ background: "none", border: "none", fontSize: "1.4rem", cursor: "pointer", color: C.muted }}>×</button>
             </div>
-            <p className="text-xs mb-4" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>לחצו על כפתור הוואטסאפ לכל אורח בנפרד. הכפתור יהפוך לירוק לאחר הלחיצה.</p>
+            <p className="text-xs mb-3" style={{ color: C.muted, fontFamily: "Heebo, sans-serif" }}>לחצו על כפתור הוואטסאפ לכל אורח בנפרד. הכפתור יהפוך לירוק לאחר הלחיצה.</p>
+            {/* Message preview */}
+            {bulkMode === "invite" && (
+              <details className="mb-4">
+                <summary className="text-xs font-semibold cursor-pointer select-none" style={{ color: C.gold, fontFamily: "Heebo, sans-serif" }}>
+                  👁 תצוגה מקדימה של ההודעה
+                </summary>
+                <div className="mt-2 p-3 rounded-2xl text-xs leading-relaxed whitespace-pre-wrap" dir="rtl"
+                  style={{ background: "#DCF8C6", color: "#1a1a1a", fontFamily: "Heebo, sans-serif", border: "1px solid rgba(37,211,102,0.2)" }}>
+                  {buildInviteMessage(
+                    `${process.env.NEXT_PUBLIC_BASE_URL ?? "https://regalifnei.vercel.app"}/rsvp/[קישור-אישי]`,
+                    { eventName: selectedEvent?.name ?? undefined, date: selectedEvent?.date ?? undefined, address: selectedEvent?.address ?? undefined }
+                  )}
+                </div>
+              </details>
+            )}
             <div className="flex flex-col gap-2">
               {bulkInviteList.map((g) => {
                 const sent = bulkSentSet.has(g.id);
@@ -1595,7 +1610,7 @@ export default function AdminPage() {
                     <a
                       href={bulkMode === "reminder"
                         ? whatsappReminderLink(g.phone, g.name, g.rsvp_token, selectedEvent?.name ?? "")
-                        : whatsappInviteLink(g.phone, g.name, g.rsvp_token)}
+                        : whatsappInviteLink(g.phone, g.name, g.rsvp_token, { eventName: selectedEvent?.name ?? undefined, date: selectedEvent?.date ?? undefined, address: selectedEvent?.address ?? undefined })}
                       target="_blank" rel="noopener noreferrer"
                       onClick={() => setBulkSentSet(prev => new Set([...prev, g.id]))}
                       className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold"
@@ -2446,7 +2461,7 @@ export default function AdminPage() {
                               <Copy size={13} />
                             </button>
                             <a
-                              href={whatsappInviteLink(g.phone, g.name, g.rsvp_token)}
+                              href={whatsappInviteLink(g.phone, g.name, g.rsvp_token, { eventName: selectedEvent?.name ?? undefined, date: selectedEvent?.date ?? undefined, address: selectedEvent?.address ?? undefined })}
                               target="_blank"
                               rel="noopener noreferrer"
                               title="שלח הזמנה בוואטסאפ"
