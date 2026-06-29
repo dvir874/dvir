@@ -1,5 +1,6 @@
 import Link from "next/link";
 import LandingStickyCTA from "@/components/LandingStickyCTA";
+import { FEATURED_INVITATIONS } from "@/data/invitations";
 
 /* ─── Design tokens — SYS-02 ───────────────────────────────────────── */
 const C = {
@@ -216,6 +217,66 @@ function PhoneMockup() {
         <p style={{ fontFamily: "'Heebo', sans-serif", fontSize: "11px", fontWeight: 600, color: C.dark, margin: 0 }}>👥 247 אורחים</p>
       </div>
     </div>
+  );
+}
+
+/* ── Invitation Gallery Section (secondary, server component) ─────────── */
+function InvitationGallerySection() {
+  const invitations = FEATURED_INVITATIONS.slice(0, 3);
+  return (
+    <section
+      dir="rtl"
+      aria-labelledby="invitations-heading"
+      style={{ padding: "60px 0 64px", background: C.cream }}
+    >
+      <div className="container" style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px" }}>
+        {/* Header */}
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <p style={{ fontFamily: "'Heebo', sans-serif", fontSize: 11, fontWeight: 600, letterSpacing: "0.18em", textTransform: "uppercase", color: "rgba(197,164,109,0.75)", marginBottom: 10 }}>
+            ✦ כלול בכל חבילה ✦
+          </p>
+          <h2
+            id="invitations-heading"
+            style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "clamp(26px,4vw,38px)", fontWeight: 700, color: C.dark, marginBottom: 12 }}
+          >
+            הזמנות דיגיטליות לחתונה
+          </h2>
+          <p style={{ fontFamily: "'Heebo', sans-serif", fontSize: 15, fontWeight: 300, color: C.muted, maxWidth: 500, margin: "0 auto", lineHeight: 1.7 }}>
+            כל זוג מקבל הזמנה דיגיטלית מעוצבת שמשקפת את הסגנון האישי שלהם — חלק בלתי נפרד מחוויית "רגע לפני".
+          </p>
+        </div>
+
+        {/* Cards row — 3 featured invitations */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 20, marginBottom: 36 }}>
+          {invitations.map((inv) => (
+            <Link
+              key={inv.slug}
+              href={`/invitations/${inv.slug}`}
+              style={{ textDecoration: "none", display: "block", borderRadius: 16, overflow: "hidden", background: "#fff", border: `1px solid ${C.border}`, boxShadow: "0 2px 12px rgba(28,16,8,0.05)", transition: "box-shadow 0.2s" }}
+            >
+              {/* Image placeholder — warm gradient when no image */}
+              <div style={{ aspectRatio: "3/4", background: `linear-gradient(160deg,${C.cream},#EDE6D6)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40, opacity: 0.5 }}>
+                ✉️
+              </div>
+              <div style={{ padding: "14px 16px" }}>
+                <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontWeight: 700, fontSize: 15, color: C.dark, marginBottom: 4 }}>{inv.name}</p>
+                <p style={{ fontFamily: "'Heebo', sans-serif", fontSize: 12, fontWeight: 300, color: C.muted }}>{inv.description}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <div style={{ textAlign: "center" }}>
+          <Link
+            href="/invitations"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 28px", borderRadius: 12, border: `1.5px solid ${C.gold}`, background: "transparent", color: C.goldText, fontFamily: "'Heebo', sans-serif", fontWeight: 600, fontSize: 14, textDecoration: "none" }}
+          >
+            לכל גלריית ההזמנות ←
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -450,6 +511,11 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+        <BotanicalDivider />
+
+        {/* ── INVITATION GALLERY (secondary) ───────────────────────── */}
+        <InvitationGallerySection />
 
         <BotanicalDivider />
 
