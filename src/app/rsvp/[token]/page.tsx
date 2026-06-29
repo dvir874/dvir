@@ -29,6 +29,7 @@ interface EventInfo {
   date: string;
   address?: string | null;
   theme?: string | null;
+  mini_site_hero_path?: string | null;
 }
 
 /* ─── Design tokens (inline — same values as SYS-02 CSS vars) ── */
@@ -401,54 +402,88 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
     const confirmed = guest?.status === "confirmed";
 
     if (!confirmed) {
-      /* ── Declined state — E2-S5: MAZAL TOV header + heart + event card ── */
+      /* ── Declined state — Stitch 85f07f64: MAZAL TOV + heart + event card with photo + bokeh ── */
+      const ddmmyyyy = event?.date
+        ? (() => { const d = new Date(event.date); return `${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")}.${d.getFullYear()}`; })()
+        : formattedDate;
+
       return (
-        <div dir="rtl" style={{ minHeight: "100dvh", background: T.ivory, fontFamily: "'Heebo', sans-serif", display: "flex", flexDirection: "column" }}>
-          <style>{`@keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }`}</style>
+        <div dir="rtl" style={{ minHeight: "100dvh", background: T.ivory, fontFamily: "'Heebo', sans-serif", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <style>{`
+            @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+          `}</style>
 
           {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: `1px solid ${T.border}` }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px" }}>
             <button
               type="button"
               onClick={() => setScreen("form")}
-              style={{ background: "none", border: "none", cursor: "pointer", color: T.dark, fontSize: "20px", minWidth: "44px", minHeight: "44px", display: "flex", alignItems: "center", justifyContent: "center" }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: T.dark, fontSize: "22px", minWidth: "44px", minHeight: "44px", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
               aria-label="חזרה"
             >
               ×
             </button>
-            <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontWeight: 700, fontSize: "16px", color: T.goldText, letterSpacing: "0.12em" }}>
+            <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontWeight: 700, fontSize: "15px", color: T.goldText, letterSpacing: "0.16em", margin: 0 }}>
               MAZAL TOV
             </p>
             <div style={{ width: "44px" }} />
           </div>
 
-          <div style={{ flex: 1, maxWidth: "420px", margin: "0 auto", width: "100%", padding: "40px 24px 48px", textAlign: "center" }}>
+          <div style={{ flex: 1, maxWidth: "420px", margin: "0 auto", width: "100%", padding: "32px 24px 0", textAlign: "center" }}>
             {/* Heart circle */}
-            <div style={{ width: "80px", height: "80px", borderRadius: "50%", background: T.gold, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", animation: "fadeUp 0.4s ease both", boxShadow: "0 8px 24px rgba(197,164,109,0.35)" }}>
-              <span style={{ fontSize: "36px", lineHeight: 1 }}>♡</span>
+            <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: T.gold, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", animation: "fadeUp 0.35s ease both" }}>
+              <span style={{ fontSize: "32px", lineHeight: 1, color: "#fff" }}>♡</span>
             </div>
 
-            <h2 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "26px", fontWeight: 700, color: T.dark, marginBottom: "10px", animation: "fadeUp 0.4s ease 0.08s both" }}>
+            <h2 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "28px", fontWeight: 700, color: T.dark, margin: "0 0 10px", animation: "fadeUp 0.35s ease 0.07s both" }}>
               קיבלנו את תגובתכם
             </h2>
-            <p style={{ color: T.muted, fontSize: "15px", fontWeight: 300, marginBottom: "28px", lineHeight: 1.7, animation: "fadeUp 0.4s ease 0.12s both" }}>
+            <p style={{ color: T.muted, fontSize: "15px", fontWeight: 300, margin: "0 0 28px", lineHeight: 1.7, animation: "fadeUp 0.35s ease 0.12s both" }}>
               חבל שלא תוכלו להגיע — מאחלים לכם כל טוב 💛
             </p>
 
-            {/* Event card */}
+            {/* Event card with couple photo */}
             {event && (
-              <WarmCard style={{ marginBottom: "16px", animation: "fadeUp 0.4s ease 0.16s both", textAlign: "right" }}>
-                <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "17px", fontWeight: 700, color: T.dark, marginBottom: "6px" }}>
-                  {event.name}
-                </p>
-                <p style={{ color: T.muted, fontSize: "13px", marginBottom: "4px" }}>📅 {formattedDate}</p>
-                {event.address && <p style={{ color: T.muted, fontSize: "13px" }}>📍 {event.address}</p>}
-              </WarmCard>
-            )}
+              <div style={{
+                background: "#fff",
+                border: `1px solid ${T.border}`,
+                borderRadius: "16px",
+                padding: "16px",
+                textAlign: "right",
+                animation: "fadeUp 0.35s ease 0.17s both",
+                marginBottom: "28px",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "12px",
+              }}>
+                {/* Text side */}
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "17px", fontWeight: 700, color: T.dark, margin: "0 0 6px" }}>
+                    {event.name}
+                  </p>
+                  <p style={{ color: T.muted, fontSize: "13px", margin: "0 0 4px" }}>{ddmmyyyy}</p>
+                  {event.address && (
+                    <p style={{ color: T.muted, fontSize: "13px", margin: "0 0 10px", display: "flex", alignItems: "center", gap: "4px" }}>
+                      <span>📍</span> {event.address}
+                    </p>
+                  )}
+                  <p style={{ color: T.muted, fontSize: "12px", margin: 0, opacity: 0.7 }}>
+                    התגובה. נשמרה במערכת
+                  </p>
+                </div>
 
-            <p style={{ color: T.muted, fontSize: "13px", marginBottom: "28px", animation: "fadeUp 0.4s ease 0.2s both" }}>
-              התגובה נשמרה במערכת
-            </p>
+                {/* Couple photo or initials */}
+                {event.mini_site_hero_path ? (
+                  <div style={{ flexShrink: 0, width: "56px", height: "56px", borderRadius: "50%", overflow: "hidden", border: `2px solid ${T.border}` }}>
+                    <img src={event.mini_site_hero_path} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </div>
+                ) : (
+                  <div style={{ flexShrink: 0, width: "56px", height: "56px", borderRadius: "50%", background: T.cream, border: `2px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px" }}>
+                    💍
+                  </div>
+                )}
+              </div>
+            )}
 
             <button
               type="button"
@@ -457,12 +492,49 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
             >
               טעיתי — אני כן מגיע/ה
             </button>
-
-            {/* Footer */}
-            <p style={{ marginTop: "40px", color: T.muted, fontSize: "11px", letterSpacing: "0.08em", opacity: 0.6 }}>
-              MAZAL TOV © 2024
-            </p>
           </div>
+
+          {/* Decorative bokeh photo strip */}
+          <div style={{
+            marginTop: "auto",
+            height: "180px",
+            background: `linear-gradient(to bottom, ${T.ivory} 0%, transparent 30%)`,
+            position: "relative",
+            overflow: "hidden",
+          }}>
+            <div style={{
+              position: "absolute",
+              inset: 0,
+              background: "linear-gradient(135deg, #e8ddd0 0%, #d4c4b0 40%, #c8b89a 70%, #d4c4b0 100%)",
+              filter: "blur(12px)",
+              transform: "scale(1.1)",
+            }} />
+            {/* bokeh circles */}
+            {[
+              { s:60, x:"15%", y:"40%", o:0.25 },
+              { s:80, x:"35%", y:"60%", o:0.18 },
+              { s:45, x:"55%", y:"30%", o:0.22 },
+              { s:70, x:"75%", y:"55%", o:0.2 },
+              { s:50, x:"88%", y:"35%", o:0.15 },
+            ].map((c,i) => (
+              <div key={i} style={{
+                position: "absolute",
+                width: c.s, height: c.s,
+                borderRadius: "50%",
+                background: `rgba(197,164,109,${c.o})`,
+                left: c.x, top: c.y,
+                filter: "blur(8px)",
+                transform: "translate(-50%,-50%)",
+              }} />
+            ))}
+            {/* fade-to-ivory top overlay */}
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "60px", background: `linear-gradient(to bottom, ${T.ivory}, transparent)` }} />
+          </div>
+
+          {/* Footer */}
+          <p style={{ textAlign: "center", color: T.muted, fontSize: "11px", letterSpacing: "0.08em", opacity: 0.55, padding: "12px 0 20px", background: "#d4c4b0" }}>
+            MAZAL TOV © 2024
+          </p>
         </div>
       );
     }

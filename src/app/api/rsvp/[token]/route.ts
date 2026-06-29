@@ -42,7 +42,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
   const { data: event } = await supabase
     .from('events')
-    .select('name, date, address, theme')
+    .select('name, date, address, theme, mini_site_hero_path')
     .eq('id', guest.event_id)
     .single();
 
