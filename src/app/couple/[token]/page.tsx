@@ -736,44 +736,58 @@ function WeddingDayScreen({ token, event, briefing }: {
     { icon: "💬", label: "הודעה לאורחים",  href: `/couple/${token}/requests` },
   ];
 
+  const heroUrl = briefing?.event?.mini_site_hero_path ?? null;
+
   return (
-    <div dir="rtl" style={{ minHeight: "100vh", background: C.cream, fontFamily: "'Heebo',sans-serif" }}>
-      {/* Hero */}
-      <div style={{
-        background: "linear-gradient(160deg,#3D2B1F 0%,#1C1008 100%)",
-        padding: "3rem 1.5rem 2.5rem",
-        textAlign: "center",
-        position: "relative",
-        overflow: "hidden",
-      }}>
-        <h1 style={{ fontFamily: "'Frank Ruhl Libre',serif", fontWeight: 700, fontSize: "32px", color: "#FFFFFF", margin: "0 0 0.5rem", lineHeight: 1.2, textAlign: "center" }}>
-          היום הגדול הגיע! ❤️
-        </h1>
-        <p style={{ fontFamily: "'Frank Ruhl Libre',serif", fontWeight: 700, fontStyle: "italic", fontSize: 22, color: "#8B6914", marginTop: "0.25rem" }}>{event.name}</p>
-        <p style={{ fontFamily: "'Heebo',sans-serif", fontWeight: 300, color: "rgba(255,255,255,0.7)", fontSize: 16, marginTop: "0.25rem" }}>
-          {new Date(event.date).toLocaleDateString("he-IL", { weekday:"long", day:"numeric", month:"long", year:"numeric" })}
-        </p>
+    <div dir="rtl" style={{ minHeight: "100vh", background: C.ivory, fontFamily: "'Heebo',sans-serif" }}>
+      {/* Hero — full-bleed photo + gradient overlay (Stitch 1c6547fd) */}
+      <div style={{ position: "relative", width: "100%", height: 420, minHeight: 400, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+        {/* Background: photo or warm gradient */}
+        <div style={{
+          position: "absolute", inset: 0,
+          background: heroUrl
+            ? `url(${heroUrl}) center/cover no-repeat`
+            : "linear-gradient(160deg,#3D2B1F 0%,#6B4C2A 60%,#C5A46D 100%)",
+        }} />
+        {/* Gradient overlay layers */}
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(28,16,8,0.90) 0%, rgba(28,16,8,0.50) 50%, rgba(197,164,109,0.20) 100%)" }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 50%, rgba(28,16,8,0.80) 100%)" }} />
+        {/* Hero content */}
+        <div style={{ position: "relative", zIndex: 10, textAlign: "center", color: "#fff", padding: "0 1.5rem 2rem", display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <span style={{ fontSize: 36, marginBottom: "1rem", opacity: 0.9, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.4))" }}>❤️</span>
+          <h1 style={{ fontFamily: "'Frank Ruhl Libre',serif", fontWeight: 900, fontSize: "32px", color: "#fff", margin: "0 0 0.5rem", lineHeight: 1.2, filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.6))" }}>
+            היום הגדול הגיע
+          </h1>
+          <p style={{ fontFamily: "'Frank Ruhl Libre',serif", fontWeight: 700, fontSize: 20, color: "#E5C188", margin: "0 0 0.25rem", filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.5))" }}>{event.name}</p>
+          <p style={{ fontFamily: "'Heebo',sans-serif", fontWeight: 300, color: "rgba(255,255,255,0.80)", fontSize: 16, marginTop: "0.5rem", letterSpacing: "0.02em" }}>
+            {new Date(event.date).toLocaleDateString("he-IL", { weekday:"long", day:"numeric", month:"long", year:"numeric" })}
+          </p>
+        </div>
+        {/* Rounded white bottom transition */}
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 32, background: C.ivory, borderRadius: "2rem 2rem 0 0" }} />
       </div>
 
-      <div style={{ maxWidth: 520, margin: "0 auto", padding: "1.5rem" }}>
-        {/* Quick actions — 2×2 grid per E3-S10 spec */}
+      <div style={{ maxWidth: 480, margin: "0 auto", padding: "1rem 1.25rem 2rem" }}>
+        {/* Quick actions — 2×2 grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1.5rem" }}>
           {actions.slice(0, 4).map(a => (
             <a key={a.label} href={a.href} target={a.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer"
-               style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"0.4rem", padding:"1.25rem 0.5rem",
-                        background: C.card, borderRadius: 14, boxShadow: C.shadow, textDecoration:"none",
-                        border: `1.5px solid ${C.border}` }}>
-              <span style={{ fontSize: 26 }}>{a.icon}</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{a.label}</span>
+               style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"0.5rem", padding:"1.5rem 0.5rem",
+                        background: C.cream, borderRadius: 16, boxShadow: "0 4px 20px rgba(28,16,8,0.04)", textDecoration:"none",
+                        border: `1px solid ${C.border}` }}>
+              <div style={{ width: 48, height: 48, borderRadius: "50%", background: C.ivory, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(28,16,8,0.08)" }}>
+                <span style={{ fontSize: 22 }}>{a.icon}</span>
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 600, color: C.dark, fontFamily: "'Heebo',sans-serif" }}>{a.label}</span>
             </a>
           ))}
         </div>
 
         {/* Event timeline */}
-        <div style={{ background: C.card, borderRadius: 16, padding: "1.25rem", boxShadow: C.shadow, border: `1px solid ${C.border}` }}>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"1rem" }}>
-            <h2 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontWeight:700, fontSize:18, color:C.dark, margin:0 }}>
-              📅 לוז האירוע
+        <div style={{ background: C.cream, borderRadius: 20, padding: "1.25rem", boxShadow: "0 4px 20px rgba(28,16,8,0.04)", border: `1px solid ${C.border}` }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"1.25rem" }}>
+            <h2 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontWeight:700, fontSize:20, color:C.gold, margin:0, textAlign:"center", flex:1 }}>
+              לו״ז האירוע
             </h2>
             {eventId && (
               <button onClick={() => setShowAddModal(true)}
@@ -796,25 +810,29 @@ function WeddingDayScreen({ token, event, briefing }: {
               )}
             </div>
           ) : (
-            <div style={{ display:"flex", flexDirection:"column", gap:"0.5rem" }}>
-              {timeline.map((item, i) => {
-                const state = timelineItemState(item.time);
-                return (
-                  <div key={i} style={{
-                    display:"flex", alignItems:"center", gap:"0.75rem",
-                    padding: state === "active" ? "0.75rem 0.75rem" : "0.6rem 0.75rem",
-                    borderRadius:10,
-                    background: C.cream,
-                    border: state === "active" ? `2px solid ${C.gold}` : `1px solid ${C.border}`,
-                    opacity: state === "past" ? 0.5 : 1,
-                    transition: "all 0.2s",
-                  }}>
-                    <span style={{ fontFamily:"'Frank Ruhl Libre',serif", fontWeight:700, color:"#8B6914", fontSize:18, minWidth:48 }}>{item.time}</span>
-                    <span style={{ fontFamily:"'Heebo',sans-serif", fontSize:15, color:C.dark }}>{item.title}</span>
-                    {state === "active" && <span style={{ marginRight:"auto", fontSize:10, fontFamily:"'Heebo',sans-serif", color:C.gold, fontWeight:700, background:"rgba(197,164,109,0.12)", borderRadius:8, padding:"2px 8px" }}>עכשיו</span>}
-                  </div>
-                );
-              })}
+            <div style={{ position: "relative", paddingRight: "2rem" }}>
+              {/* Vertical gold line */}
+              <div style={{ position: "absolute", right: "5px", top: 8, bottom: 8, width: 2, background: "rgba(197,164,109,0.30)" }} />
+              <div style={{ display:"flex", flexDirection:"column", gap:"2rem" }}>
+                {timeline.map((item, i) => {
+                  const state = timelineItemState(item.time);
+                  return (
+                    <div key={i} style={{ position: "relative", opacity: state === "past" ? 0.55 : 1 }}>
+                      {/* Dot */}
+                      <div style={{
+                        position: "absolute", right: "-2.15rem", top: 4,
+                        width: 12, height: 12, borderRadius: "50%",
+                        background: state === "upcoming" ? C.ivory : C.gold,
+                        border: `2px solid ${C.gold}`,
+                        boxShadow: state !== "past" ? "0 0 8px rgba(197,164,109,0.5)" : "none",
+                      }} />
+                      <span style={{ fontFamily:"'Heebo',sans-serif", fontWeight:700, fontSize:12, color:C.gold, letterSpacing:"0.05em", display:"block", marginBottom: 2 }}>{item.time}</span>
+                      <span style={{ fontFamily:"'Frank Ruhl Libre',serif", fontWeight:700, fontSize:18, color: state === "past" ? C.muted : C.dark, display:"block" }}>{item.title}</span>
+                      {state === "active" && <span style={{ display:"inline-block", marginTop: 4, fontSize:11, color:C.gold, fontWeight:700, background:"rgba(197,164,109,0.12)", borderRadius:8, padding:"2px 10px" }}>עכשיו</span>}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

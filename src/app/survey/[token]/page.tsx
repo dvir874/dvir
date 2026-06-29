@@ -16,7 +16,7 @@ const T = {
 } as const;
 
 type Screen = "loading" | "error" | "form" | "already_done" | "done";
-type RecommendValue = "yes" | "probably" | "unsure";
+type FavMoment = "chuppah" | "first_dance" | "food" | "party" | null;
 
 interface SurveyData {
   id: string;
@@ -42,8 +42,8 @@ export default function SurveyPage({ params }: { params: Promise<{ token: string
   const [survey,     setSurvey]     = useState<SurveyData | null>(null);
   const [hovered,    setHovered]    = useState(0);
   const [selected,   setSelected]   = useState(5);
-  const [feedback,   setFeedback]   = useState("");
-  const [recommend,  setRecommend]  = useState<RecommendValue | null>(null);
+  const [blessing,   setBlessing]   = useState("");
+  const [favMoment,  setFavMoment]  = useState<FavMoment>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -61,10 +61,14 @@ export default function SurveyPage({ params }: { params: Promise<{ token: string
     if (!selected) return;
     setSubmitting(true);
     try {
+      const FAV_LABELS: Record<string, string> = { chuppah:"החופה", first_dance:"הריקוד הראשון", food:"הארוחה", party:"הבילוי" };
+      const reviewParts: string[] = [];
+      if (favMoment) reviewParts.push(`הרגע הכי אהוב: ${FAV_LABELS[favMoment]}`);
+      if (blessing.trim()) reviewParts.push(blessing.trim());
       const res = await fetch(`/api/survey/${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rating: selected, review_text: feedback.trim() || null }),
+        body: JSON.stringify({ rating: selected, review_text: reviewParts.join("\n") || null }),
       });
       if (res.ok) setScreen("done");
     } catch {
@@ -74,10 +78,11 @@ export default function SurveyPage({ params }: { params: Promise<{ token: string
     }
   }
 
-  const RECOMMEND_OPTIONS: { value: RecommendValue; label: string }[] = [
-    { value:"yes",      label:"בהחלט כן 😊" },
-    { value:"probably", label:"כנראה שכן" },
-    { value:"unsure",   label:"לא בטוח" },
+  const FAV_MOMENT_OPTIONS = [
+    { value:"chuppah"    as FavMoment, label:"החופה" },
+    { value:"first_dance"as FavMoment, label:"הריקוד הראשון" },
+    { value:"food"       as FavMoment, label:"הארוחה" },
+    { value:"party"      as FavMoment, label:"הבילוי" },
   ];
 
   // ──── Loading ────
@@ -124,105 +129,119 @@ export default function SurveyPage({ params }: { params: Promise<{ token: string
     </div>
   );
 
-  // ──── E2-S8 Form ────
+  // ──── Form (Stitch b1fbfc3b) ────
   const displayStars = hovered || selected;
+  const eventDate = survey?.events?.date
+    ? new Date(survey.events.date).toLocaleDateString("he-IL", { day:"numeric", month:"long", year:"numeric" })
+    : "";
+
+  const CARD: React.CSSProperties = { background:"#fff", borderRadius:24, padding:"1.5rem", boxShadow:"0 4px 20px rgba(28,16,8,0.04)", marginBottom:"1rem" };
 
   if (screen === "form") return (
-    <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, fontFamily:"'Heebo',sans-serif" }}>
+    <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, fontFamily:"'Heebo',sans-serif", display:"flex", flexDirection:"column", alignItems:"center" }}>
       <style>{CSS}</style>
-      <div style={{ maxWidth:"420px", margin:"0 auto", padding:"48px 24px 80px" }}>
+      <div style={{ width:"100%", maxWidth:480, minHeight:"100dvh", background:T.ivory, display:"flex", flexDirection:"column" }}>
 
-        {/* Botanical wreath */}
-        <div style={{ textAlign:"center", marginBottom:"24px", animation:"fadeUp .4s ease both" }}>
-          <svg width="64" height="64" viewBox="0 0 64 64" fill="none" style={{ display:"block", margin:"0 auto 16px" }} aria-hidden="true">
-            <circle cx="32" cy="32" r="20" stroke={T.olive} strokeWidth="1.2" strokeDasharray="3 2.5"/>
-            <circle cx="32" cy="12" r="2.5" fill={T.gold}/>
-            <circle cx="32" cy="52" r="2.5" fill={T.gold}/>
-            <circle cx="12" cy="32" r="1.8" fill={T.olive}/>
-            <circle cx="52" cy="32" r="1.8" fill={T.olive}/>
-          </svg>
-          <h1 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"28px", fontWeight:700, color:T.dark, marginBottom:"8px" }}>
+        {/* Back arrow header */}
+        <header style={{ background:T.cream, padding:"0 1rem", height:64, display:"flex", alignItems:"center" }}>
+          <button onClick={() => window.history.back()} aria-label="חזור"
+            style={{ background:"none", border:"none", cursor:"pointer", padding:8, borderRadius:"50%", color:T.dark, fontSize:22, minWidth:44, minHeight:44, display:"flex", alignItems:"center", justifyContent:"center" }}>
+            ←
+          </button>
+        </header>
+
+        {/* Hero section */}
+        <section style={{ background:T.cream, borderRadius:"0 0 24px 24px", padding:"1rem 1.25rem 2.5rem", textAlign:"center", boxShadow:"0 4px 20px rgba(28,16,8,0.04)" }}>
+          {/* Circular botanical illustration */}
+          <div style={{ width:112, height:112, borderRadius:"50%", overflow:"hidden", border:"4px solid #fff", boxShadow:"0 2px 8px rgba(28,16,8,0.08)", margin:"0 auto 1.25rem", background:T.cream, display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <svg width="72" height="72" viewBox="0 0 72 72" fill="none" aria-hidden="true">
+              <ellipse cx="36" cy="50" rx="10" ry="16" stroke="#6B7B5A" strokeWidth="1.2" fill="none"/>
+              <ellipse cx="24" cy="42" rx="7" ry="12" stroke="#6B7B5A" strokeWidth="1.2" fill="none" transform="rotate(-25 24 42)"/>
+              <ellipse cx="48" cy="42" rx="7" ry="12" stroke="#6B7B5A" strokeWidth="1.2" fill="none" transform="rotate(25 48 42)"/>
+              <circle cx="36" cy="22" r="3" fill="#C5A46D"/>
+              <circle cx="22" cy="28" r="2" fill="#C5A46D"/>
+              <circle cx="50" cy="28" r="2" fill="#C5A46D"/>
+            </svg>
+          </div>
+          <h1 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontWeight:700, fontSize:22, color:T.dark, marginBottom:8 }}>
             תודה שהייתם איתנו ❤️
           </h1>
-          <p style={{ fontSize:"14px", fontWeight:300, color:T.muted }}>
-            כמה שניות שיעזרו לנו לשפר
-          </p>
-        </div>
+          {survey?.events?.name && (
+            <p style={{ fontSize:15, color:T.gold, fontWeight:500, marginBottom:4 }}>{survey.events.name}</p>
+          )}
+          <p style={{ fontSize:13, color:T.muted, fontWeight:300 }}>{eventDate}</p>
+        </section>
 
-        {/* Star rating */}
-        <div style={{ marginBottom:"28px", animation:"fadeUp .4s ease .08s both" }}>
-          <p style={{ fontFamily:"'Heebo',sans-serif", fontSize:"16px", fontWeight:600, color:T.dark, marginBottom:"16px", textAlign:"center" }}>
-            איך הייתה החוויה שלכם?
-          </p>
-          <div style={{ display:"flex", justifyContent:"center", gap:"8px" }}>
-            {[1,2,3,4,5].map(n => (
-              <button
-                key={n}
-                className="star-btn"
-                aria-label={`${n} כוכב${n > 1 ? "ים" : ""}`}
-                onMouseEnter={() => setHovered(n)}
-                onMouseLeave={() => setHovered(0)}
-                onClick={() => setSelected(n)}
-              >
-                <Star
-                  size={36}
-                  fill={displayStars >= n ? T.gold : "none"}
-                  stroke={displayStars >= n ? T.gold : T.border}
-                  strokeWidth={1.5}
-                />
-              </button>
-            ))}
+        {/* Survey body */}
+        <main style={{ flex:1, padding:"1.5rem 1.25rem 0" }}>
+          {/* Q1: Star rating */}
+          <div style={CARD}>
+            <p style={{ fontSize:14, fontWeight:700, color:T.dark, marginBottom:16, letterSpacing:"0.02em" }}>
+              איך הייתה החוויה?
+            </p>
+            <div style={{ display:"flex", justifyContent:"center", gap:"6px" }}>
+              {[1,2,3,4,5].map(n => (
+                <button
+                  key={n}
+                  className="star-btn"
+                  aria-label={`${n} כוכב${n > 1 ? "ים" : ""}`}
+                  onMouseEnter={() => setHovered(n)}
+                  onMouseLeave={() => setHovered(0)}
+                  onClick={() => setSelected(n)}
+                >
+                  <Star size={30} fill={displayStars >= n ? T.gold : "none"} stroke={displayStars >= n ? T.gold : T.border} strokeWidth={1.5} />
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Open text */}
-        <div style={{ marginBottom:"28px", animation:"fadeUp .4s ease .16s both" }}>
-          <p style={{ fontSize:"16px", fontWeight:600, color:T.dark, marginBottom:"10px" }}>
-            מה הייתה הרגע הכי יפה?
-          </p>
-          <div style={{ position:"relative" }}>
+          {/* Q2: Favorite moment radio */}
+          <div style={CARD}>
+            <p style={{ fontSize:14, fontWeight:700, color:T.dark, marginBottom:12, letterSpacing:"0.02em" }}>
+              מה הרגע שהכי אהבתם?
+            </p>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {FAV_MOMENT_OPTIONS.map(opt => (
+                <label key={opt.value} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 12px", borderRadius:12, cursor:"pointer", border:`1px solid ${favMoment === opt.value ? T.gold : "transparent"}`, background: favMoment === opt.value ? "rgba(197,164,109,0.08)" : "transparent" }}>
+                  <input
+                    type="radio"
+                    name="fav_moment"
+                    value={opt.value ?? ""}
+                    checked={favMoment === opt.value}
+                    onChange={() => setFavMoment(opt.value)}
+                    style={{ accentColor:T.gold, width:18, height:18, cursor:"pointer" }}
+                  />
+                  <span style={{ fontSize:15, color:T.muted }}>{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Q3: Blessing textarea */}
+          <div style={{ ...CARD, marginBottom:0 }}>
+            <p style={{ fontSize:14, fontWeight:700, color:T.dark, marginBottom:12, letterSpacing:"0.02em" }}>
+              השאירו ברכה לזוג
+            </p>
             <textarea
-              value={feedback}
-              onChange={e => setFeedback(e.target.value.slice(0, 500))}
-              placeholder="ספרו לנו..."
+              value={blessing}
+              onChange={e => setBlessing(e.target.value.slice(0, 500))}
+              placeholder="כתבו ברכה מהלב..."
               rows={4}
-              style={{ width:"100%", padding:"14px 16px", borderRadius:"14px", border:`1.5px solid ${T.border}`, background:T.cream, color:T.dark, fontFamily:"'Heebo',sans-serif", fontSize:"15px", outline:"none", resize:"none", boxSizing:"border-box", lineHeight:1.6 }}
+              style={{ width:"100%", background:T.ivory, border:`1.5px solid ${T.border}`, borderRadius:16, padding:"14px 16px", fontFamily:"'Heebo',sans-serif", fontSize:15, color:T.dark, resize:"none", outline:"none", boxSizing:"border-box", lineHeight:1.6 }}
             />
-            <span style={{ position:"absolute", bottom:"10px", left:"14px", fontSize:"11px", fontWeight:300, color:T.muted }}>
-              {feedback.length}/500
-            </span>
           </div>
-        </div>
+        </main>
 
-        {/* Recommend radio */}
-        <div style={{ marginBottom:"32px", animation:"fadeUp .4s ease .24s both" }}>
-          <p style={{ fontSize:"16px", fontWeight:600, color:T.dark, marginBottom:"12px" }}>
-            האם תמליצו לחברים?
-          </p>
-          <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
-            {RECOMMEND_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                onClick={() => setRecommend(opt.value)}
-                style={{ padding:"13px 16px", borderRadius:"12px", border:`1.5px solid ${recommend === opt.value ? T.gold : T.border}`, background:recommend === opt.value ? "rgba(197,164,109,0.1)" : T.cream, color:T.dark, fontFamily:"'Heebo',sans-serif", fontSize:"15px", fontWeight:recommend === opt.value ? 600 : 400, cursor:"pointer", textAlign:"right" }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+        {/* Submit CTA — sticky bottom */}
+        <div style={{ padding:"1.5rem 1.25rem 2rem", background:`linear-gradient(to top, ${T.ivory} 60%, transparent)`, position:"sticky", bottom:0 }}>
+          <button
+            onClick={handleSubmit}
+            disabled={!selected || submitting}
+            style={{ width:"100%", padding:"16px", borderRadius:9999, border:"none", background:T.gold, color:T.dark, fontFamily:"'Heebo',sans-serif", fontWeight:700, fontSize:16, cursor:"pointer", opacity:!selected || submitting ? 0.6 : 1, boxShadow:T.shadowCta, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}
+          >
+            {submitting ? <><Loader2 size={18} style={{ animation:"spin 1s linear infinite" }}/>שולחים...</> : <>שלחו ←</>}
+          </button>
         </div>
-
-        {/* Submit */}
-        <button
-          onClick={handleSubmit}
-          disabled={!selected || submitting}
-          style={{ width:"100%", padding:"16px", borderRadius:"14px", border:"none", background:`linear-gradient(135deg,${T.gold},#B8935A)`, color:"#fff", fontFamily:"'Heebo',sans-serif", fontWeight:700, fontSize:"16px", cursor:"pointer", opacity:!selected || submitting ? 0.5 : 1, boxShadow:T.shadowCta, display:"flex", alignItems:"center", justifyContent:"center", gap:"8px", animation:"fadeUp .4s ease .3s both" }}
-        >
-          {submitting ? <><Loader2 size={18} style={{ animation:"spin 1s linear infinite" }}/>שולחים...</> : "שלחו"}
-        </button>
-        <p style={{ textAlign:"center", fontSize:"12px", fontWeight:300, color:T.muted, marginTop:"12px" }}>
-          התגובות שלכם נשמרות בצורה מאובטחת
-        </p>
       </div>
     </div>
   );

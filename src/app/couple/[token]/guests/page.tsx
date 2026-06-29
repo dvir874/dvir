@@ -124,21 +124,24 @@ export default function GuestCenterPage() {
         <div style={{ width:44 }}/>
       </header>
 
-      {/* Summary pills */}
-      {!loading && (
-        <div style={{ display:"flex", gap:"8px", padding:"16px 16px 0", overflowX:"auto", scrollbarWidth:"none" }}>
-          {[
-            { label:`${total} אורחים`, key:"total" },
-            { label:`${confirmed} מגיעים`, key:"confirmed" },
-            { label:`${pending} ממתינים`, key:"pending" },
-            { label:`${declined} לא מגיעים`, key:"declined" },
-          ].map(p => (
-            <div key={p.key} style={{ flexShrink:0, background:C.cream, borderRadius:20, padding:"6px 14px", border:`1px solid ${C.border}` }}>
-              <span style={{ fontFamily:"Heebo,sans-serif", fontSize:13, fontWeight:400, color:C.dark }}>{p.label}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Page heading + summary pills */}
+      <div style={{ padding:"16px 20px 0" }}>
+        <h2 style={{ fontFamily:"Frank Ruhl Libre,serif", fontWeight:900, fontSize:32, color:C.dark, margin:"0 0 16px" }}>מרכז האורחים</h2>
+        {!loading && (
+          <div style={{ display:"flex", gap:"8px", overflowX:"auto", scrollbarWidth:"none", paddingBottom:2 }}>
+            {[
+              { label:`${total} סה״כ`,        bg:C.cream,                        color:C.dark },
+              { label:`${confirmed} מגיעים`,  bg:"rgba(5,150,105,0.15)",         color:"#065F46" },
+              { label:`${pending} ממתינים`,   bg:"rgba(197,164,109,0.20)",       color:C.goldText },
+              { label:`${declined} לא מגיעים`,bg:"rgba(28,16,8,0.08)",           color:C.muted },
+            ].map(p => (
+              <div key={p.label} style={{ flexShrink:0, background:p.bg, borderRadius:9999, padding:"6px 14px" }}>
+                <span style={{ fontFamily:"Heebo,sans-serif", fontSize:13, fontWeight:600, color:p.color, whiteSpace:"nowrap" }}>{p.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* E3-S9: Filter chip row */}
       <div role="group" aria-label="סנן אורחים" className="guest-chip-scroll" style={{ display:"flex", gap:"8px", padding:"12px 16px", overflowX:"auto", scrollbarWidth:"none" }}>

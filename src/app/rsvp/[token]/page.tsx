@@ -485,29 +485,53 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
         </div>
 
         <div style={{ flex: 1, maxWidth: "420px", margin: "0 auto", width: "100%", padding: "40px 24px 40px", textAlign: "center" }}>
-          {/* Gold checkmark circle */}
-          <div style={{ width: "72px", height: "72px", borderRadius: "50%", border: `3px solid ${T.gold}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", animation: "scaleIn 0.4s ease both" }}>
-            <span style={{ fontSize: "32px", color: T.gold, lineHeight: 1 }}>✓</span>
+          {/* Checkmark circle (olive/green per Stitch) */}
+          <div style={{ width: "80px", height: "80px", borderRadius: "50%", background: "rgba(107,123,90,0.12)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", animation: "scaleIn 0.4s ease both" }}>
+            <span style={{ fontSize: "36px", color: T.olive, lineHeight: 1 }}>✓</span>
           </div>
 
-          <h2 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "28px", fontWeight: 700, color: T.dark, marginBottom: "8px", animation: "fadeUp 0.5s ease 0.1s both" }}>
-            תודה שאישרתם! 🎉
+          <h2 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "26px", fontWeight: 700, color: T.goldText, marginBottom: "8px", animation: "fadeUp 0.5s ease 0.1s both" }}>
+            כבר אישרתם את הגעתכם! ✓
           </h2>
-          <p style={{ color: T.muted, fontSize: "15px", fontWeight: 300, marginBottom: "4px", animation: "fadeUp 0.5s ease 0.15s both" }}>
-            מחכים לכם ביום החתונה
-          </p>
-          <p style={{ color: T.muted, fontSize: "14px", marginBottom: "24px", animation: "fadeUp 0.5s ease 0.2s both" }}>
-            {guest?.guest_count} {(guest?.guest_count ?? 1) === 1 ? "אורח" : "אורחים"} רשומים להגיע
+          <p style={{ color: T.muted, fontSize: "15px", fontWeight: 300, marginBottom: "24px", animation: "fadeUp 0.5s ease 0.15s both" }}>
+            אנחנו מחכים לראות אתכם ביום המאושר שלנו.
           </p>
 
-          {event && (
-            <WarmCard style={{ marginBottom: "16px", animation: "fadeUp 0.5s ease 0.25s both" }}>
-              <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "18px", fontWeight: 700, color: T.dark, marginBottom: "4px" }}>
-                {event.name}
+          {/* Bento summary cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px", animation: "fadeUp 0.5s ease 0.2s both" }}>
+            <WarmCard style={{ textAlign: "right", padding: "16px" }}>
+              <p style={{ fontSize: "11px", fontWeight: 700, color: T.muted, letterSpacing: "0.08em", marginBottom: "6px", textTransform: "uppercase" }}>כמות אורחים</p>
+              <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "22px", fontWeight: 700, color: T.dark }}>
+                {guest?.guest_count ?? 1} {(guest?.guest_count ?? 1) === 1 ? "אורח" : "אורחים"}
               </p>
-              <p style={{ color: T.muted, fontSize: "13px" }}>{formattedDate}</p>
             </WarmCard>
-          )}
+            <WarmCard style={{ textAlign: "right", padding: "16px" }}>
+              <p style={{ fontSize: "11px", fontWeight: 700, color: T.muted, letterSpacing: "0.08em", marginBottom: "6px", textTransform: "uppercase" }}>העדפות קולינריות</p>
+              <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "16px", fontWeight: 700, color: T.dark, lineHeight: 1.3 }}>
+                {guest?.meal_preference === "vegan" ? "טבעוני" : guest?.meal_preference === "vegetarian" ? "צמחוני" : guest?.meal_preference === "kosher" ? "כשר" : "רגיל"}
+              </p>
+            </WarmCard>
+          </div>
+
+          {event && (() => {
+            const daysLeft = Math.ceil((new Date(event.date).getTime() - Date.now()) / 86_400_000);
+            return (
+              <WarmCard style={{ marginBottom: "16px", animation: "fadeUp 0.5s ease 0.25s both" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                  <div>
+                    <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "18px", fontWeight: 700, color: T.dark, marginBottom: "4px" }}>{event.name}</p>
+                    <p style={{ color: T.muted, fontSize: "13px" }}>{formattedDate}</p>
+                  </div>
+                  {daysLeft > 0 && (
+                    <span style={{ background: "rgba(197,164,109,0.15)", color: T.goldText, borderRadius: 9999, padding: "4px 10px", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
+                      בעוד {daysLeft} ימים
+                    </span>
+                  )}
+                </div>
+                {event.address && <p style={{ color: T.muted, fontSize: "13px" }}>📍 {event.address}</p>}
+              </WarmCard>
+            );
+          })()}
 
           {tableName && (
             <WarmCard style={{ marginBottom: "24px", background: `linear-gradient(135deg,rgba(197,164,109,0.10),rgba(197,164,109,0.05))`, border: `1.5px solid rgba(197,164,109,0.3)`, animation: "fadeUp 0.5s ease 0.3s both" }}>
