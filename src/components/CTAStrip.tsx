@@ -64,19 +64,11 @@ export default function CTAStrip() {
           </div>
 
           <h2
-            className="text-3xl md:text-4xl xl:text-5xl font-bold text-white mb-4 leading-snug"
+            className="text-3xl md:text-4xl font-bold text-white mb-8 leading-snug"
             style={{ fontFamily: "Frank Ruhl Libre, serif" }}
           >
-            יום אחד. אלף פרטים. מערכת אחת.
+            רוצים לדעת עוד?
           </h2>
-          <p
-            className="text-white/65 text-base md:text-lg mb-10 max-w-md mx-auto leading-relaxed"
-            style={{ fontFamily: "Heebo, sans-serif", fontWeight: 300 }}
-          >
-            שלחו הודעה ונבנה יחד את תוכנית ניהול החתונה שלכם —
-            <br className="hidden sm:block" />
-            בלי התחייבות, עם ליווי אישי מהרגע הראשון
-          </p>
 
           <a
             href={WA_URL}
