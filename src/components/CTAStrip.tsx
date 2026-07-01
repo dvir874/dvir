@@ -67,7 +67,7 @@ export default function CTAStrip() {
             className="text-3xl md:text-4xl xl:text-5xl font-bold text-white mb-4 leading-snug"
             style={{ fontFamily: "Frank Ruhl Libre, serif" }}
           >
-            מוכנים להתחיל לנשום?
+            החתונה שלכם מתחילה כאן.
           </h2>
           <p
             className="text-white/65 text-base md:text-lg mb-10 max-w-md mx-auto leading-relaxed"
