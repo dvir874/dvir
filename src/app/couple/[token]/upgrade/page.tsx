@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 
 const C = {
@@ -28,6 +28,32 @@ const FREE_FEATURES = [
 
 export default function UpgradePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleCheckout() {
+    setLoading(true);
+    setError("");
+    try {
+      // Look up event_id by couple token
+      const evRes = await fetch(`/api/couple/${token}/event`);
+      const evData = await evRes.json();
+      const event_id = evData?.id;
+      if (!event_id) throw new Error("לא נמצא אירוע");
+
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event_id, amount: 299, description: "רגע לפני — חבילה פרמיום" }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else throw new Error(data.error ?? "שגיאה");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "שגיאה בתהליך הרכישה");
+      setLoading(false);
+    }
+  }
 
   return (
     <div dir="rtl" style={{ minHeight: "100svh", background: C.ivory, fontFamily: "Heebo, sans-serif", color: C.dark, paddingBottom: 80 }}>
@@ -67,9 +93,10 @@ export default function UpgradePage({ params }: { params: Promise<{ token: strin
               </li>
             ))}
           </ul>
-          <Link href="/auth/register" style={{ display: "block", textAlign: "center", padding: "15px", borderRadius: 14, background: "#fff", color: C.goldText, fontWeight: 700, fontSize: 16, textDecoration: "none" }}>
-            להמשיך לעכשיו
-          </Link>
+          {error && <p style={{ color: "#B85C38", fontSize: 13, marginBottom: 8, textAlign: "center" }}>{error}</p>}
+          <button onClick={handleCheckout} disabled={loading} style={{ display: "block", width: "100%", textAlign: "center", padding: "15px", borderRadius: 14, background: "#fff", color: C.goldText, fontWeight: 700, fontSize: 16, border: "none", cursor: loading ? "default" : "pointer", opacity: loading ? 0.7 : 1 }}>
+            {loading ? "מעביר לתשלום..." : "להמשיך לעכשיו"}
+          </button>
         </div>
 
         {/* Free card */}

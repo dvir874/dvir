@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { WA_URL_PRICING } from "@/lib/constants";
 
 const T = {
   ivory:    "#FDFAF5",
@@ -103,7 +104,7 @@ export default function Pricing() {
             ))}
           </ul>
 
-          <Link href="/auth/register" style={{
+          <Link href={WA_URL_PRICING} target="_blank" rel="noopener noreferrer" style={{
             display: "block", textAlign: "center",
             padding: "12px",
             borderRadius: 12,
@@ -159,7 +160,7 @@ export default function Pricing() {
             ))}
           </ul>
 
-          <Link href="/auth/register" style={{
+          <Link href={WA_URL_PRICING} target="_blank" rel="noopener noreferrer" style={{
             display: "block", textAlign: "center",
             padding: "14px",
             borderRadius: 12,

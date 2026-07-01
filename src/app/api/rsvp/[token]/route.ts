@@ -46,6 +46,12 @@ export async function GET(_request: NextRequest, { params }: Params) {
     .eq('id', guest.event_id)
     .single();
 
+  const { data: album } = await supabase
+    .from('gallery_albums')
+    .select('public_token')
+    .eq('event_id', guest.event_id)
+    .maybeSingle();
+
   // Fetch table assignment if exists
   const { data: assignment } = await supabase
     .from('seating_assignments')
@@ -63,7 +69,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     tableName = table?.name ?? null;
   }
 
-  return NextResponse.json({ guest, event: event ?? null, tableName });
+  return NextResponse.json({ guest, event: event ?? null, tableName, memoryToken: album?.public_token ?? null });
 }
 
 export async function POST(request: NextRequest, { params }: Params) {

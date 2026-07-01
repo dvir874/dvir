@@ -10,6 +10,9 @@ import DashboardDemo from "@/components/DashboardDemo";
 import Pricing from "@/components/Pricing";
 import BookDemoCTA from "@/components/BookDemoCTA";
 import About from "@/components/About";
+import Testimonials from "@/components/Testimonials";
+import TrustBar from "@/components/TrustBar";
+import WhatYouGet from "@/components/WhatYouGet";
 import FAQ from "@/components/FAQ";
 import CTAStrip from "@/components/CTAStrip";
 import Contact from "@/components/Contact";
@@ -29,7 +32,10 @@ export default function Home() {
       <FeaturedDesigns />
       <EventCategories />
       <Gallery />
+      <TrustBar />
       <About />
+      <WhatYouGet />
+      <Testimonials />
       <Pricing />
       <BookDemoCTA />
       <FAQ />

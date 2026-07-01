@@ -14,7 +14,7 @@ const MEAL_OPTIONS: { value: MealOption; label: string; emoji: string }[] = [
   { value: "vegan",      label: "טבעוני",  emoji: "🌿" },
   { value: "mehadrin",   label: "דג",      emoji: "🐟" },
 ];
-const COUNT_OPTIONS = [1, 2, 3, 4] as const;
+const COUNT_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
 interface GuestInfo {
   id: string;
@@ -274,6 +274,7 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg,   setErrorMsg]   = useState("");
   const [tableName,  setTableName]  = useState<string | null>(null);
+  const [memoryToken, setMemoryToken] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/rsvp/${token}`)
@@ -283,6 +284,7 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
         setGuest(data.guest);
         setEvent(data.event);
         setTableName(data.tableName ?? null);
+        setMemoryToken(data.memoryToken ?? null);
         setGuestCount(data.guest.guest_count ?? 1);
         setScreen(data.guest.status !== "pending" ? "done" : "form");
       })
@@ -638,6 +640,23 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
               </a>
             )}
           </div>
+
+          {memoryToken && (
+            <a
+              href={`/memory/${memoryToken}`}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                marginTop: 20, padding: "14px 24px",
+                background: `linear-gradient(135deg,rgba(197,164,109,0.15),rgba(197,164,109,0.08))`,
+                border: `1.5px solid rgba(197,164,109,0.35)`,
+                borderRadius: 14, textDecoration: "none",
+                fontFamily: "'Heebo', sans-serif", fontSize: 16, fontWeight: 600, color: T.goldText,
+                animation: "fadeUp 0.5s ease 0.4s both",
+              }}
+            >
+              💌 כתבו ברכה לזוג
+            </a>
+          )}
 
           <div style={{ width: "64px", height: "1px", background: `linear-gradient(90deg,transparent,${T.gold},transparent)`, margin: "28px auto 0" }} />
         </div>
