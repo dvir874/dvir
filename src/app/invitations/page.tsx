@@ -6,7 +6,6 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import WhatsAppButton from "@/components/WhatsAppButton";
 import { VISIBLE_INVITATIONS, STYLE_LABELS, type InvitationStyle } from "@/data/invitations";
 
 const C = {
@@ -319,7 +318,6 @@ export default function InvitationsGallery() {
       </section>
 
       <Footer />
-      <WhatsAppButton />
     </main>
   );
 }

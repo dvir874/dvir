@@ -65,12 +65,6 @@ export default function Logo({ size = "md", inverted = false }: LogoProps) {
         >
           רגע לפני
         </div>
-        <div
-          className={`${s.sub} tracking-widest mt-0.5`}
-          style={{ color: goldColor, fontFamily: "Heebo, sans-serif", letterSpacing: "0.12em" }}
-        >
-          ניהול חתונה
-        </div>
       </div>
     </div>
   );
