@@ -1164,6 +1164,32 @@ export default function AdminPage() {
                         </a>
                       );
                     })()}
+                    {selectedEvent?.client_phone && selectedEvent?.couple_token && (() => {
+                      const phone = selectedEvent.client_phone!.replace(/\D/g,"").replace(/^0/,"972");
+                      const dashUrl = `${window.location.origin}/couple/${selectedEvent.couple_token}`;
+                      const confirmed = guests.filter(g => g.status === "confirmed").length;
+                      const pending   = guests.filter(g => g.status === "pending").length;
+                      const declined  = guests.filter(g => g.status === "declined").length;
+                      const msg = encodeURIComponent(`💍 עדכון שבועי מרגע לפני 📊\n\n✅ אישרו הגעה: ${confirmed}\n⏳ ממתינים: ${pending}\n❌ לא מגיעים: ${declined}\n📋 סה״כ מוזמנים: ${guests.length}\n\nלצפייה בכל הפרטים:\n${dashUrl}`);
+                      return (
+                        <a href={`https://wa.me/${phone}?text=${msg}`} target="_blank" rel="noopener noreferrer" onClick={() => setShowToolsMenu(false)}
+                          className="flex items-center gap-2 px-4 py-3 text-xs hover:bg-green-50 transition-colors"
+                          style={{ color: "#1A9B4E", fontFamily: "Heebo, sans-serif", textDecoration: "none" }}>
+                          📊 שלח סיכום שבועי לזוג
+                        </a>
+                      );
+                    })()}
+                    {selectedEvent?.client_phone && (() => {
+                      const phone = selectedEvent.client_phone!.replace(/\D/g,"").replace(/^0/,"972");
+                      const msg = encodeURIComponent(`💍 מזל טוב שוב! 🥂\n\nמקווה שהכל היה מושלם. אשמח מאוד אם תוכלו לכתוב לי 2-3 משפטים על החוויה עם רגע לפני — זה עוזר לי המון.\n\nואם מכירים זוג שמתחתן — אשמח שתעבירו את המספר שלי 🙏\n\nתודה, דביר`);
+                      return (
+                        <a href={`https://wa.me/${phone}?text=${msg}`} target="_blank" rel="noopener noreferrer" onClick={() => setShowToolsMenu(false)}
+                          className="flex items-center gap-2 px-4 py-3 text-xs hover:bg-amber-50 transition-colors"
+                          style={{ color: "#8B6914", fontFamily: "Heebo, sans-serif", textDecoration: "none" }}>
+                          💬 בקש עדות מהזוג (אחרי החתונה)
+                        </a>
+                      );
+                    })()}
                     <button onClick={() => { setShowBroadcast(true); setShowToolsMenu(false); }}
                       className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-blue-50 transition-colors" style={{ color: "#1A6FBF", fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
                       📣 שלח הודעה לכל האורחים

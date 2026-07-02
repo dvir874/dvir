@@ -52,3 +52,74 @@ export function whatsappReminderLink(
     `🔔 *תזכורת* — ${eventName}\n\nשלום ${name}!\n\nעוד לא קיבלנו את אישור ההגעה שלכם 🙏\n\nלחצו על הקישור לאישור מהיר:\n👇\n${rsvpUrl}\n\nנשמח לדעת האם תוכלו להגיע 🤍`;
   return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
 }
+
+/* ── Welcome message to a newly-onboarded couple ── */
+export function whatsappWelcomeLink(
+  phone: string,
+  coupleName: string,
+  coupleToken: string,
+): string {
+  const normalized = normalizePhone(phone);
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://regalifnei.vercel.app';
+  const dashUrl = `${baseUrl}/couple/${coupleToken}`;
+  const message =
+    `💍 ${coupleName}, ברוכים הבאים לרגע לפני! 🎉\n\n` +
+    `המערכת שלכם מוכנה. הנה הקישור האישי שלכם:\n${dashUrl}\n\n` +
+    `שם תוכלו לראות את רשימת האורחים, אישורי ההגעה בזמן אמת, וכל מה שקשור לאירוע.\n\n` +
+    `שמרו את הקישור — הוא שלכם בלבד 🔒\n` +
+    `לכל שאלה אני כאן — דביר`;
+  return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+}
+
+/* ── Weekly RSVP summary to the couple ── */
+export function whatsappWeeklySummaryLink(
+  phone: string,
+  coupleName: string,
+  stats: { confirmed: number; pending: number; declined: number; total: number },
+  coupleToken: string,
+): string {
+  const normalized = normalizePhone(phone);
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://regalifnei.vercel.app';
+  const dashUrl = `${baseUrl}/couple/${coupleToken}`;
+  const message =
+    `💍 ${coupleName}, עדכון שבועי מרגע לפני 📊\n\n` +
+    `✅ אישרו הגעה: ${stats.confirmed}\n` +
+    `⏳ ממתינים: ${stats.pending}\n` +
+    `❌ לא מגיעים: ${stats.declined}\n` +
+    `📋 סה״כ מוזמנים: ${stats.total}\n\n` +
+    `לצפייה בכל הפרטים:\n${dashUrl}`;
+  return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+}
+
+/* ── Day-before reminder to a guest (with Waze) ── */
+export function whatsappDayBeforeLink(
+  phone: string,
+  guestName: string,
+  eventName: string,
+  eventTime: string | null,
+  address: string | null,
+): string {
+  const normalized = normalizePhone(phone);
+  let message =
+    `💍 משפחה וחברים יקרים!\n\n` +
+    `${guestName}, מחר זה קורה! 🎉\n${eventName}`;
+  if (eventTime) message += `\n🕐 ${eventTime}`;
+  if (address) {
+    message += `\n📍 ${address}\n🚗 ניווט: https://waze.com/ul?q=${encodeURIComponent(address)}`;
+  }
+  message += `\n\nמחכים לראותכם! 🤍`;
+  return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+}
+
+/* ── Testimonial request to the couple (post-wedding) ── */
+export function whatsappTestimonialLink(
+  phone: string,
+  coupleName: string,
+): string {
+  const normalized = normalizePhone(phone);
+  const message =
+    `💍 ${coupleName}, מזל טוב שוב! 🥂\n\n` +
+    `מקווה שהכל היה מושלם. אשמח מאוד אם תוכלו לכתוב לי 2-3 משפטים על החוויה עם רגע לפני — זה עוזר לי המון.\n\n` +
+    `ואם מכירים זוג שמתחתן — אשמח שתעבירו את המספר שלי 🙏\n\nתודה, דביר`;
+  return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+}

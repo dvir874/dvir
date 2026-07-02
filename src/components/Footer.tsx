@@ -212,7 +212,10 @@ export default function Footer() {
             className="text-white/25 text-xs"
             style={{ fontFamily: "Heebo, sans-serif" }}
           >
-            © {year} רגע לפני. כל הזכויות שמורות.
+            © {year} רגע לפני. כל הזכויות שמורות. ·{" "}
+            <a href="/terms" className="hover:text-white/50 transition-colors" style={{ color: "inherit" }}>
+              תנאי שירות
+            </a>
           </p>
           <div
             className="flex items-center gap-2 text-white/25 text-xs"

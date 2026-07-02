@@ -2,9 +2,24 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
-const PRICE = 1490;
+const BASE_PRICE = 180;
 const DISCOUNT_PCT = 10;
 const DVIR_PHONE = "972533318177";
+
+/* Add-on catalog — key = URL param in ?addons=invite,seating,... */
+const ADDONS: Record<string, { label: string; price: number }> = {
+  invite:   { label: "עיצוב הזמנה אישית (קובץ להדפסה)", price: 150 },
+  seating:  { label: "סידור הושבה דיגיטלי",              price: 80 },
+  thanks:   { label: "הודעת תודה לאורחים אחרי החתונה",   price: 30 },
+  gallery:  { label: "גלריית תמונות — קישור ייחודי לאורחים", price: 60 },
+  minisite: { label: "דף אישי לחתונה (תאריך, מיקום, ניווט)", price: 70 },
+  budget:   { label: "ניהול תקציב לזוג",                  price: 50 },
+  vendors:  { label: "ניהול ספקים",                       price: 50 },
+  checklist:{ label: "צ'קליסט חתונה חכם",                 price: 40 },
+  capsule:  { label: "קפסולת זמן — ברכות מהאורחים",       price: 60 },
+  gifts:    { label: "מעקב מתנות",                        price: 40 },
+};
+const FULL_PACKAGE_PRICE = 599;
 
 function addDays(days: number): string {
   const d = new Date();
@@ -17,6 +32,17 @@ function QuoteContent() {
   const name = params.get("name") ?? "הזוג היקר";
   const date = params.get("date") ?? "";
   const coupon = params.get("coupon") ?? "";
+
+  /* ?addons=invite,seating — or ?package=full for everything */
+  const isFullPackage = params.get("package") === "full";
+  const selectedKeys = (params.get("addons") ?? "")
+    .split(",")
+    .map(k => k.trim())
+    .filter(k => k in ADDONS);
+  const selectedAddons = selectedKeys.map(k => ({ key: k, ...ADDONS[k] }));
+
+  const addonsTotal = selectedAddons.reduce((s, a) => s + a.price, 0);
+  const PRICE = isFullPackage ? FULL_PACKAGE_PRICE : BASE_PRICE + addonsTotal;
 
   const discountAmount = Math.round(PRICE * (DISCOUNT_PCT / 100));
   const finalPrice = PRICE - discountAmount;
@@ -84,24 +110,27 @@ function QuoteContent() {
         {/* Package */}
         <div style={{ marginBottom: 32 }}>
           <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 22, color: "#1C1008", marginBottom: 16, fontWeight: 700 }}>
-            ✨ חבילת הזהב — ניהול חתונה דיגיטלי
+            {isFullPackage ? "✨ החבילה המלאה — הכל כלול" : "✨ החבילה שלכם"}
           </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {[
-              "הזמנה דיגיטלית מעוצבת (20 עיצובים לבחירה)",
-              "אישורי הגעה דיגיטליים עם SMS אוטומטי",
-              "דשבורד לזוג — ניהול אורחים, תקציב, משימות",
-              "סידורי הושבה דיגיטליים",
-              "קיר זיכרונות — תמונות מהאירוע",
-              "טיימליין יום החתונה",
-              "תזכורות חכמות לאורחים",
-              "ליווי אישי של דביר לאורך כל הדרך",
-            ].map((item) => (
-              <div key={item} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ color: "#C5A46D", fontSize: 16, flexShrink: 0 }}>✓</span>
-                <span style={{ fontSize: 15, color: "#333" }}>{item}</span>
-              </div>
-            ))}
+
+          {/* Base */}
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(197,164,109,0.2)", fontSize: 15, color: "#1C1008" }}>
+            <span style={{ fontWeight: 600 }}>✓ אישורי הגעה דיגיטליים — עד 2 הודעות וואטסאפ, מעקב בזמן אמת</span>
+            <span style={{ fontWeight: 700, color: "#6B7B5A", whiteSpace: "nowrap" }}>{isFullPackage ? "כלול" : `₪${BASE_PRICE}`}</span>
+          </div>
+
+          {/* Selected add-ons (or all, for full package) */}
+          {(isFullPackage ? Object.entries(ADDONS).map(([key, a]) => ({ key, ...a })) : selectedAddons).map((a) => (
+            <div key={a.key} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(197,164,109,0.12)", fontSize: 15, color: "#333" }}>
+              <span>✓ {a.label}</span>
+              <span style={{ fontWeight: 600, color: "#6B7B5A", whiteSpace: "nowrap" }}>{isFullPackage ? "כלול" : `₪${a.price}`}</span>
+            </div>
+          ))}
+
+          {/* Always free */}
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(197,164,109,0.12)", fontSize: 15, color: "#333" }}>
+            <span>✓ אפשרות תשלום בביט לאורחים</span>
+            <span style={{ fontWeight: 600, color: "#6B7B5A" }}>חינם</span>
           </div>
         </div>
 
@@ -117,30 +146,34 @@ function QuoteContent() {
             </>
           ) : (
             <p style={{ fontSize: 22, fontWeight: 700, color: "#C5A46D", fontFamily: "Frank Ruhl Libre, serif" }}>
-              מחיר: ₪{PRICE.toLocaleString()}
+              סה״כ: ₪{PRICE.toLocaleString()}
             </p>
           )}
+          <p style={{ fontSize: 13, color: "#888", marginTop: 6 }}>תשלום חד-פעמי · ללא דמי מנוי</p>
         </div>
 
         {/* Divider */}
         <div style={{ borderTop: "1px solid rgba(197,164,109,0.3)", marginBottom: 28 }} />
 
-        {/* Add-ons */}
-        <div style={{ marginBottom: 32 }}>
-          <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 18, color: "#1C1008", marginBottom: 14, fontWeight: 700 }}>
-            תוספות אופציונליות
-          </h3>
-          {[
-            ["ייצוא רשימת אורחים לאקסל", "₪0 (כלול)"],
-            ["הדפסת סידורי הושבה", "₪150"],
-            ["עיצוב מותאם אישית", "₪300"],
-          ].map(([label, price]) => (
-            <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(197,164,109,0.12)", fontSize: 14, color: "#444" }}>
-              <span>• {label}</span>
-              <span style={{ fontWeight: 600, color: "#6B7B5A" }}>{price}</span>
-            </div>
-          ))}
-        </div>
+        {/* Available add-ons not selected */}
+        {!isFullPackage && (
+          <div style={{ marginBottom: 32 }}>
+            <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 18, color: "#1C1008", marginBottom: 14, fontWeight: 700 }}>
+              תוספות נוספות שאפשר לצרף
+            </h3>
+            {Object.entries(ADDONS)
+              .filter(([key]) => !selectedKeys.includes(key))
+              .map(([key, a]) => (
+                <div key={key} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(197,164,109,0.12)", fontSize: 14, color: "#444" }}>
+                  <span>• {a.label}</span>
+                  <span style={{ fontWeight: 600, color: "#6B7B5A", whiteSpace: "nowrap" }}>₪{a.price}</span>
+                </div>
+              ))}
+            <p style={{ fontSize: 13, color: "#888", marginTop: 12 }}>
+              💡 החבילה המלאה — הכל כלול — ₪{FULL_PACKAGE_PRICE} (חסכון משמעותי)
+            </p>
+          </div>
+        )}
 
         {/* Divider */}
         <div style={{ borderTop: "1px solid rgba(197,164,109,0.3)", marginBottom: 24 }} />

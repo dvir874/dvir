@@ -116,8 +116,19 @@ export default function CrmPage() {
     websiteNew: newWebsiteLeads.length,
   };
 
+  /* Leads sitting in "new" for over 24h — money leaking */
+  const staleLeads = leads.filter(
+    (l) => l.status === "new_lead" && Date.now() - new Date(l.created_at).getTime() > 24 * 3600_000
+  );
+
   return (
     <div dir="rtl" style={{ minHeight: "100vh", background: "#F6F1E8", fontFamily: "Heebo, sans-serif", color: DARK }}>
+      {/* Stale leads alert */}
+      {staleLeads.length > 0 && (
+        <div style={{ background: "rgba(184,92,56,0.95)", color: "#fff", padding: "10px 24px", textAlign: "center", fontSize: 14, fontWeight: 600 }}>
+          ⚠️ {staleLeads.length} לידים ממתינים מעל 24 שעות בלי מענה — {staleLeads.map(l => l.name).slice(0, 3).join(", ")}{staleLeads.length > 3 ? ` ועוד ${staleLeads.length - 3}` : ""}
+        </div>
+      )}
       {/* Header */}
       <div style={{ background: "#FDFAF5", borderBottom: "1px solid rgba(197,164,109,0.2)", padding: "1rem 1.5rem", position: "sticky", top: 0, zIndex: 30 }}>
         <div style={{ maxWidth: 1400, margin: "0 auto" }}>
