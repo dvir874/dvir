@@ -10,7 +10,7 @@ const DVIR_PHONE = "972533318177";
 const ADDONS: Record<string, { label: string; price: number }> = {
   invite:   { label: "עיצוב הזמנה אישית (קובץ להדפסה)", price: 150 },
   seating:  { label: "סידור הושבה + שליחת מספרי שולחן לאורחים", price: 100 },
-  minisite: { label: "דף אירוע אישי (ניווט, לו״ז, קוד לבוש)", price: 80 },
+  minisite: { label: "דף אירוע אישי (ניווט, לו״ז, קוד לבוש)", price: 0 },
   gallery:  { label: "גלריית אורחים + קיר ברכות",         price: 80 },
   planning: { label: "חבילת תכנון — תקציב, ספקים, צ'קליסט", price: 80 },
   capsule:  { label: "קפסולת זמן — ברכות שנפתחות ביום השנה", price: 60 },
@@ -120,7 +120,7 @@ function QuoteContent() {
           {(isFullPackage ? Object.entries(ADDONS).map(([key, a]) => ({ key, ...a })) : selectedAddons).map((a) => (
             <div key={a.key} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(197,164,109,0.12)", fontSize: 15, color: "#333" }}>
               <span>✓ {a.label}</span>
-              <span style={{ fontWeight: 600, color: "#6B7B5A", whiteSpace: "nowrap" }}>{isFullPackage ? "כלול" : `₪${a.price}`}</span>
+              <span style={{ fontWeight: 600, color: "#6B7B5A", whiteSpace: "nowrap" }}>{isFullPackage ? "כלול" : a.price === 0 ? "חינם" : `₪${a.price}`}</span>
             </div>
           ))}
 
@@ -163,7 +163,7 @@ function QuoteContent() {
               .map(([key, a]) => (
                 <div key={key} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(197,164,109,0.12)", fontSize: 14, color: "#444" }}>
                   <span>• {a.label}</span>
-                  <span style={{ fontWeight: 600, color: "#6B7B5A", whiteSpace: "nowrap" }}>₪{a.price}</span>
+                  <span style={{ fontWeight: 600, color: "#6B7B5A", whiteSpace: "nowrap" }}>{a.price === 0 ? "חינם" : `₪${a.price}`}</span>
                 </div>
               ))}
             <p style={{ fontSize: 13, color: "#888", marginTop: 12 }}>
