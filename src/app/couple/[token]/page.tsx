@@ -482,7 +482,6 @@ function PostEventDashboard({ token, eventName, eventDate }: { token: string; ev
   const POST_GRID = [
     { icon: "📸", label: "גלריה",          sub: "תמונות האירוע",     href: `/gallery/${token}` },
     { icon: "💝", label: "ברכות",          sub: "כל הברכות שקיבלתם", href: `/memories/${token}` },
-    { icon: "⏳", label: "קפסולת זמן",     sub: "מכתבים לעתיד",      href: `/couple/${token}/capsule` },
     { icon: "⭐", label: "ריוו",           sub: "כתבו ביקורת",        href: `/survey/${token}` },
   ];
 

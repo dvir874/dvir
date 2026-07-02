@@ -23,7 +23,6 @@ interface RecapData {
   budget_actual:        number;
   total_memories:       number;
   total_audio:          number;
-  total_capsules:       number;
   task_completion_rate: number;
   top_table_photos:     number;
 }
@@ -31,7 +30,6 @@ interface RecapData {
 function fmt(n: number) { return n.toLocaleString("he-IL"); }
 
 const ACTION_CARDS = [
-  { emoji: "🤍", label: "ברכות שקיבלנו", href: (token: string) => `/couple/${token}/capsule` },
   { emoji: "📸", label: "הגלריה שלנו",    href: (token: string) => `/gallery/${token}` },
   { emoji: "⭐", label: "דרגו את הספקים", href: (token: string) => `/couple/${token}/vendors` },
   { emoji: "🎁", label: "מתנות",           href: (token: string) => `/couple/${token}/gifts` },
@@ -122,15 +120,6 @@ export default function RecapPage({ params }: { params: Promise<{ token: string 
                 <span style={{ fontSize: 15, color: C.dark }}>
                   <strong style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 18 }}>{fmt(recap.total_memories)}</strong>
                   {" "}תמונות הועלו
-                </span>
-              </div>
-            )}
-            {recap.total_capsules > 0 && (
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 18 }}>💌</span>
-                <span style={{ fontSize: 15, color: C.dark }}>
-                  <strong style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 18 }}>{fmt(recap.total_capsules)}</strong>
-                  {" "}ברכות שמורות
                 </span>
               </div>
             )}

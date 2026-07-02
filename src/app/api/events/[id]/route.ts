@@ -79,7 +79,6 @@ export async function DELETE(
     'budget_categories',
     'gift_items',
     'memory_items',
-    'memory_capsules',
     'approval_requests',
     'referral_codes',
     'event_surveys',

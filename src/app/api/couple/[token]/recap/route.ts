@@ -38,14 +38,12 @@ export async function GET(
     { data: guests },
     { data: budgetItems },
     { data: memories },
-    { data: capsules },
     { data: tasks },
     { data: tables },
   ] = await Promise.all([
     supabase.from('guests').select('status, guest_count, response_time, opened_at').eq('event_id', event.id),
     supabase.from('budget_items').select('planned, actual').eq('event_id', event.id),
     supabase.from('memory_items').select('type, vault_token').eq('event_id', event.id),
-    supabase.from('time_capsule_messages').select('id').eq('event_id', event.id),
     supabase.from('wedding_tasks').select('completed').eq('event_id', event.id),
     supabase.from('seating_tables').select('id, name').eq('event_id', event.id),
   ]);
@@ -70,7 +68,6 @@ export async function GET(
   const allMemories = memories ?? [];
   const totalMemories = allMemories.filter((m) => ['photo', 'video', 'blessing'].includes(m.type)).length;
   const totalAudio    = allMemories.filter((m) => m.type === 'audio').length;
-  const totalCapsules = (capsules ?? []).length;
 
   const allTasks = tasks ?? [];
   const taskCompletionRate = allTasks.length > 0
@@ -106,7 +103,6 @@ export async function GET(
     top_table_photos:     topTablePhotos,
     total_memories:       totalMemories,
     total_audio:          totalAudio,
-    total_capsules:       totalCapsules,
     task_completion_rate: Math.round(taskCompletionRate * 100) / 100,
   };
 

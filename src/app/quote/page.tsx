@@ -13,7 +13,6 @@ const ADDONS: Record<string, { label: string; price: number }> = {
   minisite: { label: "דף אירוע אישי (ניווט, לו״ז, קוד לבוש)", price: 0 },
   gallery:  { label: "גלריית אורחים + קיר ברכות",         price: 80 },
   planning: { label: "חבילת תכנון — תקציב, ספקים, צ'קליסט", price: 80 },
-  capsule:  { label: "קפסולת זמן — ברכות שנפתחות ביום השנה", price: 60 },
   daymsg:   { label: "הודעות \"מחר החתונה\" + תודה לאורחים", price: 50 },
 };
 const FULL_PACKAGE_PRICE = 549;

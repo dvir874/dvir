@@ -206,7 +206,6 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
           { type:"photo"   as UploadType, emoji:"📸", label:"תמונה",            sub:"תמונה שצילמתם מהאירוע" },
           { type:"video"   as UploadType, emoji:"🎥", label:"סרטון",            sub:"סרטון קצר עד 2 דקות" },
           { type:"blessing"as UploadType, emoji:"💌", label:"ברכה",             sub:"כתבו ברכה אישית" },
-          { type:"capsule" as UploadType, emoji:"⏳", label:"קפסולת זמן",      sub:"מכתב לזוג לעתיד" },
         ].map(({ type, emoji, label, sub }) => (
           <button
             key={type}

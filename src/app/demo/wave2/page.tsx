@@ -79,7 +79,6 @@ export default function Wave2Demo() {
     { id:"s6_gallery", label:"E2-S6 גלריה", emoji:"📸" },
     { id:"s7_memory",  label:"E2-S7 העלאה", emoji:"✍️" },
     { id:"s8_survey",  label:"E2-S8 סקר", emoji:"⭐" },
-    { id:"s9_capsule", label:"E2-S9 קפסולה", emoji:"🔒" },
     { id:"s10_wall",   label:"E2-S10 קיר", emoji:"🖼" },
   ];
 

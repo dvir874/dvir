@@ -1869,7 +1869,7 @@ export default function AdminPage() {
             >
               <div className="font-medium mb-2" style={{ color: C.dark }}>מה יימחק לצמיתות:</div>
               <div className="flex flex-col gap-1">
-                {["כל האורחים ופעילותם", "סידור הושבה", "ספקים ומשימות", "תקציב ומתנות", "זיכרונות וקפסולות", "כל נתוני האירוע"].map((item) => (
+                {["כל האורחים ופעילותם", "סידור הושבה", "ספקים ומשימות", "תקציב ומתנות", "זיכרונות", "כל נתוני האירוע"].map((item) => (
                   <div key={item} className="flex items-center gap-2 justify-end">
                     <span>{item}</span>
                     <span style={{ color: "#DC2626" }}>✕</span>

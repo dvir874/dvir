@@ -17,7 +17,6 @@ const C = {
 const PREMIUM_FEATURES = [
   "אורחים ללא הגבלה",
   "גלריה ותמונות",
-  "קפסולת זמן",
   "WhatsApp Center",
 ];
 
