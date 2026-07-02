@@ -44,6 +44,33 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   return NextResponse.json(data);
 }
 
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+  const eventId = await getEventId(token);
+  if (!eventId) return NextResponse.json({ error: "not found" }, { status: 404 });
+
+  const { id, actual_amount, planned_amount, description } = await req.json();
+  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  const patch: Record<string, unknown> = {};
+  if (actual_amount !== undefined) patch.actual_amount = actual_amount;
+  if (planned_amount !== undefined) patch.planned_amount = planned_amount;
+  if (description !== undefined) patch.description = description;
+  if (Object.keys(patch).length === 0) return NextResponse.json({ error: "nothing to update" }, { status: 400 });
+
+  const sb = createServerClient();
+  const { data, error } = await sb
+    .from("budget_items")
+    .update(patch)
+    .eq("id", id)
+    .eq("event_id", eventId)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
+}
+
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const eventId = await getEventId(token);

@@ -12,5 +12,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
     .eq("couple_token", token)
     .single();
   if (error || !data) return NextResponse.json({ error: "not found" }, { status: 404 });
-  return NextResponse.json({ id: data.id, name: data.name });
+
+  const { data: album } = await sb
+    .from("gallery_albums")
+    .select("public_token")
+    .eq("event_id", data.id)
+    .maybeSingle();
+
+  return NextResponse.json({ id: data.id, name: data.name, gallery_token: album?.public_token ?? null });
 }

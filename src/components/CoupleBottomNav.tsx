@@ -43,6 +43,7 @@ function getNavTabs(token: string): TabItem[] {
 
 function getSheetItems(token: string): SheetItem[] {
   return [
+    { emoji: "💰",  label: "תקציב",             href: `/couple/${token}/budget`  },
     { emoji: "🎁",  label: "מתנות",             href: `/couple/${token}/gifts`   },
     { emoji: "🤝",  label: "ספקים",             href: `/couple/${token}/vendors` },
     { emoji: "📸",  label: "גלריית תמונות",     href: `/gallery/${token}`        },
@@ -68,8 +69,50 @@ export default function CoupleBottomNav({ token }: NavProps) {
     return pathname.startsWith(href);
   }
 
+  const desktopLinks = [
+    ...tabs.filter(t => t.href).map(t => ({ emoji: t.emoji, label: t.label, href: t.href!, external: false })),
+    ...sheetItems.map(s => ({ emoji: s.emoji, label: s.label, href: s.href, external: !!s.external })),
+  ];
+
   return (
     <>
+      {/* ── Desktop nav bar (hidden on mobile) ── */}
+      <nav
+        className="hidden md:flex fixed bottom-0 left-0 right-0 z-[180]"
+        style={{
+          background:     C.bg,
+          backdropFilter: "blur(16px)",
+          borderTop:      `1px solid ${C.border}`,
+          boxShadow:      "0 -4px 24px rgba(28,16,8,0.05)",
+          height:         56,
+          alignItems:     "center",
+          justifyContent: "center",
+          gap:            4,
+        }}
+        dir="rtl"
+      >
+        {desktopLinks.map((item) => {
+          const active = !item.external && isActive(item.href);
+          const style: React.CSSProperties = {
+            display: "flex", alignItems: "center", gap: 7,
+            padding: "8px 14px", borderRadius: 10, textDecoration: "none",
+            fontFamily: "Heebo, sans-serif", fontSize: 14,
+            fontWeight: active ? 700 : 400,
+            color: active ? "#8B6914" : C.muted,
+            background: active ? "rgba(197,164,109,0.12)" : "transparent",
+            whiteSpace: "nowrap",
+          };
+          return item.external ? (
+            <a key={item.label} href={item.href} target="_blank" rel="noopener noreferrer" style={style}>
+              <span style={{ fontSize: 17 }}>{item.emoji}</span>{item.label}
+            </a>
+          ) : (
+            <Link key={item.label} href={item.href} style={style}>
+              <span style={{ fontSize: 17 }}>{item.emoji}</span>{item.label}
+            </Link>
+          );
+        })}
+      </nav>
       {/* ── Bottom sheet backdrop ── */}
       {sheetOpen && (
         <div

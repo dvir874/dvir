@@ -223,7 +223,15 @@ export default function GuestCenterPage() {
       </div>
 
       {/* ONE floating GoldCTA — spec: no header "+" button */}
-      <div style={{ position:"sticky", bottom:`calc(80px + env(safe-area-inset-bottom))`, padding:"0 16px", zIndex:5 }}>
+      <div style={{ position:"sticky", bottom:`calc(80px + env(safe-area-inset-bottom))`, padding:"0 16px", zIndex:5, display:"flex", flexDirection:"column", gap:10 }}>
+        {guests.length > 0 && (
+          <a
+            href={`https://wa.me/972533318177?text=${encodeURIComponent(`היי דביר! סיימנו לסדר את רשימת האורחים (${guests.length} אורחים) — אפשר לשלוח את ההזמנות 🎉`)}`}
+            target="_blank" rel="noopener noreferrer"
+            style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%", padding:"14px", borderRadius:16, background:"#fff", color:"#1A9B4E", fontFamily:"Heebo,sans-serif", fontSize:14, fontWeight:700, border:"1.5px solid rgba(37,211,102,0.4)", textDecoration:"none", boxShadow:"0 2px 12px rgba(28,16,8,0.08)" }}>
+            סידרתם את הרשימה? בקשו מדביר לשלוח את ההזמנות 🚀
+          </a>
+        )}
         <button onClick={() => router.push(`/couple/${token}/guests/import`)}
           style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%", padding:"16px", borderRadius:16, background:`linear-gradient(135deg,${C.gold},#B8935A)`, color:"white", fontFamily:"Heebo,sans-serif", fontSize:15, fontWeight:700, border:"none", cursor:"pointer", boxShadow:"0 4px 16px rgba(197,164,109,0.45)" }}>
           + הוסיפו אורח

@@ -957,22 +957,102 @@ function QuickCard({ emoji, value, label, caption, href, rawValue }: {
   );
 }
 
-// ── E3-S7: Smart Alert Strip (max 1 alert, highest urgency first) ─────────────
-function SmartAlertStrip({ stats, seating, daysLeft, token }: { stats:Stats; seating:Seating; daysLeft:number; token:string }) {
+// ── E3-S7: Smart Alert Strip → "Next Step" card (one step, stage-based) ───────
+const DVIR_WA = "https://wa.me/972533318177";
+
+function SmartAlertStrip({ stats, seating, daysLeft, token, eventName }: { stats:Stats; seating:Seating; daysLeft:number; token:string; eventName?:string }) {
   const unseated = Math.max(0, stats.attendees - seating.assignedSeats);
-  let text: string | null = null;
-  let href = `/couple/${token}/seating`;
-  if (unseated > 0 && daysLeft < 30)         { text = `${unseated} אורחים לא שובצו — ${daysLeft} ימים נותרו`; href = `/couple/${token}/seating`; }
-  else if (stats.pending > 0 && daysLeft < 14){ text = `עדיין ממתינים ל-${stats.pending} אישורים`; href = `/couple/${token}/guests`; }
-  else if (stats.total === 0)                  { text = "הוסיפו את האורחים הראשונים שלכם"; href = `/couple/${token}/guests`; }
-  if (!text) return null;
+
+  let title: string; let cta: string; let href: string; let external = false;
+
+  if (daysLeft >= 0 && daysLeft <= 1) {
+    title = daysLeft === 0 ? "היום זה קורה! 🎉" : "מחר זה קורה! 🎉";
+    cta   = "למצב יום החתונה ←";
+    href  = `/couple/${token}/day`;
+  } else if (stats.total === 0) {
+    title = "הצעד הראשון: רשימת האורחים";
+    cta   = "הוסיפו אורחים ←";
+    href  = `/couple/${token}/guests/import`;
+  } else if (stats.responseRate === 0) {
+    title = "סידרתם את רשימת האורחים?";
+    cta   = "בקשו מדביר לשלוח את ההזמנות 🚀";
+    href  = `${DVIR_WA}?text=${encodeURIComponent(`היי דביר! סיימנו לסדר את רשימת האורחים${eventName ? ` (${eventName})` : ""} — אפשר לשלוח את ההזמנות 🎉`)}`;
+    external = true;
+  } else if (stats.pending > 0 && daysLeft < 14) {
+    title = `עדיין ממתינים ל-${stats.pending} אישורים`;
+    cta   = "צפו ברשימה ←";
+    href  = `/couple/${token}/guests`;
+  } else if (unseated > 0 && daysLeft < 30) {
+    title = `${unseated} אורחים עדיין לא שובצו לשולחן`;
+    cta   = "לסידורי הושבה ←";
+    href  = `/couple/${token}/seating`;
+  } else {
+    return null;
+  }
+
   return (
-    <a href={href} style={{ textDecoration:"none" }}>
-      <div style={{ background:"rgba(197,164,109,0.08)", borderRadius:"12px", border:"1px solid rgba(197,164,109,0.25)", padding:"12px 16px", marginBottom:"12px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"14px", fontWeight:400, color:"#1C1008", margin:0 }}>{text}</p>
-        <span style={{ color:"#C5A46D", fontFamily:"Heebo,sans-serif", fontSize:"16px", flexShrink:0 }}>←</span>
+    <a href={href} {...(external ? { target:"_blank", rel:"noopener noreferrer" } : {})} style={{ textDecoration:"none" }}>
+      <div style={{ background:"rgba(197,164,109,0.08)", borderRadius:"12px", border:"1px solid rgba(197,164,109,0.25)", padding:"14px 16px", marginBottom:"12px" }}>
+        <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"11px", fontWeight:600, color:"#8B6914", letterSpacing:"0.06em", margin:"0 0 4px" }}>הצעד הבא שלכם</p>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
+          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"14px", fontWeight:500, color:"#1C1008", margin:0 }}>{title}</p>
+          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"13px", fontWeight:700, color:"#C5A46D", margin:0, flexShrink:0, whiteSpace:"nowrap" }}>{cta}</p>
+        </div>
       </div>
     </a>
+  );
+}
+
+// ── Live activity feed — "what happened lately" ──────────────────────────────
+interface ActivityItem { type: "confirmed" | "declined" | "opened"; name: string; count: number; at: string }
+
+function timeAgo(iso: string): string {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 60) return `לפני ${Math.max(1, mins)} דק׳`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `לפני ${hrs} שע׳`;
+  const days = Math.floor(hrs / 24);
+  return days === 1 ? "אתמול" : `לפני ${days} ימים`;
+}
+
+const ACTIVITY_META: Record<ActivityItem["type"], { emoji: string; text: (i: ActivityItem) => string }> = {
+  confirmed: { emoji: "🎉", text: i => `${i.name} ${i.count > 1 ? `אישרו הגעה (${i.count})` : "אישר/ה הגעה"}` },
+  declined:  { emoji: "💛", text: i => `${i.name} לא יגיעו` },
+  opened:    { emoji: "👀", text: i => `${i.name} פתח/ה את ההזמנה` },
+};
+
+function ActivityFeed({ token }: { token: string }) {
+  const [items, setItems] = useState<ActivityItem[]>([]);
+
+  useEffect(() => {
+    fetch(`/api/couple/${token}/activity`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (Array.isArray(d?.items)) setItems(d.items); })
+      .catch(() => {});
+  }, [token]);
+
+  if (items.length === 0) return null;
+
+  return (
+    <div style={{ background:"#fff", borderRadius:16, border:"1px solid #E8E0D4", padding:"16px", marginBottom:12 }}>
+      <p style={{ fontFamily:"Heebo,sans-serif", fontSize:11, fontWeight:600, color:"#8B6914", letterSpacing:"0.06em", margin:"0 0 10px" }}>
+        קורה עכשיו
+      </p>
+      <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+        {items.slice(0, 5).map((it, idx) => {
+          const meta = ACTIVITY_META[it.type];
+          return (
+            <div key={idx} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
+              <p style={{ fontFamily:"Heebo,sans-serif", fontSize:13, color:"#1C1008", margin:0, display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
+                <span style={{ flexShrink:0 }}>{meta.emoji}</span>
+                <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{meta.text(it)}</span>
+              </p>
+              <span style={{ fontFamily:"Heebo,sans-serif", fontSize:11, color:"rgba(28,16,8,0.4)", flexShrink:0 }}>{timeAgo(it.at)}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -1296,11 +1376,14 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
           <QuickCard emoji="👥" value={stats.confirmed} label="מגיעים"       caption="אורחים" href={`/couple/${token}/guests`} />
           <QuickCard emoji="🪑" value={seating.assignedSeats} label="שובצו" caption="הושבה"  href={`/couple/${token}/seating`} />
           <QuickCard emoji="📋" value={tasks.filter(t => !t.completed).length} label="משימות נותרו" caption="צ׳קליסט" href={`/couple/${token}/checklist`} />
-          <QuickCard emoji="💰" value={budget.remaining > 0 ? `₪${Math.round(budget.remaining / 1000)}K` : "₪0"} label="נותרו" caption="תקציב" href={`/couple/${token}/gifts`} rawValue />
+          <QuickCard emoji="💰" value={budget.remaining > 0 ? `₪${Math.round(budget.remaining / 1000)}K` : "₪0"} label="נותרו" caption="תקציב" href={`/couple/${token}/budget`} rawValue />
         </div>
 
         {/* Smart Alert — max 1, highest urgency */}
-        <SmartAlertStrip stats={stats} seating={seating} daysLeft={daysLeft} token={token} />
+        <SmartAlertStrip stats={stats} seating={seating} daysLeft={daysLeft} token={token} eventName={event.name} />
+
+        {/* Live activity feed */}
+        <ActivityFeed token={token} />
 
         {/* Milestone Cards */}
         <MilestoneList tasks={tasks} token={token} />
