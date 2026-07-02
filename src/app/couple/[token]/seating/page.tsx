@@ -18,7 +18,7 @@ const TABLE_TYPES = [
 
 interface SeatingTable      { id: string; name: string; capacity: number; type: string; sort_order: number }
 interface SeatingAssignment { id: string; guest_id: string; table_id: string }
-interface Guest             { id: string; name: string; guest_count: number; status?: string }
+interface Guest             { id: string; name: string; guest_count: number; status?: string; phone?: string | null }
 interface SeatingData { tables: SeatingTable[]; assignments: SeatingAssignment[]; guests: Guest[] }
 
 function getInitials(name: string): string {
@@ -144,6 +144,25 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
   const totalSeated = data.assignments.length;
   const totalGuests = data.guests.length;
 
+  /* Assigned guests with a phone — eligible for "your table" message */
+  const tableByGuestId = new Map(data.assignments.map(a => [a.guest_id, data.tables.find(t => t.id === a.table_id)?.name ?? ""]));
+  const notifiable = data.guests.filter(g => g.phone && tableByGuestId.get(g.id));
+
+  function sendTableNumbers() {
+    if (notifiable.length === 0) return;
+    if (!confirm(`ייפתחו ${notifiable.length} הודעות וואטסאפ — אחת לכל אורח משובץ. להמשיך?`)) return;
+    notifiable.forEach((g, i) => {
+      const tableName = tableByGuestId.get(g.id)!;
+      const msg =
+        `💍 משפחה וחברים יקרים!\n\n` +
+        `${g.name}, מחכים לראותכם! 🎉\n\n` +
+        `🪑 השולחן שלכם: ${tableName}\n\n` +
+        `נתראה בשמחות! 🤍`;
+      const phone = (g.phone ?? "").replace(/\D/g, "").replace(/^0/, "972");
+      setTimeout(() => window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank"), i * 600);
+    });
+  }
+
   return (
     <div dir="rtl" lang="he" style={{ minHeight: "100vh", background: CREAM, fontFamily: "Heebo, sans-serif" }}>
 
@@ -173,6 +192,14 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
               >
                 <Plus size={16} /> הוסף שולחן
               </button>
+              {notifiable.length > 0 && (
+                <button
+                  onClick={sendTableNumbers}
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "0.6rem 1.2rem", borderRadius: 12, border: "none", background: "#25D366", color: "#fff", cursor: "pointer", fontSize: 14, fontWeight: 600, fontFamily: "Heebo, sans-serif" }}
+                >
+                  📨 שלחו מספרי שולחן ({notifiable.length})
+                </button>
+              )}
             </div>
           </div>
         </div>

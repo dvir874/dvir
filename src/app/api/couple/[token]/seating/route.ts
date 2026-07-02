@@ -19,7 +19,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
   const [tablesRes, assignmentsRes, guestsRes] = await Promise.all([
     sb.from("seating_tables").select("*").eq("event_id", eventId).order("sort_order"),
     sb.from("seating_assignments").select("*").eq("event_id", eventId),
-    sb.from("guests").select("id, name, guest_count, status").eq("event_id", eventId).order("name"),
+    sb.from("guests").select("id, name, guest_count, status, phone").eq("event_id", eventId).order("name"),
   ]);
 
   return NextResponse.json({
