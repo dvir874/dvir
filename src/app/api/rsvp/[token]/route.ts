@@ -86,19 +86,30 @@ export async function POST(request: NextRequest, { params }: Params) {
   const { status, guest_count, meal_preference, meal_note, meal_counts } = parsed.data;
 
   const supabase = createServerClient();
-  const { data: updated, error } = await supabase
+  const basePatch = {
+    status,
+    guest_count: guest_count ?? 1,
+    response_time: new Date().toISOString(),
+    ...(meal_preference !== undefined ? { meal_preference } : {}),
+    ...(meal_note !== undefined ? { meal_note } : {}),
+  };
+
+  let { data: updated, error } = await supabase
     .from('guests')
-    .update({
-      status,
-      guest_count: guest_count ?? 1,
-      response_time: new Date().toISOString(),
-      ...(meal_preference !== undefined ? { meal_preference } : {}),
-      ...(meal_note !== undefined ? { meal_note } : {}),
-      ...(meal_counts !== undefined ? { meal_counts } : {}),
-    })
+    .update({ ...basePatch, ...(meal_counts !== undefined ? { meal_counts } : {}) })
     .eq('rsvp_token', token)
     .select()
     .single();
+
+  // Graceful fallback: meal_counts column may not exist yet (pre-migration)
+  if (error && meal_counts !== undefined) {
+    ({ data: updated, error } = await supabase
+      .from('guests')
+      .update(basePatch)
+      .eq('rsvp_token', token)
+      .select()
+      .single());
+  }
 
   if (error || !updated)
     return NextResponse.json({ error: 'Update failed' }, { status: 500 });

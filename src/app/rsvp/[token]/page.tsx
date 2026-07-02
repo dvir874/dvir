@@ -5,16 +5,18 @@ import { use } from "react";
 
 /* ─── Types ───────────────────────────────────────────────────── */
 type Status = "confirmed" | "declined" | "pending";
-type MealOption = "regular" | "vegetarian" | "vegan" | "mehadrin";
+type MealOption = "regular" | "vegetarian" | "vegan" | "mehadrin" | "kids";
 type Screen = "loading" | "error" | "form" | "done" | "wrong-person";
 
 const MEAL_OPTIONS: { value: MealOption; label: string; emoji: string }[] = [
-  { value: "regular",    label: "בשרי",    emoji: "🥩" },
-  { value: "vegetarian", label: "צמחוני",  emoji: "🥕" },
-  { value: "vegan",      label: "טבעוני",  emoji: "🌿" },
-  { value: "mehadrin",   label: "דג",      emoji: "🐟" },
+  { value: "regular",    label: "בשרי",       emoji: "🥩" },
+  { value: "vegetarian", label: "צמחוני",     emoji: "🥕" },
+  { value: "vegan",      label: "טבעוני",     emoji: "🌿" },
+  { value: "mehadrin",   label: "דג",         emoji: "🐟" },
+  { value: "kids",       label: "מנת ילדים",  emoji: "🧒" },
 ];
-const COUNT_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
+const COUNT_OPTIONS = [1, 2, 3, 4, 5] as const;
+const MAX_GUESTS = 15;
 
 interface GuestInfo {
   id: string;
@@ -30,6 +32,7 @@ interface EventInfo {
   address?: string | null;
   theme?: string | null;
   mini_site_hero_path?: string | null;
+  bit_phone?: string | null;
 }
 
 /* ─── Design tokens (inline — same values as SYS-02 CSS vars) ── */
@@ -270,6 +273,7 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
   const [choice,     setChoice]     = useState<"confirmed" | "declined" | null>(null);
   const [guestCount, setGuestCount] = useState(1);
   const [meal,       setMeal]       = useState<MealOption | null>(null);
+  const [mealCounts, setMealCounts] = useState<Partial<Record<MealOption, number>>>({});
   const [mealNote,   setMealNote]   = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg,   setErrorMsg]   = useState("");
@@ -291,6 +295,23 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
       .catch(() => setScreen("error"));
   }, [token]);
 
+  const mealTotal = Object.values(mealCounts).reduce((s, n) => s + (n ?? 0), 0);
+  /* Most-selected meal type — kept for backward compat with meal_preference */
+  const primaryMeal: MealOption | null =
+    guestCount > 1 && mealTotal > 0
+      ? ((Object.entries(mealCounts).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0]?.[0] as MealOption) ?? null)
+      : meal;
+
+  function bumpMeal(opt: MealOption, delta: number) {
+    setMealCounts(prev => {
+      const cur = prev[opt] ?? 0;
+      const next = Math.max(0, cur + delta);
+      const total = Object.values(prev).reduce((s, n) => s + (n ?? 0), 0) - cur + next;
+      if (total > guestCount) return prev; // can't exceed party size
+      return { ...prev, [opt]: next };
+    });
+  }
+
   async function handleSubmit(newChoice: "confirmed" | "declined") {
     setChoice(newChoice);
     setSubmitting(true);
@@ -302,8 +323,13 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
         body: JSON.stringify({
           status: newChoice,
           guest_count: guestCount,
-          meal_preference: newChoice === "confirmed" ? (meal ?? "regular") : null,
+          meal_preference: newChoice === "confirmed" ? (primaryMeal ?? "regular") : null,
           meal_note: newChoice === "confirmed" && mealNote.trim() ? mealNote.trim() : null,
+          ...(newChoice === "confirmed" && guestCount > 1 && mealTotal > 0
+            ? { meal_counts: mealCounts }
+            : newChoice === "confirmed" && meal
+            ? { meal_counts: { [meal]: 1 } }
+            : {}),
         }),
       });
       if (!res.ok) throw new Error("server error");
@@ -487,6 +513,25 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
               </div>
             )}
 
+            {event?.bit_phone && (
+              <div style={{
+                margin: "0 0 16px", padding: "14px 18px", borderRadius: 14,
+                background: "rgba(0,102,255,0.05)", border: "1.5px solid rgba(0,102,255,0.18)",
+                textAlign: "center", animation: "fadeUp 0.35s ease 0.2s both",
+              }}>
+                <p style={{ fontSize: 14, fontWeight: 600, color: T.dark, margin: "0 0 4px" }}>
+                  🎁 רוצים לשמח את הזוג במתנה גם מרחוק?
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { navigator.clipboard?.writeText(event.bit_phone!); }}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "'Heebo', sans-serif", fontSize: 15, fontWeight: 700, color: "#0066FF", padding: 4 }}
+                >
+                  ביט למספר {event.bit_phone} 📋 (לחצו להעתקה)
+                </button>
+              </div>
+            )}
+
             <button
               type="button"
               onClick={() => setScreen("form")}
@@ -624,6 +669,21 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
                 📅 הוסיפו ליומן Google
               </GoldCTA>
             )}
+            {event?.date && (
+              <a
+                href={`/api/rsvp/${token}/ics`}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                  padding: "14px 24px", background: T.cream, color: T.dark,
+                  border: `1px solid ${T.border}`, borderRadius: "12px",
+                  fontSize: "16px", fontWeight: 500, fontFamily: "'Heebo', sans-serif",
+                  textDecoration: "none", minHeight: "52px",
+                  boxShadow: T.shadowCard,
+                }}
+              >
+                🍎 יומן iPhone / Outlook
+              </a>
+            )}
             {wazeUrl && (
               <a
                 href={wazeUrl}
@@ -659,6 +719,37 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
               💌 כתבו ברכה לזוג
             </a>
           )}
+
+          {event?.bit_phone && (
+            <div style={{
+              marginTop: 16, padding: "14px 18px", borderRadius: 14,
+              background: "rgba(0,102,255,0.05)", border: "1.5px solid rgba(0,102,255,0.18)",
+              textAlign: "center", animation: "fadeUp 0.5s ease 0.45s both",
+            }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: T.dark, margin: "0 0 4px" }}>
+                🎁 רוצים לשמח את הזוג במתנה?
+              </p>
+              <button
+                type="button"
+                onClick={() => { navigator.clipboard?.writeText(event.bit_phone!); }}
+                style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "'Heebo', sans-serif", fontSize: 15, fontWeight: 700, color: "#0066FF", padding: 4 }}
+              >
+                ביט למספר {event.bit_phone} 📋 (לחצו להעתקה)
+              </button>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setScreen("form")}
+            style={{
+              display: "block", margin: "20px auto 0", background: "none", border: "none",
+              cursor: "pointer", fontFamily: "'Heebo', sans-serif", fontSize: 13,
+              color: T.muted, textDecoration: "underline",
+            }}
+          >
+            צריכים לעדכן את התשובה? לחצו כאן
+          </button>
 
           <div style={{ width: "64px", height: "1px", background: `linear-gradient(90deg,transparent,${T.gold},transparent)`, margin: "28px auto 0" }} />
 
@@ -772,13 +863,16 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
             {/* Guest count — circles (shown when attending) */}
             {attending && (
               <div style={{ marginBottom: "20px", animation: "fadeUp 0.3s ease both" }}>
-                <p style={{ fontSize: "14px", fontWeight: 600, color: T.dark, marginBottom: "12px", textAlign: "center" }}>
+                <p style={{ fontSize: "14px", fontWeight: 600, color: T.dark, marginBottom: "4px", textAlign: "center" }}>
                   כמות אורחים
+                </p>
+                <p style={{ fontSize: "12px", fontWeight: 300, color: T.muted, marginBottom: "12px", textAlign: "center" }}>
+                  כולל אתכם
                 </p>
                 <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
                   {COUNT_OPTIONS.map(n => {
-                    const isLast = n === 4;
-                    const selected = isLast ? guestCount >= 4 : guestCount === n;
+                    const isLast = n === 5;
+                    const selected = isLast ? guestCount >= 5 : guestCount === n;
                     return (
                       <button
                         key={n}
@@ -795,19 +889,31 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
                           cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                         }}
                       >
-                        {isLast ? "4+" : n}
+                        {isLast ? "5+" : n}
                       </button>
                     );
                   })}
                 </div>
+                {/* Stepper for 5+ parties */}
+                {guestCount >= 5 && (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "16px", marginTop: "14px", animation: "fadeUp 0.25s ease both" }}>
+                    <button type="button" onClick={() => setGuestCount(c => Math.max(5, c - 1))}
+                      aria-label="פחות"
+                      style={{ width: 44, height: 44, borderRadius: "50%", border: `2px solid ${T.border}`, background: T.cream, color: T.dark, fontSize: 20, cursor: "pointer" }}>−</button>
+                    <span style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 24, fontWeight: 700, color: T.goldText, minWidth: 40, textAlign: "center" }}>{guestCount}</span>
+                    <button type="button" onClick={() => setGuestCount(c => Math.min(MAX_GUESTS, c + 1))}
+                      aria-label="יותר"
+                      style={{ width: 44, height: 44, borderRadius: "50%", border: `2px solid ${T.gold}`, background: T.gold, color: "#fff", fontSize: 20, cursor: "pointer" }}>+</button>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Meal choice grid — 2×2 (shown when attending) */}
-            {attending && (
+            {/* Meal choice — single select for 1 guest, per-guest steppers for parties */}
+            {attending && guestCount === 1 && (
               <div style={{ marginBottom: "24px", animation: "fadeUp 0.3s ease 0.05s both" }}>
                 <p style={{ fontSize: "14px", fontWeight: 600, color: T.dark, marginBottom: "12px", textAlign: "center" }}>
-                  בחירת מנות
+                  בחירת מנה
                 </p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                   {MEAL_OPTIONS.map(opt => {
@@ -830,6 +936,46 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
                           {opt.label}
                         </p>
                       </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {attending && guestCount > 1 && (
+              <div style={{ marginBottom: "24px", animation: "fadeUp 0.3s ease 0.05s both" }}>
+                <p style={{ fontSize: "14px", fontWeight: 600, color: T.dark, marginBottom: "4px", textAlign: "center" }}>
+                  בחירת מנות
+                </p>
+                <p style={{ fontSize: "12px", fontWeight: 300, color: mealTotal === guestCount ? "#4A7C59" : T.muted, marginBottom: "12px", textAlign: "center" }}>
+                  {mealTotal === guestCount ? "✓ כל המנות נבחרו" : `נבחרו ${mealTotal} מתוך ${guestCount} מנות`}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {MEAL_OPTIONS.map(opt => {
+                    const count = mealCounts[opt.value] ?? 0;
+                    return (
+                      <div key={opt.value} style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "10px 14px", borderRadius: "14px",
+                        border: `2px solid ${count > 0 ? T.gold : T.border}`,
+                        background: count > 0 ? "rgba(197,164,109,0.10)" : T.cream,
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <span style={{ fontSize: "22px" }}>{opt.emoji}</span>
+                          <span style={{ fontFamily: "'Heebo', sans-serif", fontSize: "14px", fontWeight: count > 0 ? 600 : 400, color: count > 0 ? T.goldText : T.dark }}>
+                            {opt.label}
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                          <button type="button" onClick={() => bumpMeal(opt.value, -1)}
+                            aria-label={`פחות ${opt.label}`}
+                            style={{ width: 36, height: 36, borderRadius: "50%", border: `1.5px solid ${T.border}`, background: "#fff", color: T.dark, fontSize: 17, cursor: "pointer", opacity: count === 0 ? 0.35 : 1 }}>−</button>
+                          <span style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 17, fontWeight: 700, color: T.dark, minWidth: 20, textAlign: "center" }}>{count}</span>
+                          <button type="button" onClick={() => bumpMeal(opt.value, 1)}
+                            aria-label={`יותר ${opt.label}`}
+                            style={{ width: 36, height: 36, borderRadius: "50%", border: `1.5px solid ${T.gold}`, background: mealTotal >= guestCount ? T.cream : T.gold, color: mealTotal >= guestCount ? T.muted : "#fff", fontSize: 17, cursor: "pointer" }}>+</button>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>

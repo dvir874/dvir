@@ -43,7 +43,16 @@ const MEAL_LABEL: Record<string, string> = {
   vegetarian: 'צמחוני',
   vegan: 'טבעוני',
   mehadrin: 'כשר מהדרין',
+  kids: 'מנת ילדים',
 };
+
+function formatMealCounts(counts: unknown): string {
+  if (!counts || typeof counts !== 'object') return '';
+  return Object.entries(counts as Record<string, number>)
+    .filter(([, n]) => typeof n === 'number' && n > 0)
+    .map(([k, n]) => `${MEAL_LABEL[k] ?? k}: ${n}`)
+    .join(' · ');
+}
 
 export function generateGuestsXlsx(guests: Guest[]): Buffer {
   const data = guests.map((g) => ({
@@ -52,6 +61,7 @@ export function generateGuestsXlsx(guests: Guest[]): Buffer {
     'סטטוס': STATUS_LABEL[g.status] ?? g.status,
     'מספר מגיעים': g.guest_count,
     'העדפת מנה': g.meal_preference ? (MEAL_LABEL[g.meal_preference] ?? g.meal_preference) : '',
+    'פירוט מנות': formatMealCounts((g as Guest & { meal_counts?: unknown }).meal_counts),
     'הערת מנה': g.meal_note ?? '',
     'זמן תגובה': g.response_time
       ? new Date(g.response_time).toLocaleString('he-IL')
