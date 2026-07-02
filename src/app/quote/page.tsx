@@ -9,17 +9,14 @@ const DVIR_PHONE = "972533318177";
 /* Add-on catalog — key = URL param in ?addons=invite,seating,... */
 const ADDONS: Record<string, { label: string; price: number }> = {
   invite:   { label: "עיצוב הזמנה אישית (קובץ להדפסה)", price: 150 },
-  seating:  { label: "סידור הושבה דיגיטלי",              price: 80 },
-  thanks:   { label: "הודעת תודה לאורחים אחרי החתונה",   price: 30 },
-  gallery:  { label: "גלריית תמונות — קישור ייחודי לאורחים", price: 60 },
-  minisite: { label: "דף אישי לחתונה (תאריך, מיקום, ניווט)", price: 70 },
-  budget:   { label: "ניהול תקציב לזוג",                  price: 50 },
-  vendors:  { label: "ניהול ספקים",                       price: 50 },
-  checklist:{ label: "צ'קליסט חתונה חכם",                 price: 40 },
-  capsule:  { label: "קפסולת זמן — ברכות מהאורחים",       price: 60 },
-  gifts:    { label: "מעקב מתנות",                        price: 40 },
+  seating:  { label: "סידור הושבה + שליחת מספרי שולחן לאורחים", price: 100 },
+  minisite: { label: "דף אירוע אישי (ניווט, לו״ז, קוד לבוש)", price: 80 },
+  gallery:  { label: "גלריית אורחים + קיר ברכות",         price: 80 },
+  planning: { label: "חבילת תכנון — תקציב, ספקים, צ'קליסט", price: 80 },
+  capsule:  { label: "קפסולת זמן — ברכות שנפתחות ביום השנה", price: 60 },
+  daymsg:   { label: "הודעות \"מחר החתונה\" + תודה לאורחים", price: 50 },
 };
-const FULL_PACKAGE_PRICE = 599;
+const FULL_PACKAGE_PRICE = 549;
 
 function addDays(days: number): string {
   const d = new Date();
