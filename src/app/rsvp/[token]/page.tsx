@@ -33,6 +33,7 @@ interface EventInfo {
   theme?: string | null;
   mini_site_hero_path?: string | null;
   bit_phone?: string | null;
+  paybox_link?: string | null;
 }
 
 /* ─── Design tokens (inline — same values as SYS-02 CSS vars) ── */
@@ -534,6 +535,15 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
                 >
                   ביט למספר {event.bit_phone} 📋 (לחצו להעתקה)
                 </button>
+                {event.paybox_link && (
+                  <a
+                    href={event.paybox_link}
+                    target="_blank" rel="noopener noreferrer"
+                    style={{ display: "block", fontFamily: "'Heebo', sans-serif", fontSize: 14, fontWeight: 700, color: "#00A9E0", padding: 4, textDecoration: "none" }}
+                  >
+                    או דרך PayBox ←
+                  </a>
+                )}
               </div>
             )}
 
@@ -741,6 +751,15 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
               >
                 ביט למספר {event.bit_phone} 📋 (לחצו להעתקה)
               </button>
+              {event.paybox_link && (
+                <a
+                  href={event.paybox_link}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{ display: "block", fontFamily: "'Heebo', sans-serif", fontSize: 14, fontWeight: 700, color: "#00A9E0", padding: 4, textDecoration: "none" }}
+                >
+                  או דרך PayBox ←
+                </a>
+              )}
             </div>
           )}
 
