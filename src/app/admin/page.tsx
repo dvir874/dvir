@@ -1206,6 +1206,11 @@ export default function AdminPage() {
                       style={{ color: "#1A9B4E", fontFamily: "Heebo, sans-serif", textDecoration: "none" }}>
                       📨 עמדת שליחה (אחד-אחד עם מעקב)
                     </a>
+                    <a href={`/admin/qr?event=${selectedEventId}`} onClick={() => setShowToolsMenu(false)}
+                      className="flex items-center gap-2 px-4 py-3 text-xs hover:bg-amber-50 transition-colors"
+                      style={{ color: C.dark, fontFamily: "Heebo, sans-serif", textDecoration: "none" }}>
+                      🪑 כרטיסי QR לשולחנות (להדפסה)
+                    </a>
                     <button onClick={() => { setShowAnnounce(true); setShowToolsMenu(false); }}
                       className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-amber-50 transition-colors" style={{ color: C.gold, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
                       📢 פרסם עדכון לזוג

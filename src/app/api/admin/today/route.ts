@@ -28,6 +28,30 @@ export async function GET(_req: NextRequest) {
     .sort((a, b) => (a.date < b.date ? -1 : 1))
     .map(e => ({ id: e.id, name: e.name, date: e.date, client_phone: e.client_phone, couple_token: e.couple_token }));
 
+  /* "Morning after" — weddings that happened in the last ~36h: send the couple their recap */
+  const justMarried = events.filter(e => {
+    if (!e.date) return false;
+    const t = new Date(e.date).getTime();
+    return t < now && now - t < 36 * 3600_000;
+  });
+  const morningAfter = await Promise.all(justMarried.map(async e => {
+    const [guestsRes, albumRes] = await Promise.all([
+      sb.from("guests").select("status, guest_count").eq("event_id", e.id),
+      sb.from("gallery_albums").select("id, public_token, photo_count").eq("event_id", e.id).maybeSingle(),
+    ]);
+    const attendees = (guestsRes.data ?? [])
+      .filter(g => g.status === "confirmed")
+      .reduce((s, g) => s + (g.guest_count ?? 1), 0);
+    let blessings = 0;
+    const { count } = await sb.from("memory_items").select("id", { count: "exact", head: true }).eq("event_id", e.id).eq("type", "blessing");
+    blessings = count ?? 0;
+    return {
+      id: e.id, name: e.name, client_phone: e.client_phone,
+      attendees, photos: albumRes.data?.photo_count ?? 0, blessings,
+      gallery_token: albumRes.data?.public_token ?? null,
+    };
+  }));
+
   /* Past weddings not yet closed */
   const needsClosing = events
     .filter(e => e.date && new Date(e.date).getTime() < now - 86_400_000 && e.status !== "completed")
@@ -58,6 +82,7 @@ export async function GET(_req: NextRequest) {
     upcoming,
     needsClosing,
     recentRsvps,
+    morningAfter,
     openRequests: (requestsRes.data ?? []).map(r => ({ id: r.id, title: r.title, event: eventName.get(r.event_id) ?? "" })).slice(0, 8),
     revenue: { paidThisMonth, outstanding },
   });

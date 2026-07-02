@@ -19,6 +19,7 @@ interface TodayData {
   newLeads: number;
   staleLeads: string[];
   upcoming: { id: string; name: string; date: string; client_phone: string | null; couple_token: string | null }[];
+  morningAfter: { id: string; name: string; client_phone: string | null; attendees: number; photos: number; blessings: number; gallery_token: string | null }[];
   needsClosing: { id: string; name: string; date: string; client_phone: string | null }[];
   recentRsvps: { name: string; status: string; count: number; event: string; at: string }[];
   openRequests: { id: string; title: string; event: string }[];
@@ -134,6 +135,40 @@ export default function AdminTodayPage() {
                           <a href={`https://wa.me/${waPhone(e.client_phone)}`} target="_blank" rel="noopener noreferrer"
                             style={{ flexShrink: 0, padding: "8px 14px", background: "#25D366", color: "#fff", borderRadius: 10, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
                             💬 לזוג
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </Section>
+            )}
+
+            {/* Morning after — send couple their recap */}
+            {(data.morningAfter ?? []).length > 0 && (
+              <Section title="🌅 הבוקר שאחרי — שלחו לזוג את הסיכום">
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {data.morningAfter.map(e => {
+                    const galleryUrl = e.gallery_token ? `${window.location.origin}/gallery/${e.gallery_token}` : null;
+                    const msg =
+                      `💍 בוקר טוב, זוג נשוי! 🤍\n\n` +
+                      `איזה לילה זה היה...\n` +
+                      `🎉 ${e.attendees} אורחים חגגו איתכם\n` +
+                      (e.photos > 0 ? `📸 ${e.photos} תמונות מחכות לכם\n` : "") +
+                      (e.blessings > 0 ? `💌 ${e.blessings} ברכות נכתבו לכם\n` : "") +
+                      (galleryUrl ? `\nהכל מחכה לכם כאן:\n${galleryUrl}\n` : "") +
+                      `\nמזל טוב! 🥂 דביר — רגע לפני`;
+                    return (
+                      <div key={e.id} style={{ padding: "12px", background: "rgba(197,164,109,0.08)", border: `1px solid rgba(197,164,109,0.3)`, borderRadius: 12 }}>
+                        <p style={{ fontSize: 14, fontWeight: 600, color: C.dark, margin: "0 0 4px" }}>{e.name}</p>
+                        <p style={{ fontSize: 12, color: C.muted, margin: "0 0 10px" }}>
+                          🎉 {e.attendees} אורחים · 📸 {e.photos} תמונות · 💌 {e.blessings} ברכות
+                        </p>
+                        {e.client_phone && (
+                          <a href={`https://wa.me/${waPhone(e.client_phone)}?text=${encodeURIComponent(msg)}`}
+                            target="_blank" rel="noopener noreferrer"
+                            style={{ display: "inline-block", padding: "9px 16px", background: "#25D366", color: "#fff", borderRadius: 10, fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+                            🌅 שלח את הודעת הבוקר שאחרי
                           </a>
                         )}
                       </div>
