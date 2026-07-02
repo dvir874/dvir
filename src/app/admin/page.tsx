@@ -863,6 +863,13 @@ export default function AdminPage() {
 
         <div className="flex items-center gap-2 flex-wrap mr-auto">
           <a
+            href="/admin/today"
+            className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all hover:opacity-80"
+            style={{ background: "rgba(197,164,109,0.22)", color: "#8B6914" }}
+          >
+            ☀️ היום שלי
+          </a>
+          <a
             href="/admin/crm"
             className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
             style={{ background: "rgba(37,99,235,0.10)", color: "#2563EB" }}
