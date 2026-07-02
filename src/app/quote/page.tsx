@@ -12,10 +12,10 @@ const ADDONS: Record<string, { label: string; price: number }> = {
   seating:  { label: "סידור הושבה + שליחת מספרי שולחן לאורחים", price: 100 },
   minisite: { label: "דף אירוע אישי (ניווט, לו״ז, קוד לבוש)", price: 0 },
   gallery:  { label: "גלריית אורחים + קיר ברכות",         price: 80 },
-  planning: { label: "חבילת תכנון — תקציב, ספקים, צ'קליסט", price: 80 },
+  planning: { label: "חבילת תכנון — תקציב, ספקים, צ'קליסט", price: 0 },
   daymsg:   { label: "הודעות \"מחר החתונה\" + תודה לאורחים", price: 50 },
 };
-const FULL_PACKAGE_PRICE = 549;
+const FULL_PACKAGE_PRICE = 449;
 
 function addDays(days: number): string {
   const d = new Date();
