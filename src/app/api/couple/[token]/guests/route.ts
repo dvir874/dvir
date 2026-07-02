@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
   const sb = createServerClient();
   const { data, error } = await sb
     .from("guests")
-    .select("id, name, phone, guest_count, status, side, table_number, notes, created_at")
+    .select("*")
     .eq("event_id", eventId)
     .order("name");
 

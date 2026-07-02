@@ -10,6 +10,8 @@ const RsvpPostSchema = z.object({
   meal_preference: z.string().max(200).optional().nullable(),
   meal_note:       z.string().max(500).optional().nullable(),
   meal_counts:     z.record(z.string().max(30), z.number().int().min(0).max(20)).optional(),
+  ride_from:       z.string().max(100).optional().nullable(),
+  ride_role:       z.enum(['offer', 'seek']).optional().nullable(),
 });
 
 type Params = { params: Promise<{ token: string }> };
@@ -83,7 +85,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
-  const { status, guest_count, meal_preference, meal_note, meal_counts } = parsed.data;
+  const { status, guest_count, meal_preference, meal_note, meal_counts, ride_from, ride_role } = parsed.data;
 
   const supabase = createServerClient();
   const basePatch = {
@@ -94,15 +96,21 @@ export async function POST(request: NextRequest, { params }: Params) {
     ...(meal_note !== undefined ? { meal_note } : {}),
   };
 
+  const newColsPatch = {
+    ...(meal_counts !== undefined ? { meal_counts } : {}),
+    ...(ride_from !== undefined ? { ride_from } : {}),
+    ...(ride_role !== undefined ? { ride_role } : {}),
+  };
+
   let { data: updated, error } = await supabase
     .from('guests')
-    .update({ ...basePatch, ...(meal_counts !== undefined ? { meal_counts } : {}) })
+    .update({ ...basePatch, ...newColsPatch })
     .eq('rsvp_token', token)
     .select()
     .single();
 
-  // Graceful fallback: meal_counts column may not exist yet (pre-migration)
-  if (error && meal_counts !== undefined) {
+  // Graceful fallback: new columns may not exist yet (pre-migration)
+  if (error && Object.keys(newColsPatch).length > 0) {
     ({ data: updated, error } = await supabase
       .from('guests')
       .update(basePatch)

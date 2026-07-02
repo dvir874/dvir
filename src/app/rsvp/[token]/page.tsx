@@ -274,6 +274,8 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
   const [guestCount, setGuestCount] = useState(1);
   const [meal,       setMeal]       = useState<MealOption | null>(null);
   const [mealCounts, setMealCounts] = useState<Partial<Record<MealOption, number>>>({});
+  const [rideFrom,   setRideFrom]   = useState("");
+  const [rideRole,   setRideRole]   = useState<"offer" | "seek" | null>(null);
   const [mealNote,   setMealNote]   = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg,   setErrorMsg]   = useState("");
@@ -329,6 +331,9 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
             ? { meal_counts: mealCounts }
             : newChoice === "confirmed" && meal
             ? { meal_counts: { [meal]: 1 } }
+            : {}),
+          ...(newChoice === "confirmed" && rideRole && rideFrom.trim()
+            ? { ride_from: rideFrom.trim(), ride_role: rideRole }
             : {}),
         }),
       });
@@ -979,6 +984,51 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
                     );
                   })}
                 </div>
+              </div>
+            )}
+
+            {/* Ride sharing (optional, shown when attending) */}
+            {attending && (
+              <div style={{ marginBottom: "24px", animation: "fadeUp 0.3s ease 0.08s both" }}>
+                <p style={{ fontSize: "14px", fontWeight: 600, color: T.dark, marginBottom: "4px", textAlign: "center" }}>
+                  🚗 מגיעים ברכב?
+                </p>
+                <p style={{ fontSize: "12px", fontWeight: 300, color: T.muted, marginBottom: "12px", textAlign: "center" }}>
+                  לא חובה — עוזר לתאם טרמפים בין האורחים
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: rideRole ? "12px" : 0 }}>
+                  {([["offer", "🚙 יש לי מקום ברכב"], ["seek", "🙋 מחפש/ת טרמפ"]] as const).map(([role, label]) => (
+                    <button
+                      key={role}
+                      type="button"
+                      onClick={() => setRideRole(r => r === role ? null : role)}
+                      aria-pressed={rideRole === role}
+                      style={{
+                        padding: "13px 8px", borderRadius: "12px", cursor: "pointer", textAlign: "center",
+                        border: `2px solid ${rideRole === role ? T.gold : T.border}`,
+                        background: rideRole === role ? "rgba(197,164,109,0.12)" : T.cream,
+                        fontFamily: "'Heebo', sans-serif", fontSize: "13px",
+                        fontWeight: rideRole === role ? 600 : 400,
+                        color: rideRole === role ? T.goldText : T.dark,
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {rideRole && (
+                  <input
+                    value={rideFrom}
+                    onChange={e => setRideFrom(e.target.value)}
+                    placeholder="מאיזה עיר / אזור? (למשל: תל אביב)"
+                    style={{
+                      width: "100%", boxSizing: "border-box", padding: "13px 14px",
+                      border: `1.5px solid ${T.border}`, borderRadius: "12px",
+                      fontSize: "15px", fontFamily: "'Heebo', sans-serif",
+                      background: "#fff", color: T.dark, animation: "fadeUp 0.25s ease both",
+                    }}
+                  />
+                )}
               </div>
             )}
 
