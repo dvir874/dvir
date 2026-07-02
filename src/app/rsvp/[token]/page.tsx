@@ -534,8 +534,10 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
           </div>
 
           {/* Footer */}
-          <p style={{ textAlign: "center", color: T.muted, fontSize: "11px", letterSpacing: "0.08em", opacity: 0.55, padding: "12px 0 20px", background: "#d4c4b0" }}>
-            MAZAL TOV © 2024
+          <p style={{ textAlign: "center", fontSize: "11px", letterSpacing: "0.04em", padding: "12px 0 20px", background: "#d4c4b0", margin: 0 }}>
+            <a href="/" target="_blank" rel="noopener noreferrer" style={{ color: T.muted, opacity: 0.7, textDecoration: "none" }}>
+              נבנה באהבה ע״י רגע לפני 💍
+            </a>
           </p>
         </div>
       );
@@ -659,6 +661,12 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
           )}
 
           <div style={{ width: "64px", height: "1px", background: `linear-gradient(90deg,transparent,${T.gold},transparent)`, margin: "28px auto 0" }} />
+
+          <p style={{ textAlign: "center", fontSize: "11px", letterSpacing: "0.04em", padding: "16px 0 24px", margin: 0 }}>
+            <a href="/" target="_blank" rel="noopener noreferrer" style={{ color: T.muted, opacity: 0.6, textDecoration: "none" }}>
+              נבנה באהבה ע״י רגע לפני 💍
+            </a>
+          </p>
         </div>
       </div>
     );

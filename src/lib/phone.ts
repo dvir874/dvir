@@ -35,6 +35,7 @@ export function whatsappThankYouLink(
   if (galleryUrl) {
     message += `\n\nצילמתם תמונות? נשמח שתשתפו אותן באלבום המשותף 📸\n${galleryUrl}`;
   }
+  message += `\n\n💍 מכירים זוג שמתחתן? האירוע הזה נוהל עם "רגע לפני" — אישורי הגעה, הושבה והכל במקום אחד. שלחו להם: 053-3318177`;
   return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
 }
 
