@@ -9,6 +9,7 @@ const RsvpPostSchema = z.object({
   guest_count:     z.number().int().min(0).max(20).optional(),
   meal_preference: z.string().max(200).optional().nullable(),
   meal_note:       z.string().max(500).optional().nullable(),
+  meal_counts:     z.record(z.string().max(30), z.number().int().min(0).max(20)).optional(),
 });
 
 type Params = { params: Promise<{ token: string }> };
@@ -42,7 +43,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
   const { data: event } = await supabase
     .from('events')
-    .select('name, date, address, theme, mini_site_hero_path')
+    .select('name, date, address, theme, mini_site_hero_path, bit_phone')
     .eq('id', guest.event_id)
     .single();
 
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
-  const { status, guest_count, meal_preference, meal_note } = parsed.data;
+  const { status, guest_count, meal_preference, meal_note, meal_counts } = parsed.data;
 
   const supabase = createServerClient();
   const { data: updated, error } = await supabase
@@ -93,6 +94,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       response_time: new Date().toISOString(),
       ...(meal_preference !== undefined ? { meal_preference } : {}),
       ...(meal_note !== undefined ? { meal_note } : {}),
+      ...(meal_counts !== undefined ? { meal_counts } : {}),
     })
     .eq('rsvp_token', token)
     .select()
