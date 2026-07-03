@@ -14,6 +14,7 @@ const ADDONS: Record<string, { label: string; price: number }> = {
   gallery:  { label: "גלריית אורחים + קיר ברכות",         price: 80 },
   planning: { label: "חבילת תכנון — תקציב, ספקים, צ'קליסט", price: 0 },
   daymsg:   { label: "הודעות \"מחר החתונה\" + תודה לאורחים", price: 50 },
+  checkin:  { label: "עמדת קבלה ביום החתונה — דביר מגיע לאולם, מקבל את האורחים ומכוון לשולחנות", price: 800 },
 };
 const FULL_PACKAGE_PRICE = 449;
 
@@ -116,7 +117,10 @@ function QuoteContent() {
           </div>
 
           {/* Selected add-ons (or all, for full package) */}
-          {(isFullPackage ? Object.entries(ADDONS).map(([key, a]) => ({ key, ...a })) : selectedAddons).map((a) => (
+          {(isFullPackage
+            ? Object.entries(ADDONS).filter(([key]) => key !== "checkin").map(([key, a]) => ({ key, ...a }))
+            : selectedAddons
+          ).map((a) => (
             <div key={a.key} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(197,164,109,0.12)", fontSize: 15, color: "#333" }}>
               <span>✓ {a.label}</span>
               <span style={{ fontWeight: 600, color: "#6B7B5A", whiteSpace: "nowrap" }}>{isFullPackage ? "כלול" : a.price === 0 ? "חינם" : `₪${a.price}`}</span>
