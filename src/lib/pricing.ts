@@ -19,6 +19,7 @@ export const ADDONS: Record<string, Addon> = {
   gallery:  { label: "גלריית אורחים + קיר ברכות",                          price: 80 },
   planning: { label: "חבילת תכנון — תקציב, ספקים, צ'קליסט",                price: 0 },
   daymsg:   { label: "הודעות \"מחר החתונה\" + תודה לאורחים",               price: 50 },
+  hina:     { label: "אירוע חינה נוסף — אישורי הגעה מלאים לאותם מוזמנים",  price: 120 },
   checkin:  { label: "עמדת קבלה ביום החתונה — דביר מגיע לאולם, מקבל את האורחים ומכוון לשולחנות", price: 800, physical: true },
 };
 

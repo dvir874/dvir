@@ -26,6 +26,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/guides/rsvp-cost`,     lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
     { url: `${BASE}/guides/seating-guide`, lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
     { url: `${BASE}/terms`,       lastModified: now, changeFrequency: 'yearly',  priority: 0.3 },
+    { url: `${BASE}/partners`,    lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE}/religious`,   lastModified: now, changeFrequency: 'monthly', priority: 0.9 },
+    { url: `${BASE}/venues`,      lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
   ];
 
   const categoryPages: MetadataRoute.Sitemap = CATEGORIES.map((cat) => ({

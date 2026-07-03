@@ -877,6 +877,13 @@ export default function AdminPage() {
             📋 CRM לידים
           </a>
           <a
+            href="/admin/tips"
+            className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
+            style={{ background: "rgba(197,164,109,0.12)", color: C.olive }}
+          >
+            🎓 טיפים ללידים
+          </a>
+          <a
             href="/admin/automations"
             className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
             style={{ background: "rgba(197,164,109,0.14)", color: C.olive }}

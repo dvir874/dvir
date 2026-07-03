@@ -1020,6 +1020,24 @@ const ACTIVITY_META: Record<ActivityItem["type"], { emoji: string; text: (i: Act
   opened:    { emoji: "👀", text: i => `${i.name} פתח/ה את ההזמנה` },
 };
 
+function BenchmarkBadge({ token }: { token: string }) {
+  const [pct, setPct] = useState<number | null>(null);
+  useEffect(() => {
+    fetch(`/api/couple/${token}/benchmark`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (typeof d?.percentile === "number" && d.percentile >= 50) setPct(d.percentile); })
+      .catch(() => {});
+  }, [token]);
+  if (pct === null) return null;
+  return (
+    <div style={{ background:"linear-gradient(135deg,rgba(197,164,109,0.12),rgba(74,124,89,0.08))", border:"1px solid rgba(197,164,109,0.3)", borderRadius:12, padding:"10px 16px", marginBottom:12, textAlign:"center" }}>
+      <p style={{ fontFamily:"Heebo,sans-serif", fontSize:13, fontWeight:600, color:"#8B6914", margin:0 }}>
+        🏆 אחוז המענה שלכם גבוה מ-{pct}% מהחתונות במערכת
+      </p>
+    </div>
+  );
+}
+
 function ActivityFeed({ token }: { token: string }) {
   const [items, setItems] = useState<ActivityItem[]>([]);
 
@@ -1380,6 +1398,9 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
 
         {/* Smart Alert — max 1, highest urgency */}
         <SmartAlertStrip stats={stats} seating={seating} daysLeft={daysLeft} token={token} eventName={event.name} />
+
+        {/* Benchmark badge (only shows when above median) */}
+        <BenchmarkBadge token={token} />
 
         {/* Live activity feed */}
         <ActivityFeed token={token} />
