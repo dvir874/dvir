@@ -2,21 +2,10 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
-const BASE_PRICE = 180;
+import { BASE_PRICE, FULL_PACKAGE_PRICE, ADDONS, DEPOSIT_AMOUNT } from "@/lib/pricing";
+
 const DISCOUNT_PCT = 10;
 const DVIR_PHONE = "972533318177";
-
-/* Add-on catalog — key = URL param in ?addons=invite,seating,... */
-const ADDONS: Record<string, { label: string; price: number }> = {
-  invite:   { label: "עיצוב הזמנה אישית (קובץ להדפסה)", price: 150 },
-  seating:  { label: "סידור הושבה + שליחת מספרי שולחן לאורחים", price: 100 },
-  minisite: { label: "דף אירוע אישי (ניווט, לו״ז, קוד לבוש)", price: 0 },
-  gallery:  { label: "גלריית אורחים + קיר ברכות",         price: 80 },
-  planning: { label: "חבילת תכנון — תקציב, ספקים, צ'קליסט", price: 0 },
-  daymsg:   { label: "הודעות \"מחר החתונה\" + תודה לאורחים", price: 50 },
-  checkin:  { label: "עמדת קבלה ביום החתונה — דביר מגיע לאולם, מקבל את האורחים ומכוון לשולחנות", price: 800 },
-};
-const FULL_PACKAGE_PRICE = 449;
 
 function addDays(days: number): string {
   const d = new Date();
@@ -46,6 +35,24 @@ function QuoteContent() {
   const validUntil = addDays(30);
 
   const whatsappMsg = encodeURIComponent("שלום דביר, קיבלתי את הצעת המחיר ואני מעוניין/ת לשמוע עוד");
+  const acceptMsg = encodeURIComponent(
+    `שלום דביר! אנחנו (${name}) מאשרים את הצעת המחיר על סך ₪${(coupon ? finalPrice : PRICE).toLocaleString()} 🎉`
+  );
+
+  async function payDeposit() {
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: DEPOSIT_AMOUNT, description: `מקדמה — ${name}` }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else alert("התשלום אינו זמין כרגע — אשרו בוואטסאפ ונסגור יחד");
+    } catch {
+      alert("התשלום אינו זמין כרגע — אשרו בוואטסאפ ונסגור יחד");
+    }
+  }
 
   return (
     <>
@@ -80,6 +87,20 @@ function QuoteContent() {
         >
           💬 שלח בוואטסאפ
         </a>
+        <a
+          href={`https://wa.me/${DVIR_PHONE}?text=${acceptMsg}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ background: "#fff", color: "#1C1008", borderRadius: 8, padding: "8px 20px", fontFamily: "Heebo, sans-serif", fontSize: 14, fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
+        >
+          ✅ מאשרים את ההצעה
+        </a>
+        <button
+          onClick={payDeposit}
+          style={{ background: "#6B7B5A", color: "white", border: "none", borderRadius: 8, padding: "8px 20px", fontFamily: "Heebo, sans-serif", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+        >
+          💳 שריון עם מקדמה ₪{DEPOSIT_AMOUNT}
+        </button>
       </div>
 
       <div className="page">
@@ -118,7 +139,7 @@ function QuoteContent() {
 
           {/* Selected add-ons (or all, for full package) */}
           {(isFullPackage
-            ? Object.entries(ADDONS).filter(([key]) => key !== "checkin").map(([key, a]) => ({ key, ...a }))
+            ? Object.entries(ADDONS).filter(([, ad]) => !ad.physical).map(([key, a]) => ({ key, ...a }))
             : selectedAddons
           ).map((a) => (
             <div key={a.key} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(197,164,109,0.12)", fontSize: 15, color: "#333" }}>
