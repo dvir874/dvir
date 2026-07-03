@@ -145,6 +145,14 @@ export default function WeddingDayPage() {
                 💬 שתפו בוואטסאפ
               </a>
             </div>
+            {galleryToken && (
+              <a
+                href={`/wall/${galleryToken}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 10, padding: "12px", background: "#1C1008", color: "#E5C188", borderRadius: 12, fontSize: 14, fontWeight: 600, textDecoration: "none", fontFamily: "'Heebo', sans-serif" }}>
+                📺 קיר תמונות חי — פתחו על מסך באולם
+              </a>
+            )}
           </div>
         )}
 

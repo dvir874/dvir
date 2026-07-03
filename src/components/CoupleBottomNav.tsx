@@ -47,6 +47,7 @@ function getSheetItems(token: string): SheetItem[] {
     { emoji: "🎁",  label: "מתנות",             href: `/couple/${token}/gifts`   },
     { emoji: "🤝",  label: "ספקים",             href: `/couple/${token}/vendors` },
     { emoji: "🚗",  label: "לוח טרמפים",        href: `/couple/${token}/rides`   },
+    { emoji: "🍽️", label: "דוח מנות לאולם",    href: `/couple/${token}/venue-report` },
     { emoji: "📸",  label: "גלריית תמונות",     href: `/gallery/${token}`        },
     { emoji: "🗺️", label: "המסע שלכם",          href: `/couple/${token}/journey` },
     { emoji: "💬",  label: "צריכים את דביר?",   href: `https://wa.me/972533318177?text=${encodeURIComponent("💍 שלום דביר! יש לנו שאלה לגבי החתונה.")}`, external: true },

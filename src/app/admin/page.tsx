@@ -1221,6 +1221,17 @@ export default function AdminPage() {
                       style={{ color: C.dark, fontFamily: "Heebo, sans-serif", textDecoration: "none" }}>
                       🪑 כרטיסי QR לשולחנות (להדפסה)
                     </a>
+                    <button onClick={async () => {
+                      setShowToolsMenu(false);
+                      const r = await fetch(`/api/admin/gallery/${selectedEventId}`);
+                      const d = r.ok ? await r.json() : null;
+                      if (d?.album?.public_token) window.open(`/wall/${d.album.public_token}`, "_blank");
+                      else alert("לאירוע אין עדיין אלבום גלריה");
+                    }}
+                      className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-amber-50 transition-colors"
+                      style={{ color: C.dark, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
+                      📺 קיר תמונות חי (למסך באולם)
+                    </button>
                     <button onClick={() => { setShowAnnounce(true); setShowToolsMenu(false); }}
                       className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-amber-50 transition-colors" style={{ color: C.gold, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
                       📢 פרסם עדכון לזוג
