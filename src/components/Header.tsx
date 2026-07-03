@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import Logo from "./Logo";
 
 const navLinks = [
+  { label: "✨ נסו בעצמכם", href: "/try"          },
   { label: "פיצ'רים",    href: "/features"      },
   { label: "✨ הזמנות",   href: "/invitations"   },
   { label: "שאלות",       href: "/faq"            },

@@ -19,6 +19,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: BASE,                  lastModified: now, changeFrequency: 'weekly',  priority: 1.0 },
     { url: `${BASE}/demo`,        lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
     { url: `${BASE}/event/demo`,  lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE}/try`,         lastModified: now, changeFrequency: 'monthly', priority: 0.9 },
+    { url: `${BASE}/pricing`,     lastModified: now, changeFrequency: 'monthly', priority: 0.9 },
+    { url: `${BASE}/weddings`,    lastModified: now, changeFrequency: 'weekly',  priority: 0.8 },
+    { url: `${BASE}/bar-mitzvah`, lastModified: now, changeFrequency: 'monthly', priority: 0.9 },
+    { url: `${BASE}/guides/rsvp-cost`,     lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${BASE}/guides/seating-guide`, lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${BASE}/terms`,       lastModified: now, changeFrequency: 'yearly',  priority: 0.3 },
   ];
 
   const categoryPages: MetadataRoute.Sitemap = CATEGORIES.map((cat) => ({
