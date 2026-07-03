@@ -1206,6 +1206,11 @@ export default function AdminPage() {
                       style={{ color: "#1A9B4E", fontFamily: "Heebo, sans-serif", textDecoration: "none" }}>
                       📨 עמדת שליחה (אחד-אחד עם מעקב)
                     </a>
+                    <a href={`/admin/checkin?event=${selectedEventId}`} onClick={() => setShowToolsMenu(false)}
+                      className="flex items-center gap-2 px-4 py-3 text-xs hover:bg-green-50 transition-colors font-semibold"
+                      style={{ color: "#4A7C59", fontFamily: "Heebo, sans-serif", textDecoration: "none" }}>
+                      🎊 עמדת קבלה (צ'ק-אין בכניסה)
+                    </a>
                     <a href={`/admin/qr?event=${selectedEventId}`} onClick={() => setShowToolsMenu(false)}
                       className="flex items-center gap-2 px-4 py-3 text-xs hover:bg-amber-50 transition-colors"
                       style={{ color: C.dark, fontFamily: "Heebo, sans-serif", textDecoration: "none" }}>
