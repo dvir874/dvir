@@ -16,6 +16,7 @@ const C = {
 };
 
 interface TodayData {
+  pipeline: { id: string; name: string; date: string | null; days: number | null; step: string; action: string; href: string; urgent: boolean }[];
   newLeads: number;
   staleLeads: string[];
   upcoming: { id: string; name: string; date: string; client_phone: string | null; couple_token: string | null }[];
@@ -115,6 +116,40 @@ export default function AdminTodayPage() {
                 <p style={{ fontSize: 12, color: C.muted, margin: "4px 0 0" }}>ממתין לגבייה</p>
               </div>
             </div>
+
+            {/* Pipeline — next step per event */}
+            {(data.pipeline ?? []).length > 0 && (
+              <Section title="🧭 הצעד הבא — לכל אירוע">
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {data.pipeline.map(e => (
+                    <a key={e.id} href={e.href} style={{ textDecoration: "none" }}>
+                      <div style={{
+                        padding: "12px 14px", borderRadius: 12,
+                        background: e.urgent ? "rgba(184,92,56,0.07)" : C.cream,
+                        border: `1.5px solid ${e.urgent ? "rgba(184,92,56,0.35)" : C.border}`,
+                      }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+                          <p style={{ fontSize: 14, fontWeight: 700, color: C.dark, margin: 0 }}>
+                            {e.urgent ? "🔥 " : ""}{e.name}
+                          </p>
+                          {e.days !== null && (
+                            <span style={{ fontSize: 12, color: C.muted, flexShrink: 0 }}>
+                              {e.days <= 0 ? "היום!" : `בעוד ${e.days} ימים`}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                          <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>{e.step}</p>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: C.goldT, flexShrink: 0, whiteSpace: "nowrap" }}>
+                            {e.action} ←
+                          </span>
+                        </div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </Section>
+            )}
 
             {/* Weddings this week */}
             {data.upcoming.length > 0 && (

@@ -76,7 +76,67 @@ export async function GET(_req: NextRequest) {
   /* Stale leads: waiting over 24h */
   const staleLeads = (leadsRes.data ?? []).filter(l => new Date(l.created_at).getTime() < now - 24 * 3600_000);
 
+  /* Per-event next step — the pipeline view.
+     Active = has a future date (or none) and isn't completed. */
+  const activeEvents = events.filter(e =>
+    e.status !== "completed" && (!e.date || new Date(e.date).getTime() > now - 86_400_000)
+  );
+  const activeIds = activeEvents.map(e => e.id);
+
+  const [allGuestsRes, allAssignRes] = await Promise.all([
+    activeIds.length
+      ? sb.from("guests").select("event_id, status, guest_count, response_time").in("event_id", activeIds)
+      : Promise.resolve({ data: [] as { event_id: string; status: string; guest_count: number; response_time: string | null }[] }),
+    activeIds.length
+      ? sb.from("seating_assignments").select("event_id, guest_id").in("event_id", activeIds)
+      : Promise.resolve({ data: [] as { event_id: string; guest_id: string }[] }),
+  ]);
+
+  const guestsByEvent = new Map<string, { total: number; responded: number; pending: number; confirmed: number }>();
+  for (const g of allGuestsRes.data ?? []) {
+    const e = guestsByEvent.get(g.event_id) ?? { total: 0, responded: 0, pending: 0, confirmed: 0 };
+    e.total += 1;
+    if (g.status === "pending") e.pending += 1; else e.responded += 1;
+    if (g.status === "confirmed") e.confirmed += 1;
+    guestsByEvent.set(g.event_id, e);
+  }
+  const seatedByEvent = new Map<string, number>();
+  for (const a of allAssignRes.data ?? []) {
+    seatedByEvent.set(a.event_id, (seatedByEvent.get(a.event_id) ?? 0) + 1);
+  }
+
+  const pipeline = activeEvents.map(e => {
+    const g = guestsByEvent.get(e.id) ?? { total: 0, responded: 0, pending: 0, confirmed: 0 };
+    const seated = seatedByEvent.get(e.id) ?? 0;
+    const days = e.date ? Math.ceil((new Date(e.date).getTime() - now) / 86_400_000) : null;
+
+    let step: string; let action: string; let href: string; let urgent = false;
+
+    if (g.total === 0) {
+      step = "אין רשימת אורחים"; action = "ייבאו אורחים"; href = `/admin?event=${e.id}`;
+    } else if (g.responded === 0) {
+      step = `${g.total} אורחים ברשימה — ההזמנות עוד לא נשלחו`; action = "שלחו הזמנות 🚀"; href = `/admin/send?event=${e.id}`;
+      urgent = days !== null && days < 45;
+    } else if (g.pending > 0 && (days === null || days > 7)) {
+      step = `${g.pending} ממתינים לתשובה (${Math.round((g.responded / g.total) * 100)}% ענו)`; action = "שלחו תזכורת"; href = `/admin/send?event=${e.id}`;
+      urgent = days !== null && days < 21;
+    } else if (g.confirmed > 0 && seated < g.confirmed && days !== null && days <= 14) {
+      step = `הושבה: ${seated}/${g.confirmed} שובצו`; action = "ודאו שהזוג סוגר הושבה"; href = `/admin?event=${e.id}`;
+      urgent = days <= 7;
+    } else if (days !== null && days <= 7 && seated >= g.confirmed && g.confirmed > 0) {
+      step = "הושבה סגורה — שלחו לאורחים את מספרי השולחן"; action = "עמדת שליחה"; href = `/admin/send?event=${e.id}`;
+    } else if (days !== null && days <= 2) {
+      step = "יומיים לאירוע!"; action = "הדפיסו QR + דף גיבוי"; href = `/admin/qr?event=${e.id}`;
+      urgent = true;
+    } else {
+      step = `הכל בשליטה (${g.confirmed} אישרו)`; action = "צפו באירוע"; href = `/admin?event=${e.id}`;
+    }
+
+    return { id: e.id, name: e.name, date: e.date, days, step, action, href, urgent };
+  }).sort((a, b) => (a.days ?? 999) - (b.days ?? 999));
+
   return NextResponse.json({
+    pipeline,
     newLeads: (leadsRes.data ?? []).length,
     staleLeads: staleLeads.map(l => l.name),
     upcoming,
