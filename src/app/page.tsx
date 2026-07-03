@@ -1,6 +1,6 @@
 import Header from "@/components/Header";
 import HeroWarm from "@/components/HeroWarm";
-import WhyUs from "@/components/WhyUs";
+import WhyUsWarm from "@/components/WhyUsWarm";
 import HowItWorks from "@/components/HowItWorks";
 import ComparisonSection from "@/components/ComparisonSection";
 import DashboardDemo from "@/components/DashboardDemo";
@@ -22,7 +22,7 @@ export default function Home() {
     <main className="relative">
       <Header />
       <HeroWarm />
-      <WhyUs />
+      <WhyUsWarm />
       <HowItWorks />
       <ComparisonSection />
       <DashboardDemo />
