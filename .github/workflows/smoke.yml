@@ -1,0 +1,21 @@
+name: Production smoke test
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # daily 06:00 UTC (09:00 IL)
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check critical pages respond
+        run: |
+          BASE="https://regalifnei.vercel.app"
+          FAIL=0
+          for path in "/" "/try" "/pricing" "/quote" "/terms" "/bar-mitzvah" "/religious" "/partners" "/weddings" "/guides/rsvp-cost" "/guides/seating-guide" "/api/health"; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "$BASE$path")
+            echo "$code  $path"
+            if [ "$code" != "200" ]; then FAIL=1; fi
+          done
+          exit $FAIL
