@@ -173,6 +173,38 @@ export default function GuestCenterPage() {
         </div>
       )}
 
+      {/* List health — missing phones, invalid numbers, duplicates */}
+      {!loading && guests.length > 0 && (() => {
+        const norm = (p: string) => p.replace(/\D/g, "").replace(/^972/, "0");
+        const noPhone = guests.filter(g => !g.phone?.trim());
+        const badPhone = guests.filter(g => {
+          const n = g.phone ? norm(g.phone) : "";
+          return n && !(n.length === 10 && n.startsWith("05"));
+        });
+        const seen = new Map<string, string>();
+        const dupes: string[] = [];
+        for (const g of guests) {
+          const n = g.phone ? norm(g.phone) : "";
+          if (!n) continue;
+          if (seen.has(n)) dupes.push(`${seen.get(n)} + ${g.name}`);
+          else seen.set(n, g.name);
+        }
+        const issues = [
+          noPhone.length > 0 && `📵 ${noPhone.length} ללא טלפון — לא יקבלו הזמנה (${noPhone.slice(0,2).map(g=>g.name).join(", ")}${noPhone.length>2?"...":""})`,
+          badPhone.length > 0 && `⚠️ ${badPhone.length} מספרים לא תקינים (${badPhone.slice(0,2).map(g=>g.name).join(", ")}${badPhone.length>2?"...":""})`,
+          dupes.length > 0 && `👯 ${dupes.length} כפילויות אפשריות — אותו מספר (${dupes.slice(0,2).join(" · ")}${dupes.length>2?"...":""})`,
+        ].filter(Boolean) as string[];
+        if (issues.length === 0) return null;
+        return (
+          <div style={{ margin:"0 16px 12px", background:"rgba(184,92,56,0.06)", border:"1.5px solid rgba(184,92,56,0.25)", borderRadius:14, padding:"12px 14px" }}>
+            <p style={{ fontFamily:"Heebo,sans-serif", fontSize:12, fontWeight:700, color:"#B85C38", margin:"0 0 6px" }}>בריאות הרשימה</p>
+            {issues.map((t,i) => (
+              <p key={i} style={{ fontFamily:"Heebo,sans-serif", fontSize:12, color:"#1C1008", margin:"0 0 3px", lineHeight:1.6 }}>{t}</p>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* E3-S9: Guest list */}
       <div role="list" aria-label="רשימת אורחים" style={{ padding:"0 16px" }}>
         {loading ? (

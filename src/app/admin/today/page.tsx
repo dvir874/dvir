@@ -16,7 +16,7 @@ const C = {
 };
 
 interface TodayData {
-  pipeline: { id: string; name: string; date: string | null; days: number | null; step: string; action: string; href: string; urgent: boolean }[];
+  pipeline: { id: string; name: string; date: string | null; days: number | null; step: string; action: string; href: string; urgent: boolean; notOpened?: number }[];
   newLeads: number;
   staleLeads: string[];
   upcoming: { id: string; name: string; date: string; client_phone: string | null; couple_token: string | null }[];
@@ -142,6 +142,18 @@ export default function AdminTodayPage() {
                           <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>{e.step}</p>
                           <span style={{ fontSize: 12, fontWeight: 700, color: C.goldT, flexShrink: 0, whiteSpace: "nowrap" }}>
                             {e.action} ←
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 6 }}>
+                          {(e.notOpened ?? 0) > 0 ? (
+                            <span style={{ fontSize: 11, color: C.red, fontWeight: 600 }}>
+                              👀 {e.notOpened} לא פתחו את ההזמנה כלל — ייתכן מספר שגוי
+                            </span>
+                          ) : <span />}
+                          <span
+                            onClick={(ev) => { ev.preventDefault(); window.open(`/api/admin/backup?event_id=${e.id}`, "_blank"); }}
+                            style={{ fontSize: 11, color: C.muted, cursor: "pointer", textDecoration: "underline", flexShrink: 0 }}>
+                            📦 גיבוי
                           </span>
                         </div>
                       </div>

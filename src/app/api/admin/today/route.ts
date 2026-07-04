@@ -85,19 +85,20 @@ export async function GET(_req: NextRequest) {
 
   const [allGuestsRes, allAssignRes] = await Promise.all([
     activeIds.length
-      ? sb.from("guests").select("event_id, status, guest_count, response_time").in("event_id", activeIds)
-      : Promise.resolve({ data: [] as { event_id: string; status: string; guest_count: number; response_time: string | null }[] }),
+      ? sb.from("guests").select("event_id, status, guest_count, response_time, opened_at").in("event_id", activeIds)
+      : Promise.resolve({ data: [] as { event_id: string; status: string; guest_count: number; response_time: string | null; opened_at?: string | null }[] }),
     activeIds.length
       ? sb.from("seating_assignments").select("event_id, guest_id").in("event_id", activeIds)
       : Promise.resolve({ data: [] as { event_id: string; guest_id: string }[] }),
   ]);
 
-  const guestsByEvent = new Map<string, { total: number; responded: number; pending: number; confirmed: number }>();
+  const guestsByEvent = new Map<string, { total: number; responded: number; pending: number; confirmed: number; notOpened: number }>();
   for (const g of allGuestsRes.data ?? []) {
-    const e = guestsByEvent.get(g.event_id) ?? { total: 0, responded: 0, pending: 0, confirmed: 0 };
+    const e = guestsByEvent.get(g.event_id) ?? { total: 0, responded: 0, pending: 0, confirmed: 0, notOpened: 0 };
     e.total += 1;
     if (g.status === "pending") e.pending += 1; else e.responded += 1;
     if (g.status === "confirmed") e.confirmed += 1;
+    if (g.status === "pending" && !(g as { opened_at?: string | null }).opened_at) e.notOpened += 1;
     guestsByEvent.set(g.event_id, e);
   }
   const seatedByEvent = new Map<string, number>();
@@ -106,7 +107,7 @@ export async function GET(_req: NextRequest) {
   }
 
   const pipeline = activeEvents.map(e => {
-    const g = guestsByEvent.get(e.id) ?? { total: 0, responded: 0, pending: 0, confirmed: 0 };
+    const g = guestsByEvent.get(e.id) ?? { total: 0, responded: 0, pending: 0, confirmed: 0, notOpened: 0 };
     const seated = seatedByEvent.get(e.id) ?? 0;
     const days = e.date ? Math.ceil((new Date(e.date).getTime() - now) / 86_400_000) : null;
 
@@ -132,7 +133,7 @@ export async function GET(_req: NextRequest) {
       step = `הכל בשליטה (${g.confirmed} אישרו)`; action = "צפו באירוע"; href = `/admin?event=${e.id}`;
     }
 
-    return { id: e.id, name: e.name, date: e.date, days, step, action, href, urgent };
+    return { id: e.id, name: e.name, date: e.date, days, step, action, href, urgent, notOpened: g.responded > 0 ? g.notOpened : 0 };
   }).sort((a, b) => (a.days ?? 999) - (b.days ?? 999));
 
   return NextResponse.json({

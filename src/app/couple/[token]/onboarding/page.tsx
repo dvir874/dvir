@@ -343,6 +343,9 @@ export default function OnboardingPage({ params }: { params: Promise<{ token: st
     );
   }
 
+  /* Optional intro video (Loom/YouTube embed URL) — set to enable the "איך זה עובד" button */
+  const INTRO_VIDEO_URL = "";
+
   /* ── Welcome (E3-S1) ─── */
   if (step === -1) {
     return (
@@ -361,6 +364,12 @@ export default function OnboardingPage({ params }: { params: Promise<{ token: st
           <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 32, color: C.dark, margin: "0 0 12px", lineHeight: 1.25, animation: "fadeUp 0.4s ease 0.1s both" }}>
             ברוכים הבאים לרגע לפני
           </h1>
+          {INTRO_VIDEO_URL && (
+            <a href={INTRO_VIDEO_URL} target="_blank" rel="noopener noreferrer"
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 16, padding: "9px 18px", background: "rgba(197,164,109,0.12)", border: `1.5px solid ${C.gold}`, borderRadius: 9999, fontSize: 13, fontWeight: 600, color: "#8B6914", textDecoration: "none", fontFamily: "Heebo, sans-serif" }}>
+              ▶️ 2 דקות — איך זה עובד
+            </a>
+          )}
           <p style={{ fontFamily: "Heebo, sans-serif", fontWeight: 300, fontSize: 18, color: C.muted, margin: "0 0 2.5rem", lineHeight: 1.6, animation: "fadeUp 0.4s ease 0.1s both" }}>
             המקום שבו חתונה הופכת לחוויה שלמה
           </p>

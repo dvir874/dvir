@@ -29,6 +29,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/partners`,    lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${BASE}/religious`,   lastModified: now, changeFrequency: 'monthly', priority: 0.9 },
     { url: `${BASE}/venues`,      lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE}/guides/compare`, lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${BASE}/dvir`,        lastModified: now, changeFrequency: 'yearly',  priority: 0.5 },
   ];
 
   const categoryPages: MetadataRoute.Sitemap = CATEGORIES.map((cat) => ({

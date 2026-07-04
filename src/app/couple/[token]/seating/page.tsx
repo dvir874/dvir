@@ -200,6 +200,19 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
                   📨 שלחו מספרי שולחן ({notifiable.length})
                 </button>
               )}
+              {data.tables.length > 0 && (
+                <button
+                  onClick={async () => {
+                    if (!confirm("סידור אוטומטי ימחק את השיבוצים הקיימים ויסדר מחדש לפי קבוצות. להמשיך?")) return;
+                    const res = await fetch(`/api/couple/${token}/seating/auto`, { method: "POST" });
+                    if (res.ok) { await load(); alert("הטיוטה מוכנה! עברו על השולחנות ותקנו לפי הצורך ✨"); }
+                    else alert("לא הצלחנו לסדר אוטומטית — נסו שוב או סדרו ידנית");
+                  }}
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "0.6rem 1.2rem", borderRadius: 12, border: "none", background: "rgba(255,255,255,0.15)", color: "#FFF8EC", cursor: "pointer", fontSize: 14, fontFamily: "Heebo, sans-serif", backdropFilter: "blur(8px)" }}
+                >
+                  🪄 סידור אוטומטי
+                </button>
+              )}
             </div>
           </div>
         </div>

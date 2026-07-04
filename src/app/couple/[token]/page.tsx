@@ -1038,6 +1038,30 @@ function BenchmarkBadge({ token }: { token: string }) {
   );
 }
 
+function ParentShareButton({ token }: { token: string }) {
+  const [busy, setBusy] = useState(false);
+  async function share() {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/couple/${token}/share-link`, { method: "POST" });
+      const d = await res.json();
+      if (d.share_token) {
+        const url = `${window.location.origin}/status/${d.share_token}`;
+        window.open(`https://wa.me/?text=${encodeURIComponent(`💍 רוצים לעקוב אחרי אישורי ההגעה לחתונה שלנו? הנה קישור צפייה:\n${url}`)}`, "_blank");
+      } else {
+        alert(d.error ?? "לא ניתן ליצור קישור כרגע");
+      }
+    } catch { alert("שגיאה — נסו שוב"); }
+    setBusy(false);
+  }
+  return (
+    <button onClick={share} disabled={busy}
+      style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%", marginBottom:12, padding:"12px", background:"#fff", border:"1.5px solid #E8E0D4", borderRadius:12, cursor:"pointer", fontFamily:"Heebo,sans-serif", fontSize:13, fontWeight:600, color:"#8B6914", opacity: busy ? 0.6 : 1 }}>
+      👨‍👩‍👧 שתפו קישור צפייה עם ההורים (מספרים בלבד, בלי עריכה)
+    </button>
+  );
+}
+
 function ActivityFeed({ token }: { token: string }) {
   const [items, setItems] = useState<ActivityItem[]>([]);
 
@@ -1404,6 +1428,9 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
 
         {/* Live activity feed */}
         <ActivityFeed token={token} />
+
+        {/* Parent read-only share */}
+        <ParentShareButton token={token} />
 
         {/* Milestone Cards */}
         <MilestoneList tasks={tasks} token={token} />

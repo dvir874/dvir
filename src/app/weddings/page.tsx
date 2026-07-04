@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PORTFOLIO } from "@/lib/weddings-portfolio";
+import { createServerClient } from "@/lib/supabase-server";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "החתונות שלנו — רגע לפני",
@@ -12,7 +15,13 @@ const C = {
   dark: "#1C1008", muted: "rgba(28,16,8,0.52)", border: "#E8E0D4",
 };
 
-export default function WeddingsPage() {
+export default async function WeddingsPage() {
+  const sb = createServerClient();
+  const [{ count: eventsCount }, { count: guestsCount }] = await Promise.all([
+    sb.from("events").select("id", { count: "exact", head: true }),
+    sb.from("guests").select("id", { count: "exact", head: true }),
+  ]);
+
   return (
     <div dir="rtl" style={{ minHeight: "100vh", background: C.ivory, fontFamily: "Heebo, sans-serif", color: C.dark }}>
       <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: "#fff" }}>
@@ -25,9 +34,15 @@ export default function WeddingsPage() {
         <h1 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 34, fontWeight: 900, textAlign: "center", margin: "0 0 10px" }}>
           החתונות שלנו
         </h1>
-        <p style={{ textAlign: "center", color: C.muted, fontSize: 16, margin: "0 0 48px", lineHeight: 1.7 }}>
+        <p style={{ textAlign: "center", color: C.muted, fontSize: 16, margin: "0 0 20px", lineHeight: 1.7 }}>
           זוגות אמיתיים, מספרים אמיתיים
         </p>
+
+        {(eventsCount ?? 0) > 0 && (
+          <p style={{ textAlign: "center", fontSize: 14, color: C.goldT, fontWeight: 600, margin: "0 0 40px" }}>
+            🎉 {eventsCount} אירועים · {(guestsCount ?? 0).toLocaleString()} אורחים נוהלו במערכת
+          </p>
+        )}
 
         {PORTFOLIO.length === 0 ? (
           <div style={{ textAlign: "center", background: C.cream, borderRadius: 24, padding: "56px 24px", border: `1px solid ${C.border}` }}>

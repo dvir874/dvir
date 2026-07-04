@@ -22,7 +22,7 @@ interface Guest {
   status: string;
   rsvp_token: string | null;
 }
-interface EventInfo { id: string; name: string; address?: string | null }
+interface EventInfo { id: string; name: string; address?: string | null; date?: string | null }
 
 type Filter = "all" | "pending" | "confirmed";
 
@@ -31,6 +31,7 @@ const TEMPLATES: { label: string; text: string }[] = [
   { label: "תזכורת RSVP",        text: "💍 משפחה וחברים יקרים!\n\n[שם], עדיין לא קיבלנו את אישורכם לחתונה של [אירוע] 🙏\n\nלחצו לאישור מהיר:\n[קישור]" },
   { label: "מחר החתונה!",        text: "💍 משפחה וחברים יקרים!\n\n[שם], מחר זה קורה! 🎉\nהחתונה של [אירוע]\n\nמחכים לראותכם! 🤍" },
   { label: "תודה שהגעתם",        text: "💍 משפחה וחברים יקרים!\n\n[שם], תודה שהייתם חלק מהיום המיוחד שלנו! ❤️" },
+  { label: "עדכון תאריך 📅",     text: "💍 משפחה וחברים יקרים!\n\n[שם], עדכון חשוב לגבי [אירוע]:\nהאירוע נדחה לתאריך חדש — [תאריך] 📅\n\nנשמח לדעת אם תוכלו להגיע במועד החדש:\n[קישור]\n\nתודה על ההבנה, מחכים לכם! 🤍" },
 ];
 
 function SendStation() {
@@ -78,6 +79,7 @@ function SendStation() {
     return template
       .replaceAll("[שם]", g.name)
       .replaceAll("[אירוע]", event?.name ?? "")
+      .replaceAll("[תאריך]", event?.date ? new Date(event.date).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "")
       .replaceAll("[קישור]", g.rsvp_token ? `${base}/rsvp/${g.rsvp_token}` : "");
   }
 
