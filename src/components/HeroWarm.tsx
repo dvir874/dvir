@@ -10,7 +10,7 @@
 
 import Image from "next/image";
 import { MessageCircle, Phone, Users, CheckCircle2, Clock, Gauge } from "lucide-react";
-import { WA_URL, WA_URL_DEMO } from "@/lib/constants";
+import { WA_URL } from "@/lib/constants";
 
 const KPIS = [
   { label: "מוזמנים", value: "287", Icon: Users, bar: "" },
@@ -58,7 +58,7 @@ export default function HeroWarm() {
           </h1>
 
           <p className="max-w-md font-body text-lg font-light text-ink/60">
-            מהרגע שהתארסתם ועד הרבה אחרי האירוע. לא עוד אקסלים ווואטסאפ — מערכת שמלווה אתכם לאורך כל הדרך.
+            מהרגע שהתארסתם ועד הרבה אחרי האירוע. לא עוד אקסלים וקבוצות וואטסאפ — מערכת שמלווה אתכם לאורך כל הדרך.
           </p>
 
           {/* Trust bar */}
@@ -80,10 +80,10 @@ export default function HeroWarm() {
               קבלו הצעת מחיר. תוך 24 שעות
             </a>
             <a
-              href={WA_URL_DEMO}
+              href="/try"
               className="inline-flex items-center justify-center gap-2 rounded-pill border border-gold px-8 py-4 font-body text-[15px] font-semibold text-gold transition-colors hover:bg-gold/10"
             >
-              ראו דמו חי
+              ראו דמו חי ✨
             </a>
           </div>
 

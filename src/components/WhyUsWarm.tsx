@@ -111,7 +111,7 @@ export default function WhyUsWarm() {
             </div>
             <h3 className="font-display text-2xl font-bold text-ink mb-2">ליווי אישי שאחרים לא נותנים</h3>
             <p className="font-body text-[15px] font-light text-ink/60 leading-relaxed">
-              דבר זמין בוואטסאפ לכל שאלה. לא בוט, לא מוקד שירות. אדם אחד שמכיר את האירוע שלכם ועוזר מהרגע הראשון.
+              דביר זמין בוואטסאפ לכל שאלה. לא בוט, לא מוקד שירות. אדם אחד שמכיר את האירוע שלכם ועוזר מהרגע הראשון.
             </p>
           </article>
         </div>
