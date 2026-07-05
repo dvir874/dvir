@@ -36,7 +36,7 @@ export default function AboutWarm() {
         <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
           {/* text */}
           <div>
-            <p className="font-body text-[13px] font-semibold uppercase tracking-[0.22em] text-gold">למה רגע לפני</p>
+            <p className="font-body text-[13px] font-semibold uppercase tracking-[0.22em] text-gold">מי מאחורי המערכת</p>
             <h2 className="mt-4 font-display text-4xl lg:text-6xl font-black leading-tight text-ink">
               תכנון חתונה —<br />בלי כאב ראש
             </h2>
