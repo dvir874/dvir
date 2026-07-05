@@ -1,4 +1,4 @@
-import Header from "@/components/Header";
+import HeaderWarm from "@/components/HeaderWarm";
 import HeroWarm from "@/components/HeroWarm";
 import WhyUsWarm from "@/components/WhyUsWarm";
 import HowItWorksWarm from "@/components/HowItWorksWarm";
@@ -17,7 +17,7 @@ import StickyMobileCTA from "@/components/StickyMobileCTA";
 export default function Home() {
   return (
     <main className="relative">
-      <Header />
+      <HeaderWarm />
       <HeroWarm />
       <WhyUsWarm />
       <div id="how"><HowItWorksWarm /></div>
