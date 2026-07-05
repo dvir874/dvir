@@ -47,7 +47,7 @@ export default function HeaderWarm() {
     <header
       dir="rtl"
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-        scrolled ? "bg-ivory/95 backdrop-blur-md shadow-[0_2px_20px_rgba(28,16,8,0.06)] border-b border-gold/20" : "bg-transparent"
+        scrolled ? "bg-ivory/95 backdrop-blur-md shadow-[0_2px_20px_rgba(28,16,8,0.06)] border-b border-gold/20" : "bg-ivory/90 backdrop-blur-sm"
       }`}
     >
       {/* subtle scrim for legibility over the bright hero photo on mobile (top state only) */}
