@@ -45,7 +45,7 @@ export default function WhyUsWarm() {
               <Image src="/redesign/whyus-dashboard.webp" alt="לוח הבקרה של רגע לפני" fill className="object-cover" sizes="(max-width:768px) 100vw, 58vw" />
             </div>
             <div className="p-7">
-              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gold/12 text-gold">
+              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gold/10 text-gold">
                 <LayoutGrid className="w-5 h-5" />
               </div>
               <h3 className="font-display text-2xl font-bold text-ink mb-2">הכל במקום אחד — ממש הכל</h3>
@@ -57,7 +57,7 @@ export default function WhyUsWarm() {
 
           {/* 2 — שקט נפשי (5) */}
           <article className="col-span-12 md:col-span-5 rounded-card bg-surface-raised shadow-card p-7">
-            <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gold/12 text-gold">
+            <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gold/10 text-gold">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <h3 className="font-display text-2xl font-bold text-ink mb-2">שקט נפשי אמיתי</h3>
@@ -68,7 +68,7 @@ export default function WhyUsWarm() {
 
           {/* 3 — לא עוד כלי (4) */}
           <article className="col-span-12 md:col-span-4 rounded-card bg-surface-raised shadow-card p-7">
-            <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gold/12 text-gold">
+            <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gold/10 text-gold">
               <Heart className="w-5 h-5" />
             </div>
             <h3 className="font-display text-xl font-bold text-ink mb-2">לא עוד כלי. שותף לדרך</h3>
@@ -94,7 +94,7 @@ export default function WhyUsWarm() {
               <Image src="/redesign/whyus-memories.webp" alt="אלבום זיכרונות מהחתונה" fill className="object-cover" sizes="(max-width:768px) 100vw, 58vw" />
             </div>
             <div className="p-7">
-              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gold/12 text-gold">
+              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gold/10 text-gold">
                 <Camera className="w-5 h-5" />
               </div>
               <h3 className="font-display text-2xl font-bold text-ink mb-2">מהאירוסין ועד הזיכרון</h3>
@@ -106,7 +106,7 @@ export default function WhyUsWarm() {
 
           {/* 6 — ליווי אישי (5) */}
           <article className="col-span-12 md:col-span-5 rounded-card bg-surface-raised shadow-card p-7 flex flex-col justify-center">
-            <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gold/12 text-gold">
+            <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gold/10 text-gold">
               <MessageCircle className="w-5 h-5" />
             </div>
             <h3 className="font-display text-2xl font-bold text-ink mb-2">ליווי אישי שאחרים לא נותנים</h3>

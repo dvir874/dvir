@@ -18,7 +18,7 @@ const ROWS: { feature: string; manual: boolean; ragah: boolean }[] = [
 
 function Mark({ ok }: { ok: boolean }) {
   return ok ? (
-    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-olive/12 text-olive">
+    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-olive/10 text-olive">
       <Check className="w-4 h-4" />
     </span>
   ) : (

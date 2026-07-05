@@ -35,7 +35,7 @@ export default function EventTypesWarm() {
                 feature ? "md:row-span-2 flex flex-col justify-center" : ""
               }`}
             >
-              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gold/12 text-gold">
+              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gold/10 text-gold">
                 <Icon className="w-5 h-5" />
               </div>
               <h3 className={`font-display font-bold text-ink mb-2 ${feature ? "text-3xl" : "text-xl"}`}>{title}</h3>

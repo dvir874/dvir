@@ -46,7 +46,7 @@ export default function FAQWarm() {
                   aria-expanded={isOpen}
                 >
                   <span className="font-display text-lg font-bold text-ink">{q}</span>
-                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold/12 text-gold">
+                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold/10 text-gold">
                     {isOpen ? <Minus className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                   </span>
                 </button>

@@ -57,7 +57,7 @@ export default function AboutWarm() {
               <div className="grid gap-3 sm:grid-cols-2">
                 {GET.map((g) => (
                   <div key={g} className="flex items-center gap-2 font-body text-[14px] text-ink/75">
-                    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-olive/12 text-olive">
+                    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-olive/10 text-olive">
                       <Check className="w-3.5 h-3.5" />
                     </span>
                     {g}
