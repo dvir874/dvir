@@ -10,11 +10,25 @@ import Link from "next/link";
 const NAV = [
   { label: "פיצ'רים", href: "#features" },
   { label: "איך זה עובד", href: "#how" },
-  { label: "שאלות נפוצות", href: "#faq" },
+  { label: "מחשבון מחיר", href: "/pricing" },
+  { label: "✨ דמו חי", href: "/try" },
   { label: "צור קשר", href: "#contact" },
 ];
 
-const EVENTS = ["חתונות", "אירוסין", "חינה", "בר מצווה", "בת מצווה"];
+const EVENTS = [
+  { label: "חתונות", href: "/" },
+  { label: "חתונה דתית", href: "/religious" },
+  { label: "בר/בת מצווה", href: "/bar-mitzvah" },
+  { label: "החתונות שלנו", href: "/weddings" },
+];
+
+const RESOURCES = [
+  { label: "כמה עולים אישורי הגעה?", href: "/guides/rsvp-cost" },
+  { label: "מדריך סידורי הושבה", href: "/guides/seating-guide" },
+  { label: "תוכנית שותפים לספקים", href: "/partners" },
+  { label: "לאולמות ומפיקים", href: "/venues" },
+  { label: "תנאי שירות", href: "/terms" },
+];
 
 export default function FooterWarm() {
   return (
@@ -49,7 +63,13 @@ export default function FooterWarm() {
           <h4 className="mb-4 font-display text-lg font-bold text-white">אירועים</h4>
           <ul className="space-y-2">
             {EVENTS.map((e) => (
-              <li key={e}><span className="font-body text-[14px] text-white/60">{e}</span></li>
+              <li key={e.label}><Link href={e.href} className="font-body text-[14px] text-white/60 hover:text-primary-soft">{e.label}</Link></li>
+            ))}
+          </ul>
+          <h4 className="mb-4 mt-8 font-display text-lg font-bold text-white">מדריכים ושותפים</h4>
+          <ul className="space-y-2">
+            {RESOURCES.map((e) => (
+              <li key={e.label}><Link href={e.href} className="font-body text-[14px] text-white/60 hover:text-primary-soft">{e.label}</Link></li>
             ))}
           </ul>
         </div>

@@ -421,7 +421,7 @@ export default function Hero() {
                 className="btn-primary w-full sm:w-auto justify-center"
               >
                 <MessageCircle size={17} strokeWidth={2} />
-                קבלו הצעת מחיר. תוך 24 שעות
+                קבלו הצעת מחיר תוך 24 שעות
               </a>
               <a href="/dashboard-demo" target="_blank" rel="noopener noreferrer" className="btn-outline w-full sm:w-auto justify-center">
                 <span>ראו דמו חי</span>

@@ -77,7 +77,7 @@ export default function HeroWarm() {
               className="inline-flex items-center justify-center gap-2 rounded-pill bg-gold px-8 py-4 font-body text-[15px] font-semibold text-ink shadow-raised transition-colors hover:bg-primary-soft"
             >
               <MessageCircle className="w-5 h-5" />
-              קבלו הצעת מחיר. תוך 24 שעות
+              קבלו הצעת מחיר תוך 24 שעות
             </a>
             <a
               href="/try"
