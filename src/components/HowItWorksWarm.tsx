@@ -47,19 +47,19 @@ export default function HowItWorksWarm() {
         <div className="grid gap-10 lg:grid-cols-3 lg:gap-8">
           {STEPS.map(({ n, Icon, title, body }) => (
             <div key={n} className="relative">
-              <span
-                className="pointer-events-none absolute -top-6 right-0 font-display text-[110px] font-black leading-none text-gold/12 select-none"
-                aria-hidden
-              >
-                {n}
-              </span>
-              <div className="relative pt-10">
-                <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-gold text-white shadow-raised">
+              <div className="mb-4 flex items-center gap-4">
+                <div className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gold text-white shadow-raised">
                   <Icon className="w-6 h-6" />
                 </div>
-                <h3 className="font-display text-2xl font-bold text-ink mb-2">{title}</h3>
-                <p className="font-body text-[15px] font-light text-ink/60 leading-relaxed">{body}</p>
+                <span
+                  className="font-display text-5xl font-black leading-none text-gold/30 select-none"
+                  aria-hidden
+                >
+                  {n}
+                </span>
               </div>
+              <h3 className="font-display text-2xl font-bold text-ink mb-2">{title}</h3>
+              <p className="font-body text-[15px] font-light text-ink/60 leading-relaxed">{body}</p>
             </div>
           ))}
         </div>

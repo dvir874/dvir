@@ -10,10 +10,12 @@ import { WA_URL } from "@/lib/constants";
 
 function StepHead({ n, title }: { n: string; title: string }) {
   return (
-    <div className="relative mb-6">
-      <span className="pointer-events-none absolute -top-8 -right-2 font-display text-[96px] font-black leading-none text-gold/12 select-none" aria-hidden>{n}</span>
-      <p className="relative font-body text-[13px] font-semibold uppercase tracking-[0.2em] text-gold">שלב {n}</p>
-      <h3 className="relative mt-1 font-display text-2xl lg:text-3xl font-bold text-ink">{title}</h3>
+    <div className="mb-6 flex items-baseline gap-3">
+      <span className="font-display text-5xl font-black leading-none text-gold/30 select-none" aria-hidden>{n}</span>
+      <div>
+        <p className="font-body text-[13px] font-semibold uppercase tracking-[0.2em] text-gold">שלב {n}</p>
+        <h3 className="mt-1 font-display text-2xl lg:text-3xl font-bold text-ink">{title}</h3>
+      </div>
     </div>
   );
 }
