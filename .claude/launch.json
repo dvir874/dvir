@@ -4,9 +4,12 @@
     {
       "name": "raga-lifnei",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 3000,
-      "autoPort": false
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 3210,
+      "autoPort": true
     }
   ]
 }

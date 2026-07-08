@@ -9,6 +9,7 @@
  */
 
 import Image from "next/image";
+import { useState, useEffect } from "react";
 import { MessageCircle, Phone, Users, CheckCircle2, Clock, Gauge } from "lucide-react";
 import { WA_URL } from "@/lib/constants";
 
@@ -23,7 +24,26 @@ function Dot() {
   return <span className="inline-block w-1.5 h-1.5 rounded-full bg-gold" aria-hidden />;
 }
 
+/* Live countdown to the demo wedding date (16.10.2026, 19:30) */
+function useCountdown(target: number) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const diff = Math.max(0, target - now);
+  const days = Math.floor(diff / 86_400_000);
+  const hours = Math.floor((diff % 86_400_000) / 3_600_000);
+  const mins = Math.floor((diff % 3_600_000) / 60_000);
+  const secs = Math.floor((diff % 60_000) / 1000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return { days, hours: pad(hours), mins: pad(mins), secs: pad(secs) };
+}
+
+const DEMO_WEDDING = new Date("2026-10-16T19:30:00+03:00").getTime();
+
 export default function HeroWarm() {
+  const cd = useCountdown(DEMO_WEDDING);
   return (
     <section dir="rtl" className="relative w-full overflow-hidden bg-ivory">
       {/* Hand-drawn olive branch — editorial background accent (desktop only) */}
@@ -108,7 +128,7 @@ export default function HeroWarm() {
           <div className="absolute inset-0 bg-gradient-to-t from-ivory/85 via-ivory/10 to-transparent lg:hidden" />
 
           {/* Floating glass dashboard panel */}
-          <div className="absolute -bottom-10 lg:bottom-16 right-4 lg:-right-12 w-[92%] lg:w-[440px] rounded-[24px] border border-cream bg-white/90 p-6 shadow-modal backdrop-blur-md">
+          <div className="absolute -bottom-10 lg:bottom-10 right-4 lg:-right-28 xl:-right-[340px] w-[92%] lg:w-[420px] rounded-[24px] border border-cream bg-white/95 p-6 shadow-modal backdrop-blur-md">
             {/* Countdown header */}
             <div className="flex items-start justify-between border-b border-cream pb-4">
               <div>
@@ -121,9 +141,9 @@ export default function HeroWarm() {
                 className="font-display text-3xl font-black tracking-tight text-gold"
                 style={{ fontVariantNumeric: "tabular-nums" }}
               >
-                109<span className="text-xl text-ink/40">:</span>06
-                <span className="text-xl text-ink/40">:</span>39
-                <span className="text-xl text-ink/40">:</span>22
+                {cd.days}<span className="text-xl text-ink/40">:</span>{cd.hours}
+                <span className="text-xl text-ink/40">:</span>{cd.mins}
+                <span className="text-xl text-ink/40">:</span>{cd.secs}
               </div>
             </div>
 
