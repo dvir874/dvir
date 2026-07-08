@@ -5,6 +5,10 @@
 @tailwind utilities;
 
 :root {
+  /* The site is light-only — blocks mobile browsers' "auto dark mode"
+     from force-inverting guest-facing pages (RSVP, join, gallery) */
+  color-scheme: only light;
+
   /* Legacy tokens — kept for backward compatibility with non-RSVP pages */
   --cream: #F6F1E8;
   --olive: #6B7B5A;
