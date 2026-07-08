@@ -9,41 +9,14 @@
  */
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
-import { MessageCircle, Phone, Users, CheckCircle2, Clock, Gauge, ShieldCheck, Sparkles, Heart } from "lucide-react";
+import { MessageCircle, Phone, ShieldCheck, Sparkles, Clock, Heart } from "lucide-react";
 import { WA_URL } from "@/lib/constants";
-
-const KPIS = [
-  { label: "מוזמנים", value: "287", Icon: Users, bar: "" },
-  { label: "אישרו", value: "214", Icon: CheckCircle2, bar: "bg-olive" },
-  { label: "ממתינים", value: "41", Icon: Clock, bar: "bg-gold" },
-  { label: "אחוז מענה", value: "75%", Icon: Gauge, bar: "bg-gold" },
-];
 
 function Dot() {
   return <span className="inline-block w-1.5 h-1.5 rounded-full bg-gold" aria-hidden />;
 }
 
-/* Live countdown to the demo wedding date (16.10.2026, 19:30) */
-function useCountdown(target: number) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
-  const diff = Math.max(0, target - now);
-  const days = Math.floor(diff / 86_400_000);
-  const hours = Math.floor((diff % 86_400_000) / 3_600_000);
-  const mins = Math.floor((diff % 3_600_000) / 60_000);
-  const secs = Math.floor((diff % 60_000) / 1000);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return { days, hours: pad(hours), mins: pad(mins), secs: pad(secs) };
-}
-
-const DEMO_WEDDING = new Date("2026-10-16T19:30:00+03:00").getTime();
-
 export default function HeroWarm() {
-  const cd = useCountdown(DEMO_WEDDING);
   return (
     <section dir="rtl" className="relative w-full overflow-hidden bg-ivory">
       {/* Hand-drawn olive branch — editorial background accent (desktop only) */}
@@ -125,65 +98,7 @@ export default function HeroWarm() {
             className="object-cover lg:rounded-bl-[100px]"
           />
           {/* Warm gradient for legibility on mobile */}
-          <div className="absolute inset-0 bg-gradient-to-t from-ivory/85 via-ivory/10 to-transparent lg:hidden" />
-
-          {/* Golden glow behind the floating panel — makes it levitate */}
-          <div
-            className="pointer-events-none absolute -bottom-4 right-2 lg:-bottom-2 lg:-right-16 xl:-right-[240px] h-72 w-72 lg:h-96 lg:w-96 rounded-full bg-gold/30 blur-[100px]"
-            aria-hidden
-          />
-
-          {/* Floating glass dashboard panel */}
-          <div className="absolute -bottom-10 lg:bottom-10 right-4 lg:-right-28 xl:-right-[340px] w-[92%] lg:w-[420px] rounded-[24px] border border-white/60 bg-white/95 p-6 shadow-[0_40px_90px_-25px_rgba(28,16,8,0.5)] ring-1 ring-gold/10 backdrop-blur-md">
-            {/* Countdown header */}
-            <div className="flex items-start justify-between border-b border-cream pb-4">
-              <div>
-                <h3 className="font-display text-xl font-bold text-ink">חתונת נועה ואורי</h3>
-                <p className="mt-1 font-body text-[11px] uppercase tracking-wider text-ink/50">
-                  זמן נותר
-                </p>
-              </div>
-              <div
-                className="font-display text-3xl font-black tracking-tight text-gold"
-                style={{ fontVariantNumeric: "tabular-nums" }}
-              >
-                {cd.days}<span className="text-xl text-ink/40">:</span>{cd.hours}
-                <span className="text-xl text-ink/40">:</span>{cd.mins}
-                <span className="text-xl text-ink/40">:</span>{cd.secs}
-              </div>
-            </div>
-
-            {/* KPI bento grid */}
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              {KPIS.map(({ label, value, Icon, bar }) => (
-                <div
-                  key={label}
-                  className="relative overflow-hidden rounded-xl bg-ivory/70 p-4 shadow-card"
-                >
-                  {bar && <span className={`absolute right-0 top-0 h-full w-1.5 ${bar}`} />}
-                  <div className="mb-2 flex items-center gap-2">
-                    <Icon className={`w-4 h-4 ${bar === "bg-gold" ? "text-gold" : "text-olive"}`} />
-                    <span className="font-body text-[11px] uppercase text-ink/50">{label}</span>
-                  </div>
-                  <div className="font-display text-2xl font-bold text-ink">{value}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Footer status */}
-            <div className="mt-4 flex items-center justify-between font-body text-[11px] text-ink/50">
-              <div className="flex items-center gap-2">
-                <div className="h-1.5 w-24 overflow-hidden rounded-full bg-cream">
-                  <div className="h-full w-3/4 bg-olive" />
-                </div>
-                <span>75%</span>
-              </div>
-              <span className="flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-olive" />
-                17 תזכורות נשלחו
-              </span>
-            </div>
-          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-ivory/70 via-transparent to-transparent lg:hidden" />
         </div>
       </div>
 

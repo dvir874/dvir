@@ -1,5 +1,6 @@
 import HeaderWarm from "@/components/HeaderWarm";
 import HeroWarm from "@/components/HeroWarm";
+import LiveSnapshot from "@/components/LiveSnapshot";
 import WhyUsWarm from "@/components/WhyUsWarm";
 import ShowcaseBand from "@/components/ShowcaseBand";
 import HowItWorksWarm from "@/components/HowItWorksWarm";
@@ -23,6 +24,9 @@ export default function Home() {
     <main className="relative">
       <HeaderWarm />
       <HeroWarm />
+
+      {/* live countdown + RSVP snapshot — relocated out of the hero photo */}
+      <LiveSnapshot />
 
       <FadeIn><WhyUsWarm /></FadeIn>
 
