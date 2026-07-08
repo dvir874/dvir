@@ -20,6 +20,7 @@ interface Guest {
   id: string; name: string; status: string; guest_count: number;
   meal_preference?: string | null; meal_note?: string | null;
   meal_counts?: Record<string, number> | null;
+  chuppah_only?: boolean | null;
 }
 interface SeatingTable { id: string; name: string; capacity: number }
 
@@ -46,7 +47,10 @@ export default function VenueReportPage() {
     }).catch(() => setLoading(false));
   }, [token]);
 
-  const confirmed = useMemo(() => guests.filter(g => g.status === "confirmed"), [guests]);
+  const allConfirmed = useMemo(() => guests.filter(g => g.status === "confirmed"), [guests]);
+  const chuppahOnly = allConfirmed.filter(g => g.chuppah_only);
+  const chuppahPeople = chuppahOnly.reduce((s, g) => s + (g.guest_count ?? 1), 0);
+  const confirmed = useMemo(() => allConfirmed.filter(g => !g.chuppah_only), [allConfirmed]);
   const totalAttendees = confirmed.reduce((s, g) => s + (g.guest_count ?? 1), 0);
 
   /* Meal totals: prefer per-guest meal_counts; fallback to meal_preference × party size */
@@ -124,6 +128,7 @@ export default function VenueReportPage() {
             <div style={{ background: C.cream, borderRadius: 14, padding: "16px 8px" }}>
               <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 34, fontWeight: 900, color: C.green, margin: 0, lineHeight: 1 }}>{totalAttendees}</p>
               <p style={{ fontSize: 13, color: C.muted, margin: "6px 0 0" }}>סועדים (אישרו)</p>
+              {chuppahPeople > 0 && <p style={{ fontSize: 11, color: C.goldT, margin: "4px 0 0", fontWeight: 600 }}>+ {chuppahPeople} רק לחופה 💍</p>}
             </div>
             <div style={{ background: C.cream, borderRadius: 14, padding: "16px 8px" }}>
               <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 34, fontWeight: 900, color: C.goldT, margin: 0, lineHeight: 1 }}>{confirmed.length}</p>

@@ -24,7 +24,7 @@ function JoinInner({ params }: { params: Promise<{ token: string }> }) {
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [attending, setAttending] = useState<boolean | null>(null);
+  const [attending, setAttending] = useState<"yes" | "no" | "chuppah" | null>(null);
   const [count, setCount] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -111,19 +111,23 @@ function JoinInner({ params }: { params: Promise<{ token: string }> }) {
               style={{ width: "100%", boxSizing: "border-box", padding: "14px 16px", border: `1.5px solid ${T.border}`, borderRadius: 12, fontSize: 16, fontFamily: "'Heebo', sans-serif", background: "#fff", color: T.dark, marginBottom: 20, textAlign: "right" }} />
 
             {/* Attending */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: attending ? 20 : 24 }}>
-              <button type="button" onClick={() => setAttending(a => a === false ? null : false)}
-                style={{ padding: "16px 12px", borderRadius: 16, cursor: "pointer", textAlign: "center", border: `2px solid ${attending === false ? "#B85C38" : T.border}`, background: attending === false ? "rgba(184,92,56,0.08)" : T.cream, fontFamily: "'Frank Ruhl Libre', serif", fontSize: 15, fontWeight: 700, color: attending === false ? "#B85C38" : T.dark }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+              <button type="button" onClick={() => setAttending(a => a === "no" ? null : "no")}
+                style={{ padding: "16px 12px", borderRadius: 16, cursor: "pointer", textAlign: "center", border: `2px solid ${attending === "no" ? "#B85C38" : T.border}`, background: attending === "no" ? "rgba(184,92,56,0.08)" : T.cream, fontFamily: "'Frank Ruhl Libre', serif", fontSize: 15, fontWeight: 700, color: attending === "no" ? "#B85C38" : T.dark }}>
                 ✗ לא אגיע
               </button>
-              <button type="button" onClick={() => setAttending(a => a === true ? null : true)}
-                style={{ padding: "16px 12px", borderRadius: 16, cursor: "pointer", textAlign: "center", border: `2px solid ${attending === true ? T.gold : T.border}`, background: attending === true ? T.gold : T.cream, fontFamily: "'Frank Ruhl Libre', serif", fontSize: 15, fontWeight: 700, color: attending === true ? "#fff" : T.dark }}>
+              <button type="button" onClick={() => setAttending(a => a === "yes" ? null : "yes")}
+                style={{ padding: "16px 12px", borderRadius: 16, cursor: "pointer", textAlign: "center", border: `2px solid ${attending === "yes" ? T.gold : T.border}`, background: attending === "yes" ? T.gold : T.cream, fontFamily: "'Frank Ruhl Libre', serif", fontSize: 15, fontWeight: 700, color: attending === "yes" ? "#fff" : T.dark }}>
                 ✓ מגיע/ה!
               </button>
             </div>
+            <button type="button" onClick={() => setAttending(a => a === "chuppah" ? null : "chuppah")}
+              style={{ width: "100%", padding: "13px 12px", borderRadius: 14, cursor: "pointer", textAlign: "center", border: `2px solid ${attending === "chuppah" ? T.goldT : T.border}`, background: attending === "chuppah" ? "rgba(139,105,20,0.08)" : T.cream, fontFamily: "'Heebo', sans-serif", fontSize: 14, fontWeight: attending === "chuppah" ? 700 : 500, color: attending === "chuppah" ? T.goldT : T.dark, marginBottom: attending ? 20 : 24 }}>
+              💍 אגיע רק לחופה
+            </button>
 
             {/* Count */}
-            {attending && (
+            {(attending === "yes" || attending === "chuppah") && (
               <div style={{ marginBottom: 24, animation: "fadeUp 0.25s ease both" }}>
                 <p style={{ fontSize: 13, fontWeight: 600, color: T.dark, textAlign: "center", margin: "0 0 4px" }}>כמה תגיעו?</p>
                 <p style={{ fontSize: 11, fontWeight: 300, color: T.muted, textAlign: "center", margin: "0 0 10px" }}>כולל אתכם</p>
@@ -154,13 +158,13 @@ function JoinInner({ params }: { params: Promise<{ token: string }> }) {
         {screen === "done" && (
           <div style={{ textAlign: "center", paddingTop: 40, animation: "fadeUp 0.4s ease both" }}>
             <div style={{ width: 76, height: 76, borderRadius: "50%", background: T.gold, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: 34, color: "#fff" }}>
-              {attending ? "✓" : "♡"}
+              {attending === "no" ? "♡" : "✓"}
             </div>
             <h2 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 26, fontWeight: 700, color: T.dark, margin: "0 0 8px" }}>
-              {attending ? "נתראה בשמחות! 🥂" : "תודה על העדכון 💛"}
+              {attending === "no" ? "תודה על העדכון 💛" : attending === "chuppah" ? "נתראה בחופה! 💍" : "נתראה בשמחות! 🥂"}
             </h2>
             <p style={{ color: T.muted, fontSize: 15, lineHeight: 1.7, margin: "0 0 24px" }}>
-              {attending ? `${count} מקומות נשמרו — הזוג קיבל את האישור שלכם` : "הזוג קיבל את תשובתכם"}
+              {attending === "no" ? "הזוג קיבל את תשובתכם" : attending === "chuppah" ? "עדכנו את הזוג שתגיעו לטקס — מרגש שתהיו שם" : `${count} מקומות נשמרו — הזוג קיבל את האישור שלכם`}
             </p>
             {myToken && (
               <a href={`/rsvp/${myToken}`}
