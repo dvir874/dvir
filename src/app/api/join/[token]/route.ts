@@ -50,7 +50,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const cleanPhone = phone.replace(/\D/g, "").slice(0, 20);
   const status = attending ? "confirmed" : "declined";
-  const groupPatch = group?.trim() ? { source_group: group.trim() } : {};
+  const groupPatch = { source_group: group?.trim() || "קישור פתוח" };
 
   /* Dedupe: same phone already registered for this event → update the answer */
   const { data: existing } = await sb

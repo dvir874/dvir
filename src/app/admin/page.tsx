@@ -1227,10 +1227,9 @@ export default function AdminPage() {
                       });
                       const d = r.ok ? await r.json() : null;
                       if (!d?.token) { alert(d?.error ?? "שגיאה ביצירת הקישור"); return; }
-                      const group = prompt("שם הקבוצה (למשל: הישיבה, השכבה של דנה) — יופיע כתיוג על כל מי שנרשם:");
-                      const url = `${window.location.origin}/join/${d.token}${group?.trim() ? `?g=${encodeURIComponent(group.trim())}` : ""}`;
+                      const url = `${window.location.origin}/join/${d.token}`;
                       await navigator.clipboard?.writeText(url);
-                      alert(`הקישור הועתק! 📋\n\n${url}\n\nשלחו אותו לקבוצה — כל אחד ימלא את הפרטים שלו והתשובות ייכנסו ישר לרשימה.`);
+                      alert(`הקישור הועתק! 📋\n\n${url}\n\nשלחו אותו לכמה קבוצות שרוצים — כל אחד ימלא את הפרטים שלו והתשובות ייכנסו ישר לרשימה.`);
                     }}
                       className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-green-50 transition-colors font-semibold"
                       style={{ color: "#1A9B4E", fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
