@@ -1218,6 +1218,24 @@ export default function AdminPage() {
                       style={{ color: "#4A7C59", fontFamily: "Heebo, sans-serif", textDecoration: "none" }}>
                       🎊 עמדת קבלה (צ'ק-אין בכניסה)
                     </a>
+                    <button onClick={async () => {
+                      setShowToolsMenu(false);
+                      const r = await fetch("/api/admin/open-link", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ event_id: selectedEventId }),
+                      });
+                      const d = r.ok ? await r.json() : null;
+                      if (!d?.token) { alert(d?.error ?? "שגיאה ביצירת הקישור"); return; }
+                      const group = prompt("שם הקבוצה (למשל: הישיבה, השכבה של דנה) — יופיע כתיוג על כל מי שנרשם:");
+                      const url = `${window.location.origin}/join/${d.token}${group?.trim() ? `?g=${encodeURIComponent(group.trim())}` : ""}`;
+                      await navigator.clipboard?.writeText(url);
+                      alert(`הקישור הועתק! 📋\n\n${url}\n\nשלחו אותו לקבוצה — כל אחד ימלא את הפרטים שלו והתשובות ייכנסו ישר לרשימה.`);
+                    }}
+                      className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-green-50 transition-colors font-semibold"
+                      style={{ color: "#1A9B4E", fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
+                      🔗 קישור פתוח לקבוצות (הרשמה עצמית)
+                    </button>
                     <a href={`/admin/print-list?event=${selectedEventId}`} onClick={() => setShowToolsMenu(false)}
                       className="flex items-center gap-2 px-4 py-3 text-xs hover:bg-amber-50 transition-colors"
                       style={{ color: C.dark, fontFamily: "Heebo, sans-serif", textDecoration: "none" }}>

@@ -59,6 +59,7 @@ export function generateGuestsXlsx(guests: Guest[]): Buffer {
     'שם': g.name,
     'טלפון': g.phone,
     'סטטוס': STATUS_LABEL[g.status] ?? g.status,
+    'קבוצה': (g as Guest & { source_group?: string | null }).source_group ?? '',
     'מספר מגיעים': g.guest_count,
     'העדפת מנה': g.meal_preference ? (MEAL_LABEL[g.meal_preference] ?? g.meal_preference) : '',
     'פירוט מנות': formatMealCounts((g as Guest & { meal_counts?: unknown }).meal_counts),
