@@ -24,9 +24,9 @@ const UNIFIED = [
 
 export default function ToolsWarm() {
   return (
-    <section dir="rtl" className="relative w-full bg-cream py-20 lg:py-28 px-6 lg:px-12">
+    <section dir="rtl" className="relative w-full bg-cream py-16 lg:py-20 px-6 lg:px-12">
       <div className="mx-auto max-w-[1100px]">
-        <div className="text-center mb-16">
+        <div className="text-center mb-10">
           <p className="font-body text-[13px] font-semibold uppercase tracking-[0.22em] text-gold">הפלטפורמה שלנו</p>
           <h2 className="mt-4 font-display text-4xl lg:text-[52px] font-black leading-tight text-ink">
             מחליפים 5 כלים נפרדים

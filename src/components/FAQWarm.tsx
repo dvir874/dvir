@@ -25,9 +25,9 @@ const QA = [
 export default function FAQWarm() {
   const [open, setOpen] = useState<number | null>(0);
   return (
-    <section dir="rtl" className="relative w-full bg-ivory py-20 lg:py-28 px-6 lg:px-12">
+    <section dir="rtl" className="relative w-full bg-ivory py-16 lg:py-20 px-6 lg:px-12">
       <div className="mx-auto max-w-[760px]">
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <p className="font-body text-[13px] font-semibold uppercase tracking-[0.22em] text-gold">יש שאלות?</p>
           <h2 className="mt-4 font-display text-4xl lg:text-[52px] font-black text-ink">שאלות נפוצות</h2>
           <p className="mt-4 font-body text-lg font-light text-ink/55">

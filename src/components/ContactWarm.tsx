@@ -26,7 +26,7 @@ export default function ContactWarm() {
   const field = "w-full rounded-field bg-cream px-4 py-3 font-body text-[15px] text-ink placeholder-ink/40 outline-none focus:ring-2 focus:ring-gold/40";
 
   return (
-    <section dir="rtl" className="relative w-full bg-cream py-20 lg:py-28 px-6 lg:px-12">
+    <section dir="rtl" className="relative w-full bg-cream py-16 lg:py-20 px-6 lg:px-12">
       <div className="mx-auto grid max-w-[1100px] gap-10 lg:grid-cols-2 lg:items-start">
         {/* form */}
         <form onSubmit={submit} className="rounded-card bg-surface-raised p-7 lg:p-9 shadow-card">

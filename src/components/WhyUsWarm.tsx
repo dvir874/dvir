@@ -22,10 +22,10 @@ function OliveSprig() {
 
 export default function WhyUsWarm() {
   return (
-    <section dir="rtl" className="relative w-full bg-ivory py-20 lg:py-28 px-6 lg:px-12">
+    <section dir="rtl" className="relative w-full bg-ivory py-16 lg:py-20 px-6 lg:px-12">
       <div className="mx-auto max-w-[1200px]">
         {/* Header */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-10">
           <p className="font-body text-[13px] font-semibold uppercase tracking-[0.22em] text-gold">למה רגע לפני</p>
           <h2 className="mt-4 font-display text-4xl lg:text-[56px] font-black leading-tight text-ink">
             לא עוד כלי לאישורי הגעה.
@@ -40,7 +40,7 @@ export default function WhyUsWarm() {
         {/* Asymmetric bento grid */}
         <div className="grid grid-cols-12 gap-5 lg:gap-6">
           {/* 1 — feature card with dashboard image (7) */}
-          <article className="col-span-12 md:col-span-7 rounded-card bg-surface-raised shadow-card overflow-hidden flex flex-col">
+          <article className="col-span-12 md:col-span-7 rounded-card bg-surface-raised shadow-card transition-transform duration-300 hover:-translate-y-1 overflow-hidden flex flex-col">
             <div className="relative w-full h-52 lg:h-64 bg-cream">
               <Image src="/redesign/whyus-dashboard.webp" alt="לוח הבקרה של רגע לפני" fill className="object-cover" sizes="(max-width:768px) 100vw, 58vw" />
             </div>
@@ -56,7 +56,7 @@ export default function WhyUsWarm() {
           </article>
 
           {/* 2 — שקט נפשי (5) */}
-          <article className="col-span-12 md:col-span-5 rounded-card bg-surface-raised shadow-card p-7">
+          <article className="col-span-12 md:col-span-5 rounded-card bg-surface-raised shadow-card transition-transform duration-300 hover:-translate-y-1 p-7">
             <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gold/10 text-gold">
               <ShieldCheck className="w-5 h-5" />
             </div>
@@ -67,7 +67,7 @@ export default function WhyUsWarm() {
           </article>
 
           {/* 3 — לא עוד כלי (4) */}
-          <article className="col-span-12 md:col-span-4 rounded-card bg-surface-raised shadow-card p-7">
+          <article className="col-span-12 md:col-span-4 rounded-card bg-surface-raised shadow-card transition-transform duration-300 hover:-translate-y-1 p-7">
             <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gold/10 text-gold">
               <Heart className="w-5 h-5" />
             </div>
@@ -89,7 +89,7 @@ export default function WhyUsWarm() {
           </article>
 
           {/* 5 — מהאירוסין ועד הזיכרון with image (7) */}
-          <article className="col-span-12 md:col-span-7 rounded-card bg-surface-raised shadow-card overflow-hidden">
+          <article className="col-span-12 md:col-span-7 rounded-card bg-surface-raised shadow-card transition-transform duration-300 hover:-translate-y-1 overflow-hidden">
             <div className="relative w-full h-44 bg-cream">
               <Image src="/redesign/whyus-memories.webp" alt="אלבום זיכרונות מהחתונה" fill className="object-cover" sizes="(max-width:768px) 100vw, 58vw" />
             </div>
@@ -105,7 +105,7 @@ export default function WhyUsWarm() {
           </article>
 
           {/* 6 — ליווי אישי (5) */}
-          <article className="col-span-12 md:col-span-5 rounded-card bg-surface-raised shadow-card p-7 flex flex-col justify-center">
+          <article className="col-span-12 md:col-span-5 rounded-card bg-surface-raised shadow-card transition-transform duration-300 hover:-translate-y-1 p-7 flex flex-col justify-center">
             <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gold/10 text-gold">
               <MessageCircle className="w-5 h-5" />
             </div>

@@ -17,7 +17,7 @@ const ITEMS = [
 
 export default function GalleryWarm() {
   return (
-    <section dir="rtl" className="relative w-full bg-surface-raised py-20 lg:py-28 px-6 lg:px-12">
+    <section dir="rtl" className="relative w-full bg-surface-raised py-16 lg:py-20 px-6 lg:px-12">
       <div className="mx-auto max-w-[1150px]">
         <div className="text-center mb-10">
           <p className="font-body text-[13px] font-semibold uppercase tracking-[0.22em] text-gold">עיצובים נבחרים</p>

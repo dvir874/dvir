@@ -127,8 +127,14 @@ export default function HeroWarm() {
           {/* Warm gradient for legibility on mobile */}
           <div className="absolute inset-0 bg-gradient-to-t from-ivory/85 via-ivory/10 to-transparent lg:hidden" />
 
+          {/* Golden glow behind the floating panel — makes it levitate */}
+          <div
+            className="pointer-events-none absolute -bottom-4 right-2 lg:-bottom-2 lg:-right-16 xl:-right-[240px] h-72 w-72 lg:h-96 lg:w-96 rounded-full bg-gold/30 blur-[100px]"
+            aria-hidden
+          />
+
           {/* Floating glass dashboard panel */}
-          <div className="absolute -bottom-10 lg:bottom-10 right-4 lg:-right-28 xl:-right-[340px] w-[92%] lg:w-[420px] rounded-[24px] border border-cream bg-white/95 p-6 shadow-modal backdrop-blur-md">
+          <div className="absolute -bottom-10 lg:bottom-10 right-4 lg:-right-28 xl:-right-[340px] w-[92%] lg:w-[420px] rounded-[24px] border border-white/60 bg-white/95 p-6 shadow-[0_40px_90px_-25px_rgba(28,16,8,0.5)] ring-1 ring-gold/10 backdrop-blur-md">
             {/* Countdown header */}
             <div className="flex items-start justify-between border-b border-cream pb-4">
               <div>

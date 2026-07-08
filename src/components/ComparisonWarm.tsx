@@ -30,7 +30,7 @@ function Mark({ ok }: { ok: boolean }) {
 
 export default function ComparisonWarm() {
   return (
-    <section dir="rtl" className="relative w-full bg-ivory py-20 lg:py-28 px-6 lg:px-12">
+    <section dir="rtl" className="relative w-full bg-ivory py-16 lg:py-20 px-6 lg:px-12">
       <div className="mx-auto max-w-[1000px]">
         <div className="text-center mb-14">
           <p className="font-body text-[13px] font-semibold uppercase tracking-[0.22em] text-gold">ההבדל</p>

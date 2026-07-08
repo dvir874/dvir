@@ -31,7 +31,7 @@ const KPI = [
 
 export default function AboutWarm() {
   return (
-    <section dir="rtl" className="relative w-full bg-cream py-20 lg:py-28 px-6 lg:px-12">
+    <section dir="rtl" className="relative w-full bg-cream py-16 lg:py-20 px-6 lg:px-12">
       <div className="mx-auto max-w-[1150px]">
         <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
           {/* text */}
@@ -122,7 +122,7 @@ export default function AboutWarm() {
         {/* stats */}
         <div className="mt-16 grid grid-cols-2 lg:grid-cols-4 gap-5">
           {STATS.map(({ Icon, big, title, sub }) => (
-            <div key={title} className="rounded-card bg-surface-raised p-6 text-center shadow-card">
+            <div key={title} className="rounded-card bg-surface-raised p-6 text-center shadow-card transition-transform duration-300 hover:-translate-y-1">
               <Icon className="mx-auto mb-2 h-6 w-6 text-gold" />
               <div className="font-display text-2xl font-black text-ink">{big}</div>
               <div className="font-body text-sm font-semibold text-ink/80">{title}</div>

@@ -22,9 +22,9 @@ function StepHead({ n, title }: { n: string; title: string }) {
 
 export default function ProcessWarm() {
   return (
-    <section dir="rtl" className="relative w-full bg-ivory py-20 lg:py-28 px-6 lg:px-12">
+    <section dir="rtl" className="relative w-full bg-ivory py-16 lg:py-20 px-6 lg:px-12">
       <div className="mx-auto max-w-[1000px]">
-        <div className="text-center mb-16">
+        <div className="text-center mb-10">
           <p className="font-body text-[13px] font-semibold uppercase tracking-[0.22em] text-gold">כך השירות שלנו עובד</p>
           <h2 className="mt-4 font-display text-4xl lg:text-[52px] font-black leading-tight text-ink">
             מההזמנה הראשונה<span className="block text-gold">ועד ליום האירוע</span>
@@ -34,7 +34,7 @@ export default function ProcessWarm() {
           </p>
         </div>
 
-        <div className="space-y-20">
+        <div className="space-y-14">
           {/* Step 1 */}
           <div className="grid gap-8 lg:grid-cols-2 lg:items-center">
             <div className="grid grid-cols-2 gap-4">

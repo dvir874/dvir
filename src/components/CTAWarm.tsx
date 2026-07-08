@@ -9,7 +9,7 @@ import Link from "next/link";
 
 export default function CTAWarm() {
   return (
-    <section dir="rtl" className="relative w-full overflow-hidden bg-olive px-6 py-24 lg:py-28 text-center">
+    <section dir="rtl" className="relative w-full overflow-hidden bg-olive px-6 py-16 lg:py-20 text-center">
       {/* olive leaf accents */}
       <div className="pointer-events-none absolute inset-0 opacity-15" aria-hidden>
         <div className="absolute top-10 right-16 h-40 w-40 rounded-full bg-white blur-3xl" />

@@ -17,7 +17,7 @@ const TYPES = [
 
 export default function EventTypesWarm() {
   return (
-    <section dir="rtl" className="relative w-full bg-ivory py-20 lg:py-28 px-6 lg:px-12">
+    <section dir="rtl" className="relative w-full bg-ivory py-16 lg:py-20 px-6 lg:px-12">
       <div className="mx-auto max-w-[1100px]">
         <div className="text-center mb-14">
           <p className="font-body text-[13px] font-semibold uppercase tracking-[0.22em] text-gold">לכל אירוע</p>
@@ -31,7 +31,7 @@ export default function EventTypesWarm() {
           {TYPES.map(({ Icon, title, body, span, feature }) => (
             <article
               key={title}
-              className={`col-span-1 ${span} rounded-card bg-surface-raised p-7 shadow-card ${
+              className={`col-span-1 ${span} rounded-card bg-surface-raised p-7 shadow-card transition-transform duration-300 hover:-translate-y-1 ${
                 feature ? "md:row-span-2 flex flex-col justify-center" : ""
               }`}
             >
