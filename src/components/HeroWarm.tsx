@@ -91,14 +91,40 @@ export default function HeroWarm() {
         <div className="relative w-full lg:w-[58%] h-[58vh] lg:h-[92vh]">
           <Image
             src="/redesign/hero-couple.webp"
-            alt="זוג חוגג חתונה, מתחת לעץ זית בשקיעה"
+            alt="זוג חוגג חתונה מתחת לעץ זית בשעת שקיעה"
             fill
             priority
             sizes="(max-width: 1024px) 100vw, 58vw"
-            className="object-cover lg:rounded-bl-[100px]"
+            className="object-cover object-center lg:rounded-tr-[60px] lg:rounded-br-[190px]"
           />
           {/* Warm gradient for legibility on mobile */}
           <div className="absolute inset-0 bg-gradient-to-t from-ivory/70 via-transparent to-transparent lg:hidden" />
+
+          {/* Gold olive-branch flourish — decorative, follows the curved edge (desktop) */}
+          <svg
+            className="pointer-events-none absolute -bottom-6 right-6 hidden lg:block w-64 h-32 text-gold drop-shadow-sm"
+            viewBox="0 0 260 130"
+            fill="none"
+            aria-hidden
+          >
+            {/* stem */}
+            <path d="M6 118 C 80 128, 180 110, 254 34" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+            {/* leaves */}
+            <g fill="currentColor" fillOpacity="0.9" stroke="currentColor" strokeWidth="0.5">
+              <ellipse cx="70" cy="112" rx="17" ry="6.5" transform="rotate(-12 70 112)" />
+              <ellipse cx="104" cy="104" rx="18" ry="6.8" transform="rotate(-20 104 104)" />
+              <ellipse cx="138" cy="93" rx="19" ry="7" transform="rotate(-28 138 93)" />
+              <ellipse cx="170" cy="80" rx="19" ry="7" transform="rotate(-36 170 80)" />
+              <ellipse cx="200" cy="64" rx="18" ry="6.8" transform="rotate(-44 200 64)" />
+              <ellipse cx="228" cy="46" rx="16" ry="6.2" transform="rotate(-52 228 46)" />
+              {/* lower-side leaves */}
+              <ellipse cx="120" cy="118" rx="15" ry="5.8" transform="rotate(18 120 118)" fillOpacity="0.55" />
+              <ellipse cx="158" cy="110" rx="15" ry="5.8" transform="rotate(12 158 110)" fillOpacity="0.55" />
+            </g>
+            {/* olives */}
+            <circle cx="150" cy="99" r="4.5" fill="currentColor" fillOpacity="0.35" />
+            <circle cx="188" cy="82" r="4" fill="currentColor" fillOpacity="0.35" />
+          </svg>
         </div>
       </div>
 
