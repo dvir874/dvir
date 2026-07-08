@@ -10,7 +10,7 @@
 
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { MessageCircle, Phone, Users, CheckCircle2, Clock, Gauge } from "lucide-react";
+import { MessageCircle, Phone, Users, CheckCircle2, Clock, Gauge, ShieldCheck, Sparkles, Heart } from "lucide-react";
 import { WA_URL } from "@/lib/constants";
 
 const KPIS = [
@@ -87,7 +87,7 @@ export default function HeroWarm() {
             <Dot />
             <span>שירות אישי</span>
             <Dot />
-            <span>מענה מהיר</span>
+            <span>תמיכה מלאה</span>
           </div>
 
           {/* CTAs */}
@@ -103,7 +103,7 @@ export default function HeroWarm() {
               href="/try"
               className="inline-flex items-center justify-center gap-2 rounded-pill border border-gold px-8 py-4 font-body text-[15px] font-semibold text-gold transition-colors hover:bg-gold/10"
             >
-              ראו דמו חי ✨
+              ראו איך זה עובד ✨
             </a>
           </div>
 
@@ -184,6 +184,28 @@ export default function HeroWarm() {
               </span>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Trust strip — 4 assurances under the hero (matches the reference) */}
+      <div className="relative border-t border-gold/15 bg-ivory">
+        <div className="mx-auto grid max-w-[1440px] grid-cols-2 gap-y-8 px-6 py-10 lg:grid-cols-4 lg:px-12">
+          {[
+            { Icon: ShieldCheck, title: "מאובטח ומוצפן", sub: "המידע שלכם בטוח" },
+            { Icon: Sparkles, title: "שירות פרימיום", sub: "יחס אישי לכל אירוע" },
+            { Icon: Clock, title: "חיסכון בזמן", sub: "כלי שעובד בשבילכם" },
+            { Icon: Heart, title: "ליווי אישי", sub: "אנחנו פה בשבילכם" },
+          ].map(({ Icon, title, sub }) => (
+            <div key={title} className="flex items-center gap-3 px-2">
+              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gold/10 text-gold">
+                <Icon className="h-5 w-5" />
+              </span>
+              <div>
+                <div className="font-body text-sm font-semibold text-ink">{title}</div>
+                <div className="font-body text-[13px] font-light text-ink/50">{sub}</div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>

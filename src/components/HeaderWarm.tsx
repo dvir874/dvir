@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 
@@ -21,10 +22,19 @@ const NAV = [
 
 function Wordmark() {
   return (
-    <Link href="/" className="flex flex-col items-end leading-none focus:outline-none">
-      <span className="text-gold text-sm leading-none" aria-hidden>❦</span>
-      <span className="font-display text-2xl font-black text-ink">רגע לפני</span>
-      <span className="font-body text-[11px] tracking-wide text-ink/50">ניהול חתונה</span>
+    <Link href="/" className="flex items-center gap-2.5 focus:outline-none">
+      <Image
+        src="/brand/logo-mark.webp"
+        alt="רגע לפני — טבעות ועלה זית"
+        width={364}
+        height={473}
+        priority
+        className="h-12 w-auto"
+      />
+      <span className="flex flex-col items-start leading-none">
+        <span className="font-display text-2xl font-black text-ink">רגע לפני</span>
+        <span className="font-body text-[11px] tracking-wide text-ink/50">ניהול חתונה</span>
+      </span>
     </Link>
   );
 }
