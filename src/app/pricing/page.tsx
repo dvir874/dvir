@@ -20,7 +20,11 @@ const DVIR_PHONE = "972533318177";
 export default function PricingCalculatorPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const digital = digitalAddonEntries();
+  const digital = digitalAddonEntries().filter(([, a]) => a.price > 0);
+  const included = [
+    ...digitalAddonEntries().filter(([, a]) => a.price === 0).map(([, a]) => a.label),
+    "אפשרות תשלום בביט לאורחים",
+  ];
   const physical = Object.entries(ADDONS).filter(([, a]) => a.physical);
 
   const digitalTotal = useMemo(
@@ -73,14 +77,27 @@ export default function PricingCalculatorPage() {
           סמנו מה שמעניין אתכם — המחיר מתעדכן מיד. ללא התחייבות.
         </p>
 
-        {/* Base — always included */}
-        <div style={{ background: C.cream, border: `2px solid ${C.gold}`, borderRadius: 16, padding: "16px 18px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-          <div>
-            <p style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>✓ {BASE_LABEL}</p>
-            <p style={{ fontSize: 12, color: C.muted, margin: "4px 0 0" }}>הבסיס — תמיד כלול</p>
+        {/* Base — always included, with everything that comes free inside */}
+        <div style={{ background: C.cream, border: `2px solid ${C.gold}`, borderRadius: 20, padding: "20px", marginBottom: 14, boxShadow: "0 8px 28px rgba(197,164,109,0.18)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 12 }}>
+            <div>
+              <p style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>חבילת הבסיס</p>
+              <p style={{ fontSize: 12, color: C.muted, margin: "4px 0 0" }}>תמיד כלולה — וכוללת הרבה יותר ממה שנשמע</p>
+            </div>
+            <span style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 26, fontWeight: 900, color: C.goldT, flexShrink: 0 }}>₪{BASE_PRICE}</span>
           </div>
-          <span style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 20, fontWeight: 700, color: C.goldT, flexShrink: 0 }}>₪{BASE_PRICE}</span>
+          <div style={{ borderTop: `1px solid rgba(197,164,109,0.3)`, paddingTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+            <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: C.dark }}>✓ {BASE_LABEL}</p>
+            {included.map(label => (
+              <p key={label} style={{ fontSize: 14, margin: 0, color: C.dark, display: "flex", alignItems: "baseline", gap: 8 }}>
+                <span style={{ color: C.olive, fontWeight: 700, flexShrink: 0 }}>✓</span>
+                <span>{label} <span style={{ fontSize: 11, fontWeight: 700, color: C.olive, background: "rgba(107,123,90,0.1)", borderRadius: 9999, padding: "2px 8px", marginRight: 4 }}>מתנה 🎁</span></span>
+              </p>
+            ))}
+          </div>
         </div>
+
+        <p style={{ fontSize: 13, fontWeight: 700, color: C.goldT, margin: "20px 0 10px" }}>תוספות לבחירה</p>
 
         {/* Digital add-ons */}
         {digital.map(([key, a]) => {
