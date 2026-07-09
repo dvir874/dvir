@@ -1281,7 +1281,7 @@ export default function AdminPage() {
                       const phone = selectedEvent.client_phone!.replace(/\D/g,"").replace(/^0/,"972");
                       const eventDate = selectedEvent.date ? new Date(selectedEvent.date).toLocaleDateString("he-IL", { day: "numeric", month: "long" }) : "";
                       const venue = selectedEvent.address ?? "האולם";
-                      const msg = encodeURIComponent(`🎊 היום זה הגדול!\nהחתונה של ${selectedEvent.name} — ${eventDate}\n📍 ${venue}\n\nמחכים לחגוג איתכם! 🤍`);
+                      const msg = encodeURIComponent(`בוקר טוב 🤍\n\nהיום, אחרי כל התכנונים, הרשימות והטלפונים — נשאר רק דבר אחד לעשות: להתחתן.\n\nכל השאר מסודר. האורחים יודעים לאן להגיע, השולחנות מחכים, והמערכת עובדת בשבילכם — אז תשאירו את הדאגות אצלי.\n\nהיום תסתכלו אחד על השנייה, תנשמו עמוק, ותזכרו למה כל זה קרה מלכתחילה.\n\nמזל טוב, ${selectedEvent.name} 💍\nרגע לפני... זה עכשיו.\n\nדביר`);
                       return (
                         <a href={`https://wa.me/${phone}?text=${msg}`} target="_blank" rel="noopener noreferrer" onClick={() => setShowToolsMenu(false)}
                           className="flex items-center gap-2 px-4 py-3 text-xs hover:bg-green-50 transition-colors" style={{ color: "#1A9B4E", fontFamily: "Heebo, sans-serif", textDecoration: "none" }}>
