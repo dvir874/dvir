@@ -95,7 +95,7 @@ export default function HeroWarm() {
             fill
             priority
             sizes="(max-width: 1024px) 100vw, 58vw"
-            className="object-cover object-center lg:rounded-bl-[100px]"
+            className="object-cover object-[50%_30%] lg:rounded-bl-[100px]"
           />
           {/* Warm gradient for legibility on mobile */}
           <div className="absolute inset-0 bg-gradient-to-t from-ivory/70 via-transparent to-transparent lg:hidden" />
