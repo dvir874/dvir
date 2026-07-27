@@ -1270,8 +1270,14 @@ export default function AdminPage() {
                     <button onClick={async () => {
                       if (!selectedEvent?.client_phone) { alert("לא הוגדר טלפון לזוג"); return; }
                       const phone = selectedEvent.client_phone.replace(/\D/g,"").replace(/^0/,"972");
-                      const url = `https://g.page/r/YOUR_GOOGLE_PLACE_ID/review`;
-                      const msg = encodeURIComponent(`שלום! 🌟\nשמחנו לנהל את החתונה שלכם.\nנשמח אם תשאירו לנו ביקורת קצרה:\n${url}`);
+                      const saved = typeof window !== "undefined" ? localStorage.getItem("google_review_url") : null;
+                      let url = saved ?? "";
+                      if (!url) {
+                        url = prompt("הדביקו את קישור הביקורת של Google לעסק שלכם (נשמר לפעם הבאה):") ?? "";
+                        if (!url.trim()) { setShowToolsMenu(false); return; }
+                        localStorage.setItem("google_review_url", url.trim());
+                      }
+                      const msg = encodeURIComponent(`שלום! 🌟\nשמחנו לנהל את החתונה שלכם.\nנשמח אם תשאירו לנו ביקורת קצרה:\n${url.trim()}`);
                       window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
                       setShowToolsMenu(false);
                     }} className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-amber-50 transition-colors" style={{ color: "#E67E22", fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
