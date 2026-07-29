@@ -25,7 +25,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
   const { data: guest, error } = await supabase
     .from('guests')
-    .select('id, name, guest_count, status, event_id, opened_at')
+    .select('id, name, guest_count, status, event_id, opened_at, source_group')
     .eq('rsvp_token', token)
     .single();
 

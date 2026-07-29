@@ -25,6 +25,7 @@ interface GuestInfo {
   status: Status;
   meal_preference?: string | null;
   meal_note?: string | null;
+  source_group?: string | null;
 }
 interface EventInfo {
   name: string;
@@ -825,6 +826,19 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
 
         <div className="rsvp-form-side">
           <div className="rsvp-form-inner">
+
+            {/* Invitation image — shown only for this wedding's own guests (dvir_list).
+                Graceful: any other event/guest has a different source_group → nothing renders. */}
+            {guest?.source_group === "dvir_list" && (
+              <div style={{ marginBottom: "24px", animation: "fadeUp 0.4s ease both" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/wedding/dvir-mirav-invitation.jpg"
+                  alt="הזמנה לחתונה של דביר ומירב"
+                  style={{ width: "100%", borderRadius: "16px", boxShadow: T.shadowCard, display: "block" }}
+                />
+              </div>
+            )}
 
             {/* Event headline */}
             <h1 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontWeight: 700, fontSize: "28px", color: T.dark, textAlign: "center", margin: "0 0 6px", animation: "fadeUp 0.4s ease both" }}>
