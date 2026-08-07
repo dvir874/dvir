@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { use } from "react";
 
 /* ─── Types ───────────────────────────────────────────────────── */
@@ -278,7 +278,14 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
   const [mealCounts, setMealCounts] = useState<Partial<Record<MealOption, number>>>({});
   const [rideFrom,   setRideFrom]   = useState("");
   const [rideRole,   setRideRole]   = useState<"offer" | "seek" | null>(null);
+  const [shuttle,    setShuttle]    = useState<"yes" | "no" | null>(null);  // horim_list: Tiberias shuttle
   const [mealNote,   setMealNote]   = useState("");
+  const [zoomInvite, setZoomInvite] = useState(false);   // dvir_list: tap invitation → full-screen
+  const [hasNotes,   setHasNotes]   = useState(false);   // dvir_list: "notes to hosts?" toggle
+  const [wrongMsg,   setWrongMsg]   = useState("");      // "wrong number" report text
+  const [wrongSending, setWrongSending] = useState(false);
+  const [wrongSent,  setWrongSent]  = useState(false);
+  const [introDone,  setIntroDone]  = useState(false);   // dvir_list: cinematic intro overlay finished
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg,   setErrorMsg]   = useState("");
   const [tableName,  setTableName]  = useState<string | null>(null);
@@ -294,11 +301,27 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
         setTableName(data.tableName ?? null);
         setMemoryToken(data.memoryToken ?? null);
         setGuestCount(data.guest.guest_count ?? 1);
+        /* Restore previous answers so "edit my answer" opens a pre-filled form
+           instead of a blank one with a disabled CTA. */
+        if (data.guest.status === "confirmed" || data.guest.status === "declined") {
+          setChoice(data.guest.status);
+        }
+        if (data.guest.meal_preference) setMeal(data.guest.meal_preference);
+        if (data.guest.meal_note) { setMealNote(data.guest.meal_note); setHasNotes(true); }
         setScreen(data.guest.status !== "pending" ? "done" : "form");
       })
       .catch(() => setScreen("error"));
   }, [token]);
 
+  /* Dvir & Mirav's own guests + his parents' guests — custom cinematic flow
+     (invitation wasn't sent to them separately, so they get it here) */
+  const isDvir = guest?.source_group === "dvir_list"
+    || guest?.source_group === "horim_list"
+    || guest?.source_group === "horim_tveria";
+  /* Shuttle offer is per-guest: only those the parents put in the Tiberias group
+     see it (replaces the rides question for them). */
+  const isHorim = guest?.source_group === "horim_tveria";
+  const finishIntro = useCallback(() => setIntroDone(true), []);
   const mealTotal = Object.values(mealCounts).reduce((s, n) => s + (n ?? 0), 0);
   /* Most-selected meal type — kept for backward compat with meal_preference */
   const primaryMeal: MealOption | null =
@@ -314,6 +337,22 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
       if (total > guestCount) return prev; // can't exceed party size
       return { ...prev, [opt]: next };
     });
+  }
+
+  async function submitWrongPerson() {
+    setWrongSending(true);
+    try {
+      await fetch(`/api/rsvp/${token}/wrong-person`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: wrongMsg.trim() || null }),
+      });
+      setWrongSent(true);
+    } catch {
+      setWrongSent(true); // don't block the guest on a network hiccup
+    } finally {
+      setWrongSending(false);
+    }
   }
 
   async function handleSubmit(newChoice: "confirmed" | "declined") {
@@ -336,6 +375,10 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
             : {}),
           ...(newChoice === "confirmed" && rideRole && rideFrom.trim()
             ? { ride_from: rideFrom.trim(), ride_role: rideRole }
+            : {}),
+          /* horim_list shuttle: stored via the existing ride fields (no schema change) */
+          ...(newChoice === "confirmed" && isHorim && shuttle === "yes"
+            ? { ride_from: "הסעה מאזור טבריה", ride_role: "seek" }
             : {}),
         }),
       });
@@ -422,11 +465,38 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
         <div style={{ textAlign: "center", paddingTop: "48px" }}>
           <BotanicalSprig size={48} />
           <h2 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "22px", fontWeight: 700, color: T.dark, marginTop: "16px", marginBottom: "8px" }}>
-            קיבלתם בטעות?
+            {wrongSent ? "תודה שהודעתם 🙏" : "קיבלתם בטעות?"}
           </h2>
-          <p style={{ color: T.muted, fontSize: "14px", lineHeight: 1.7 }}>
-            ייתכן שהקישור נשלח למספר הטלפון הלא נכון.<br />פנו ישירות לבעלי השמחה כדי לתקן.
-          </p>
+
+          {wrongSent ? (
+            <p style={{ color: T.muted, fontSize: "14px", lineHeight: 1.7 }}>
+              ההודעה נשלחה לבעלי השמחה והם יתקנו את הפרטים.<br />מצטערים על ההפרעה!
+            </p>
+          ) : (
+            <>
+              <p style={{ color: T.muted, fontSize: "14px", lineHeight: 1.7, marginBottom: "20px" }}>
+                ייתכן שהקישור נשלח למספר הטלפון הלא נכון.<br />
+                כתבו לנו כאן ובעלי השמחה יתקנו את זה.
+              </p>
+
+              <textarea
+                value={wrongMsg}
+                onChange={e => setWrongMsg(e.target.value)}
+                placeholder="למשל: זה לא המספר של דוד — נסו 05X-XXXXXXX"
+                rows={3}
+                style={{
+                  width: "100%", boxSizing: "border-box", padding: "13px 14px",
+                  border: `1.5px solid ${T.border}`, borderRadius: "12px",
+                  fontSize: "15px", fontFamily: "'Heebo', sans-serif",
+                  background: "#fff", color: T.dark, resize: "vertical", marginBottom: "12px",
+                }}
+              />
+
+              <GoldCTA onClick={submitWrongPerson} loading={wrongSending} disabled={wrongSending} fullWidth>
+                {wrongSending ? "שולח..." : "שליחה לבעלי השמחה"}
+              </GoldCTA>
+            </>
+          )}
         </div>
       </PageShell>
     );
@@ -606,13 +676,22 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
 
     /* ── Confirmed state — E2-S4: MAZAL TOV header + checkmark ──── */
     return (
-      <div dir="rtl" style={{ minHeight: "100dvh", background: T.ivory, fontFamily: "'Heebo', sans-serif", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
+      <div dir="rtl" className={isDvir ? "rsvp-warm-bg" : undefined} style={{ minHeight: "100dvh", background: isDvir ? undefined : T.ivory, fontFamily: "'Heebo', sans-serif", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
         <style>{`
           @keyframes spin { to { transform: rotate(360deg); } }
           @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
           @keyframes scaleIn { from { opacity:0; transform:scale(0.7); } to { opacity:1; transform:scale(1); } }
+          .rsvp-warm-bg {
+            background:
+              radial-gradient(circle at 12% 8%, rgba(197,164,109,0.16) 0%, transparent 42%),
+              radial-gradient(circle at 88% 22%, rgba(184,150,120,0.13) 0%, transparent 40%),
+              radial-gradient(circle at 50% 100%, rgba(197,164,109,0.10) 0%, transparent 55%),
+              linear-gradient(170deg, #FDFAF5 0%, #F6F1E8 55%, #F2EADD 100%);
+            background-attachment: fixed;
+          }
         `}</style>
-        <Confetti />
+        {isDvir && !introDone && <WeddingIntro onDone={finishIntro} />}
+        {isDvir ? <GoldConfetti /> : <Confetti />}
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 20px", borderBottom: `1px solid ${T.border}` }}>
@@ -628,26 +707,62 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
           </div>
 
           <h2 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "26px", fontWeight: 700, color: T.goldText, marginBottom: "8px", animation: "fadeUp 0.5s ease 0.1s both" }}>
-            כבר אישרתם את הגעתכם! ✓
+            {isDvir ? "תודה! נתראה ב־24.08 🤍" : "כבר אישרתם את הגעתכם! ✓"}
           </h2>
           <p style={{ color: T.muted, fontSize: "15px", fontWeight: 300, marginBottom: "24px", animation: "fadeUp 0.5s ease 0.15s both" }}>
-            אנחנו מחכים לראות אתכם ביום המאושר שלנו.
+            {isDvir
+              ? "איזה כיף שתהיו איתנו! שמרו את התאריך ביומן — נשלח תזכורת עם ניווט לקראת היום הגדול."
+              : "אנחנו מחכים לראות אתכם ביום המאושר שלנו."}
           </p>
 
-          {/* Bento summary cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px", animation: "fadeUp 0.5s ease 0.2s both" }}>
+          {/* dvir_list: live gold countdown to the chuppah */}
+          {isDvir && event?.date && <LiveCountdown date={event.date} />}
+
+          {/* dvir_list: keep the invitation + schedule on the confirmed screen too, so
+              reopening the WhatsApp link weeks later answers "where / when / what time". */}
+          {isDvir && (
+            <div style={{ marginBottom: "16px", animation: "fadeUp 0.5s ease 0.18s both" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/wedding/dvir-mirav-invitation.jpg"
+                alt="הזמנה לחתונה של דביר ומירב"
+                onClick={() => setZoomInvite(true)}
+                style={{ width: "100%", borderRadius: "16px", boxShadow: T.shadowCard, display: "block", cursor: "zoom-in" }}
+              />
+              <p style={{ fontSize: "12px", color: T.goldText, textAlign: "center", margin: "8px 0 0", fontWeight: 600 }}>
+                👆 לחצו על ההזמנה להגדלה
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "14px" }}>
+                <WarmCard style={{ padding: "14px 10px", textAlign: "center" }}>
+                  <p style={{ fontSize: "22px", margin: "0 0 4px" }}>🥂</p>
+                  <p style={{ fontSize: "12px", color: T.muted, margin: "0 0 2px" }}>קבלת פנים</p>
+                  <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "20px", fontWeight: 700, color: T.goldText, margin: 0 }}>19:00</p>
+                </WarmCard>
+                <WarmCard style={{ padding: "14px 10px", textAlign: "center" }}>
+                  <p style={{ fontSize: "22px", margin: "0 0 4px" }}>💍</p>
+                  <p style={{ fontSize: "12px", color: T.muted, margin: "0 0 2px" }}>חופה וקידושין</p>
+                  <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "20px", fontWeight: 700, color: T.goldText, margin: 0 }}>20:00</p>
+                </WarmCard>
+              </div>
+            </div>
+          )}
+
+          {/* Bento summary cards — meal card hidden for dvir_list (no meal choice in their flow) */}
+          <div style={{ display: "grid", gridTemplateColumns: isDvir ? "1fr" : "1fr 1fr", gap: "12px", marginBottom: "16px", animation: "fadeUp 0.5s ease 0.2s both" }}>
             <WarmCard style={{ textAlign: "right", padding: "16px" }}>
               <p style={{ fontSize: "11px", fontWeight: 700, color: T.muted, letterSpacing: "0.08em", marginBottom: "6px", textTransform: "uppercase" }}>כמות אורחים</p>
               <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "22px", fontWeight: 700, color: T.dark }}>
                 {guest?.guest_count ?? 1} {(guest?.guest_count ?? 1) === 1 ? "אורח" : "אורחים"}
               </p>
             </WarmCard>
-            <WarmCard style={{ textAlign: "right", padding: "16px" }}>
-              <p style={{ fontSize: "11px", fontWeight: 700, color: T.muted, letterSpacing: "0.08em", marginBottom: "6px", textTransform: "uppercase" }}>העדפות קולינריות</p>
-              <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "16px", fontWeight: 700, color: T.dark, lineHeight: 1.3 }}>
-                {guest?.meal_preference === "vegan" ? "טבעוני" : guest?.meal_preference === "vegetarian" ? "צמחוני" : guest?.meal_preference === "kosher" ? "כשר" : "רגיל"}
-              </p>
-            </WarmCard>
+            {!isDvir && (
+              <WarmCard style={{ textAlign: "right", padding: "16px" }}>
+                <p style={{ fontSize: "11px", fontWeight: 700, color: T.muted, letterSpacing: "0.08em", marginBottom: "6px", textTransform: "uppercase" }}>העדפות קולינריות</p>
+                <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "16px", fontWeight: 700, color: T.dark, lineHeight: 1.3 }}>
+                  {guest?.meal_preference === "vegan" ? "טבעוני" : guest?.meal_preference === "vegetarian" ? "צמחוני" : guest?.meal_preference === "kosher" ? "כשר" : "רגיל"}
+                </p>
+              </WarmCard>
+            )}
           </div>
 
           {event && (() => {
@@ -768,12 +883,14 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
             type="button"
             onClick={() => setScreen("form")}
             style={{
-              display: "block", margin: "20px auto 0", background: "none", border: "none",
-              cursor: "pointer", fontFamily: "'Heebo', sans-serif", fontSize: 13,
-              color: T.muted, textDecoration: "underline",
+              display: "block", width: "100%", margin: "20px auto 0",
+              background: T.cream, border: `1.5px solid ${T.border}`, borderRadius: "14px",
+              padding: "14px 16px", cursor: "pointer",
+              fontFamily: "'Heebo', sans-serif", fontSize: 15, fontWeight: 600,
+              color: T.goldText, minHeight: "48px",
             }}
           >
-            צריכים לעדכן את התשובה? לחצו כאן
+            ✏️ טעיתם במשהו? לחצו לעריכת התשובה
           </button>
 
           <div style={{ width: "64px", height: "1px", background: `linear-gradient(90deg,transparent,${T.gold},transparent)`, margin: "28px auto 0" }} />
@@ -784,6 +901,8 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
             </a>
           </p>
         </div>
+
+        {isDvir && zoomInvite && <InvitationLightbox onClose={() => setZoomInvite(false)} />}
       </div>
     );
   }
@@ -800,8 +919,65 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
         .rsvp-attend-card { transition: all 0.18s ease; }
+        /* dvir_list: warm textured backdrop instead of flat ivory */
+        .rsvp-warm-bg {
+          background:
+            radial-gradient(circle at 12% 8%, rgba(197,164,109,0.16) 0%, transparent 42%),
+            radial-gradient(circle at 88% 22%, rgba(184,150,120,0.13) 0%, transparent 40%),
+            radial-gradient(circle at 50% 100%, rgba(197,164,109,0.10) 0%, transparent 55%),
+            linear-gradient(170deg, #FDFAF5 0%, #F6F1E8 55%, #F2EADD 100%);
+          background-attachment: fixed;
+        }
         .rsvp-count-circle { transition: all 0.15s ease; }
         .rsvp-meal-card { transition: all 0.15s ease; }
+        /* ── dvir_list: cinematic invitation reveal ─────────────────── */
+        @keyframes invGreet {
+          from { opacity: 0; transform: translateY(-14px); letter-spacing: 0.12em; }
+          to   { opacity: 1; transform: translateY(0);     letter-spacing: normal; }
+        }
+        @keyframes invSub { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes invReveal {
+          0%   { opacity: 0; transform: scale(0.93) translateY(18px); filter: blur(10px); }
+          55%  { opacity: 1; filter: blur(0); }
+          100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+        }
+        @keyframes invGlow {
+          0%   { box-shadow: 0 2px 8px rgba(28,16,8,0.06); }
+          45%  { box-shadow: 0 10px 44px rgba(197,164,109,0.55), 0 2px 8px rgba(28,16,8,0.06); }
+          100% { box-shadow: 0 6px 24px rgba(197,164,109,0.22), 0 2px 8px rgba(28,16,8,0.06); }
+        }
+        @keyframes invShine {
+          0%   { transform: translateX(120%) skewX(-18deg); }
+          100% { transform: translateX(-220%) skewX(-18deg); }
+        }
+        @keyframes invSpark {
+          0%, 100% { opacity: 0; transform: translateY(0) scale(0.7); }
+          25%      { opacity: 0.9; }
+          50%      { opacity: 0.5; transform: translateY(-14px) scale(1); }
+          75%      { opacity: 0.9; }
+        }
+        .inv-greet { animation: invGreet 0.7s cubic-bezier(0.22,1,0.36,1) 0.15s both; }
+        .inv-sub   { animation: invSub 0.6s ease 0.55s both; }
+        .inv-card {
+          position: relative; overflow: hidden; border-radius: 16px;
+          animation: invReveal 1.1s cubic-bezier(0.22,1,0.36,1) 0.45s both,
+                     invGlow 2.2s ease 1.0s both;
+        }
+        .inv-card::after {
+          content: ""; position: absolute; top: -12%; bottom: -12%; width: 34%;
+          left: 0; transform: translateX(120%) skewX(-18deg);
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), rgba(255,246,224,0.75), rgba(255,255,255,0.55), transparent);
+          animation: invShine 1.5s cubic-bezier(0.4,0,0.2,1) 1.35s both;
+          pointer-events: none;
+        }
+        .inv-hint { animation: invSub 0.6s ease 2.1s both; }
+        .inv-spark { position: absolute; font-size: 13px; color: #C5A46D; pointer-events: none; animation: invSpark 3.6s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) {
+          .inv-greet, .inv-sub, .inv-card, .inv-hint { animation: none !important; opacity: 1 !important; }
+          .inv-card::after, .inv-spark { display: none !important; }
+        }
+        /* Hold the invitation reveal until the intro overlay dissolves */
+        .inv-hold *, .inv-hold *::after { animation-play-state: paused !important; }
         @media (min-width: 768px) {
           .rsvp-form-wrap { display: flex; min-height: 100dvh; }
           .rsvp-photo-side { flex: 0 0 45%; position: sticky; top: 0; height: 100dvh; overflow: hidden; }
@@ -816,38 +992,85 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
         }
       `}</style>
 
+      {isDvir && !introDone && <WeddingIntro onDone={finishIntro} />}
+
       <div className="rsvp-form-wrap" style={{ flex: 1 }}>
 
-        {/* Tablet: sticky photo panel */}
-        <div className="rsvp-photo-side">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80" alt="" />
-        </div>
+        {/* Tablet: sticky photo panel — hidden for dvir_list (the invitation IS the visual) */}
+        {!isDvir && (
+          <div className="rsvp-photo-side">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80" alt="" />
+          </div>
+        )}
 
-        <div className="rsvp-form-side">
+        <div className={`rsvp-form-side${isDvir ? " rsvp-warm-bg" : ""}`}>
           <div className="rsvp-form-inner">
 
-            {/* Invitation image — shown only for this wedding's own guests (dvir_list).
-                Graceful: any other event/guest has a different source_group → nothing renders. */}
-            {guest?.source_group === "dvir_list" && (
-              <div style={{ marginBottom: "24px", animation: "fadeUp 0.4s ease both" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/wedding/dvir-mirav-invitation.jpg"
-                  alt="הזמנה לחתונה של דביר ומירב"
-                  style={{ width: "100%", borderRadius: "16px", boxShadow: T.shadowCard, display: "block" }}
-                />
+            {/* Invitation image + warm personal greeting — shown only for this wedding's
+                own guests (dvir_list). Graceful: any other event/guest has a different
+                source_group → nothing renders, zero effect on other couples. */}
+            {isDvir && (
+              <div className={introDone ? undefined : "inv-hold"} style={{ marginBottom: "24px", position: "relative" }}>
+                {/* Floating gold sparkles around the invitation */}
+                <span className="inv-spark" aria-hidden="true" style={{ top: "18%", right: "-4px", animationDelay: "1.6s" }}>✦</span>
+                <span className="inv-spark" aria-hidden="true" style={{ top: "34%", left: "-2px", fontSize: "10px", animationDelay: "2.4s" }}>✦</span>
+                <span className="inv-spark" aria-hidden="true" style={{ bottom: "26%", right: "6px", fontSize: "11px", animationDelay: "3.1s" }}>✦</span>
+
+                <p className="inv-greet" style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "20px", fontWeight: 700, color: T.dark, textAlign: "center", margin: "0 0 4px" }}>
+                  משפחה וחברים יקרים 🤍
+                </p>
+                <p className="inv-sub" style={{ fontSize: "14px", fontWeight: 300, color: T.muted, textAlign: "center", margin: "0 0 16px" }}>
+                  הוזמנתם לחתונה שלנו — נשמח שתהיו איתנו ביום הגדול
+                </p>
+                {/* Tap to open full-screen; card tilts with phone/mouse */}
+                <TiltCard>
+                  <button
+                    type="button"
+                    onClick={() => setZoomInvite(true)}
+                    className="inv-card"
+                    style={{ display: "block", width: "100%", padding: 0, border: "none", background: "none", cursor: "zoom-in" }}
+                    aria-label="הגדלת ההזמנה"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/wedding/dvir-mirav-invitation.jpg"
+                      alt="הזמנה לחתונה של דביר ומירב"
+                      style={{ width: "100%", borderRadius: "16px", display: "block", border: `1px solid ${T.border}` }}
+                    />
+                  </button>
+                </TiltCard>
+                <p className="inv-hint" style={{ fontSize: "12px", color: T.goldText, textAlign: "center", margin: "8px 0 0", fontWeight: 600 }}>
+                  👆 לחצו על ההזמנה להגדלה
+                </p>
+
+                {/* Names · date · venue */}
+                <div style={{ textAlign: "center", marginTop: "18px" }}>
+                  <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "22px", fontWeight: 700, color: T.dark, margin: "0 0 6px" }}>
+                    דביר בן ברוך <span style={{ color: T.gold }}>&amp;</span> מירב ברון
+                  </p>
+                  <p style={{ fontSize: "15px", color: T.goldText, fontWeight: 600, margin: 0 }}>
+                    יום שני · 24.08.2026
+                  </p>
+                  <p style={{ fontSize: "14px", color: T.muted, margin: "2px 0 0" }}>
+                    אולמי גאיה, חדרה
+                  </p>
+                </div>
               </div>
             )}
 
-            {/* Event headline */}
-            <h1 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontWeight: 700, fontSize: "28px", color: T.dark, textAlign: "center", margin: "0 0 6px", animation: "fadeUp 0.4s ease both" }}>
-              {event?.name ?? ""}
-            </h1>
-            {event && (
-              <p style={{ textAlign: "center", color: T.muted, fontSize: "14px", marginBottom: "24px", animation: "fadeUp 0.4s ease 0.06s both" }}>
-                {formattedDate}{event.address ? ` | ${event.address}` : ""}
-              </p>
+            {/* Event headline — hidden for dvir_list (names/date/venue shown under invitation) */}
+            {!isDvir && (
+              <>
+                <h1 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontWeight: 700, fontSize: "28px", color: T.dark, textAlign: "center", margin: "0 0 6px", animation: "fadeUp 0.4s ease both" }}>
+                  {event?.name ?? ""}
+                </h1>
+                {event && (
+                  <p style={{ textAlign: "center", color: T.muted, fontSize: "14px", marginBottom: "24px", animation: "fadeUp 0.4s ease 0.06s both" }}>
+                    {formattedDate}{event.address ? ` | ${event.address}` : ""}
+                  </p>
+                )}
+              </>
             )}
 
             {/* Gold divider */}
@@ -947,8 +1170,9 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
               </div>
             )}
 
-            {/* Meal choice — single select for 1 guest, per-guest steppers for parties */}
-            {attending && guestCount === 1 && (
+            {/* Meal choice — single select for 1 guest, per-guest steppers for parties.
+                Hidden for dvir_list (they get a free-text notes question instead). */}
+            {attending && !isDvir && guestCount === 1 && (
               <div style={{ marginBottom: "24px", animation: "fadeUp 0.3s ease 0.05s both" }}>
                 <p style={{ fontSize: "14px", fontWeight: 600, color: T.dark, marginBottom: "12px", textAlign: "center" }}>
                   בחירת מנה
@@ -980,7 +1204,7 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
               </div>
             )}
 
-            {attending && guestCount > 1 && (
+            {attending && !isDvir && guestCount > 1 && (
               <div style={{ marginBottom: "24px", animation: "fadeUp 0.3s ease 0.05s both" }}>
                 <p style={{ fontSize: "14px", fontWeight: 600, color: T.dark, marginBottom: "4px", textAlign: "center" }}>
                   בחירת מנות
@@ -1020,8 +1244,90 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
               </div>
             )}
 
+            {/* dvir_list: notes to the hosts (replaces meal choice) */}
+            {attending && isDvir && (
+              <div style={{ marginBottom: "24px", animation: "fadeUp 0.3s ease 0.05s both" }}>
+                <p style={{ fontSize: "14px", fontWeight: 600, color: T.dark, marginBottom: "12px", textAlign: "center" }}>
+                  האם יש לכם הערות מיוחדות לבעלי השמחה?
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: hasNotes ? "12px" : 0 }}>
+                  {([[false, "לא"], [true, "כן"]] as const).map(([val, label]) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => { setHasNotes(val); if (!val) setMealNote(""); }}
+                      aria-pressed={hasNotes === val}
+                      style={{
+                        padding: "13px 8px", borderRadius: "12px", cursor: "pointer", textAlign: "center",
+                        border: `2px solid ${hasNotes === val ? T.gold : T.border}`,
+                        background: hasNotes === val ? "rgba(197,164,109,0.12)" : T.cream,
+                        fontFamily: "'Heebo', sans-serif", fontSize: "14px",
+                        fontWeight: hasNotes === val ? 600 : 400,
+                        color: hasNotes === val ? T.goldText : T.dark,
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {hasNotes && (
+                  <textarea
+                    value={mealNote}
+                    onChange={e => setMealNote(e.target.value)}
+                    placeholder="כתבו כאן... (למשל: מנה צמחונית, ברכה, בקשה מיוחדת)"
+                    rows={3}
+                    maxLength={500}
+                    style={{
+                      width: "100%", boxSizing: "border-box", padding: "13px 14px",
+                      border: `1.5px solid ${T.border}`, borderRadius: "12px",
+                      fontSize: "15px", fontFamily: "'Heebo', sans-serif",
+                      background: "#fff", color: T.dark, resize: "vertical",
+                      animation: "fadeUp 0.25s ease both",
+                    }}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* horim_list: shuttle from Tiberias area (replaces the rides question) */}
+            {attending && isHorim && (
+              <div style={{ marginBottom: "24px", animation: "fadeUp 0.3s ease 0.08s both" }}>
+                <p style={{ fontSize: "14px", fontWeight: 600, color: T.dark, marginBottom: "4px", textAlign: "center" }}>
+                  🚌 תתקיים הסעה מאזור טבריה — מעוניינים?
+                </p>
+                <p style={{ fontSize: "12px", fontWeight: 300, color: T.muted, marginBottom: "12px", textAlign: "center" }}>
+                  פרטים מדויקים על שעת ונקודת האיסוף יישלחו בהמשך
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                  {([["yes", "🚌 כן, נשמח מקום בהסעה"], ["no", "🚗 לא, מגיעים עצמאית"]] as const).map(([val, label]) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setShuttle(s => s === val ? null : val)}
+                      aria-pressed={shuttle === val}
+                      style={{
+                        padding: "13px 8px", borderRadius: "12px", cursor: "pointer", textAlign: "center",
+                        border: `2px solid ${shuttle === val ? T.gold : T.border}`,
+                        background: shuttle === val ? "rgba(197,164,109,0.12)" : T.cream,
+                        fontFamily: "'Heebo', sans-serif", fontSize: "13px",
+                        fontWeight: shuttle === val ? 600 : 400,
+                        color: shuttle === val ? T.goldText : T.dark,
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {shuttle === "yes" && (
+                  <p style={{ fontSize: "12px", color: "#4A7C59", fontWeight: 600, textAlign: "center", margin: "10px 0 0", animation: "fadeUp 0.25s ease both" }}>
+                    ✓ נשמור לכם {guestCount} {guestCount === 1 ? "מקום" : "מקומות"} בהסעה
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Ride sharing (optional, shown when attending) */}
-            {attending && (
+            {attending && !isHorim && (
               <div style={{ marginBottom: "24px", animation: "fadeUp 0.3s ease 0.08s both" }}>
                 <p style={{ fontSize: "14px", fontWeight: 600, color: T.dark, marginBottom: "4px", textAlign: "center" }}>
                   🚗 מגיעים ברכב?
@@ -1093,6 +1399,536 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
           </div>
         </div>
       </div>
+
+      {isDvir && zoomInvite && <InvitationLightbox onClose={() => setZoomInvite(false)} />}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Gold confetti burst (dvir_list only) — matches the intro's language
+═══════════════════════════════════════════════════════════════ */
+function GoldConfetti() {
+  const pieces = [
+    { x: 6,  delay: 0,    dur: 3.6, size: 7,  color: "#E8D5A8", kind: "circle" },
+    { x: 12, delay: 0.5,  dur: 4.4, size: 11, color: "#C5A46D", kind: "spark"  },
+    { x: 18, delay: 0.2,  dur: 3.9, size: 5,  color: "#D9BC85", kind: "rect"   },
+    { x: 26, delay: 0.8,  dur: 4.8, size: 6,  color: "#A9822F", kind: "circle" },
+    { x: 33, delay: 0.1,  dur: 3.4, size: 8,  color: "#E8D5A8", kind: "rect"   },
+    { x: 40, delay: 0.6,  dur: 4.2, size: 12, color: "#D9BC85", kind: "spark"  },
+    { x: 47, delay: 0.3,  dur: 3.8, size: 5,  color: "#C5A46D", kind: "circle" },
+    { x: 54, delay: 0.9,  dur: 4.6, size: 7,  color: "#E8D5A8", kind: "rect"   },
+    { x: 61, delay: 0.15, dur: 3.5, size: 6,  color: "#A9822F", kind: "circle" },
+    { x: 68, delay: 0.7,  dur: 4.3, size: 10, color: "#E8D5A8", kind: "spark"  },
+    { x: 75, delay: 0.4,  dur: 3.7, size: 5,  color: "#D9BC85", kind: "rect"   },
+    { x: 82, delay: 1.0,  dur: 4.9, size: 7,  color: "#C5A46D", kind: "circle" },
+    { x: 89, delay: 0.25, dur: 3.6, size: 6,  color: "#E8D5A8", kind: "rect"   },
+    { x: 95, delay: 0.55, dur: 4.1, size: 11, color: "#C5A46D", kind: "spark"  },
+    { x: 22, delay: 1.3,  dur: 4.5, size: 5,  color: "#D9BC85", kind: "circle" },
+    { x: 58, delay: 1.5,  dur: 4.7, size: 6,  color: "#E8D5A8", kind: "rect"   },
+    { x: 86, delay: 1.2,  dur: 4.2, size: 9,  color: "#A9822F", kind: "spark"  },
+    { x: 38, delay: 1.7,  dur: 4.8, size: 5,  color: "#C5A46D", kind: "circle" },
+  ];
+  return (
+    <>
+      <style>{`
+        @media (prefers-reduced-motion: no-preference) {
+          @keyframes goldFall {
+            0%   { transform: translateY(-4vh) translateX(0) rotate(0deg); opacity: 0; }
+            8%   { opacity: 1; }
+            50%  { transform: translateY(48vh) translateX(14px) rotate(200deg); }
+            100% { transform: translateY(104vh) translateX(-10px) rotate(420deg); opacity: 0; }
+          }
+          .gold-confetti-piece { animation: goldFall linear forwards; }
+        }
+        @media (prefers-reduced-motion: reduce) { .gold-confetti-piece { display: none; } }
+      `}</style>
+      <div aria-hidden="true" style={{ position: "fixed", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 20 }}>
+        {pieces.map((p, i) => (
+          p.kind === "spark" ? (
+            <span key={i} className="gold-confetti-piece"
+              style={{ position: "absolute", top: 0, left: `${p.x}%`, fontSize: p.size, color: p.color, animationDelay: `${p.delay}s`, animationDuration: `${p.dur}s`, textShadow: "0 0 6px rgba(232,213,168,0.8)" }}>✦</span>
+          ) : (
+            <div key={i} className="gold-confetti-piece"
+              style={{ position: "absolute", top: 0, left: `${p.x}%`, width: p.size, height: p.kind === "rect" ? p.size * 1.8 : p.size, background: p.color, borderRadius: p.kind === "circle" ? "50%" : 2, animationDelay: `${p.delay}s`, animationDuration: `${p.dur}s`, boxShadow: "0 0 4px rgba(232,213,168,0.5)" }} />
+          )
+        ))}
+      </div>
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Live wedding countdown (dvir_list only) — dark band, gold digits
+═══════════════════════════════════════════════════════════════ */
+function LiveCountdown({ date }: { date: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const target = new Date(date);
+  target.setHours(19, 0, 0, 0); // reception starts 19:00
+  const diff = Math.max(0, target.getTime() - now);
+  const days = Math.floor(diff / 86_400_000);
+  const hours = Math.floor((diff % 86_400_000) / 3_600_000);
+  const mins = Math.floor((diff % 3_600_000) / 60_000);
+  const secs = Math.floor((diff % 60_000) / 1000);
+  if (diff === 0) return null;
+
+  const cell = (value: number, label: string) => (
+    <div style={{ textAlign: "center", minWidth: 56 }}>
+      <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 30, fontWeight: 900, margin: 0, lineHeight: 1.1, background: "linear-gradient(180deg,#F3E6C8,#D9BC85 55%,#A9822F)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", fontVariantNumeric: "tabular-nums" }}>
+        {String(value).padStart(2, "0")}
+      </p>
+      <p style={{ fontSize: 11, color: "rgba(243,230,200,0.6)", margin: "2px 0 0", letterSpacing: "0.06em" }}>{label}</p>
+    </div>
+  );
+
+  return (
+    <div style={{
+      background: "radial-gradient(ellipse at 50% 0%, rgba(197,164,109,0.22) 0%, transparent 60%), linear-gradient(165deg, #241507 0%, #1C1008 60%, #120A05 100%)",
+      borderRadius: 16, padding: "18px 12px 14px", marginBottom: 16,
+      display: "flex", justifyContent: "center", gap: 6, direction: "rtl",
+      boxShadow: "0 6px 24px rgba(28,16,8,0.25)",
+      animation: "fadeUp 0.5s ease 0.22s both",
+    }}>
+      {cell(days, "ימים")}
+      <span style={{ color: "rgba(217,188,133,0.5)", fontSize: 24, lineHeight: "38px" }}>:</span>
+      {cell(hours, "שעות")}
+      <span style={{ color: "rgba(217,188,133,0.5)", fontSize: 24, lineHeight: "38px" }}>:</span>
+      {cell(mins, "דקות")}
+      <span style={{ color: "rgba(217,188,133,0.5)", fontSize: 24, lineHeight: "38px" }}>:</span>
+      {cell(secs, "שניות")}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   3D tilt (dvir_list only) — invitation responds to phone tilt /
+   mouse, with a moving specular highlight. Reduced-motion: inert.
+═══════════════════════════════════════════════════════════════ */
+function TiltCard({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const rafRef = useRef(0);
+
+  const apply = useCallback((rx: number, ry: number) => {
+    const el = ref.current;
+    if (!el) return;
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      el.style.transform = `perspective(900px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+      const glare = el.querySelector<HTMLElement>(".tilt-glare");
+      if (glare) glare.style.background =
+        `radial-gradient(circle at ${50 - ry * 4.5}% ${50 - rx * 4.5}%, rgba(255,246,224,0.30), transparent 58%)`;
+    });
+  }, []);
+
+  const onMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = ref.current;
+    if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    apply(py * -7, px * 9);
+  }, [apply]);
+
+  const onMouseLeave = useCallback(() => apply(0, 0), [apply]);
+
+  /* Android fires deviceorientation freely; iOS 13+ requires a permission
+     prompt we deliberately skip — those devices keep the static card. */
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const onOrient = (e: DeviceOrientationEvent) => {
+      if (e.beta == null || e.gamma == null) return;
+      const rx = Math.max(-7, Math.min(7, (e.beta - 45) / 7));
+      const ry = Math.max(-7, Math.min(7, e.gamma / 7));
+      apply(-rx, ry);
+    };
+    window.addEventListener("deviceorientation", onOrient);
+    return () => {
+      window.removeEventListener("deviceorientation", onOrient);
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, [apply]);
+
+  return (
+    <div
+      ref={ref}
+      onMouseMove={onMouseMove}
+      onMouseLeave={onMouseLeave}
+      style={{ transition: "transform 0.16s ease-out", transformStyle: "preserve-3d", position: "relative", borderRadius: 16, willChange: "transform" }}
+    >
+      {children}
+      <div className="tilt-glare" aria-hidden="true" style={{ position: "absolute", inset: 0, borderRadius: 16, pointerEvents: "none" }} />
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Cinematic full-screen intro (dvir_list only)
+   Auto-plays ~3.2s then dissolves into the invitation page.
+   Tap anywhere to skip. Honors prefers-reduced-motion.
+═══════════════════════════════════════════════════════════════ */
+/* Verse written by a pen — RTL aware.
+   The line is revealed by a continuously-growing clip (not per character), and a
+   calligraphy nib rides the leading edge, so it reads as handwriting rather than
+   typing. Each line's duration scales with its length. */
+function PenNib() {
+  return (
+    <svg width="30" height="40" viewBox="0 0 30 40" fill="none" aria-hidden="true"
+      style={{ display: "block", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.45))" }}>
+      <defs>
+        <linearGradient id="wiNib" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#F3E6C8" />
+          <stop offset="45%" stopColor="#D9BC85" />
+          <stop offset="100%" stopColor="#8B6914" />
+        </linearGradient>
+      </defs>
+      {/* holder */}
+      <rect x="11.5" y="0" width="7" height="15" rx="3" fill="#3B2A12" />
+      <rect x="11.5" y="12" width="7" height="4" fill="#A9822F" />
+      {/* nib */}
+      <path d="M15 39 L9.5 17 Q15 13 20.5 17 Z" fill="url(#wiNib)" />
+      <path d="M15 39 L15 21" stroke="#6B4E12" strokeWidth="0.9" />
+      <circle cx="15" cy="22" r="1.1" fill="#6B4E12" />
+    </svg>
+  );
+}
+
+function HandwrittenVerse({
+  lines, startDelay = 800, msPerChar = 62, linePauseMs = 260,
+}: { lines: string[]; startDelay?: number; msPerChar?: number; linePauseMs?: number }) {
+  const style: React.CSSProperties = {
+    fontFamily: "'Frank Ruhl Libre', serif",
+    fontSize: "clamp(19px, 5.4vw, 26px)",
+    fontWeight: 700,
+    color: "#E8D5A8",
+    margin: 0,
+    textShadow: "0 0 24px rgba(197,164,109,0.4)",
+    whiteSpace: "pre",
+  };
+
+  let offset = startDelay;
+  return (
+    <>
+      {lines.map((line, i) => {
+        const dur = Math.round(line.length * msPerChar);
+        const delay = offset;
+        offset += dur + linePauseMs;
+        return (
+          <p key={i} style={{ ...style, position: "relative", display: "inline-block" }}>
+            <span
+              style={{
+                display: "inline-block",
+                clipPath: "inset(0 0 0 100%)",
+                animation: `wiWrite ${dur}ms linear ${delay}ms forwards`,
+              }}
+            >
+              {line}
+            </span>
+            {/* nib rides the leading edge of the reveal */}
+            <span
+              className="wi-nib"
+              style={{
+                animation:
+                  `wiNibMove ${dur}ms linear ${delay}ms both, ` +
+                  `wiNibVis ${dur + 340}ms linear ${Math.max(0, delay - 170)}ms both, ` +
+                  `wiNibBob 260ms ease-in-out ${delay}ms ${Math.round(dur / 260)} both`,
+              }}
+            >
+              <PenNib />
+            </span>
+          </p>
+        );
+      })}
+    </>
+  );
+}
+
+function WeddingIntro({ onDone }: { onDone: () => void }) {
+  const [exiting, setExiting] = useState(false);
+  const [envOpen, setEnvOpen] = useState(false);
+  const settledRef = useRef(false); // set once opening/skip has been triggered
+
+  /* Open the envelope (tap or auto) → flap opens, card slides out, dissolve */
+  const runOpen = useCallback(() => {
+    if (settledRef.current) return;
+    settledRef.current = true;
+    setEnvOpen(true);
+    setTimeout(() => {
+      setExiting(true);
+      setTimeout(onDone, 650);
+    }, 1600);
+  }, [onDone]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      onDone();
+      return;
+    }
+    /* Senior-friendly: the envelope appears at ~6.9s. If nobody taps the seal
+       within ~4s, it opens itself — less tech-savvy guests see the same magic
+       without needing to discover the tap. */
+    const t1 = setTimeout(runOpen, 12000);
+    return () => clearTimeout(t1);
+  }, [onDone, runOpen]);
+
+  const skip = () => {
+    if (settledRef.current) return;
+    settledRef.current = true;
+    setExiting(true);
+    setTimeout(onDone, 500);
+  };
+
+  const openEnvelope = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    runOpen();
+  };
+
+  return (
+    <div
+      onClick={skip}
+      role="presentation"
+      className={exiting ? "wi-root wi-exit" : "wi-root"}
+      style={{
+        position: "fixed", inset: 0, zIndex: 2000, cursor: "pointer",
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        overflow: "hidden", fontFamily: "'Heebo', sans-serif",
+        background:
+          "radial-gradient(ellipse at 50% 30%, rgba(197,164,109,0.22) 0%, transparent 55%)," +
+          "radial-gradient(ellipse at 20% 85%, rgba(139,105,20,0.18) 0%, transparent 50%)," +
+          "linear-gradient(165deg, #241507 0%, #1C1008 45%, #120A05 100%)",
+      }}
+    >
+      <style>{`
+        @keyframes wiRingDraw { from { stroke-dashoffset: 164; } to { stroke-dashoffset: 0; } }
+        @keyframes wiRingGlow {
+          0%   { filter: drop-shadow(0 0 0 rgba(232,213,168,0)); }
+          100% { filter: drop-shadow(0 0 10px rgba(232,213,168,0.65)); }
+        }
+        @keyframes wiTitle {
+          0%   { opacity: 0; letter-spacing: 0.35em; filter: blur(12px); transform: translateY(10px); }
+          60%  { opacity: 1; }
+          100% { opacity: 1; letter-spacing: 0.06em; filter: blur(0); transform: translateY(0); }
+        }
+        @keyframes wiFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes wiLine { from { width: 0; opacity: 0; } to { width: 130px; opacity: 1; } }
+        @keyframes wiDust {
+          0%, 100% { opacity: 0; transform: translateY(0) scale(0.6); }
+          30% { opacity: 0.85; }
+          60% { opacity: 0.35; transform: translateY(-26px) scale(1.05); }
+        }
+        @keyframes wiExitAnim {
+          to { opacity: 0; transform: scale(1.06); }
+        }
+        @keyframes wiVerseLine {
+          from { opacity: 0; transform: translateY(12px); filter: blur(4px); }
+          to   { opacity: 1; transform: translateY(0); filter: blur(0); }
+        }
+        @keyframes wiVerseOut { to { opacity: 0; filter: blur(6px); transform: translateY(-10px); } }
+        @keyframes wiBtnIn { from { opacity: 0; transform: translateY(14px) scale(0.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes wiBtnPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(197,164,109,0.55), 0 6px 24px rgba(0,0,0,0.35); }
+          50%      { box-shadow: 0 0 0 14px rgba(197,164,109,0), 0 6px 24px rgba(0,0,0,0.35); }
+        }
+        .wi-exit { animation: wiExitAnim 0.65s cubic-bezier(0.4,0,0.2,1) forwards; }
+
+        /* Act 1 — בס"ד */
+        .wi-bsd { animation: wiFade 0.9s ease 0.3s both; }
+
+        /* Act 2 — the invitation's verse, line by line, then dissolves */
+        /* handwriting runs ~0.8s→4.4s, then the whole verse dissolves */
+        .wi-verse { animation: wiVerseOut 0.7s ease 4.7s forwards; }
+        @keyframes wiWrite   { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0 0 0 -2%); } }
+        @keyframes wiNibMove { from { right: 0%; } to { right: 100%; } }
+        @keyframes wiNibVis  { 0% { opacity: 0; } 6% { opacity: 1; } 88% { opacity: 1; } 100% { opacity: 0; } }
+        @keyframes wiNibBob  { 0%,100% { transform: translateY(0) rotate(-12deg); } 50% { transform: translateY(-1.6px) rotate(-13.5deg); } }
+        .wi-nib {
+          position: absolute; bottom: -6px; right: 0;
+          transform-origin: 50% 100%; opacity: 0; pointer-events: none;
+          margin-right: -13px;
+        }
+
+        /* Act 3 — rings draw, names revealed */
+        .wi-rings circle { stroke-dasharray: 164; stroke-dashoffset: 164; }
+        .wi-rings .r1 { animation: wiRingDraw 1.25s cubic-bezier(0.65,0,0.35,1) 5.1s forwards; }
+        .wi-rings .r2 { animation: wiRingDraw 1.25s cubic-bezier(0.65,0,0.35,1) 5.4s forwards; }
+        .wi-rings { animation: wiRingGlow 1.4s ease 6.2s forwards; }
+        .wi-title { animation: wiTitle 1.5s cubic-bezier(0.22,1,0.36,1) 5.7s both; }
+        .wi-line  { animation: wiLine 0.9s cubic-bezier(0.22,1,0.36,1) 6.6s both; }
+        .wi-sub   { animation: wiFade 0.8s ease 6.8s both; }
+        .wi-sub2  { animation: wiFade 0.8s ease 7.05s both; }
+
+        /* Act 4 — the sealed envelope */
+        .wi-env {
+          position: relative; width: 216px; height: 148px; margin-top: 36px;
+          background: none; border: none; padding: 0; cursor: pointer;
+          perspective: 700px;
+          animation: wiBtnIn 0.8s cubic-bezier(0.22,1,0.36,1) 7.4s both;
+        }
+        .wi-env-back {
+          position: absolute; inset: 0; border-radius: 10px;
+          background: linear-gradient(180deg, #3A2611 0%, #2A1A0B 100%);
+          border: 1px solid rgba(217,188,133,0.45);
+          box-shadow: 0 10px 34px rgba(0,0,0,0.45);
+        }
+        .wi-env-card {
+          position: absolute; left: 9%; right: 9%; top: 30%; height: 64%; z-index: 2;
+          background: linear-gradient(180deg, #FDFAF5 0%, #F2EADD 100%);
+          border-radius: 6px; border: 1px solid rgba(197,164,109,0.6);
+          display: flex; align-items: center; justify-content: center;
+          transform: translateY(0); will-change: transform;
+          transition: transform 0.95s cubic-bezier(0.22,1,0.36,1) 0.5s;
+        }
+        .wi-env-card-txt {
+          font-family: 'Frank Ruhl Libre', serif; font-weight: 700; font-size: 17px;
+          color: #8B6914; text-align: center; line-height: 1.5;
+        }
+        .wi-env-front {
+          position: absolute; inset: 0; z-index: 3; border-radius: 10px;
+          background: linear-gradient(180deg, #55361A 0%, #3E2812 100%);
+          clip-path: polygon(0 42%, 50% 64%, 100% 42%, 100% 100%, 0 100%);
+          border: 1px solid rgba(217,188,133,0.35);
+        }
+        .wi-env-flap {
+          position: absolute; top: 0; left: 0; right: 0; height: 56%; z-index: 4;
+          background: linear-gradient(180deg, #4A2F15 0%, #55361A 100%);
+          clip-path: polygon(0 0, 100% 0, 50% 100%);
+          transform-origin: top center; will-change: transform;
+          transition: transform 0.75s cubic-bezier(0.55,0,0.3,1) 0.18s, z-index 0s 0.5s;
+          border-radius: 10px 10px 0 0;
+        }
+        .wi-env-seal {
+          position: absolute; left: 50%; top: 54%; z-index: 5;
+          transform: translate(-50%, -50%);
+          width: 48px; height: 48px; border-radius: 50%;
+          background: radial-gradient(circle at 35% 30%, #F3E6C8 0%, #C5A46D 45%, #8B6914 100%);
+          border: 1.5px solid rgba(243,230,200,0.7);
+          display: flex; align-items: center; justify-content: center; font-size: 21px;
+          box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+          animation: wiBtnPulse 2.2s ease-in-out 8.3s infinite;
+          transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .wi-env.open .wi-env-seal { transform: translate(-50%,-50%) scale(0); opacity: 0; animation: none; }
+        .wi-env.open .wi-env-flap { transform: rotateX(180deg); z-index: 1; }
+        .wi-env.open .wi-env-card { transform: translateY(-124%); }
+        .wi-env-hint { animation: wiFade 0.8s ease 8.1s both; }
+        .wi-skip  { animation: wiFade 0.8s ease 8.1s both; }
+        .wi-dust  { position: absolute; color: #E8D5A8; pointer-events: none; animation: wiDust 3.4s ease-in-out infinite; }
+      `}</style>
+
+      {/* Gold dust */}
+      <span className="wi-dust" style={{ top: "16%", right: "18%", fontSize: 12, animationDelay: "0.4s" }}>✦</span>
+      <span className="wi-dust" style={{ top: "28%", left: "14%", fontSize: 9,  animationDelay: "1.1s" }}>✦</span>
+      <span className="wi-dust" style={{ top: "62%", right: "12%", fontSize: 10, animationDelay: "1.7s" }}>✦</span>
+      <span className="wi-dust" style={{ bottom: "20%", left: "20%", fontSize: 12, animationDelay: "2.2s" }}>✦</span>
+      <span className="wi-dust" style={{ top: "12%", left: "44%", fontSize: 8,  animationDelay: "2.6s" }}>✦</span>
+      <span className="wi-dust" style={{ bottom: "34%", right: "38%", fontSize: 9, animationDelay: "0.8s" }}>✦</span>
+
+      {/* Act 1 — בס"ד, like on the printed invitation */}
+      <p className="wi-bsd" style={{ position: "absolute", top: "max(28px, env(safe-area-inset-top))", left: 0, right: 0, textAlign: "center", color: "rgba(243,230,200,0.55)", fontSize: 14, letterSpacing: "0.14em", margin: 0, fontFamily: "'Frank Ruhl Libre', serif" }}>
+        בס״ד
+      </p>
+
+      {/* Act 2 — the couple's own verse, line by line, then dissolves */}
+      <div className="wi-verse" aria-hidden="true" style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, padding: "0 32px", pointerEvents: "none" }}>
+        <HandwrittenVerse
+          lines={["״ואני בחסדך בטחתי", "יגל ליבי בישועתך", "אשירה לה׳ כי גמל עלי״"]}
+          startDelay={800}
+          msPerChar={62}
+          linePauseMs={260}
+        />
+      </div>
+
+      {/* Act 3 — interlocking rings draw themselves */}
+      <svg className="wi-rings" width="150" height="96" viewBox="0 0 150 96" fill="none" aria-hidden="true">
+        <circle className="r1" cx="57" cy="48" r="26" stroke="#E8D5A8" strokeWidth="2.5" />
+        <circle className="r2" cx="93" cy="48" r="26" stroke="#C5A46D" strokeWidth="2.5" />
+      </svg>
+
+      <h1
+        className="wi-title"
+        style={{
+          fontFamily: "'Frank Ruhl Libre', serif", fontWeight: 900,
+          fontSize: "clamp(38px, 11vw, 64px)", margin: "18px 0 0", textAlign: "center",
+          background: "linear-gradient(180deg, #F3E6C8 0%, #D9BC85 45%, #A9822F 100%)",
+          WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent",
+          textShadow: "0 0 34px rgba(197,164,109,0.35)",
+        }}
+      >
+        דביר <span style={{ fontWeight: 400 }}>&</span> מירב
+      </h1>
+
+      <div className="wi-line" style={{ height: 1, background: "linear-gradient(90deg, transparent, #C5A46D, transparent)", margin: "20px 0" }} />
+
+      <p className="wi-sub" style={{ color: "rgba(243,230,200,0.92)", fontSize: 17, fontWeight: 400, margin: 0, letterSpacing: "0.04em" }}>
+        יום שני · 24.08.2026
+      </p>
+      <p className="wi-sub2" style={{ color: "rgba(243,230,200,0.55)", fontSize: 14, fontWeight: 300, margin: "6px 0 0" }}>
+        אולמי גאיה, חדרה
+      </p>
+
+      {/* Act 4 — the sealed envelope; tap the wax seal to open */}
+      <button
+        type="button"
+        className={`wi-env${envOpen ? " open" : ""}`}
+        onClick={openEnvelope}
+        aria-label="פתיחת ההזמנה"
+      >
+        <span className="wi-env-back" />
+        <span className="wi-env-card">
+          <span className="wi-env-card-txt">דביר &amp; מירב<br />24.08.2026</span>
+        </span>
+        <span className="wi-env-flap" />
+        <span className="wi-env-front" />
+        <span className="wi-env-seal">💍</span>
+      </button>
+      <p className="wi-env-hint" style={{ color: "rgba(243,230,200,0.75)", fontSize: 14, fontWeight: 400, margin: "16px 0 0" }}>
+        {envOpen ? "ההזמנה בדרך אליכם… 🤍" : "לחצו על החותם לפתיחת ההזמנה 💌"}
+      </p>
+
+      <p className="wi-skip" style={{ position: "absolute", bottom: "max(24px, env(safe-area-inset-bottom))", color: "rgba(243,230,200,0.35)", fontSize: 12, margin: 0 }}>
+        לחצו בכל מקום לדילוג
+      </p>
+    </div>
+  );
+}
+
+/* Full-screen invitation viewer (dvir_list only) */
+function InvitationLightbox({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      onClick={onClose}
+      role="dialog"
+      aria-label="הזמנה במסך מלא"
+      style={{
+        position: "fixed", inset: 0, zIndex: 1000,
+        background: "rgba(28,16,8,0.92)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "16px", cursor: "zoom-out",
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/wedding/dvir-mirav-invitation.jpg"
+        alt="הזמנה לחתונה של דביר ומירב"
+        style={{ maxWidth: "100%", maxHeight: "100%", borderRadius: "12px", boxShadow: "0 8px 40px rgba(0,0,0,0.5)" }}
+      />
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="סגירה"
+        style={{
+          position: "absolute", top: "max(16px, env(safe-area-inset-top))", left: "16px",
+          width: "44px", height: "44px", borderRadius: "50%",
+          background: "rgba(255,255,255,0.15)", border: "none", color: "#fff",
+          fontSize: "20px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+        }}
+      >
+        ✕
+      </button>
     </div>
   );
 }

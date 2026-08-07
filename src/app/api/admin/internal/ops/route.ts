@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   let guests: Record<string, unknown>[] = [];
   const full = await sb
     .from("guests")
-    .select("id, name, phone, status, guest_count, response_time, opened_at, side, notes, category, chuppah_only")
+    .select("id, name, phone, status, guest_count, response_time, opened_at, side, notes, category, chuppah_only, ride_from, source_group")
     .eq("event_id", eventId);
   if (full.error) {
     const basic = await sb
@@ -35,6 +35,9 @@ export async function GET(req: NextRequest) {
   } else {
     guests = full.data ?? [];
   }
+
+  // Demo guests never count in real numbers
+  guests = guests.filter(x => x.category !== "demo");
 
   const g = (k: string) => guests.map(x => x[k]);
   const val = (x: Record<string, unknown>, k: string) => (x[k] ?? null);
@@ -68,6 +71,42 @@ export async function GET(req: NextRequest) {
 
   const noPhone = guests.filter(x => !String(x.phone ?? "").trim()).length;
 
+  /* How many invitations have actually gone out (guest_events: invite_sent) */
+  let invitesSent = 0;
+  {
+    const ids = guests.map(x => x.id as string);
+    if (ids.length) {
+      const { data: sentEvents } = await sb
+        .from("guest_events")
+        .select("guest_id")
+        .eq("event_type", "invite_sent")
+        .in("guest_id", ids);
+      invitesSent = new Set((sentEvents ?? []).map(e => e.guest_id)).size;
+    }
+  }
+
+  /* "Wrong number" reports — guests who told us the link reached the wrong person.
+     Stored as a marker line inside notes by /api/rsvp/[token]/wrong-person. */
+  const wrongNumber = guests
+    .filter(x => String(val(x, "notes") ?? "").includes("🚫 דיווח מספר שגוי"))
+    .map(x => ({
+      id: x.id,
+      name: x.name,
+      phone: x.phone,
+      report: String(val(x, "notes") ?? "")
+        .split("\n")
+        .filter(l => l.includes("🚫 דיווח מספר שגוי"))
+        .join(" · "),
+    }));
+
+  /* Tiberias shuttle list — horim_list guests who confirmed and asked for a seat */
+  const shuttleGuests = guests.filter(x =>
+    x.status === "confirmed" && String(val(x, "ride_from") ?? "") === "הסעה מאזור טבריה");
+  const shuttle = {
+    seats: shuttleGuests.reduce((s, x) => s + (Number(x.guest_count) || 1), 0),
+    riders: shuttleGuests.map(x => ({ name: x.name, phone: x.phone, count: Number(x.guest_count) || 1 })),
+  };
+
   return NextResponse.json({
     event: { id: event.id, name: event.name, date: event.date, address: event.address, couple_token: event.couple_token, client_phone: event.client_phone },
     stats: {
@@ -75,10 +114,12 @@ export async function GET(req: NextRequest) {
       attendees, confirmRate,
       brideSide: brideSide.length, groomSide: groomSide.length,
       unassignedSide: total - brideSide.length - groomSide.length,
-      noPhone,
+      noPhone, invitesSent,
     },
     recentConfirmed,
     recentDeclined,
     followUp,
+    wrongNumber,
+    shuttle,
   });
 }

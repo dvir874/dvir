@@ -21,7 +21,18 @@ interface Guest {
   phone: string | null;
   status: string;
   rsvp_token: string | null;
+  source_group?: string | null;
+  category?: string | null;
 }
+
+/* Friendly labels for known guest groups (Dvir's wedding) */
+const GROUP_LABELS: Record<string, string> = {
+  dvir_list: "שלי",
+  mirav_list: "של מירב",
+  nitza_list: "של ניצה",
+  horim_list: "של ההורים",
+  horim_tveria: "של ההורים · טבריה 🚌",
+};
 interface EventInfo { id: string; name: string; address?: string | null; date?: string | null }
 
 type Filter = "all" | "pending" | "confirmed";
@@ -34,14 +45,35 @@ const TEMPLATES: { label: string; text: string }[] = [
   { label: "עדכון תאריך 📅",     text: "💍 משפחה וחברים יקרים!\n\n[שם], עדכון חשוב לגבי [אירוע]:\nהאירוע נדחה לתאריך חדש — [תאריך] 📅\n\nנשמח לדעת אם תוכלו להגיע במועד החדש:\n[קישור]\n\nתודה על ההבנה, מחכים לכם! 🤍" },
 ];
 
+/* Dvir & Mirav's own wedding — approved message set (shown only for that event) */
+const DVIR_EVENT_ID = "a5e65dcf-8109-438d-a4a1-8f65d6f3e948";
+const WEDDING_TEMPLATES: { label: string; text: string }[] = [
+  { label: "💌 הזמנה — האורחים שלי", text: "💍 משפחה וחברים יקרים!\n\nבעזרת ה׳ *דביר בן ברוך ומירב ברון* מתחתנים! 🤍\nוהם שמחים להזמין אתכם לחגוג איתם:\n\n🗓 יום שני, י״א אלול — 24.08.2026\n📍 אולמי גאיה, רחוב האומן 12, חדרה\n🥂 קבלת פנים 19:00 | חופה וקידושין 20:00\n\n👇 לחצו כאן לצפייה בהזמנה המלאה ואישור הגעה 👇\n[קישור]\n\nמחכים לחגוג איתכם ביום המאושר! 🤍\n\n_(הודעה זו נשלחה באמצעות שירות רגע לפני)_" },
+  { label: "אישור — של מירב", text: "💍 משפחה וחברים יקרים!\n\nהיי, כאן מירב 🤍\nכמו שכבר ראיתם בהזמנה — דביר ואני מתחתנים בעז״ה ביום שני, י״א אלול, 24.08.2026 באולמי גאיה בחדרה!\n\nכדי שנוכל להיערך בצורה הכי טובה, אשמח שתלחצו על הקישור ותאשרו הגעה — לוקח פחות מדקה 👇\n[קישור]\n\nמחכה לראות אתכם! 🥂\nמירב & דביר\n\n_(הודעה זו נשלחה באמצעות שירות רגע לפני)_" },
+  { label: "אישור — של ניצה", text: "💍 משפחה וחברים יקרים!\n\nבשמחה רבה אנו מזכירים — חתונתם של מירב ודביר תתקיים בעז״ה ביום שני, י״א אלול, 24.08.2026, באולמי גאיה בחדרה.\n\nנודה לכם מקרב לב אם תלחצו על הקישור ותאשרו את הגעתכם — הדבר יעזור לנו רבות בהיערכות לשמחה 👇\n[קישור]\n\nנשמח לראותכם!\nמשפחות ברון ובן ברוך\n\n_(הודעה זו נשלחה באמצעות שירות רגע לפני)_" },
+  { label: "תזכורת — שבועיים לפני", text: "💍 משפחה וחברים יקרים!\n\nהחתונה של דביר ומירב כבר ממש קרובה — יום שני, י״א אלול, 24.08 באולמי גאיה, חדרה! 🤍\n\nשמנו לב שעדיין לא הספקתם לאשר הגעה — נשמח שתלחצו על הקישור ותקדישו רגע קטן, זה עוזר לנו מאוד להיערך 👇\n[קישור]\n\nמחכים לכם!\nדביר & מירב\n\n_(הודעה זו נשלחה באמצעות שירות רגע לפני)_" },
+  { label: "מחר זה קורה + Waze", text: "💍 משפחה וחברים יקרים!\n\nמחר זה קורה! 🤍\nאנחנו מתרגשים לראות אתכם בחתונה שלנו:\n\n🗓 מחר, יום שני 24.08\n🥂 קבלת פנים 19:00 | חופה וקידושין 20:00\n📍 אולמי גאיה, האומן 12, חדרה\n\n🚗 ניווט ישיר ב-Waze:\nhttps://waze.com/ul?q=האומן%2012%20חדרה&navigate=yes\n\nנתראה מחר בשמחות!\nדביר & מירב\n\n_(הודעה זו נשלחה באמצעות שירות רגע לפני)_" },
+  { label: "🚌 עדכון הסעה — של ההורים", text: "💍 משפחה וחברים יקרים!\n\nעדכון חשוב לקראת החתונה של דביר ומירב 🤍\n\n🚌 תתקיים הסעה מאורגנת מאזור טבריה לאולם וחזרה!\n\nמי שמעוניין במקום בהסעה — לחצו על הקישור, אשרו הגעה וסמנו שם שאתם מעוניינים בהסעה 👇\n[קישור]\n\nפרטים על שעת ונקודת האיסוף יישלחו בהמשך.\n\nנתראה בשמחות!\nמשפחת בן ברוך\n\n_(הודעה זו נשלחה באמצעות שירות רגע לפני)_" },
+  /* Sent by a family helper from her own number — the opening line tells the
+     guest who is writing, so an unknown number doesn't read as spam.
+     Replace ○○○ with the sender's name once, then send to everyone. */
+  { label: "👧 הזמנה — בשליחת בת משפחה", text: "💍 משפחה וחברים יקרים!\n\nכאן ○○○, האחיינית של דביר — שולחת בשמם 🤍\n\nבעזרת ה׳ *דביר בן ברוך ומירב ברון* מתחתנים,\nוהם שמחים להזמין אתכם לחגוג איתם!\n\n🗓 יום שני, י״א אלול — 24.08.2026\n📍 אולמי גאיה, רחוב האומן 12, חדרה\n🥂 קבלת פנים 19:00 | חופה וקידושין 20:00\n\n👇 לחצו כאן לצפייה בהזמנה המלאה ואישור הגעה 👇\n[קישור]\n\nמחכים לחגוג איתכם ביום המאושר שלהם! 🤍\n\n_(הודעה זו נשלחה באמצעות שירות רגע לפני)_" },
+  { label: "👧 אישור הגעה — בשליחת בת משפחה", text: "💍 משפחה וחברים יקרים!\n\nכאן ○○○, האחיינית של דביר — שולחת בשמם של דביר ומירב 🤍\n\nכמו שכבר ראיתם בהזמנה — הם מתחתנים בעז״ה ביום שני, י״א אלול, 24.08.2026 באולמי גאיה בחדרה!\n\nכדי שיוכלו להיערך בצורה הכי טובה, אשמח שתלחצו על הקישור ותאשרו הגעה — לוקח פחות מדקה 👇\n[קישור]\n\nמחכים לראותכם! 🥂\n\n_(הודעה זו נשלחה באמצעות שירות רגע לפני)_" },
+  { label: "👧 תזכורת — בשליחת בת משפחה", text: "💍 משפחה וחברים יקרים!\n\nכאן ○○○, האחיינית של דביר 🤍\n\nהחתונה של דביר ומירב כבר ממש קרובה — יום שני, י״א אלול, 24.08 באולמי גאיה, חדרה!\n\nראינו שעדיין לא הספקתם לאשר הגעה — נשמח שתלחצו על הקישור ותקדישו רגע קטן, זה עוזר להם מאוד להיערך 👇\n[קישור]\n\nמחכים לכם!\n\n_(הודעה זו נשלחה באמצעות שירות רגע לפני)_" },
+];
+
 function SendStation() {
   const params = useSearchParams();
   const eventId = params.get("event") ?? "";
 
+  const isDvirEvent = eventId === DVIR_EVENT_ID;
+  const templateList = isDvirEvent ? [...WEDDING_TEMPLATES, ...TEMPLATES] : TEMPLATES;
+
   const [event, setEvent]   = useState<EventInfo | null>(null);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
-  const [template, setTemplate] = useState(TEMPLATES[0].text);
+  const [group,  setGroup]  = useState<string>("all");
+  const [template, setTemplate] = useState(templateList[0].text);
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
@@ -52,23 +84,37 @@ function SendStation() {
     Promise.all([
       fetch(`/api/events/${eventId}`).then(r => r.ok ? r.json() : null),
       fetch(`/api/guests?event_id=${eventId}`).then(r => r.ok ? r.json() : []),
-    ]).then(([ev, gs]) => {
+      /* Server-side record, so "sent" survives across devices and also covers
+         messages sent outside this screen. Falls back to local-only on error. */
+      fetch(`/api/admin/guests-sent?event_id=${eventId}`).then(r => r.ok ? r.json() : { sent: [] }),
+    ]).then(([ev, gs, sentRes]) => {
       if (ev) setEvent(ev);
       if (Array.isArray(gs)) setGuests(gs);
+      const merged = new Set<string>(Array.isArray(sentRes?.sent) ? sentRes.sent : []);
       try {
         const saved = JSON.parse(localStorage.getItem(LS_KEY) ?? "[]");
-        if (Array.isArray(saved)) setSentIds(new Set(saved));
+        if (Array.isArray(saved)) saved.forEach((id: string) => merged.add(id));
       } catch {}
+      setSentIds(merged);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [eventId, LS_KEY]);
 
+  /* Distinct guest groups (for the group filter chips) — demo guests excluded */
+  const groups = useMemo(() => {
+    const s = new Set<string>();
+    guests.forEach(g => { if (g.source_group && g.category !== "demo") s.add(g.source_group); });
+    return [...s];
+  }, [guests]);
+
   const eligible = useMemo(() => guests.filter(g => {
     if (!g.phone) return false;
+    if (g.category === "demo") return false;
+    if (group !== "all" && g.source_group !== group) return false;
     if (filter === "pending")   return g.status === "pending";
     if (filter === "confirmed") return g.status === "confirmed";
     return true;
-  }), [guests, filter]);
+  }), [guests, filter, group]);
 
   const queue = eligible.filter(g => !sentIds.has(g.id));
   const current = queue[0] ?? null;
@@ -89,12 +135,28 @@ function SendStation() {
       localStorage.setItem(LS_KEY, JSON.stringify([...next]));
       return next;
     });
+    // Persist server-side too (fire-and-forget — local state already updated)
+    fetch("/api/admin/guests-sent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ guest_ids: [id] }),
+    }).catch(() => {});
   }
 
   function sendCurrent() {
     if (!current) return;
     const phone = current.phone!.replace(/\D/g, "").replace(/^0/, "972");
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(buildMessage(current))}`, "_blank");
+    const text = encodeURIComponent(buildMessage(current));
+    /* On desktop go straight to web.whatsapp.com. The wa.me short link redirects
+       via api.whatsapp.com, and that hop re-encodes the query string — which
+       mangles multi-byte emoji into "�" and can drop the link preview.
+       Mobile still needs wa.me so the native app opens. */
+    const isMobile = typeof navigator !== "undefined"
+      && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const url = isMobile
+      ? `https://wa.me/${phone}?text=${text}`
+      : `https://web.whatsapp.com/send?phone=${phone}&text=${text}`;
+    window.open(url, "_blank");
     markSent(current.id);
   }
 
@@ -137,7 +199,7 @@ function SendStation() {
             {/* Template picker */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-                {TEMPLATES.map(t => (
+                {templateList.map(t => (
                   <button key={t.label} onClick={() => setTemplate(t.text)}
                     style={{ padding: "7px 12px", borderRadius: 9, border: `1.5px solid ${template === t.text ? C.gold : C.border}`, background: template === t.text ? "rgba(197,164,109,0.12)" : "#fff", color: template === t.text ? C.goldT : C.dark, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
                     {t.label}
@@ -152,7 +214,7 @@ function SendStation() {
             </div>
 
             {/* Filter */}
-            <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+            <div style={{ display: "flex", gap: 6, marginBottom: groups.length > 1 ? 8 : 16 }}>
               {([["all", "כולם"], ["pending", "ממתינים"], ["confirmed", "אישרו"]] as const).map(([f, label]) => (
                 <button key={f} onClick={() => setFilter(f)}
                   style={{ flex: 1, padding: "9px", borderRadius: 10, border: `1.5px solid ${filter === f ? C.gold : C.border}`, background: filter === f ? "rgba(197,164,109,0.12)" : "#fff", color: filter === f ? C.goldT : C.muted, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
@@ -160,6 +222,24 @@ function SendStation() {
                 </button>
               ))}
             </div>
+
+            {/* Group filter — shown only when the guest list has named groups */}
+            {groups.length > 1 && (
+              <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+                {["all", ...groups].map(gr => {
+                  const label = gr === "all" ? "כל הקבוצות" : (GROUP_LABELS[gr] ?? gr);
+                  const count = gr === "all"
+                    ? guests.filter(x => x.category !== "demo").length
+                    : guests.filter(x => x.source_group === gr && x.category !== "demo").length;
+                  return (
+                    <button key={gr} onClick={() => setGroup(gr)}
+                      style={{ padding: "8px 14px", borderRadius: 9999, border: `1.5px solid ${group === gr ? C.gold : C.border}`, background: group === gr ? C.gold : "#fff", color: group === gr ? "#fff" : C.muted, fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
+                      {label} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Progress */}
             <div style={{ marginBottom: 16 }}>

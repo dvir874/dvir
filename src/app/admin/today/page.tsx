@@ -165,7 +165,7 @@ export default function AdminTodayPage() {
 
             {/* Weddings this week */}
             {data.upcoming.length > 0 && (
-              <Section title="💒 חתונות השבוע">
+              <Section title="💍 חתונות השבוע">
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {data.upcoming.map(e => {
                     const d = new Date(e.date);

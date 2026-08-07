@@ -20,10 +20,12 @@ const C = {
 
 interface Ops {
   event: { id: string; name: string; date: string | null; address: string | null; couple_token: string | null; client_phone: string | null };
-  stats: { total: number; confirmed: number; declined: number; pending: number; attendees: number; confirmRate: number; brideSide: number; groomSide: number; unassignedSide: number; noPhone: number };
+  stats: { total: number; confirmed: number; declined: number; pending: number; attendees: number; confirmRate: number; brideSide: number; groomSide: number; unassignedSide: number; noPhone: number; invitesSent?: number };
   recentConfirmed: { name: string; count: number; at: string }[];
   recentDeclined: { name: string; at: string }[];
   followUp: { id: string; name: string; phone: string | null; opened: boolean }[];
+  wrongNumber?: { id: string; name: string; phone: string | null; report: string }[];
+  shuttle?: { seats: number; riders: { name: string; phone: string | null; count: number }[] };
 }
 
 function timeAgo(iso: string): string {
@@ -130,6 +132,11 @@ export default function DvirWeddingOpsPage() {
               <Stat value={`${ops.stats.confirmRate}%`} label="אחוז מענה" color={C.goldT} />
             </div>
 
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+              <Stat value={ops.stats.invitesSent ?? 0} label="הזמנות נשלחו ✉️" color={C.goldT} />
+              <Stat value={ops.stats.total - (ops.stats.invitesSent ?? 0)} label="טרם נשלחו" color={C.muted} />
+            </div>
+
             {/* Sides */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
               <Stat value={ops.stats.brideSide} label="צד הכלה" color={C.bride} />
@@ -154,11 +161,46 @@ export default function DvirWeddingOpsPage() {
                 {tool("הושבה", "🪑", `/couple/${ops.event.couple_token}/seating`)}
                 {tool("עמדת קבלה", "🎊", `/admin/checkin?event=${ops.event.id}`)}
                 {tool("דוח מנות", "🍽️", `/couple/${ops.event.couple_token}/venue-report`)}
+                {tool("לוח טרמפים", "🚗", `/couple/${ops.event.couple_token}/rides`)}
                 {tool("קישור פתוח", "🔗", `/admin?event=${ops.event.id}`)}
                 {tool("גלריה", "📸", `/gallery/${ops.event.couple_token}`)}
-                {tool("מצב יום החתונה", "💒", `/couple/${ops.event.couple_token}/day`)}
+                {tool("מצב יום החתונה", "💍", `/couple/${ops.event.couple_token}/day`)}
               </div>
             </Section>
+
+            {/* Wrong-number reports — guests who said the link reached the wrong person */}
+            {(ops.wrongNumber?.length ?? 0) > 0 && (
+              <Section title={`🚫 דיווחי מספר שגוי (${ops.wrongNumber!.length})`}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {ops.wrongNumber!.map(w => (
+                    <div key={w.id} style={{ background: "rgba(184,92,56,0.06)", border: `1px solid rgba(184,92,56,0.25)`, borderRadius: 12, padding: "10px 12px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>{w.name}</span>
+                        {w.phone && <span dir="ltr" style={{ fontSize: 12, color: C.muted }}>{w.phone}</span>}
+                      </div>
+                      <p style={{ fontSize: 13, color: C.red, margin: "6px 0 0", lineHeight: 1.5 }}>{w.report}</p>
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            )}
+
+            {/* Tiberias shuttle — parents' guests who asked for a seat */}
+            {(ops.shuttle?.riders.length ?? 0) > 0 && (
+              <Section title={`🚌 הסעה מטבריה — ${ops.shuttle!.seats} מקומות (${ops.shuttle!.riders.length} הזמנות)`}>
+                <p style={{ fontSize: 12, color: C.muted, margin: "0 0 10px" }}>
+                  {ops.shuttle!.seats <= 19 ? "מיניבוס מספיק (עד 19)" : "צריך אוטובוס (מעל 19 מקומות)"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                  {ops.shuttle!.riders.map((r, i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
+                      <span style={{ color: C.dark }}>🚌 {r.name}{r.count > 1 ? ` (${r.count})` : ""}</span>
+                      {r.phone && <span dir="ltr" style={{ color: C.muted, fontSize: 12 }}>{r.phone}</span>}
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            )}
 
             {/* Recent confirmations */}
             <Section title={`🎉 אישורים אחרונים (${ops.recentConfirmed.length})`}>

@@ -25,12 +25,23 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
   const { data: guest, error } = await supabase
     .from('guests')
-    .select('id, name, guest_count, status, event_id, opened_at, source_group')
+    .select('id, name, guest_count, status, event_id, opened_at, source_group, category')
     .eq('rsvp_token', token)
     .single();
 
   if (error || !guest)
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  /* Demo guests (category='demo') reset on every open — the link always starts
+     fresh so the couple can share a live preview that never keeps answers. */
+  if (guest.category === 'demo' && guest.status !== 'pending') {
+    await supabase
+      .from('guests')
+      .update({ status: 'pending', response_time: null, guest_count: 1, meal_preference: null, meal_note: null })
+      .eq('id', guest.id);
+    guest.status = 'pending';
+    guest.guest_count = 1;
+  }
 
   // Record first open — only if not already opened
   if (!guest.opened_at) {
