@@ -30,7 +30,12 @@ const C = {
 const PRICE_LIST     = 1.6;
 const PRICE_LAUNCH   = 1.2;
 const MIN_CHARGE     = 250;
-const COST_PER_GUEST = 0.35;
+/* Covers the full lifecycle per guest: invitation, reminder to non-responders,
+   day-before (Utility), gallery to opt-ins, and — from the next couple on — a
+   thank-you to everyone who attended. That last one is the message that
+   carries the referral line to every guest the morning after, which is worth
+   more than the ~5 agorot per guest it costs. */
+const COST_PER_GUEST = 0.42;
 
 const DESIGN_LIST    = 450;
 const DESIGN_LAUNCH  = 350;
@@ -103,9 +108,9 @@ ${designBlock}📩 *הזמנה דיגיטלית* — לא תמונה, חוויה
 ✅ *אישורי הגעה אוטומטיים* — כל אורח עם קישור אישי, בלי בלבול
 🔔 *תזכורות חכמות* — רק למי שעדיין לא ענה
 🚗 *תזכורת ביום האירוע* עם ניווט Waze ישיר לאולם
-🤍 *הודעת תודה* למחרת
-📊 *דשבורד ניהול* — כמה אישרו, מי מגיע, מנות, הסעות, הכול בזמן אמת
-📸 *גלריית תמונות* שהאורחים ממלאים בעצמם
+📊 *דשבורד ניהול* — כמה אישרו, מי מגיע, הסעות, הכול בזמן אמת
+📸 *גלריה משותפת* — האורחים מעלים את התמונות שצילמו
+🤍 *הודעת תודה* לכל האורחים למחרת
 
 *המחיר*
 ${lines.join("\n")}

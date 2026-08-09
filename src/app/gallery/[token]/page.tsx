@@ -21,13 +21,12 @@ interface Photo {
   mime_type: string | null;
   is_video: boolean;
   uploader_name: string | null;
-  uploaded_at: string;
+  created_at: string;
 }
 interface AlbumInfo {
   id: string;
   title: string;
   event_name: string;
-  status: string;
   photo_count: number;
 }
 

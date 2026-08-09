@@ -910,11 +910,12 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
 
           <div style={{ width: "64px", height: "1px", background: `linear-gradient(90deg,transparent,${T.gold},transparent)`, margin: "28px auto 0" }} />
 
-          {/* The existing credit line, given a job. A guest who just enjoyed
-              this page is the only person who ever wonders who made it, and
-              some of them are themselves about to get married. It stays at
-              11px and half opacity: this is a paying couple's page, and the
-              invitation above it must always win. */}
+          {/* Speaks to the guest instead of about us. The credit half of the
+              old line was spending half the width on something nobody was
+              looking for; "an invitation like this" points at the invitation
+              sitting directly above, which is the whole argument.
+              Stays at 11px and half opacity — this is a paying couple's page,
+              and what is above it must always win. */}
           <p style={{ textAlign: "center", fontSize: "11px", letterSpacing: "0.04em", padding: "16px 0 24px", margin: 0 }}>
             <a
               href="https://wa.me/972533318177?text=%D7%94%D7%99%D7%99%2C%20%D7%A8%D7%90%D7%99%D7%AA%D7%99%20%D7%94%D7%96%D7%9E%D7%A0%D7%94%20%D7%A9%D7%9C%20%D7%A8%D7%92%D7%A2%20%D7%9C%D7%A4%D7%A0%D7%99%20%D7%95%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A9%D7%9E%D7%95%D7%A2%20%D7%A4%D7%A8%D7%98%D7%99%D7%9D%20%F0%9F%A4%8D"
@@ -925,7 +926,7 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
               }}
               style={{ color: T.muted, opacity: 0.6, textDecoration: "none" }}
             >
-              נבנה באהבה ע״י רגע לפני 💍 · מתחתנים בקרוב?
+              מתחתנים בקרוב? הזמנה כזאת מחכה גם לכם 💍
             </a>
           </p>
         </div>
