@@ -16,6 +16,13 @@ const MEAL_OPTIONS: { value: MealOption; label: string; emoji: string }[] = [
   { value: "kids",       label: "מנת ילדים",  emoji: "🧒" },
 ];
 const COUNT_OPTIONS = [1, 2, 3, 4, 5] as const;
+/* The hall serves a fixed 5-course menu — a per-guest meal picker would
+   promise a choice that does not exist. Flip to true only if a venue
+   actually offers alternatives. */
+const SHOW_MEAL_CHOICE = false;
+
+const DVIR_WEDDING_EVENT_ID = "a5e65dcf-8109-438d-a4a1-8f65d6f3e948";
+
 const MAX_GUESTS = 15;
 
 interface GuestInfo {
@@ -23,6 +30,9 @@ interface GuestInfo {
   name: string;
   guest_count: number;
   status: Status;
+  /* Which wedding this guest belongs to — decides whether the bespoke
+     Dvir & Mirav flow applies or the generic one does */
+  event_id?: string;
   meal_preference?: string | null;
   meal_note?: string | null;
   source_group?: string | null;
@@ -282,6 +292,10 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
   const [mealNote,   setMealNote]   = useState("");
   const [zoomInvite, setZoomInvite] = useState(false);   // dvir_list: tap invitation → full-screen
   const [hasNotes,   setHasNotes]   = useState(false);   // dvir_list: "notes to hosts?" toggle
+  /* Explicit opt-in for the post-event gallery. Asking turns the follow-up
+     message into something the guest requested — kinder, and the only
+     honest basis for sending it at all. */
+  const [wantsPhotos, setWantsPhotos] = useState(true);
   const [wrongMsg,   setWrongMsg]   = useState("");      // "wrong number" report text
   const [wrongSending, setWrongSending] = useState(false);
   const [wrongSent,  setWrongSent]  = useState(false);
@@ -308,19 +322,27 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
         }
         if (data.guest.meal_preference) setMeal(data.guest.meal_preference);
         if (data.guest.meal_note) { setMealNote(data.guest.meal_note); setHasNotes(true); }
+        if (typeof data.guest.wants_photos === "boolean") setWantsPhotos(data.guest.wants_photos);
         setScreen(data.guest.status !== "pending" ? "done" : "form");
       })
       .catch(() => setScreen("error"));
   }, [token]);
 
-  /* Dvir & Mirav's own guests + his parents' guests — custom cinematic flow
-     (invitation wasn't sent to them separately, so they get it here) */
-  const isDvir = guest?.source_group === "dvir_list"
-    || guest?.source_group === "horim_list"
-    || guest?.source_group === "horim_tveria";
-  /* Shuttle offer is per-guest: only those the parents put in the Tiberias group
-     see it (replaces the rides question for them). */
-  const isHorim = guest?.source_group === "horim_tveria";
+  /* The full cinematic flow — verse intro, envelope, invitation, countdown —
+     is bespoke to Dvir & Mirav's own wedding: it hard-codes their verse, their
+     names, their date and their scanned invitation.
+
+     This was briefly `!!guest`, which silently showed every guest of every
+     event that wedding instead of their own. Scope it to the one event it was
+     built for; any other couple gets the generic flow that reads their real
+     name, date and venue from the database. */
+  const isDvir = guest?.event_id === DVIR_WEDDING_EVENT_ID;
+  /* The Tiberias shuttle is offered to both of the parents' lists — the
+     dedicated Tiberias group and their wider guest list, since plenty of them
+     travel from the same area. It is shown *in addition* to the ride-sharing
+     question, which every guest now sees. */
+  const isHorim = guest?.source_group === "horim_tveria"
+    || guest?.source_group === "horim_list";
   const finishIntro = useCallback(() => setIntroDone(true), []);
   const mealTotal = Object.values(mealCounts).reduce((s, n) => s + (n ?? 0), 0);
   /* Most-selected meal type — kept for backward compat with meal_preference */
@@ -376,6 +398,7 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
           ...(newChoice === "confirmed" && rideRole && rideFrom.trim()
             ? { ride_from: rideFrom.trim(), ride_role: rideRole }
             : {}),
+          ...(newChoice === "confirmed" ? { wants_photos: wantsPhotos } : {}),
           /* horim_list shuttle: stored via the existing ride fields (no schema change) */
           ...(newChoice === "confirmed" && isHorim && shuttle === "yes"
             ? { ride_from: "הסעה מאזור טבריה", ride_role: "seek" }
@@ -755,14 +778,6 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
                 {guest?.guest_count ?? 1} {(guest?.guest_count ?? 1) === 1 ? "אורח" : "אורחים"}
               </p>
             </WarmCard>
-            {!isDvir && (
-              <WarmCard style={{ textAlign: "right", padding: "16px" }}>
-                <p style={{ fontSize: "11px", fontWeight: 700, color: T.muted, letterSpacing: "0.08em", marginBottom: "6px", textTransform: "uppercase" }}>העדפות קולינריות</p>
-                <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "16px", fontWeight: 700, color: T.dark, lineHeight: 1.3 }}>
-                  {guest?.meal_preference === "vegan" ? "טבעוני" : guest?.meal_preference === "vegetarian" ? "צמחוני" : guest?.meal_preference === "kosher" ? "כשר" : "רגיל"}
-                </p>
-              </WarmCard>
-            )}
           </div>
 
           {event && (() => {
@@ -1172,7 +1187,7 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
 
             {/* Meal choice — single select for 1 guest, per-guest steppers for parties.
                 Hidden for dvir_list (they get a free-text notes question instead). */}
-            {attending && !isDvir && guestCount === 1 && (
+            {SHOW_MEAL_CHOICE && attending && !isDvir && guestCount === 1 && (
               <div style={{ marginBottom: "24px", animation: "fadeUp 0.3s ease 0.05s both" }}>
                 <p style={{ fontSize: "14px", fontWeight: 600, color: T.dark, marginBottom: "12px", textAlign: "center" }}>
                   בחירת מנה
@@ -1204,7 +1219,7 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
               </div>
             )}
 
-            {attending && !isDvir && guestCount > 1 && (
+            {SHOW_MEAL_CHOICE && attending && !isDvir && guestCount > 1 && (
               <div style={{ marginBottom: "24px", animation: "fadeUp 0.3s ease 0.05s both" }}>
                 <p style={{ fontSize: "14px", fontWeight: 600, color: T.dark, marginBottom: "4px", textAlign: "center" }}>
                   בחירת מנות
@@ -1244,6 +1259,45 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
               </div>
             )}
 
+            {/* Photo-sharing opt-in.
+                The gallery is two-way: guests upload what they shot and the
+                couple gets every angle. Asking here means the post-event
+                message fulfils a request the guest made, instead of arriving
+                unannounced — better for the guest, and the only honest basis
+                for sending it. */}
+            {attending && (
+              <div style={{ marginBottom: "24px", animation: "fadeUp 0.3s ease 0.05s both" }}>
+                <button
+                  type="button"
+                  onClick={() => setWantsPhotos(v => !v)}
+                  aria-pressed={wantsPhotos}
+                  style={{
+                    width: "100%", display: "flex", alignItems: "center", gap: "12px",
+                    padding: "14px 16px", borderRadius: "14px", cursor: "pointer",
+                    textAlign: "right", fontFamily: "'Heebo', sans-serif",
+                    border: `2px solid ${wantsPhotos ? T.gold : T.border}`,
+                    background: wantsPhotos ? "rgba(197,164,109,0.10)" : T.cream,
+                  }}
+                >
+                  <span style={{
+                    width: 24, height: 24, borderRadius: 7, flexShrink: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    border: `2px solid ${wantsPhotos ? T.gold : T.border}`,
+                    background: wantsPhotos ? T.gold : "transparent",
+                    color: "#fff", fontSize: 14, fontWeight: 700,
+                  }}>{wantsPhotos ? "✓" : ""}</span>
+                  <span style={{ flex: 1 }}>
+                    <span style={{ display: "block", fontSize: "14px", fontWeight: 600, color: T.dark }}>
+                      📸 אשמח לשתף תמונות מהחתונה
+                    </span>
+                    <span style={{ display: "block", fontSize: "12.5px", color: T.muted, marginTop: 2, lineHeight: 1.5 }}>
+                      נשלח לכם קישור לגלריה המשותפת — תוכלו להעלות את התמונות שצילמתם ולראות את של כולם
+                    </span>
+                  </span>
+                </button>
+              </div>
+            )}
+
             {/* dvir_list: notes to the hosts (replaces meal choice) */}
             {attending && isDvir && (
               <div style={{ marginBottom: "24px", animation: "fadeUp 0.3s ease 0.05s both" }}>
@@ -1274,7 +1328,9 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
                   <textarea
                     value={mealNote}
                     onChange={e => setMealNote(e.target.value)}
-                    placeholder="כתבו כאן... (למשל: מנה צמחונית, ברכה, בקשה מיוחדת)"
+                    /* No meal wording here — the hall serves a fixed menu and we
+                       don't want the placeholder to imply a choice exists. */
+                    placeholder="כתבו כאן... (למשל: ברכה לזוג, כיסא לתינוק, בקשה מיוחדת)"
                     rows={3}
                     maxLength={500}
                     style={{
@@ -1327,7 +1383,7 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
             )}
 
             {/* Ride sharing (optional, shown when attending) */}
-            {attending && !isHorim && (
+            {attending && (
               <div style={{ marginBottom: "24px", animation: "fadeUp 0.3s ease 0.08s both" }}>
                 <p style={{ fontSize: "14px", fontWeight: 600, color: T.dark, marginBottom: "4px", textAlign: "center" }}>
                   🚗 מגיעים ברכב?

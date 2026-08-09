@@ -11,6 +11,42 @@
 
 const API_VERSION = "v21.0";
 
+/* ── Throughput guard ────────────────────────────────────────────────────
+   Meta throttles new numbers hard: a burst of 66 invitations produced three
+   "Spam Rate limit hit" failures. Guests never learn a message was blocked,
+   so the only acceptable behaviour is to go slower than the limit and retry
+   anything that still bounces. Minutes of extra wall-clock are cheap; a
+   wedding guest who never got an invitation is not. */
+
+const MIN_GAP_MS = 900;      // never start two sends closer than this
+let lastSendAt = 0;
+
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+async function pace() {
+  const wait = lastSendAt + MIN_GAP_MS - Date.now();
+  if (wait > 0) await sleep(wait);
+  lastSendAt = Date.now();
+}
+
+/* Errors worth retrying: throttling and transient transport problems.
+   A bad phone number or a rejected template will never succeed on retry. */
+function isTransient(err: string): boolean {
+  const e = err.toLowerCase();
+  return e.includes("rate limit")
+      || e.includes("spam")
+      || e.includes("too many")
+      || e.includes("try again")
+      || e.includes("timeout")
+      || e.includes("network")
+      || e.includes("(#131049)")     // healthy-ecosystem throttle
+      || e.includes("(#130429)")     // cloud API rate limit
+      || e.includes("(#80007)");     // rate limit issue
+}
+
+const BACKOFF_MS = [4000, 12000, 30000];
+
+
 export interface WhatsAppConfig {
   phoneNumberId: string;
   accessToken: string;
@@ -30,9 +66,12 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
     accessToken,
     templateName: process.env.WHATSAPP_TEMPLATE_NAME ?? "wedding_invitation_regalifnei",
     templateLang: process.env.WHATSAPP_TEMPLATE_LANG ?? "he",
-    headerImageUrl:
-      process.env.WHATSAPP_HEADER_IMAGE_URL ??
-      "https://regalifnei.vercel.app/wedding/wa-template-header.jpg",
+    /* Deliberately no fallback. This image is the invitation card that every
+       recipient sees at the top of the message. A default here means one
+       couple's invitation goes out to another couple's 550 guests — and a
+       sent WhatsApp message cannot be recalled. Callers must pass the event's
+       own image; see sendInvitation's headerImageUrl argument. */
+    headerImageUrl: process.env.WHATSAPP_HEADER_IMAGE_URL ?? "",
   };
 }
 
@@ -53,6 +92,8 @@ export interface SendResult {
   /** Meta's message id, when accepted — lets us reconcile delivery reports */
   messageId?: string;
   error?: string;
+  /** How many retries it took; absent means it went through first time */
+  retries?: number;
 }
 
 /* Sends one template message.
@@ -62,9 +103,35 @@ export async function sendInvitation(
   cfg: WhatsAppConfig,
   phone: string,
   token: string,
+  headerImageUrl?: string,
 ): Promise<SendResult> {
   const to = toE164(phone);
   if (!to) return { ok: false, error: "invalid phone" };
+
+  /* Refuse rather than guess: sending the wrong couple's invitation is worse
+     than sending nothing, because it cannot be undone. */
+  const image = headerImageUrl || cfg.headerImageUrl;
+  if (!image) {
+    return { ok: false, error: "לא הוגדרה תמונת הזמנה לאירוע — השליחה נעצרה" };
+  }
+
+  let last: SendResult = { ok: false, error: "unknown" };
+  for (let attempt = 0; attempt <= BACKOFF_MS.length; attempt++) {
+    await pace();
+    last = await sendOnce(cfg, to, token, image);
+    if (last.ok) return attempt === 0 ? last : { ...last, retries: attempt };
+    if (!isTransient(last.error ?? "")) return last;
+    if (attempt < BACKOFF_MS.length) await sleep(BACKOFF_MS[attempt]);
+  }
+  return { ...last, retries: BACKOFF_MS.length };
+}
+
+async function sendOnce(
+  cfg: WhatsAppConfig,
+  to: string,
+  token: string,
+  image: string,
+): Promise<SendResult> {
 
   const body = {
     messaging_product: "whatsapp",
@@ -76,7 +143,7 @@ export async function sendInvitation(
       components: [
         {
           type: "header",
-          parameters: [{ type: "image", image: { link: cfg.headerImageUrl } }],
+          parameters: [{ type: "image", image: { link: image } }],
         },
         {
           type: "button",

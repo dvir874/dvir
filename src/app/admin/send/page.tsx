@@ -35,6 +35,19 @@ const GROUP_LABELS: Record<string, string> = {
 };
 interface EventInfo { id: string; name: string; address?: string | null; date?: string | null }
 
+/* Shape returned by /api/admin/whatsapp/send (or an error we surface as-is) */
+interface ApiSendResult {
+  sent?: number;
+  failed?: number;
+  skipped?: number;
+  details?: {
+    sent?: string[];
+    failed?: { name: string; error: string }[];
+    skipped?: { name: string; reason: string }[];
+  };
+  error?: string;
+}
+
 type Filter = "all" | "pending" | "confirmed";
 
 const TEMPLATES: { label: string; text: string }[] = [
@@ -76,6 +89,8 @@ function SendStation() {
   const [template, setTemplate] = useState(templateList[0].text);
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [apiBusy, setApiBusy] = useState(false);
+  const [apiResult, setApiResult] = useState<ApiSendResult | null>(null);
 
   const LS_KEY = `send_station_${eventId}`;
 
@@ -166,6 +181,100 @@ function SendStation() {
     localStorage.removeItem(LS_KEY);
   }
 
+  /* Send just the guest on screen through the official number.
+     Previously the only option was opening web.whatsapp.com, which sends from
+     Dvir's personal account — the exact thing the business number exists to
+     avoid. */
+  async function sendCurrentViaApi() {
+    if (!current || apiBusy) return;
+    setApiBusy(true);
+    setApiResult(null);
+    try {
+      const res = await fetch("/api/admin/whatsapp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event_id: eventId, guest_ids: [current.id] }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setApiResult({ error: data?.hint ?? data?.error ?? `שגיאה ${res.status}` });
+      } else {
+        setApiResult(data);
+        if ((data.sent ?? 0) > 0) markSent(current.id);
+      }
+    } catch {
+      setApiResult({ error: "השליחה נכשלה — בדוק חיבור לאינטרנט" });
+    } finally {
+      setApiBusy(false);
+    }
+  }
+
+  /* Bulk send through the official WhatsApp Cloud API.
+     The server skips anyone already marked invite_sent, so a re-run after a
+     timeout or a closed tab can never double-message a guest. */
+  async function sendAllViaApi() {
+    if (!queue.length || apiBusy) return;
+    const ok = confirm(
+      `לשלוח את ההזמנה ל-${queue.length} אורחים דרך WhatsApp הרשמי?\n\n` +
+      `כל אחד יקבל את תמונת ההזמנה, הקישור האישי שלו וכפתור אישור הגעה.\n` +
+      `עלות משוערת: ₪${(queue.length * 0.13).toFixed(0)}.\n\n` +
+      `מי שכבר קיבל לא יקבל שוב.`
+    );
+    if (!ok) return;
+
+    setApiBusy(true);
+    setApiResult(null);
+
+    /* Send in chunks so a large list can't exceed the serverless time limit.
+       Each chunk is independently committed server-side, so if the tab closes
+       mid-run nothing is lost and nothing is sent twice on the next attempt. */
+    /* Small chunks because each send is now paced ≥900ms apart and may retry
+       with backoff — a large chunk would run past the serverless timeout. */
+    const CHUNK = 10;
+    const ids = queue.map(g => g.id);
+    const acc: Required<ApiSendResult>["details"] = { sent: [], failed: [], skipped: [] };
+    let sent = 0, failed = 0, skipped = 0;
+
+    try {
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const slice = ids.slice(i, i + CHUNK);
+        const res = await fetch("/api/admin/whatsapp/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ event_id: eventId, guest_ids: slice }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          setApiResult({ sent, failed, skipped, details: acc,
+            error: data?.hint ?? data?.error ?? `שגיאה ${res.status}` });
+          return;
+        }
+
+        sent += data.sent ?? 0;
+        failed += data.failed ?? 0;
+        skipped += data.skipped ?? 0;
+        acc.sent!.push(...(data.details?.sent ?? []));
+        acc.failed!.push(...(data.details?.failed ?? []));
+        acc.skipped!.push(...(data.details?.skipped ?? []));
+
+        /* Update the screen after every chunk, not only at the end */
+        setApiResult({ sent, failed, skipped, details: acc });
+        const done = new Set<string>(acc.sent!);
+        setSentIds(prev => {
+          const next = new Set(prev);
+          queue.forEach(g => { if (done.has(g.name)) next.add(g.id); });
+          return next;
+        });
+      }
+    } catch {
+      setApiResult({ sent, failed, skipped, details: acc,
+        error: "השליחה נקטעה — הרץ שוב, מי שכבר קיבל יידולג" });
+    } finally {
+      setApiBusy(false);
+    }
+  }
+
   if (!eventId) return (
     <div dir="rtl" style={{ minHeight: "100dvh", background: C.ivory, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Heebo, sans-serif" }}>
       <p style={{ color: C.muted }}>חסר מזהה אירוע — פתחו מהאדמין: /admin/send?event=[ID]</p>
@@ -252,16 +361,72 @@ function SendStation() {
               </div>
             </div>
 
+            {/* Bulk send via the official API — Dvir's wedding only for now */}
+            {isDvirEvent && queue.length > 0 && (
+              <div style={{ background: "#fff", border: `1.5px solid ${C.gold}`, borderRadius: 18, padding: 18, marginBottom: 14 }}>
+                <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 17, fontWeight: 700, color: C.dark, margin: "0 0 4px" }}>
+                  ⚡ שליחה אוטומטית לכולם
+                </p>
+                <p style={{ fontSize: 12.5, color: C.muted, margin: "0 0 14px", lineHeight: 1.6 }}>
+                  דרך WhatsApp הרשמי — תמונת ההזמנה בכל הודעה, קישור אישי לכל אורח,
+                  ומי שכבר קיבל מדולג אוטומטית.
+                </p>
+                <button onClick={sendAllViaApi} disabled={apiBusy}
+                  style={{ width: "100%", padding: "16px", background: apiBusy ? C.border : C.gold, color: "#fff", border: "none", borderRadius: 14, fontSize: 16.5, fontWeight: 700, cursor: apiBusy ? "wait" : "pointer", fontFamily: "Heebo, sans-serif" }}>
+                  {apiBusy ? "שולח… אל תסגור את הדף" : `שלח ל-${queue.length} אורחים · ~₪${(queue.length * 0.13).toFixed(0)}`}
+                </button>
+
+                {apiResult && (
+                  <div style={{ marginTop: 14, fontSize: 13, lineHeight: 1.7 }}>
+                    {apiResult.error ? (
+                      <p style={{ color: "#B4453C", margin: 0 }}>❌ {apiResult.error}</p>
+                    ) : (
+                      <>
+                        <p style={{ margin: 0, color: C.green, fontWeight: 700 }}>
+                          ✅ נשלחו {apiResult.sent ?? 0}
+                          {(apiResult.failed ?? 0) > 0 && ` · נכשלו ${apiResult.failed}`}
+                          {(apiResult.skipped ?? 0) > 0 && ` · דולגו ${apiResult.skipped}`}
+                        </p>
+                        {(apiResult.details?.failed ?? []).slice(0, 8).map((f, i) => (
+                          <p key={i} style={{ margin: "3px 0 0", color: "#B4453C" }}>
+                            {f.name} — {f.error}
+                          </p>
+                        ))}
+                        {(apiResult.details?.skipped ?? []).slice(0, 8).map((s, i) => (
+                          <p key={i} style={{ margin: "3px 0 0", color: C.muted }}>
+                            {s.name} — {s.reason}
+                          </p>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Current guest — the big button */}
             {current ? (
               <div style={{ background: "#fff", borderRadius: 18, border: `1.5px solid ${C.gold}`, padding: "20px", textAlign: "center", marginBottom: 14 }}>
                 <p style={{ fontSize: 12, color: C.muted, margin: "0 0 4px" }}>הבא בתור</p>
                 <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 24, fontWeight: 700, color: C.dark, margin: "0 0 2px" }}>{current.name}</p>
                 <p style={{ fontSize: 13, color: C.muted, margin: "0 0 16px", direction: "ltr" }}>{current.phone}</p>
-                <button onClick={sendCurrent}
-                  style={{ width: "100%", padding: "16px", background: "#25D366", color: "#fff", border: "none", borderRadius: 14, fontSize: 17, fontWeight: 700, cursor: "pointer", fontFamily: "Heebo, sans-serif", boxShadow: "0 4px 16px rgba(37,211,102,0.35)" }}>
-                  💬 שלח ל{current.name} ←
-                </button>
+                {isDvirEvent ? (
+                  <>
+                    <button onClick={sendCurrentViaApi} disabled={apiBusy}
+                      style={{ width: "100%", padding: "16px", background: apiBusy ? C.border : C.gold, color: "#fff", border: "none", borderRadius: 14, fontSize: 17, fontWeight: 700, cursor: apiBusy ? "wait" : "pointer", fontFamily: "Heebo, sans-serif" }}>
+                      {apiBusy ? "שולח…" : `שלח ל${current.name} מ״רגע לפני״ ←`}
+                    </button>
+                    <button onClick={sendCurrent}
+                      style={{ width: "100%", marginTop: 8, padding: "12px", background: "#fff", color: C.muted, border: `1.5px solid ${C.border}`, borderRadius: 12, fontSize: 13.5, fontWeight: 600, cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
+                      💬 או מהוואטסאפ האישי שלי
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={sendCurrent}
+                    style={{ width: "100%", padding: "16px", background: "#25D366", color: "#fff", border: "none", borderRadius: 14, fontSize: 17, fontWeight: 700, cursor: "pointer", fontFamily: "Heebo, sans-serif", boxShadow: "0 4px 16px rgba(37,211,102,0.35)" }}>
+                    💬 שלח ל{current.name} ←
+                  </button>
+                )}
                 <button onClick={() => markSent(current.id)}
                   style={{ marginTop: 10, background: "none", border: "none", cursor: "pointer", color: C.muted, fontSize: 13, fontFamily: "Heebo, sans-serif", display: "inline-flex", alignItems: "center", gap: 5 }}>
                   <SkipForward size={13} /> דלג על אורח זה

@@ -870,6 +870,27 @@ export default function AdminPage() {
             💍 החתונה שלי
           </a>
           <a
+            href="/admin/delivery"
+            className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all hover:opacity-80"
+            style={{ background: "rgba(180,69,60,0.12)", color: "#B4453C" }}
+          >
+            📊 מצב מסירה
+          </a>
+          <a
+            href="/admin/inbox"
+            className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all hover:opacity-80"
+            style={{ background: "rgba(37,211,102,0.16)", color: "#1A9B4E" }}
+          >
+            💬 תיבת הודעות
+          </a>
+          <a
+            href="/admin/quote"
+            className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
+            style={{ background: "rgba(197,164,109,0.12)", color: "#8B6914" }}
+          >
+            🧮 הצעת מחיר
+          </a>
+          <a
             href="/admin/today"
             className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all hover:opacity-80"
             style={{ background: "rgba(197,164,109,0.22)", color: "#8B6914" }}

@@ -53,10 +53,16 @@ export async function GET(req: NextRequest) {
   const rows = (data ?? []) as MsgRow[];
 
   const guestIds = [...new Set(rows.map(r => r.guest_id).filter(Boolean))] as string[];
-  const { data: guests } = guestIds.length
-    ? await sb.from("guests").select("id, name, phone, status, source_group").in("id", guestIds)
-    : { data: [] };
-  const byId = new Map((guests ?? []).map(g => [g.id, g]));
+  /* Chunked for the PostgREST .in() limit; without it a large event showed
+     phone numbers instead of names throughout the inbox. */
+  const guests: { id: string; name: string; phone: string | null; status: string; source_group: string | null }[] = [];
+  for (let i = 0; i < guestIds.length; i += 100) {
+    const { data } = await sb
+      .from("guests").select("id, name, phone, status, source_group")
+      .in("id", guestIds.slice(i, i + 100));
+    guests.push(...(data ?? []));
+  }
+  const byId = new Map(guests.map(g => [g.id, g]));
 
   /* One thread per phone number */
   const threads = new Map<string, MsgRow[]>();

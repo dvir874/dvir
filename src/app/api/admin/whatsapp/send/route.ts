@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
-import { getWhatsAppConfig, sendInvitation } from "@/lib/whatsapp";
+import { getWhatsAppConfig, sendInvitation, toE164 } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -22,9 +22,10 @@ export const maxDuration = 60;
      leaving the manual wa.me flow untouched. */
 
 const EVENT_TYPE = "invite_sent";
-/* Meta accepts well above this, but a modest ceiling keeps one run inside the
-   function timeout and makes partial failures easy to reason about. */
-const CONCURRENCY = 5;
+/* Sends are paced inside src/lib/whatsapp.ts (≥900ms apart) and retried on
+   throttling, so parallelism here only controls how many are in flight while
+   waiting on the network. Two is enough and keeps the queue orderly. */
+const CONCURRENCY = 2;
 
 export async function POST(req: NextRequest) {
   const cfg = getWhatsAppConfig();
@@ -42,6 +43,18 @@ export async function POST(req: NextRequest) {
 
   const sb = createServerClient();
 
+  /* Each event carries its own invitation card; sending refuses without it */
+  const { data: eventRow } = await sb
+    .from("events").select("wa_header_image_url").eq("id", eventId).maybeSingle();
+  const headerImage: string = eventRow?.wa_header_image_url ?? cfg.headerImageUrl;
+  if (!headerImage) {
+    return NextResponse.json(
+      { error: "missing_invitation_image",
+        hint: "לא הוגדרה תמונת הזמנה לאירוע — הגדירו אותה לפני שליחה" },
+      { status: 400 },
+    );
+  }
+
   const { data: allGuests } = await sb
     .from("guests")
     .select("id, name, phone, rsvp_token, category")
@@ -53,15 +66,26 @@ export async function POST(req: NextRequest) {
     guests = guests.filter(g => want.has(g.id));
   }
 
-  /* Never message anyone twice — the server record is the source of truth */
+  /* Never message anyone twice — the server record is the source of truth.
+     Chunked because PostgREST rejects .in() lists past roughly 390 ids (the
+     16KB header limit): at 550 guests the unchunked query failed outright,
+     `already` stayed empty, and every guest would have been invited twice.
+     A failure here must abort, never silently proceed. */
   const ids = guests.map(g => g.id);
   const already = new Set<string>();
-  if (ids.length) {
-    const { data: sentRows } = await sb
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data: sentRows, error: sentErr } = await sb
       .from("guest_events")
       .select("guest_id")
       .eq("event_type", EVENT_TYPE)
-      .in("guest_id", ids);
+      .in("guest_id", ids.slice(i, i + 100));
+    if (sentErr) {
+      return NextResponse.json(
+        { error: "dedupe_check_failed",
+          hint: "לא ניתן לוודא מי כבר קיבל — השליחה נעצרה כדי למנוע כפילויות" },
+        { status: 503 },
+      );
+    }
     (sentRows ?? []).forEach(r => already.add(r.guest_id));
   }
 
@@ -81,7 +105,7 @@ export async function POST(req: NextRequest) {
     const results = await Promise.all(
       batch.map(async g => ({
         guest: g,
-        res: await sendInvitation(cfg, g.phone as string, g.rsvp_token as string),
+        res: await sendInvitation(cfg, g.phone as string, g.rsvp_token as string, headerImage),
       })),
     );
     for (const { guest, res } of results) {
@@ -95,6 +119,22 @@ export async function POST(req: NextRequest) {
     await sb.from("guest_events").insert(
       sent.map(s => ({ guest_id: s.id, event_type: EVENT_TYPE })),
     );
+
+    /* Log the outbound message so the delivery webhook has a row to attach
+       its sent → delivered → read status to. Failure here must not fail the
+       send: the guest already has the message. */
+    const byId = new Map(queue.map(g => [g.id, g]));
+    await sb.from("wa_messages").insert(
+      sent.filter(s => s.messageId).map(s => ({
+        event_id: eventId,
+        guest_id: s.id,
+        wa_phone: toE164(byId.get(s.id)?.phone ?? "") ?? "",
+        direction: "out",
+        body: "הזמנה לחתונה (תבנית)",
+        wamid: s.messageId,
+        status: "accepted",
+      })),
+    ).then(r => r.error && console.warn("wa_messages log skipped:", r.error.message));
   }
 
   return NextResponse.json({

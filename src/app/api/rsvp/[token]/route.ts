@@ -12,6 +12,8 @@ const RsvpPostSchema = z.object({
   meal_counts:     z.record(z.string().max(30), z.number().int().min(0).max(20)).optional(),
   ride_from:       z.string().max(100).optional().nullable(),
   ride_role:       z.enum(['offer', 'seek']).optional().nullable(),
+  /* Opt-in for the shared photo gallery after the event */
+  wants_photos:    z.boolean().optional(),
 });
 
 type Params = { params: Promise<{ token: string }> };
@@ -96,7 +98,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
-  const { status, guest_count, meal_preference, meal_note, meal_counts, ride_from, ride_role } = parsed.data;
+  const { status, guest_count, meal_preference, meal_note, meal_counts, ride_from, ride_role, wants_photos } = parsed.data;
 
   const supabase = createServerClient();
   const basePatch = {
@@ -111,6 +113,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     ...(meal_counts !== undefined ? { meal_counts } : {}),
     ...(ride_from !== undefined ? { ride_from } : {}),
     ...(ride_role !== undefined ? { ride_role } : {}),
+    ...(wants_photos !== undefined ? { wants_photos } : {}),
   };
 
   let { data: updated, error } = await supabase

@@ -6,6 +6,7 @@
 
 /* ── Forced-dark defence ───────────────────────────────────────────────
    `color-scheme: only light` is the standard opt-out and Chrome honours it,
+   but Samsung Internet's "Dark mode" ignores it and algorithmically inverts
    the page — a guest opened the invitation and saw black with neon blue.
 
    Samsung only force-inverts pages that do NOT declare their own dark
@@ -16,8 +17,10 @@
   html, body {
     background: #FDFAF5 !important;
     color: #1C1008 !important;
+    forced-color-adjust: none;
   }
 }
+html { forced-color-adjust: none; }
 
 /* Never set -webkit-text-fill-color globally: it inherits and destroys
    gradient-clipped text (the countdown digits use background-clip:text with a

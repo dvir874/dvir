@@ -20,14 +20,25 @@ export async function GET(req: NextRequest) {
   const ids = (guests ?? []).map(g => g.id);
   if (!ids.length) return NextResponse.json({ sent: [] });
 
-  const { data: events, error } = await sb
-    .from("guest_events")
-    .select("guest_id")
-    .eq("event_type", EVENT_TYPE)
-    .in("guest_id", ids);
-
-  if (error) return NextResponse.json({ sent: [] });   // never block the sender
-  return NextResponse.json({ sent: [...new Set((events ?? []).map(e => e.guest_id))] });
+  /* Chunked for the same PostgREST .in() limit as the send route. Returning
+     an empty list on error used to look like "nobody has been sent yet",
+     which is the most dangerous possible lie to tell a sender. */
+  const sent = new Set<string>();
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data: events, error } = await sb
+      .from("guest_events")
+      .select("guest_id")
+      .eq("event_type", EVENT_TYPE)
+      .in("guest_id", ids.slice(i, i + 100));
+    if (error) {
+      return NextResponse.json(
+        { error: "lookup_failed", hint: "לא ניתן לטעון מי כבר קיבל" },
+        { status: 503 },
+      );
+    }
+    (events ?? []).forEach(e => sent.add(e.guest_id));
+  }
+  return NextResponse.json({ sent: [...sent] });
 }
 
 /* POST /api/admin/guests-sent  { guest_ids: [...] }  → marks them as sent */
