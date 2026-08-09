@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
-import { getWhatsAppConfig, sendInvitation, toE164 } from "@/lib/whatsapp";
+import {
+  getWhatsAppConfig, sendInvitation, toE164,
+  SAFE_DAILY_LIMIT, SECONDS_PER_MESSAGE,
+} from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -120,50 +123,94 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  /* How many of these may actually go out now.
+
+     Two independent ceilings, and the run stops at the lower one:
+
+     - Time. Pacing is ~20s per message and the function is killed at
+       maxDuration. Previously the whole queue was attempted regardless, and
+       marking-as-sent happened only after the loop — so a timeout meant Meta
+       had delivered messages that were never recorded, and the next run sent
+       them all a second time.
+     - Daily volume. The failures we are trying to prevent were caused by
+       volume: 68 messages went out with 9% blocked, and a batch of 24 an hour
+       later came back 92% blocked. The number's day, not the gap between
+       messages, is what Meta reacts to. */
+  const since = new Date(Date.now() - 86_400_000).toISOString();
+  const { count: sentToday } = await sb
+    .from("wa_messages").select("id", { count: "exact", head: true })
+    .eq("direction", "out").gte("created_at", since);
+
+  const dailyLeft = SAFE_DAILY_LIMIT - (sentToday ?? 0);
+  const timeCap = Math.floor((60 - 10) / SECONDS_PER_MESSAGE);
+  const allowed = Math.max(0, Math.min(queue.length, dailyLeft, timeCap));
+  const batchQueue = queue.slice(0, allowed);
+  const deferred = queue.length - allowed;
+
+  if (!allowed && dailyLeft <= 0) {
+    return NextResponse.json({
+      sent: 0, failed: 0, skipped: skipped.length, deferred: queue.length,
+      hint: `נשלחו ${sentToday} הודעות ב-24 השעות האחרונות. ההמשך ימתין כדי לא להיחסם.`,
+    });
+  }
+
   const sent: { id: string; name: string; messageId?: string }[] = [];
   const failed: { name: string; error: string }[] = [];
+  let consecutiveFailures = 0;
+  let stoppedEarly: string | null = null;
 
-  for (let i = 0; i < queue.length; i += CONCURRENCY) {
-    const batch = queue.slice(i, i + CONCURRENCY);
+  for (let i = 0; i < batchQueue.length; i += CONCURRENCY) {
+    const batch = batchQueue.slice(i, i + CONCURRENCY);
     const results = await Promise.all(
       batch.map(async g => ({
         guest: g,
         res: await sendInvitation(cfg, g.phone as string, g.rsvp_token as string, headerImage, details),
       })),
     );
+
     for (const { guest, res } of results) {
-      if (res.ok) sent.push({ id: guest.id, name: guest.name, messageId: res.messageId });
-      else failed.push({ name: guest.name, error: res.error ?? "unknown" });
+      if (res.ok) {
+        sent.push({ id: guest.id, name: guest.name, messageId: res.messageId });
+        consecutiveFailures = 0;
+
+        /* Record immediately, not after the loop. Anything that ends this
+           invocation early — a timeout, a crash — must not leave a guest
+           messaged but unmarked, because the next run would message them
+           again. Recording per message costs a round trip and removes the
+           only path to a duplicate invitation. */
+        await sb.from("guest_events").insert({ guest_id: guest.id, event_type: EVENT_TYPE });
+        if (res.messageId) {
+          await sb.from("wa_messages").insert({
+            event_id: eventId,
+            guest_id: guest.id,
+            wa_phone: toE164(guest.phone ?? "") ?? "",
+            direction: "out",
+            body: "הזמנה לחתונה (תבנית)",
+            wamid: res.messageId,
+            status: "accepted",
+          }).then(r => r.error && console.warn("wa_messages log skipped:", r.error.message));
+        }
+      } else {
+        failed.push({ name: guest.name, error: res.error ?? "unknown" });
+        consecutiveFailures++;
+      }
     }
-  }
 
-  /* Mark only what Meta actually accepted */
-  if (sent.length) {
-    await sb.from("guest_events").insert(
-      sent.map(s => ({ guest_id: s.id, event_type: EVENT_TYPE })),
-    );
-
-    /* Log the outbound message so the delivery webhook has a row to attach
-       its sent → delivered → read status to. Failure here must not fail the
-       send: the guest already has the message. */
-    const byId = new Map(queue.map(g => [g.id, g]));
-    await sb.from("wa_messages").insert(
-      sent.filter(s => s.messageId).map(s => ({
-        event_id: eventId,
-        guest_id: s.id,
-        wa_phone: toE164(byId.get(s.id)?.phone ?? "") ?? "",
-        direction: "out",
-        body: "הזמנה לחתונה (תבנית)",
-        wamid: s.messageId,
-        status: "accepted",
-      })),
-    ).then(r => r.error && console.warn("wa_messages log skipped:", r.error.message));
+    /* Stop the run rather than burn the list. A previous batch reached 92%
+       blocked because it kept going: every additional attempt after the
+       throttle kicked in both failed and made the next one likelier to fail. */
+    if (consecutiveFailures >= 3) {
+      stoppedEarly = "רצף כשלים — השליחה נעצרה כדי להגן על המספר";
+      break;
+    }
   }
 
   return NextResponse.json({
     sent: sent.length,
     failed: failed.length,
     skipped: skipped.length,
+    deferred: deferred + (stoppedEarly ? batchQueue.length - sent.length - failed.length : 0),
+    stoppedEarly,
     details: { sent: sent.map(s => s.name), failed, skipped },
   });
 }

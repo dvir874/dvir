@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { isRetryableFailure, nextRetryAt } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 
@@ -82,12 +83,29 @@ export async function POST(req: NextRequest) {
     for (const s of statuses) {
       if (!s.id || !s.status) continue;
       const err = s.errors?.[0]?.title ?? s.errors?.[0]?.message ?? null;
+
+      /* A failure reported here is the ONLY notice we get that a guest never
+         received their invitation — the send call already returned success.
+         Schedule another attempt rather than let it die in a status column. */
+      let retry: Record<string, unknown> = {};
+      if (s.status === "failed" && isRetryableFailure(err)) {
+        const { data: prev } = await sb
+          .from("wa_messages").select("retry_count").eq("wamid", s.id).maybeSingle();
+        const count = prev?.retry_count ?? 0;
+        const when = nextRetryAt(count);
+        if (when) retry = { retry_after: when.toISOString() };
+      }
+
+      const base = { status: s.status, error: err, updated_at: new Date().toISOString() };
       const { error } = await sb
-        .from("wa_messages")
-        .update({ status: s.status, error: err, updated_at: new Date().toISOString() })
-        .eq("wamid", s.id);
-      /* An unknown wamid means the message predates this table — ignore it */
-      if (error) break;
+        .from("wa_messages").update({ ...base, ...retry }).eq("wamid", s.id);
+
+      /* The retry columns arrive in a migration. Until it has run, recording
+         the delivery status still matters more than scheduling a retry — so
+         fall back to the plain update rather than lose the status entirely. */
+      if (error && Object.keys(retry).length) {
+        await sb.from("wa_messages").update(base).eq("wamid", s.id);
+      }
     }
 
     /* ---- inbound replies ---- */
