@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import {
   getWhatsAppConfig, sendInvitation, toE164,
-  SECONDS_PER_MESSAGE, SAFE_DAILY_LIMIT, MAX_RETRIES,
+  SECONDS_PER_MESSAGE, SAFE_DAILY_LIMIT, MAX_RETRIES, rollingWindowUsage,
 } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
@@ -34,21 +34,17 @@ export async function POST(req: NextRequest) {
   const sb = createServerClient();
   const now = new Date();
 
-  /* Today's volume decides whether we may send at all. The failures being
-     retried were caused by volume; retrying into the same wall repeats it. */
-  const since = new Date(now.getTime() - 86_400_000).toISOString();
-  const { count: sentToday } = await sb
-    .from("wa_messages")
-    .select("id", { count: "exact", head: true })
-    .eq("direction", "out").gte("created_at", since);
-
-  const budget = SAFE_DAILY_LIMIT - (sentToday ?? 0);
-  if (budget <= 0) {
+  /* Meta counts unique recipients in a rolling 24 hours, and refuses past the
+     ceiling with error 141015 — which is precisely how the batch that failed
+     90% happened. Retrying into a full window reproduces it exactly. */
+  const usage = await rollingWindowUsage(sb);
+  if (usage.blocked) {
     return NextResponse.json({
-      sent: 0, skipped: "daily_budget",
-      hint: `נשלחו ${sentToday} הודעות ב-24 השעות האחרונות — ממתינים לפני ניסיון נוסף`,
+      sent: 0, skipped: "rolling_window_full",
+      hint: `${usage.recipients} נמענים בחלון 24 השעות — ניסיון חוזר עכשיו ייחסם`,
     });
   }
+  const budget = Math.min(usage.remaining, SAFE_DAILY_LIMIT);
 
   /* One invocation's worth, with headroom for the round trips themselves */
   const timeCap = Math.floor((maxDuration - 10) / SECONDS_PER_MESSAGE);
@@ -72,8 +68,11 @@ export async function POST(req: NextRequest) {
   /* Guests and their events, so each retry carries the right card */
   const guestIds = [...new Set(due.map(d => d.guest_id).filter(Boolean))] as string[];
   const { data: guests } = await sb.from("guests")
-    .select("id, name, phone, rsvp_token, event_id").in("id", guestIds);
-  const guestById = new Map((guests ?? []).map(g => [g.id, g]));
+    .select("id, name, phone, rsvp_token, event_id, category").in("id", guestIds);
+  /* Demo guests exist to make screenshots; they must never consume the daily
+     budget that real invitations need. */
+  const guestById = new Map(
+    (guests ?? []).filter(g => g.category !== "demo").map(g => [g.id, g]));
 
   const evIds = [...new Set((guests ?? []).map(g => g.event_id))];
   const { data: events } = await sb.from("events")

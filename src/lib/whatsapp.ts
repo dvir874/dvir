@@ -9,6 +9,8 @@
    disabled result and the caller falls back to the manual wa.me flow. Nothing
    here can break the existing send station. */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 const API_VERSION = "v21.0";
 
 /* ── Throughput guard ────────────────────────────────────────────────────
@@ -18,27 +20,66 @@ const API_VERSION = "v21.0";
    anything that still bounces. Minutes of extra wall-clock are cheap; a
    wedding guest who never got an invitation is not. */
 
-/* Deliberately slow, and slower than it used to be.
+/* Pacing — and what it is actually for.
 
-   Measured on this number, same day:
-     68 messages in one run  →   6 blocked   ( 9%)
-     24 messages an hour later → 22 blocked  (92%)
-      9 messages four hours later → 4 blocked (44%)
+   An earlier version of this comment claimed Meta's spam heuristic reacts to
+   the day's cumulative volume, and set a 20-second gap on that basis. The
+   failure data says otherwise:
 
-   A 3-second gap did not prevent any of that. Meta's spam heuristic reacts to
-   the volume of *new conversations from one number*, so the gap alone is not
-   the lever — the day's cumulative total is. Hence a much larger gap, plus a
-   daily budget the caller is expected to respect.
+     09:00  67 sent   5 failed  ( 7%)   mixed causes
+     10:00   1 sent   1 failed  (100%)  131048
+     11:00  20 sent  18 failed  ( 90%)  13× 131048
+     15:00   9 sent   4 failed  ( 44%)   4× 131048
 
-   Jitter matters too: a perfectly regular 3000ms cadence is itself a signal
-   that no human is behind the number. */
-const MIN_GAP_MS = 20_000;
-const JITTER_MS  = 6_000;
+   131048 is a restriction on OUR NUMBER, raised because recipients blocked or
+   reported earlier messages. It is not a rate. The daily cap of 120 never
+   stopped anything — we sent 100 — and by 11:00 the number was already
+   restricted, so every further send failed regardless of spacing. Cloud API
+   permits 80 messages/second; at one per 20 seconds we were ~1600× under the
+   throughput limit and never once saw 130429.
 
-/** Messages one number should send in a rolling 24h without drawing attention.
-    Well under the 250 tier — the tier is a hard cap, this is a safe cruising
-    speed. Raise only after weeks of clean delivery. */
-export const SAFE_DAILY_LIMIT = 120;
+   So why keep a gap at all? A different reason, and the honest one: delivery
+   failures arrive by webhook minutes after the send call returns 200. The gap
+   buys time for the first failure to be reported before the rest of the list
+   has already gone out. It is an observability window, not a spam defence.
+
+   Six seconds is enough for that and keeps a batch inside one serverless
+   invocation. At the old 20s, SECONDS_PER_MESSAGE was 26 and the send route's
+   time budget computed to exactly ONE message per request — 550 guests would
+   have needed 550 clicks. */
+const MIN_GAP_MS = 6_000;
+const JITTER_MS  = 3_000;
+
+/* What Meta actually counts, measured rather than assumed.
+
+   The API advertises messaging_limit_tier TIER_250, but health_status returned
+   BLOCKED with error 141015 — "reached the limit for business-initiated
+   conversations for this 24 hour rolling period" — at 82 unique recipients.
+   The advertised 250 belongs to a verified business; ours has
+   business_verification_status = not_verified and its real ceiling is far
+   lower. 141010 sits alongside it in the same payload.
+
+   Two things follow, and the second is what the old code got wrong:
+
+   1. The ceiling is ~82 until Business Verification passes. 25/day keeps at
+      most ~50 recipients inside any 24h window — 40% below where we broke.
+   2. The unit is UNIQUE RECIPIENTS IN A ROLLING 24 HOURS, not messages since
+      midnight. Counting messages per calendar day, as SAFE_DAILY_LIMIT did,
+      measures something Meta does not enforce: three retries to one guest
+      spent three units of a budget that Meta charges one for, while a batch
+      sent at 23:00 and another at 01:00 looked like two separate days to us
+      and like one window to Meta. */
+export const SAFE_DAILY_LIMIT = 25;
+
+/** Hard stop. Above this many unique recipients in the rolling window, Meta
+    starts refusing — observed at 82, so this leaves real headroom. */
+export const ROLLING_24H_RECIPIENT_CAP = 60;
+
+/** Concentration is the part the failure data could not rule out, so it keeps
+    its own limit. Enforce it with a query, never with the module-level clock
+    below: each serverless invocation starts a fresh module, so lastSendAt does
+    not survive between requests. */
+export const MAX_PER_HOUR = 4;
 
 let lastSendAt = 0;
 
@@ -84,34 +125,118 @@ const BACKOFF_MS = [15000, 45000, 120000];
    These helpers let the webhook decide what deserves another attempt and
    when, so an async failure is no longer a silent dead end. */
 
-/** True when a webhook-reported failure is worth sending again later. */
-export function isRetryableFailure(err: string | null | undefined): boolean {
+/* What to do about a failure depends entirely on WHICH failure it is, and the
+   four we see behave nothing alike:
+
+     131048  restriction on OUR number, from recipient blocks and spam reports
+     131049  the RECIPIENT's own cap on marketing templates, across all senders
+     130472  the recipient is in Meta's marketing-experiment control group
+     131026  the number cannot receive: wrong, not on WhatsApp, or terms unaccepted
+
+   The previous policy — a 2h / 8h / 24h timer applied to all of them by
+   substring match — was wrong in both directions. Meta documents that a
+   marketing template must not be resent to a capped user for at least 24
+   hours, and that retrying sooner may suppress delivery to them for a further
+   24; the 2h step sat squarely inside that window. In the other direction it
+   treated 130472 as retryable, so it queued attempts that cannot succeed on a
+   timer no matter how long the timer is. */
+
+export type FailureAction = "stop_run" | "retry_later" | "wait_for_inbound" | "never";
+
+export interface FailurePolicy {
+  action: FailureAction;
+  /** Hours to wait, for retry_later */
+  delayH?: number;
+  maxAttempts?: number;
+  human: string;
+}
+
+export function policyFor(code: number | null | undefined, err?: string | null): FailurePolicy {
+  /* Fall back to the message text for rows written before error_code existed */
+  const c = code ?? codeFromText(err);
+
+  switch (c) {
+    case 131048:
+      /* The number itself is restricted. The next guest will fail too, so
+         sending on is pure damage — stop and resume on a later day. */
+      return { action: "stop_run", human: "המספר שלנו מוגבל — עצירת ההרצה" };
+    case 131049:
+      /* Meta: wait at least 24h. 26 leaves room for clock skew. */
+      return { action: "retry_later", delayH: 26, maxAttempts: 2, human: "מכסת הנמען — ניסיון בעוד 26 שעות" };
+    case 130472:
+      /* No timer can fix this. It becomes sendable only inside a 24h window
+         opened by the guest messaging us first. */
+      return { action: "wait_for_inbound", human: "הנמען בקבוצת ניסוי — רק אם יכתוב לנו" };
+    case 131026:
+      return { action: "never", human: "המספר לא יכול לקבל — צריך אימות מול הזוג" };
+    case 131050:
+      return { action: "never", human: "הנמען ביקש להפסיק לקבל — לעולם לא לשלוח שוב" };
+    default:
+      return { action: "never", human: "כשל לא מסווג — לטיפול ידני" };
+  }
+}
+
+/* Rows written before error_code was captured only have Meta's title text. */
+function codeFromText(err: string | null | undefined): number | null {
   const e = String(err ?? "").toLowerCase();
-  if (!e) return false;
-  /* Nothing about the recipient will change on a retry */
-  if (e.includes("undeliverable")) return false;
-  if (e.includes("invalid") || e.includes("not exist")) return false;
-  return e.includes("spam")
-      || e.includes("rate limit")
-      || e.includes("healthy ecosystem")
-      || e.includes("experiment")
-      || e.includes("try again")
-      || e.includes("temporar");
+  if (!e) return null;
+  if (e.includes("spam") || e.includes("rate limit")) return 131048;
+  if (e.includes("healthy ecosystem")) return 131049;
+  if (e.includes("experiment")) return 130472;
+  if (e.includes("undeliverable")) return 131026;
+  return null;
 }
 
-/* Hours, not minutes. A number that just tripped the spam heuristic needs to
-   look quiet for a while; retrying in five minutes is how a throttle becomes
-   a ban. The last step is a full day later. */
-const RETRY_DELAYS_H = [2, 8, 24];
-
-/** When to try again, or null once the attempts are exhausted. */
-export function nextRetryAt(retryCount: number): Date | null {
-  const h = RETRY_DELAYS_H[retryCount];
-  return h === undefined ? null : new Date(Date.now() + h * 3_600_000);
+/** True when a webhook-reported failure should go on the retry timer. */
+export function isRetryableFailure(code: number | null | undefined, err?: string | null): boolean {
+  return policyFor(code, err).action === "retry_later";
 }
 
-export const MAX_RETRIES = RETRY_DELAYS_H.length;
+/** When to try again, or null when this failure does not belong on a timer. */
+export function nextRetryAt(
+  retryCount: number,
+  code: number | null | undefined,
+  err?: string | null,
+): Date | null {
+  const p = policyFor(code, err);
+  if (p.action !== "retry_later") return null;
+  if (retryCount >= (p.maxAttempts ?? 1)) return null;
+  return new Date(Date.now() + (p.delayH ?? 26) * 3_600_000);
+}
 
+export const MAX_RETRIES = 2;
+
+/* Meta's send response carries a message_status we were discarding. Two of
+   its three values mean the message may never arrive — treating them as
+   success is how a held message looks identical to a delivered one. */
+export const HELD_STATUSES = new Set(["held_for_quality_assessment", "paused"]);
+
+
+export interface WindowUsage {
+  /** Unique recipients messaged in the last 24 hours — the unit Meta enforces */
+  recipients: number;
+  /** How many more may be contacted before hitting our own ceiling */
+  remaining: number;
+  blocked: boolean;
+}
+
+/** Occupancy of the rolling 24h window, in the unit Meta actually counts.
+    Fails closed: if the count cannot be read we report the window as full,
+    because sending blind is what produced a 90%-failure run. */
+export async function rollingWindowUsage(
+  sb: SupabaseClient<never, "public", "public", never, never>,
+): Promise<WindowUsage> {
+  const since = new Date(Date.now() - 86_400_000).toISOString();
+  const { data, error } = await sb
+    .from("wa_messages").select("wa_phone")
+    .eq("direction", "out").gte("created_at", since)
+    .returns<{ wa_phone: string }[]>();
+  if (error || !data) return { recipients: ROLLING_24H_RECIPIENT_CAP, remaining: 0, blocked: true };
+
+  const recipients = new Set(data.map(r => r.wa_phone).filter(Boolean)).size;
+  const remaining = Math.max(0, ROLLING_24H_RECIPIENT_CAP - recipients);
+  return { recipients, remaining, blocked: remaining === 0 };
+}
 
 export interface WhatsAppConfig {
   phoneNumberId: string;

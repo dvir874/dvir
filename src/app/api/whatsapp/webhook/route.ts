@@ -33,7 +33,7 @@ interface WaStatus {
   id?: string;
   status?: string;
   recipient_id?: string;
-  errors?: { title?: string; message?: string }[];
+  errors?: { code?: number; title?: string; message?: string }[];
 }
 interface WaMessage {
   id?: string;
@@ -83,28 +83,37 @@ export async function POST(req: NextRequest) {
     for (const s of statuses) {
       if (!s.id || !s.status) continue;
       const err = s.errors?.[0]?.title ?? s.errors?.[0]?.message ?? null;
+      /* The numeric code is the only thing that distinguishes an account-level
+         emergency (131048) from an unavoidable 1% (130472). Storing just the
+         title made both look like one undifferentiated failure, and every
+         policy built on top applied the wrong response to one of them. */
+      const code = s.errors?.[0]?.code ?? null;
 
       /* A failure reported here is the ONLY notice we get that a guest never
          received their invitation — the send call already returned success.
          Schedule another attempt rather than let it die in a status column. */
       let retry: Record<string, unknown> = {};
-      if (s.status === "failed" && isRetryableFailure(err)) {
+      if (s.status === "failed" && isRetryableFailure(code, err)) {
         const { data: prev } = await sb
           .from("wa_messages").select("retry_count").eq("wamid", s.id).maybeSingle();
-        const count = prev?.retry_count ?? 0;
-        const when = nextRetryAt(count);
+        const when = nextRetryAt(prev?.retry_count ?? 0, code, err);
         if (when) retry = { retry_after: when.toISOString() };
       }
 
-      const base = { status: s.status, error: err, updated_at: new Date().toISOString() };
+      const base = {
+        status: s.status, error: err, error_code: code,
+        updated_at: new Date().toISOString(),
+      };
       const { error } = await sb
         .from("wa_messages").update({ ...base, ...retry }).eq("wamid", s.id);
 
-      /* The retry columns arrive in a migration. Until it has run, recording
-         the delivery status still matters more than scheduling a retry — so
-         fall back to the plain update rather than lose the status entirely. */
-      if (error && Object.keys(retry).length) {
-        await sb.from("wa_messages").update(base).eq("wamid", s.id);
+      /* error_code and the retry columns arrive by migration. Until each has
+         run, recording the delivery status still matters more than the extras
+         — fall back rather than lose the status entirely. */
+      if (error) {
+        await sb.from("wa_messages")
+          .update({ status: s.status, error: err, updated_at: new Date().toISOString() })
+          .eq("wamid", s.id);
       }
     }
 

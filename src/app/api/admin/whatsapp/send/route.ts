@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import {
   getWhatsAppConfig, sendInvitation, toE164,
-  SAFE_DAILY_LIMIT, SECONDS_PER_MESSAGE,
+  SAFE_DAILY_LIMIT, SECONDS_PER_MESSAGE, rollingWindowUsage,
 } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
@@ -136,21 +136,16 @@ export async function POST(req: NextRequest) {
        volume: 68 messages went out with 9% blocked, and a batch of 24 an hour
        later came back 92% blocked. The number's day, not the gap between
        messages, is what Meta reacts to. */
-  const since = new Date(Date.now() - 86_400_000).toISOString();
-  const { count: sentToday } = await sb
-    .from("wa_messages").select("id", { count: "exact", head: true })
-    .eq("direction", "out").gte("created_at", since);
-
-  const dailyLeft = SAFE_DAILY_LIMIT - (sentToday ?? 0);
+  const usage = await rollingWindowUsage(sb);
   const timeCap = Math.floor((60 - 10) / SECONDS_PER_MESSAGE);
-  const allowed = Math.max(0, Math.min(queue.length, dailyLeft, timeCap));
+  const allowed = Math.max(0, Math.min(queue.length, usage.remaining, SAFE_DAILY_LIMIT, timeCap));
   const batchQueue = queue.slice(0, allowed);
   const deferred = queue.length - allowed;
 
-  if (!allowed && dailyLeft <= 0) {
+  if (usage.blocked) {
     return NextResponse.json({
       sent: 0, failed: 0, skipped: skipped.length, deferred: queue.length,
-      hint: `נשלחו ${sentToday} הודעות ב-24 השעות האחרונות. ההמשך ימתין כדי לא להיחסם.`,
+      hint: `${usage.recipients} נמענים כבר בחלון 24 השעות. שליחה עכשיו תיחסם — ממתינים שהחלון יתנקה.`,
     });
   }
 
