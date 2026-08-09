@@ -5,7 +5,16 @@ import { validateUploadFile } from '@/lib/file-validation';
 
 type Params = { params: Promise<{ token: string }> };
 
-const BUCKET = 'wedding-memories';
+/* The bucket named here has to be one that exists. It was 'wedding-memories',
+   which was never created — so every guest photo returned 500, and the error
+   handler below rendered "צור bucket בשם wedding-memories ב-Supabase Storage
+   תחילה" straight into the guest's screen. A wedding guest was being shown a
+   developer to-do. */
+const BUCKET = 'gallery';
+
+/* The bucket is private, so a public URL would resolve to nothing. Ten years
+   covers any wedding album anyone will come back to. */
+const SIGNED_URL_TTL_S = 315_360_000;
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 
 // GET — validate token, return event info for the upload page
@@ -82,20 +91,18 @@ export async function POST(request: NextRequest, { params }: Params) {
       .upload(path, bytes, { contentType: file.type, upsert: false });
 
     if (uploadErr) {
-      // If bucket doesn't exist, give a clear error
-      if (uploadErr.message.includes('Bucket not found') || uploadErr.message.includes('bucket')) {
-        return NextResponse.json({
-          error: 'צור bucket בשם "wedding-memories" ב-Supabase Storage תחילה',
-          detail: uploadErr.message,
-        }, { status: 500 });
-      }
+      /* Whatever went wrong is ours to fix, not the guest's to read. */
       console.error('[memory:storage]', uploadErr.message);
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'לא הצלחנו לשמור את הקובץ. נסו שוב, או שלחו אותו לזוג ישירות.' },
+        { status: 500 },
+      );
     }
 
-    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    const { data: signed } = await supabase.storage
+      .from(BUCKET).createSignedUrl(path, SIGNED_URL_TTL_S);
     storage_path = path;
-    public_url   = urlData.publicUrl;
+    public_url   = signed?.signedUrl ?? null;
     file_size    = file.size;
     mime_type    = file.type;
   }
@@ -117,8 +124,15 @@ export async function POST(request: NextRequest, { params }: Params) {
     .single();
 
   if (insertErr) {
+    /* The file is already in storage at this point. Leaving it there with no
+       row is how the gallery ended up with orphaned uploads nobody could see,
+       so remove it rather than keep a photo the couple will never receive. */
+    if (storage_path) await supabase.storage.from(BUCKET).remove([storage_path]);
     console.error('[memory:insert]', insertErr.message);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'לא הצלחנו לשמור. נסו שוב בעוד רגע.' },
+      { status: 500 },
+    );
   }
   return NextResponse.json({ id: item.id, public_url }, { status: 201 });
 }

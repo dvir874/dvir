@@ -17,29 +17,23 @@ export default async function EventPreviewPage({
   const isPreview = preview === "true";
 
   const supabase = createServerClient();
-  const { data: event, error } = await supabase
+  /* dress_code, parking_info and greeting do not exist on events. Selecting
+     them made PostgREST reject the whole query, so the "retry with base
+     columns" fallback below ran on EVERY request and silently dropped the hero
+     image, the timeline and bit_phone — a page permanently serving its own
+     degraded mode while looking like it worked.
+
+     couple_token is deliberately absent too: it was spread into a public client
+     component that never used it, which put the couple's dashboard token in the
+     HTML of a page anyone can open. Removing the dead columns without removing
+     the token would have turned a masked leak into a live one. */
+  const { data: event } = await supabase
     .from("events")
-    .select("id, name, date, address, theme, bit_phone, dress_code, parking_info, greeting, mini_site_hero_path, event_timeline, couple_token, bride_name, groom_name")
+    .select("id, name, date, address, venue_name, theme, bit_phone, mini_site_hero_path, event_timeline, bride_name, groom_name")
     .eq("id", id)
     .single();
 
-  // If query fails due to missing optional columns, retry with base columns only
-  if (error || !event) {
-    const { data: base, error: baseErr } = await supabase
-      .from("events")
-      .select("id, name, date, address, theme")
-      .eq("id", id)
-      .single();
-    if (baseErr || !base) return notFound();
-    return (
-      <EventPageClient
-        event={{ ...base, bit_phone: null, dress_code: null, parking_info: null, greeting: null }}
-        theme={getTheme(base.theme)}
-        isPreview={isPreview}
-        bitPhone={null}
-      />
-    );
-  }
+  if (!event) return notFound();
 
   const theme = getTheme(event.theme);
 
@@ -54,7 +48,6 @@ export default async function EventPreviewPage({
         ...event,
         mini_site_hero_path: heroPublicUrl,
         event_timeline:      event.event_timeline ?? null,
-        couple_token:        event.couple_token ?? null,
         partner1_name:       (event as Record<string, unknown>).bride_name as string ?? null,
         partner2_name:       (event as Record<string, unknown>).groom_name as string ?? null,
       }}

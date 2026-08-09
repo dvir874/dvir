@@ -51,7 +51,11 @@ export async function POST(req: NextRequest) {
     .from("events")
     .select("name, date, address, wa_header_image_url")
     .eq("id", eventId).maybeSingle();
-  const headerImage: string = eventRow?.wa_header_image_url ?? cfg.headerImageUrl;
+  /* No global fallback. WHATSAPP_HEADER_IMAGE_URL holds ONE couple's invitation
+     card, so falling back to it means the next client's 550 guests receive Dvir
+     and Mirav's invitation — and a sent WhatsApp message cannot be recalled.
+     Refusing to send is the correct failure. */
+  const headerImage: string = eventRow?.wa_header_image_url ?? "";
   if (!headerImage) {
     return NextResponse.json(
       { error: "missing_invitation_image",

@@ -24,7 +24,11 @@ export const maxDuration = 60;
  * once, then first-contact invitations. Both draw on the same window budget.
  */
 
-const OWN_WEDDING = "a5e65dcf-8109-438d-a4a1-8f65d6f3e948";
+/* Every event with a future date, its own invitation card, and guests still
+   waiting. Hardcoding one event id meant the next paying couple's invitations
+   would never go out on their own, no matter how correctly everything else
+   behaved. */
+const MAX_EVENTS_PER_RUN = 3;
 
 /* Israel is UTC+3 in August. Nothing goes out before 09:00 or after 18:00
    local — a wedding invitation arriving at 04:00 gets reported, and reports
@@ -77,32 +81,64 @@ export async function GET(req: NextRequest) {
   ));
   if (!budget) return NextResponse.json({ sent: 0, reason: "budget_exhausted" });
 
-  const { data: ev } = await sb.from("events")
-    .select("wa_header_image_url").eq("id", OWN_WEDDING).maybeSingle();
-  const image = ev?.wa_header_image_url;
-  if (!image) return NextResponse.json({ error: "missing_invitation_image" }, { status: 400 });
+  /* An event with no card of its own is skipped, never sent with someone
+     else's. Reported, so a missing image surfaces instead of looking like a
+     quiet day. */
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: events } = await sb.from("events")
+    .select("id, name, date, address, wa_header_image_url")
+    .gte("date", today).order("date").limit(MAX_EVENTS_PER_RUN);
+
+  const active = (events ?? []).filter(e => e.wa_header_image_url);
+  const skippedEvents = (events ?? [])
+    .filter(e => !e.wa_header_image_url)
+    .map(e => ({ event: e.name, reason: "אין תמונת הזמנה" }));
+
+  if (!active.length)
+    return NextResponse.json({ sent: 0, reason: "no_sendable_event", skippedEvents });
+
+  /* One event per run, round-robin by date, so a large wedding cannot starve
+     a smaller one that shares the same number-level quota. */
+  const ev = active[0];
+  const image = ev.wa_header_image_url as string;
 
   const sent: string[] = [];
   const failed: { name: string; error: string }[] = [];
   let stopped: string | null = null;
 
-  /* ---- 1. retries that have come due ---- */
-  const { data: due } = await sb.from("wa_messages")
-    .select("id, guest_id, retry_count")
+  /* ---- 1. retries that have come due ----
+
+     Half the budget at most. Taking the whole budget meant first-contact
+     guests never moved: 26 rows sat due while 181 people had no invitation at
+     all, and the queue drained ahead of them every single run.
+
+     Rows are also filtered by policy and de-duplicated by guest. Most of the
+     failures are 131048, which policyFor classifies as stop_run — retrying
+     those on a timer cannot work, and three failed rows for one guest are
+     still one message. */
+  const retryBudget = Math.max(1, Math.floor(budget / 2));
+  const { data: dueRaw } = await sb.from("wa_messages")
+    .select("id, guest_id, retry_count, error, error_code")
     .eq("direction", "out").eq("status", "failed")
     .not("retry_after", "is", null).lte("retry_after", new Date().toISOString())
-    .order("retry_after").limit(budget);
+    .order("retry_after").limit(100);
 
-  const targets: { id: string; row?: string; count?: number }[] =
-    (due ?? []).filter(d => d.guest_id)
-      .map(d => ({ id: d.guest_id as string, row: d.id, count: (d.retry_count ?? 0) + 1 }));
+  const seenGuest = new Set<string>();
+  const targets: { id: string; row?: string; count?: number }[] = [];
+  for (const d of dueRaw ?? []) {
+    if (!d.guest_id || seenGuest.has(d.guest_id)) continue;
+    if (policyFor(d.error_code, d.error).action !== "retry_later") continue;
+    seenGuest.add(d.guest_id);
+    targets.push({ id: d.guest_id, row: d.id, count: (d.retry_count ?? 0) + 1 });
+    if (targets.length >= retryBudget) break;
+  }
 
   /* ---- 2. guests with no evidence the invitation ever arrived ---- */
   if (targets.length < budget) {
     const need = budget - targets.length;
     const { data: pending } = await sb.from("guests")
       .select("id, phone, rsvp_token, category, status, opened_at")
-      .eq("event_id", OWN_WEDDING).eq("status", "pending").limit(400);
+      .eq("event_id", ev.id).eq("status", "pending").limit(400);
 
     const ids = (pending ?? []).filter(g => g.category !== "demo" && g.phone && g.rsvp_token)
       .map(g => g.id);
@@ -142,7 +178,7 @@ export async function GET(req: NextRequest) {
       await sb.from("guest_events").insert({ guest_id: g.id, event_type: "invite_sent" });
       if (res.messageId) {
         await sb.from("wa_messages").insert({
-          event_id: OWN_WEDDING, guest_id: g.id,
+          event_id: ev.id, guest_id: g.id,
           wa_phone: toE164(g.phone) ?? "",
           direction: "out",
           body: t.row ? "הזמנה לחתונה (ניסיון חוזר)" : "הזמנה לחתונה (תבנית)",
@@ -161,8 +197,10 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({
+    event: ev.name,
     sent: sent.length, failed: failed.length, stopped,
     windowRecipients: usage.recipients,
+    skippedEvents,
     details: { sent, failed },
   });
 }

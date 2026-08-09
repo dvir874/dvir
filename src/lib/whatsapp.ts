@@ -268,12 +268,12 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
     templateName: process.env.WHATSAPP_TEMPLATE_NAME ?? "wedding_invitation_regalifnei",
     genericTemplateName: process.env.WHATSAPP_TEMPLATE_GENERIC ?? "wedding_invitation_v2",
     templateLang: process.env.WHATSAPP_TEMPLATE_LANG ?? "he",
-    /* Deliberately no fallback. This image is the invitation card that every
-       recipient sees at the top of the message. A default here means one
-       couple's invitation goes out to another couple's 550 guests — and a
-       sent WhatsApp message cannot be recalled. Callers must pass the event's
-       own image; see sendInvitation's headerImageUrl argument. */
-    headerImageUrl: process.env.WHATSAPP_HEADER_IMAGE_URL ?? "",
+    /* Kept only so existing callers still typecheck; nothing reads it as a
+       fallback any more. The comment used to say there was deliberately no
+       fallback while three call sites did `?? cfg.headerImageUrl` — which is
+       exactly how one couple's card would have reached another's guest list.
+       The image now comes from events.wa_header_image_url or the send stops. */
+    headerImageUrl: "",
   };
 }
 
@@ -313,7 +313,7 @@ export async function sendInvitation(
 
   /* Refuse rather than guess: sending the wrong couple's invitation is worse
      than sending nothing, because it cannot be undone. */
-  const image = headerImageUrl || cfg.headerImageUrl;
+  const image = headerImageUrl;
   if (!image) {
     return { ok: false, error: "לא הוגדרה תמונת הזמנה לאירוע — השליחה נעצרה" };
   }

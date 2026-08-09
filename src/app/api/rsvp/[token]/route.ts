@@ -58,13 +58,18 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
   const { data: event } = await supabase
     .from('events')
-    .select('name, date, address, theme, mini_site_hero_path, bit_phone, paybox_link')
+    .select('name, date, address, venue_name, theme, mini_site_hero_path, bit_phone, paybox_link')
     .eq('id', guest.event_id)
     .single();
 
-  const { data: album } = await supabase
-    .from('gallery_albums')
-    .select('public_token')
+  /* The blessing and photo screens live at /memory/[token], and that route
+     authenticates against vault_tokens — not against the gallery album. Handing
+     out the album's public_token sent every guest to a 404: 88 people had
+     already tapped "כתבו ברכה לזוג" and memory_items was still empty, so not one
+     blessing had ever reached the couple. */
+  const { data: vault } = await supabase
+    .from('vault_tokens')
+    .select('token')
     .eq('event_id', guest.event_id)
     .maybeSingle();
 
@@ -85,7 +90,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     tableName = table?.name ?? null;
   }
 
-  return NextResponse.json({ guest, event: event ?? null, tableName, memoryToken: album?.public_token ?? null });
+  return NextResponse.json({ guest, event: event ?? null, tableName, memoryToken: vault?.token ?? null });
 }
 
 export async function POST(request: NextRequest, { params }: Params) {

@@ -41,6 +41,7 @@ interface EventInfo {
   name: string;
   date: string;
   address?: string | null;
+  venue_name?: string | null;
   theme?: string | null;
   mini_site_hero_path?: string | null;
   bit_phone?: string | null;
@@ -422,14 +423,21 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
   const calUrl = (() => {
     if (!event?.date) return null;
     const d = new Date(event.date);
-    const fmt = (dt: Date) => dt.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-    const start = fmt(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 19, 0, 0));
-    const end   = fmt(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 0));
-    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.name)}&dates=${start}/${end}&location=${encodeURIComponent(event.address ?? "")}`;
+    /* Local wall-clock plus ctz, rather than converting to UTC here. Building
+       the instant with new Date(y, m, d, 19, ...) used the GUEST's timezone, so
+       a guest abroad got 19:00 in their own city rather than in Israel. */
+    const day = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+    const dates = `${day}T190000/${day}T235900`;
+    const where = [event.venue_name, event.address].filter(Boolean).join(", ");
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.name)}&dates=${dates}&ctz=Asia/Jerusalem&location=${encodeURIComponent(where)}`;
   })();
 
-  const wazeUrl = event?.address
-    ? `https://waze.com/ul?q=${encodeURIComponent(event.address)}&navigate=yes`
+  /* The hall's name, then the city. Searching Waze for the address alone sent
+     everyone to "חדרה" — the town, not the venue — while venue_name sat unused
+     on the event. On the night itself this is the one link that has to work. */
+  const navQuery = [event?.venue_name, event?.address].filter(Boolean).join(", ");
+  const wazeUrl = navQuery
+    ? `https://waze.com/ul?q=${encodeURIComponent(navQuery)}&navigate=yes`
     : null;
 
   /* ── Loading — E2-S1: 3 pulsing gold dots + spec copy ────────── */
