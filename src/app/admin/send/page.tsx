@@ -228,9 +228,9 @@ function SendStation() {
     /* Send in chunks so a large list can't exceed the serverless time limit.
        Each chunk is independently committed server-side, so if the tab closes
        mid-run nothing is lost and nothing is sent twice on the next attempt. */
-    /* Small chunks because each send is now paced ≥900ms apart and may retry
-       with backoff — a large chunk would run past the serverless timeout. */
-    const CHUNK = 10;
+    /* Paced at 3s per message against a 60s serverless limit, so a chunk of
+       12 would time out. Twelve small requests beat one that dies halfway. */
+    const CHUNK = 8;
     const ids = queue.map(g => g.id);
     const acc: Required<ApiSendResult>["details"] = { sent: [], failed: [], skipped: [] };
     let sent = 0, failed = 0, skipped = 0;

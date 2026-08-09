@@ -18,7 +18,15 @@ const API_VERSION = "v21.0";
    anything that still bounces. Minutes of extra wall-clock are cheap; a
    wedding guest who never got an invitation is not. */
 
-const MIN_GAP_MS = 900;      // never start two sends closer than this
+/* Deliberately slow. A burst of 66 invitations at full speed produced three
+   "Spam Rate limit hit" failures on a number Meta had known for a day, and a
+   blocked invitation is invisible to the guest — they simply never hear from
+   the couple. Wall-clock is the cheapest thing we can spend to avoid that:
+   550 guests take ~28 minutes at this rate, which nobody is waiting on.
+
+   Raise only once the number has weeks of clean history and Meta has lifted
+   the quality tier — not before. */
+const MIN_GAP_MS = 3000;
 let lastSendAt = 0;
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -44,7 +52,9 @@ function isTransient(err: string): boolean {
       || e.includes("(#80007)");     // rate limit issue
 }
 
-const BACKOFF_MS = [4000, 12000, 30000];
+/* Backoff is measured in tens of seconds, not seconds: when Meta says
+   "slow down", answering immediately is how a throttle becomes a block. */
+const BACKOFF_MS = [15000, 45000, 120000];
 
 
 export interface WhatsAppConfig {

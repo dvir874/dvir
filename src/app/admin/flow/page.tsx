@@ -22,6 +22,12 @@ const C = {
 
 const DVIR_EVENT_ID = "a5e65dcf-8109-438d-a4a1-8f65d6f3e948";
 
+interface EventRow {
+  id: string; name: string; date: string | null; hasImage: boolean;
+  daysToEvent: number | null; total: number; confirmed: number;
+  pending: number; responseRate: number;
+}
+
 interface Flow {
   event: { id: string; name: string; date: string | null; address: string | null;
            hasImage: boolean; imageUrl: string | null; coupleToken: string | null;
@@ -48,6 +54,7 @@ interface Step {
 function Flow() {
   const eventId = useSearchParams().get("event") ?? DVIR_EVENT_ID;
   const [d, setD] = useState<Flow | null>(null);
+  const [events, setEvents] = useState<EventRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -57,6 +64,14 @@ function Flow() {
   }, [eventId]);
 
   useEffect(() => { load(); }, [load]);
+
+  /* Every event, so switching weddings is one click rather than a URL edit */
+  useEffect(() => {
+    fetch("/api/admin/events-list")
+      .then(r => r.ok ? r.json() : { events: [] })
+      .then(j => setEvents(j.events ?? []))
+      .catch(() => {});
+  }, []);
 
   if (err) return <Shell><p style={{ color: C.red, padding: 30 }}>{err}</p></Shell>;
   if (!d)  return <Shell><p style={{ color: C.muted, padding: 30 }}>טוען…</p></Shell>;
@@ -114,12 +129,12 @@ function Flow() {
     {
       n: 6,
       title: "שליחת ההזמנות",
-      what: "כל אורח מקבל את ההזמנה עם קישור אישי. השליחה מווסתת — הודעה כל 0.9 שניות עם ניסיונות חוזרים — כדי שוואטסאפ לא יחסום. מגבלה: 250 ליממה.",
+      what: "כל אורח מקבל את ההזמנה עם קישור אישי. השליחה מווסתת בכוונה — הודעה כל 3 שניות, ואם וואטסאפ מאט אנחנו ממתינים עד 2 דקות ומנסים שוב. עדיף שייקח זמן מאשר שהודעה תיחסם. מגבלה: 250 ליממה.",
       state: !r.canSend ? "todo" : c.unsent === 0 ? "done" : c.sent > 0 ? "warn" : "now",
       detail: !r.canSend ? "חסרים פרטי אירוע או תמונה"
             : c.unsent === 0 ? `כל ${c.sent} המוזמנים קיבלו`
-            : `${c.sent} נשלחו · ${c.unsent} נותרו`
-              + (c.guests > 250 ? ` · יידרשו ${Math.ceil(c.guests / 250)} ימים` : ""),
+            : `${c.sent} נשלחו · ${c.unsent} נותרו · כ-${Math.max(1, Math.round(c.unsent * 3 / 60))} דקות שליחה`
+              + (c.guests > 250 ? ` · ${Math.ceil(c.guests / 250)} ימים בשל מגבלת וואטסאפ` : ""),
       action: { label: "תחנת השליחה", href: `${base}/send?event=${e.id}` },
     },
     {
@@ -181,6 +196,33 @@ function Flow() {
 
   return (
     <Shell onRefresh={load} title={e.name}>
+      {events.length > 1 && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }}>
+          {events.map(ev => {
+            const on = ev.id === eventId;
+            const soon = ev.daysToEvent !== null && ev.daysToEvent >= 0 && ev.daysToEvent <= 30;
+            return (
+              <a key={ev.id} href={`/admin/flow?event=${ev.id}`}
+                style={{ padding: "9px 15px", borderRadius: 9999, textDecoration: "none",
+                  border: `1.5px solid ${on ? C.gold : C.border}`,
+                  background: on ? C.gold : "#fff", color: on ? "#fff" : C.dark,
+                  fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 7 }}>
+                <span>{ev.name}</span>
+                <span style={{ fontSize: 11.5, opacity: .8 }}>
+                  {ev.total ? `${ev.confirmed}/${ev.total}` : "ריק"}
+                  {soon ? ` · ${ev.daysToEvent}י׳` : ""}
+                </span>
+                {!ev.hasImage && <span title="חסרה תמונת הזמנה">⚠️</span>}
+              </a>
+            );
+          })}
+          <a href="/admin?new=1"
+            style={{ padding: "9px 15px", borderRadius: 9999, textDecoration: "none",
+              border: `1.5px dashed ${C.border}`, background: "#fff", color: C.goldT,
+              fontSize: 13, fontWeight: 700 }}>+ אירוע חדש</a>
+        </div>
+      )}
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))",
         gap: 12, marginBottom: 22 }}>
         {[
