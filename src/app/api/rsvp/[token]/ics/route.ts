@@ -15,11 +15,14 @@ function fmtUtc(d: Date): string {
    so the ceremony hour has to come from somewhere — and it must be the SAME
    source the RSVP page prints, or the calendar and the page disagree. */
 const RECEPTION_HOUR = 19;
-const EVENT_HOURS = 5;
+/* Ends before midnight rather than at 19+5=24, which is not a valid hour in
+   RFC 5545 and made the whole VEVENT unparseable. Matches the end time the
+   Google Calendar button on the RSVP page already used. */
+const END_HHMM = '235900';
 
-function fmtLocal(date: string, hour: number): string {
+function fmtLocal(date: string, hhmm: string): string {
   const d = String(date).slice(0, 10).replace(/-/g, '');
-  return `${d}T${String(hour).padStart(2, '0')}0000`;
+  return `${d}T${hhmm}`;
 }
 
 /* GET /api/rsvp/[token]/ics — downloadable calendar event (Apple/Outlook) */
@@ -76,8 +79,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
     'BEGIN:VEVENT',
     `UID:${token}@regalifnei`,
     `DTSTAMP:${fmtUtc(new Date())}`,
-    `DTSTART;TZID=Asia/Jerusalem:${fmtLocal(event.date, RECEPTION_HOUR)}`,
-    `DTEND;TZID=Asia/Jerusalem:${fmtLocal(event.date, RECEPTION_HOUR + EVENT_HOURS)}`,
+    `DTSTART;TZID=Asia/Jerusalem:${fmtLocal(event.date, `${String(RECEPTION_HOUR).padStart(2, '0')}0000`)}`,
+    `DTEND;TZID=Asia/Jerusalem:${fmtLocal(event.date, END_HHMM)}`,
     `SUMMARY:${icsEscape(event.name ?? 'חתונה 💍')}`,
     ...(location ? [`LOCATION:${icsEscape(location)}`] : []),
     'BEGIN:VALARM',
