@@ -43,9 +43,11 @@ export async function POST(req: NextRequest) {
 
   const sb = createServerClient();
 
-  /* Each event carries its own invitation card; sending refuses without it */
+  /* Each event carries its own invitation card and its own wording. */
   const { data: eventRow } = await sb
-    .from("events").select("wa_header_image_url").eq("id", eventId).maybeSingle();
+    .from("events")
+    .select("name, date, address, wa_header_image_url")
+    .eq("id", eventId).maybeSingle();
   const headerImage: string = eventRow?.wa_header_image_url ?? cfg.headerImageUrl;
   if (!headerImage) {
     return NextResponse.json(
@@ -97,6 +99,27 @@ export async function POST(req: NextRequest) {
     return true;
   });
 
+  /* Dvir's own wedding keeps its bespoke approved template, whose names and
+     date are part of the approved text. Every other event uses the generic
+     template and supplies its details as variables. */
+  const isOwnWedding = eventId === "a5e65dcf-8109-438d-a4a1-8f65d6f3e948";
+  const details = isOwnWedding ? undefined : {
+    couple: eventRow?.name ?? "",
+    date: eventRow?.date
+      ? new Date(eventRow.date).toLocaleDateString("he-IL",
+          { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+      : "",
+    venue: eventRow?.address ?? "",
+    times: "קבלת פנים 19:00 | חופה וקידושין 20:00",
+  };
+  if (details && (!details.couple || !details.date || !details.venue)) {
+    return NextResponse.json(
+      { error: "missing_event_details",
+        hint: "חסרים שם הזוג, תאריך או מקום האירוע — השליחה נעצרה" },
+      { status: 400 },
+    );
+  }
+
   const sent: { id: string; name: string; messageId?: string }[] = [];
   const failed: { name: string; error: string }[] = [];
 
@@ -105,7 +128,7 @@ export async function POST(req: NextRequest) {
     const results = await Promise.all(
       batch.map(async g => ({
         guest: g,
-        res: await sendInvitation(cfg, g.phone as string, g.rsvp_token as string, headerImage),
+        res: await sendInvitation(cfg, g.phone as string, g.rsvp_token as string, headerImage, details),
       })),
     );
     for (const { guest, res } of results) {

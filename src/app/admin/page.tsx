@@ -870,6 +870,13 @@ export default function AdminPage() {
             💍 החתונה שלי
           </a>
           <a
+            href="/admin/flow"
+            className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all hover:opacity-80"
+            style={{ background: "rgba(197,164,109,0.30)", color: "#8B6914" }}
+          >
+            🧭 ניהול אירוע
+          </a>
+          <a
             href="/admin/delivery"
             className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all hover:opacity-80"
             style={{ background: "rgba(180,69,60,0.12)", color: "#B4453C" }}

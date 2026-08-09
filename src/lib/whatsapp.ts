@@ -54,6 +54,16 @@ export interface WhatsAppConfig {
   templateLang: string;
   /** Public URL of the template's header image (Meta re-fetches it per send) */
   headerImageUrl: string;
+  /** Generic template whose body text is filled per couple */
+  genericTemplateName: string;
+}
+
+/** The four body variables of the generic invitation template */
+export interface EventDetails {
+  couple: string;   // "דביר בן ברוך ומירב ברון"
+  date: string;     // "יום שני, י״א אלול — 24.08.2026"
+  venue: string;    // "אולמי גאיה, רחוב האומן 12, חדרה"
+  times: string;    // "קבלת פנים 19:00 | חופה וקידושין 20:00"
 }
 
 export function getWhatsAppConfig(): WhatsAppConfig | null {
@@ -65,6 +75,7 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
     phoneNumberId,
     accessToken,
     templateName: process.env.WHATSAPP_TEMPLATE_NAME ?? "wedding_invitation_regalifnei",
+    genericTemplateName: process.env.WHATSAPP_TEMPLATE_GENERIC ?? "wedding_invitation_v2",
     templateLang: process.env.WHATSAPP_TEMPLATE_LANG ?? "he",
     /* Deliberately no fallback. This image is the invitation card that every
        recipient sees at the top of the message. A default here means one
@@ -104,6 +115,7 @@ export async function sendInvitation(
   phone: string,
   token: string,
   headerImageUrl?: string,
+  details?: EventDetails,
 ): Promise<SendResult> {
   const to = toE164(phone);
   if (!to) return { ok: false, error: "invalid phone" };
@@ -118,7 +130,7 @@ export async function sendInvitation(
   let last: SendResult = { ok: false, error: "unknown" };
   for (let attempt = 0; attempt <= BACKOFF_MS.length; attempt++) {
     await pace();
-    last = await sendOnce(cfg, to, token, image);
+    last = await sendOnce(cfg, to, token, image, details);
     if (last.ok) return attempt === 0 ? last : { ...last, retries: attempt };
     if (!isTransient(last.error ?? "")) return last;
     if (attempt < BACKOFF_MS.length) await sleep(BACKOFF_MS[attempt]);
@@ -131,20 +143,34 @@ async function sendOnce(
   to: string,
   token: string,
   image: string,
+  details?: EventDetails,
 ): Promise<SendResult> {
 
+  /* With details we use the generic template and fill its four variables;
+     without them we fall back to the fixed template built for Dvir's own
+     wedding, whose names and date are baked into the approved text. */
+  const useGeneric = !!details;
   const body = {
     messaging_product: "whatsapp",
     to,
     type: "template",
     template: {
-      name: cfg.templateName,
+      name: useGeneric ? cfg.genericTemplateName : cfg.templateName,
       language: { code: cfg.templateLang },
       components: [
         {
           type: "header",
           parameters: [{ type: "image", image: { link: image } }],
         },
+        ...(details ? [{
+          type: "body",
+          parameters: [
+            { type: "text", text: details.couple },
+            { type: "text", text: details.date },
+            { type: "text", text: details.venue },
+            { type: "text", text: details.times },
+          ],
+        }] : []),
         {
           type: "button",
           sub_type: "url",
