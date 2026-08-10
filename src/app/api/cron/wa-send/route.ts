@@ -136,9 +136,14 @@ export async function GET(req: NextRequest) {
   /* ---- 2. guests with no evidence the invitation ever arrived ---- */
   if (targets.length < budget) {
     const need = budget - targets.length;
+    /* No limit. A cap here does not bound the work — the budget above already
+       does that — it bounds who is ELIGIBLE, and PostgREST returns the first N
+       in arbitrary order. At 550 guests the tail simply never appears in any
+       run, and nothing reports it: the guests past the cutoff wait forever
+       while the screen shows a healthy send rate. */
     const { data: pending } = await sb.from("guests")
       .select("id, phone, rsvp_token, category, status, opened_at")
-      .eq("event_id", ev.id).eq("status", "pending").limit(400);
+      .eq("event_id", ev.id).eq("status", "pending");
 
     const ids = (pending ?? []).filter(g => g.category !== "demo" && g.phone && g.rsvp_token)
       .map(g => g.id);

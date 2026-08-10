@@ -53,13 +53,30 @@ async function main() {
     .select("id, name, phone, rsvp_token, category")
     .eq("event_id", eventId).in("id", guestIds);
 
-  /* Abort rather than risk a second invitation to someone who already has one */
+  /* Skip only on evidence the guest actually received something. invite_sent
+     records that we handed the message to Meta, and every guest on this event
+     carries one from the pre-tracking era — deduping on it means refusing to
+     send to anybody at all. */
   let already = new Set<string>();
   if (!resend) {
-    const { data: sentRows, error: dedupeErr } = await sb.from("guest_events")
-      .select("guest_id").eq("event_type", EVENT_TYPE).in("guest_id", guestIds);
-    if (dedupeErr) throw new Error("dedupe check failed — aborting: " + dedupeErr.message);
-    already = new Set((sentRows ?? []).map(r => r.guest_id));
+    const { data: statusRows, error: sErr } = await sb.from("guests")
+      .select("id, status, opened_at").in("id", guestIds);
+    if (sErr) throw new Error("dedupe check failed — aborting: " + sErr.message);
+    (statusRows ?? []).forEach(g => {
+      if (g.status !== "pending" || g.opened_at) already.add(g.id);
+    });
+
+    const { data: manualRows, error: mErr } = await sb.from("guest_events")
+      .select("guest_id").eq("event_type", "manual_sent").in("guest_id", guestIds);
+    if (mErr) throw new Error("dedupe check failed — aborting: " + mErr.message);
+    (manualRows ?? []).forEach(r => already.add(r.guest_id));
+
+    const { data: msgRows, error: wErr } = await sb.from("wa_messages")
+      .select("guest_id, status").eq("direction", "out").in("guest_id", guestIds);
+    if (wErr) throw new Error("dedupe check failed — aborting: " + wErr.message);
+    (msgRows ?? []).forEach(m => {
+      if (m.guest_id && ["delivered", "read"].includes(m.status)) already.add(m.guest_id);
+    });
   }
 
   /* Same unit the routes use, and the one Meta enforces: unique recipients in

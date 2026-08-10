@@ -63,7 +63,15 @@ export async function GET(req: NextRequest) {
       guests: guests.length,
       withPhone,
       missingPhone: guests.length - withPhone,
+      /* Two different questions, and conflating them is what let a wedding
+         look fully invited while a third of the list had heard nothing:
+           sent    — we handed it to Meta (or a person clicked send)
+           arrived — Meta confirmed delivery, or the guest opened / answered */
       sent: sent.size,
+      arrived: guests.filter(g =>
+        g.opened_at || g.status !== "pending" ||
+        wa.some(m => m.guest_id === g.id && ["delivered", "read"].includes(m.status ?? "")),
+      ).length,
       unsent: guests.filter(g => !sent.has(g.id)).length,
       failed: failed.size,
       opened: guests.filter(g => g.opened_at).length,
