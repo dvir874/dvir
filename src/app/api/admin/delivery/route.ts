@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
 
   const { data: guestRows } = await sb
     .from("guests")
-    .select("id, name, phone, status, source_group, category, rsvp_token")
+    .select("id, name, phone, status, source_group, category, rsvp_token, opened_at")
     .eq("event_id", eventId);
   const guests = (guestRows ?? []).filter(g => g.category !== "demo");
   const byId = new Map(guests.map(g => [g.id, g]));
@@ -79,6 +79,7 @@ export async function GET(req: NextRequest) {
   const failed: unknown[] = [];
   const untracked: unknown[] = [];
   const unsent: unknown[] = [];
+  const reachedNoLog: unknown[] = [];
   const tally = { delivered: 0, read: 0, accepted: 0, sent: 0 };
 
   for (const g of guests) {
@@ -97,8 +98,21 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
+    /* Opening the personal link or answering IS proof of receipt, and it
+       outranks a missing delivery log. Without this, guests who had already
+       confirmed sat in "ללא נתוני מסירה" beside a "שלח שוב לכולם (212)" button
+       — one click would have re-invited people who answered days ago and spent
+       weeks of Meta quota doing it. */
+    const answered = g.status !== "pending" || !!g.opened_at;
+
     const m = latest.get(g.id);
-    if (!m) { untracked.push(base); continue; }
+    if (!m) {
+      (answered ? reachedNoLog : untracked).push({
+        ...base,
+        evidence: g.opened_at ? "פתח את הקישור" : "השיב",
+      });
+      continue;
+    }
 
     if (m.status === "failed") {
       failed.push({ ...base, at: m.created_at, raw: m.error, ...explain(m.error) });
@@ -110,6 +124,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     trackingAvailable: !msgErr,
+    reachedNoLog,
     totals: {
       guests: guests.length,
       queued: sentIds.size,

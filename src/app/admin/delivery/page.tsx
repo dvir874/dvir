@@ -25,13 +25,13 @@ const GROUPS: Record<string, string> = {
 interface Row {
   id: string; name: string; phone: string | null; group: string | null;
   he?: string; action?: string; retryable?: boolean; raw?: string | null;
-  reason?: string; at?: string;
+  reason?: string; at?: string; evidence?: string;
 }
 interface Data {
   trackingAvailable: boolean;
   totals: { guests: number; queued: number; delivered: number; read: number;
             accepted: number; sent: number; failed: number; untracked: number; unsent: number };
-  failed: Row[]; untracked: Row[]; unsent: Row[];
+  failed: Row[]; untracked: Row[]; unsent: Row[]; reachedNoLog?: Row[];
 }
 
 function Delivery() {
@@ -162,6 +162,12 @@ function Delivery() {
             {section("ללא נתוני מסירה", "נשלחו לפני שהמעקב הופעל — לא ידוע אם הגיעו",
               d.untracked, C.amber,
               { label: "שלח שוב לכולם", ids: d.untracked.map(r => r.id) })}
+
+            {/* Kept out of the group above, and out of its bulk-send button:
+                these guests opened their link or answered, so they demonstrably
+                received the invitation even though no delivery report exists. */}
+            {section("הגיעו — בלי דוח מסירה", "פתחו את הקישור או השיבו, אין צורך לשלוח שוב",
+              d.reachedNoLog ?? [], C.green)}
 
             {section("לא נשלחו כלל", "מעולם לא יצאה אליהם הודעה", d.unsent, C.amber,
               { label: "שלח לכולם", ids: d.unsent.filter(r => r.reason === "טרם נשלח").map(r => r.id) })}
