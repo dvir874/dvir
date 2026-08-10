@@ -785,9 +785,13 @@ export default function AdminPage() {
           m[r.id] = { icon: "❌", label: "נכשל", color: "#C05050",
                       title: r.he ?? r.raw ?? "ההודעה לא נמסרה" };
         });
+        /* Weaker evidence than a delivery report, and it must not read as
+           stronger: there is no report at all, only the guest's own behaviour.
+           Labelling it "הגיע" beside a "נקרא" that Meta actually confirmed made
+           the two look interchangeable and the wrong one look better. */
         (d.reachedNoLog ?? []).forEach((r: { id: string; evidence?: string }) => {
-          m[r.id] = { icon: "✅", label: "הגיע", color: "#4A7C59",
-                      title: r.evidence ?? "פתח את הקישור" };
+          m[r.id] = { icon: "🔗", label: "פתח קישור", color: "#6B7B5A",
+                      title: `${r.evidence ?? "פתח את הקישור"} — אין דוח מסירה מוואטסאפ, אבל ברור שקיבל` };
         });
         (d.untracked ?? []).forEach((r: { id: string }) => {
           m[r.id] = { icon: "⏳", label: "לא ידוע", color: "rgba(28,16,8,0.45)",
@@ -799,8 +803,13 @@ export default function AdminPage() {
         });
         (d.reached ?? []).forEach((r: { id: string; status?: string }) => {
           m[r.id] = r.status === "read"
-            ? { icon: "👁", label: "נקרא", color: "#4A7C59", title: "האורח קרא את ההודעה" }
-            : { icon: "✅", label: "נמסר", color: "#4A7C59", title: "ההודעה נמסרה" };
+            ? { icon: "👁", label: "נקרא", color: "#4A7C59",
+                title: "וואטסאפ אישרה שהאורח פתח את ההודעה" }
+            : r.status === "delivered"
+            ? { icon: "✅", label: "נמסר", color: "#4A7C59",
+                title: "וואטסאפ אישרה שההודעה הגיעה למכשיר" }
+            : { icon: "📤", label: "בדרך", color: "#B8860B",
+                title: "נשלח, טרם התקבל אישור מסירה" };
         });
         setDeliveryMap(m);
       })
