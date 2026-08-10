@@ -300,7 +300,20 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
   const [wrongMsg,   setWrongMsg]   = useState("");      // "wrong number" report text
   const [wrongSending, setWrongSending] = useState(false);
   const [wrongSent,  setWrongSent]  = useState(false);
-  const [introDone,  setIntroDone]  = useState(false);   // dvir_list: cinematic intro overlay finished
+  /* The cinematic intro used to run before the invitation: about 7 seconds of
+     verse, then a sealed envelope that opens itself only after another 12 if
+     nobody taps the wax seal. A guest who did not know to tap sat looking at a
+     near-black screen for nineteen seconds — and a guest told me it "did not
+     work".
+
+     Of 97 guests whose invitation WhatsApp confirmed delivered, 19 opened the
+     link. Among those who demonstrably read the message, 23%. For a wedding
+     invitation from family that is not indifference, it is a gate.
+
+     Landing on the invitation is now the default. The intro is still here and
+     still beautiful — reachable from the invitation itself — but it no longer
+     stands between a guest and the reason they clicked. */
+  const [introDone,  setIntroDone]  = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg,   setErrorMsg]   = useState("");
   const [tableName,  setTableName]  = useState<string | null>(null);
