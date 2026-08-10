@@ -34,8 +34,29 @@ export default function HelperSendPage({ params }: { params: Promise<{ token: st
   const [error, setError] = useState<string | null>(null);
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
-  const [awaiting, setAwaiting] = useState<string | null>(null);
+  const [awaiting, setAwaitingState] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  /* Opening WhatsApp on a phone leaves this page entirely — the browser may
+     unload it and rebuild it from scratch on the way back. React state does not
+     survive that, so the helper sent a message, returned, and found the screen
+     exactly as she left it: no confirmation, no progress, the same guest. The
+     pending confirmation has to live somewhere that outlives the page. */
+  const AWAIT_KEY = `helper_awaiting_${token}`;
+  const setAwaiting = useCallback((id: string | null) => {
+    setAwaitingState(id);
+    try {
+      if (id) localStorage.setItem(AWAIT_KEY, id);
+      else localStorage.removeItem(AWAIT_KEY);
+    } catch { /* private mode — the in-memory state still works */ }
+  }, [AWAIT_KEY]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(AWAIT_KEY);
+      if (saved) setAwaitingState(saved);
+    } catch { /* ignore */ }
+  }, [AWAIT_KEY]);
 
   const load = useCallback(async () => {
     try {
@@ -48,7 +69,11 @@ export default function HelperSendPage({ params }: { params: Promise<{ token: st
   useEffect(() => { load(); }, [load]);
 
   const queue = (data?.todo ?? []).filter(g => !sentIds.has(g.id) && !skipped.has(g.id));
-  const current = queue[0] ?? null;
+  /* A pending confirmation outranks queue order. After the trip to WhatsApp the
+     list is fetched again and may come back in a different order; landing on a
+     different guest would mean the one just messaged is never confirmed, and
+     the next helper session shows them as still needing an invitation. */
+  const current = (awaiting ? queue.find(g => g.id === awaiting) : null) ?? queue[0] ?? null;
 
   function message(g: Guest) {
     const ev = data!.event;
@@ -97,7 +122,7 @@ _(הודעה זו נשלחה באמצעות שירות רגע לפני)_`;
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ guest_id: g.id }),
       });
-      if (r.ok) { setSentIds(prev => new Set(prev).add(g.id)); setAwaiting(null); }
+      if (r.ok) { setSentIds(prev => new Set(prev).add(g.id)); setAwaiting(null); await load(); }
       else alert("לא הצלחנו לשמור. נסו שוב.");
     } catch { alert("לא הצלחנו לשמור. בדקו חיבור לאינטרנט."); }
     setBusy(false);
