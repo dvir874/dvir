@@ -2501,7 +2501,7 @@ export default function AdminPage() {
                 <table className="w-full text-sm guest-table">
                   <thead>
                     <tr style={{ background: "rgba(197,164,109,0.07)", borderBottom: `1px solid ${C.borderS}` }}>
-                      {["שם","טלפון","סטטוס","מוזמנים","מנה","זמן תגובה","נפתח","פעולות"].map((h) => (
+                      {["שם","טלפון","מסירה","סטטוס","מוזמנים","מנה","זמן תגובה","נפתח","פעולות"].map((h) => (
                         <th key={h} className="text-right px-4 py-3 font-semibold text-xs" style={{ color: C.muted }}>
                           {h}
                         </th>
@@ -2531,6 +2531,25 @@ export default function AdminPage() {
                       >
                         <td className="px-4 py-3 font-medium" data-label="שם" style={{ color: C.dark }}>{g.name}</td>
                         <td className="px-4 py-3" data-label="טלפון" style={{ color: C.muted }}>{g.phone || "—"}</td>
+                        {/* Delivery, next to the guest rather than on a separate
+                            screen. A blocked invitation used to look exactly
+                            like an invitation nobody bothered answering — the
+                            same "ממתין" chip for both — so the only way to know
+                            was to remember to open /admin/delivery. */}
+                        <td className="px-4 py-3" data-label="מסירה">
+                          {(() => {
+                            const d = deliveryMap[g.id];
+                            if (!d) return <span style={{ color: C.muted, fontSize: 12 }}>—</span>;
+                            return (
+                              <span
+                                title={d.title}
+                                style={{ fontSize: 12, color: d.color, whiteSpace: "nowrap", cursor: "help" }}
+                              >
+                                {d.icon} {d.label}
+                              </span>
+                            );
+                          })()}
+                        </td>
                         <td className="px-4 py-3">
                           <select
                             value={g.status}
