@@ -569,6 +569,18 @@ export default function AdminPage() {
      knows that opening the personal link counts as proof of receipt even when
      no delivery report exists. Duplicating that judgement here would be a
      second definition of "arrived" to keep in sync. */
+  /* Unread guest replies. The inbox has worked for days; nothing pointed at
+     it, so "הקישור לא עובד" sat unread for three hours and two guests who had
+     declined in plain words stayed counted as attending. */
+  const [unreadInbox, setUnreadInbox] = useState(0);
+  useEffect(() => {
+    if (!selectedEventId) { setUnreadInbox(0); return; }
+    fetch(`/api/admin/inbox/unread?event_id=${selectedEventId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => typeof d?.unread === "number" && setUnreadInbox(d.unread))
+      .catch(() => {});
+  }, [selectedEventId]);
+
   const [deliveryMap, setDeliveryMap] = useState<Record<string,
     { icon: string; label: string; color: string; title: string }>>({});
 
@@ -978,6 +990,19 @@ export default function AdminPage() {
             style={{ background: "rgba(37,211,102,0.16)", color: "#1A9B4E" }}
           >
             💬 תיבת הודעות
+            {unreadInbox > 0 && (
+              <span
+                title={`${unreadInbox} הודעות מאורחים שטרם נקראו`}
+                style={{
+                  background: "#B4453C", color: "white", borderRadius: 99,
+                  minWidth: 18, height: 18, display: "inline-flex",
+                  alignItems: "center", justifyContent: "center",
+                  fontSize: 11, fontWeight: 700, padding: "0 5px",
+                }}
+              >
+                {unreadInbox}
+              </span>
+            )}
           </a>
           <a
             href="/admin/quote"

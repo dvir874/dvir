@@ -1093,6 +1093,29 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
                 <p className="inv-hint" style={{ fontSize: "12px", color: T.goldText, textAlign: "center", margin: "8px 0 0", fontWeight: 600 }}>
                   👆 לחצו על ההזמנה להגדלה
                 </p>
+                {/* The cinematic opening, by choice rather than by default.
+                    It used to run before the invitation — verse, then a sealed
+                    envelope that opened itself only after twelve seconds if
+                    nobody tapped the wax seal. A guest told the couple's mother
+                    the link "did not work"; the link was fine, she never got
+                    past the envelope. Kept here because it is genuinely lovely,
+                    and because a guest who wants it can now ask for it. */}
+                {isDvir && (
+                  <p style={{ textAlign: "center", margin: "10px 0 0" }}>
+                    <button
+                      onClick={() => setIntroDone(false)}
+                      style={{
+                        background: "none", border: "none", cursor: "pointer",
+                        color: T.goldText, fontSize: "12.5px", fontWeight: 600,
+                        fontFamily: "'Heebo', sans-serif", opacity: 0.75,
+                        padding: "10px 8px", minHeight: 44,
+                      }}
+                    >
+                      ✨ צפו בפתיחה החגיגית
+                    </button>
+                  </p>
+                )}
+
 
                 {/* Names · date · venue */}
                 <div style={{ textAlign: "center", marginTop: "18px" }}>
