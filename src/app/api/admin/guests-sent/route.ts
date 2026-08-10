@@ -24,29 +24,55 @@ export async function GET(req: NextRequest) {
 
   const sb = createServerClient();
 
-  const { data: guests } = await sb.from("guests").select("id").eq("event_id", eventId);
+  const { data: guests } = await sb.from("guests")
+    .select("id, status, opened_at").eq("event_id", eventId);
   const ids = (guests ?? []).map(g => g.id);
   if (!ids.length) return NextResponse.json({ sent: [] });
 
   /* Chunked for the same PostgREST .in() limit as the send route. Returning
      an empty list on error used to look like "nobody has been sent yet",
      which is the most dangerous possible lie to tell a sender. */
-  const sent = new Set<string>();
+  /* What counts as "done" is evidence the guest was actually reached — not
+     that a row named invite_sent exists.
+     Every guest on this event carries invite_sent from the pre-tracking era,
+     when messages went out as wa.me links with no delivery reporting. Treating
+     that as reached made the station announce "כולם קיבלו! סיימת" over a group
+     of 80 where most had no proof of receiving anything at all — the exact
+     screen a sender trusts to tell them there is no one left.
+
+     Three things do count:
+       manual_sent            — a human sent it from their own phone, tracked
+       delivered / read       — Meta confirmed it arrived
+       answered or opened     — the guest demonstrably got the link */
+  const reached = new Set<string>();
+
+  (guests ?? []).forEach(g => {
+    if (g.status !== "pending" || g.opened_at) reached.add(g.id);
+  });
+
   for (let i = 0; i < ids.length; i += 100) {
-    const { data: events, error } = await sb
-      .from("guest_events")
-      .select("guest_id")
-      .eq("event_type", EVENT_TYPE)
-      .in("guest_id", ids.slice(i, i + 100));
-    if (error) {
+    const slice = ids.slice(i, i + 100);
+
+    const { data: manual, error: manualErr } = await sb
+      .from("guest_events").select("guest_id")
+      .eq("event_type", MANUAL_TYPE).in("guest_id", slice);
+    if (manualErr) {
       return NextResponse.json(
         { error: "lookup_failed", hint: "לא ניתן לטעון מי כבר קיבל" },
         { status: 503 },
       );
     }
-    (events ?? []).forEach(e => sent.add(e.guest_id));
+    (manual ?? []).forEach(e => reached.add(e.guest_id));
+
+    const { data: msgs } = await sb
+      .from("wa_messages").select("guest_id, status")
+      .eq("direction", "out").in("guest_id", slice);
+    (msgs ?? []).forEach(m => {
+      if (m.guest_id && ["delivered", "read"].includes(m.status)) reached.add(m.guest_id);
+    });
   }
-  return NextResponse.json({ sent: [...sent] });
+
+  return NextResponse.json({ sent: [...reached] });
 }
 
 /* POST /api/admin/guests-sent  { guest_ids: [...] }  → marks them as sent */

@@ -115,12 +115,12 @@ function SendStation() {
     ]).then(([ev, gs, sentRes]) => {
       if (ev) setEvent(ev);
       if (Array.isArray(gs)) setGuests(gs);
-      const merged = new Set<string>(Array.isArray(sentRes?.sent) ? sentRes.sent : []);
-      try {
-        const saved = JSON.parse(localStorage.getItem(LS_KEY) ?? "[]");
-        if (Array.isArray(saved)) saved.forEach((id: string) => merged.add(id));
-      } catch {}
-      setSentIds(merged);
+      /* Server only. The local list can only ever ADD people to the hidden
+         set, never remove them, so a stale entry from an earlier session
+         silently drops a guest who still needs contacting — and the screen
+         happily reports "כולם קיבלו". Marks still write to localStorage below
+         so a click survives a refresh mid-session. */
+      setSentIds(new Set<string>(Array.isArray(sentRes?.sent) ? sentRes.sent : []));
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [eventId, LS_KEY]);
