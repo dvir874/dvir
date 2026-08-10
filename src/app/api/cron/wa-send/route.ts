@@ -119,94 +119,99 @@ export async function GET(req: NextRequest) {
   const failed: { name: string; error: string }[] = [];
   let stopped: string | null = null;
 
-  /* ---- 1. retries that have come due ----
+  /* Who gets the day's budget, in order.
 
-     Half the budget at most. Taking the whole budget meant first-contact
-     guests never moved: 26 rows sat due while 181 people had no invitation at
-     all, and the queue drained ahead of them every single run.
+       1. guests with no evidence anything ever arrived
+       2. guests a send was attempted for and failed — also never reached
+       3. everyone else still unanswered, as a reminder
 
-     Rows are also filtered by policy and de-duplicated by guest. Most of the
-     failures are 131048, which policyFor classifies as stop_run — retrying
-     those on a timer cannot work, and three failed rows for one guest are
-     still one message. */
-  const retryBudget = Math.max(1, Math.floor(budget / 2));
-  const { data: dueRaw } = await sb.from("wa_messages")
-    .select("id, guest_id, retry_count, error, error_code")
-    .eq("direction", "out").eq("status", "failed")
-    .not("retry_after", "is", null).lte("retry_after", new Date().toISOString())
-    .order("retry_after").limit(100);
+     Nobody in group 3 is touched while a single name remains in 1 or 2. There
+     is no reminding a guest who was never invited.
 
-  const seenGuest = new Set<string>();
+     The previous order broke this in two separate places, and both spent the
+     allowance on people who already held the invitation. Due retries claimed
+     HALF the budget before a first contact was even considered — 26 rows sat
+     due while 181 people had nothing. And a priority flag let REMINDERS jump
+     the whole queue: the block below used to push `prioReminders` before
+     `firstContact`, so on a 24-message day the first 24 could all go to guests
+     who had already received one.
+
+     send_priority survives, with its scope corrected: it orders WITHIN a
+     group. It no longer reorders the groups. */
+
   const targets: { id: string; row?: string; count?: number; reminder?: boolean }[] = [];
-  for (const d of dueRaw ?? []) {
-    if (!d.guest_id || seenGuest.has(d.guest_id)) continue;
-    if (policyFor(d.error_code, d.error).action !== "retry_later") continue;
-    seenGuest.add(d.guest_id);
-    targets.push({ id: d.guest_id, row: d.id, count: (d.retry_count ?? 0) + 1 });
-    if (targets.length >= retryBudget) break;
+
+  /* No limit on the query. A cap here would not bound the work — the budget
+     does that — it would bound who is ELIGIBLE, and PostgREST returns the
+     first N in arbitrary order. At 550 guests the tail simply never appears in
+     any run, and nothing reports it. */
+  const { data: pending } = await sb.from("guests")
+    .select("id, phone, rsvp_token, category, status, opened_at, send_priority")
+    .eq("event_id", ev.id).eq("status", "pending")
+    .order("send_priority", { ascending: false });
+
+  const ids = (pending ?? []).filter(g => g.category !== "demo" && g.phone && g.rsvp_token)
+    .map(g => g.id);
+
+  const contacted = new Set<string>();
+  for (let i = 0; i < ids.length; i += 100) {
+    const slice = ids.slice(i, i + 100);
+    const { data } = await sb.from("wa_messages").select("guest_id, status")
+      .eq("direction", "out").in("guest_id", slice);
+    (data ?? []).forEach(m => {
+      if (["delivered", "read"].includes(m.status) && m.guest_id) contacted.add(m.guest_id);
+    });
+
+    /* A send made by hand from a personal phone leaves no wa_messages row, so
+       without this the couple messages someone at 11:00 and the business number
+       messages them again at 13:00. */
+    const { data: manual } = await sb.from("guest_events").select("guest_id")
+      .eq("event_type", "manual_sent").in("guest_id", slice);
+    (manual ?? []).forEach(m => m.guest_id && contacted.add(m.guest_id));
   }
 
-  /* ---- 2. guests with no evidence the invitation ever arrived ---- */
+  /* ---- 1. no evidence the invitation ever arrived ---- */
+  ids.filter(id => !contacted.has(id))
+    .slice(0, budget)
+    .forEach(id => targets.push({ id }));
+
+  /* ---- 2. attempted and failed ----
+
+     Filtered by policy and de-duplicated by guest: most failures are 131048,
+     which policyFor classifies as stop_run — no timer can make those succeed —
+     and three failed rows for one guest are still one message.
+
+     Scoped to this event, which it was not before. wa_messages rows carry an
+     event_id and the query ignored it, so a due retry belonging to another
+     couple's guest could be selected here and then sent THIS event's header
+     image — someone else's wedding invitation, to a stranger. */
   if (targets.length < budget) {
-    const need = budget - targets.length;
-    /* No limit. A cap here does not bound the work — the budget above already
-       does that — it bounds who is ELIGIBLE, and PostgREST returns the first N
-       in arbitrary order. At 550 guests the tail simply never appears in any
-       run, and nothing reports it: the guests past the cutoff wait forever
-       while the screen shows a healthy send rate. */
-    const { data: pending } = await sb.from("guests")
-      .select("id, phone, rsvp_token, category, status, opened_at, send_priority")
-      .eq("event_id", ev.id).eq("status", "pending")
-      /* Highest priority first. Set by hand for guests who need reaching ahead
-         of the normal order — the 22 who opened their link and never answered,
-         who may have pressed submit into a request that hung and believe they
-         already replied. */
-      .order("send_priority", { ascending: false });
+    const { data: dueRaw } = await sb.from("wa_messages")
+      .select("id, guest_id, retry_count, error, error_code")
+      .eq("direction", "out").eq("status", "failed").eq("event_id", ev.id)
+      .not("retry_after", "is", null).lte("retry_after", new Date().toISOString())
+      .order("retry_after").limit(100);
 
-    const ids = (pending ?? []).filter(g => g.category !== "demo" && g.phone && g.rsvp_token)
-      .map(g => g.id);
-    const contacted = new Set<string>();
-    for (let i = 0; i < ids.length; i += 100) {
-      const slice = ids.slice(i, i + 100);
-      const { data } = await sb.from("wa_messages").select("guest_id, status")
-        .eq("direction", "out").in("guest_id", slice);
-      (data ?? []).forEach(m => {
-        if (["delivered", "read"].includes(m.status) && m.guest_id) contacted.add(m.guest_id);
-      });
-
-      /* A send made by hand from a personal phone leaves no wa_messages row,
-         so without this the couple messages someone at 11:00 and the business
-         number messages them again at 13:00. */
-      const { data: manual } = await sb.from("guest_events").select("guest_id")
-        .eq("event_type", "manual_sent").in("guest_id", slice);
-      (manual ?? []).forEach(m => m.guest_id && contacted.add(m.guest_id));
+    const seen = new Set(targets.map(t => t.id));
+    for (const d of dueRaw ?? []) {
+      if (targets.length >= budget) break;
+      if (!d.guest_id || seen.has(d.guest_id)) continue;
+      if (policyFor(d.error_code, d.error).action !== "retry_later") continue;
+      seen.add(d.guest_id);
+      targets.push({ id: d.guest_id, row: d.id, count: (d.retry_count ?? 0) + 1 });
     }
-    /* First contact before reminders, always. Someone who has never heard from
-       the couple is a different problem from someone who has the invitation and
-       has not got round to answering, and the first has to be solved first —
-       there is no reminding a guest who was never invited. */
-    /* Priority overrides the usual first-contact-before-reminders rule, and
-       only ever by explicit instruction — nothing sets send_priority on its
-       own. */
-    const prio = new Set(
-      (pending ?? []).filter(g => (g.send_priority ?? 0) > 0).map(g => g.id));
+  }
 
-    const prioReminders = ids.filter(id => prio.has(id) && contacted.has(id)
-      && !targets.some(t => t.id === id));
-    prioReminders.slice(0, need).forEach(id => targets.push({ id, reminder: true }));
+  /* ---- 3. reminders, only once nobody is left uninvited ----
 
-    const firstContact = ids.filter(id => !contacted.has(id) && !targets.some(t => t.id === id));
-    firstContact.slice(0, Math.max(0, budget - targets.length)).forEach(id => targets.push({ id }));
-
-    /* Only once nobody is left uninvited does the budget go to reminders, and
-       they get their own approved template: sending the invitation a second
-       time to someone who already has it reads as a system that lost track. */
-    if (targets.length < budget) {
-      const spare = budget - targets.length;
-      ids.filter(id => contacted.has(id) && !targets.some(t => t.id === id))
-        .slice(0, spare)
-        .forEach(id => targets.push({ id, reminder: true }));
-    }
+     Their own approved template, never the invitation again: sending the same
+     invitation a second time to someone who already has it reads as a system
+     that lost track of them. */
+  if (targets.length < budget) {
+    const already = new Set(targets.map(t => t.id));
+    ids.filter(id => contacted.has(id) && !already.has(id))
+      .slice(0, budget - targets.length)
+      .forEach(id => targets.push({ id, reminder: true }));
   }
 
   if (!targets.length) return NextResponse.json({ sent: 0, reason: "nothing_due" });

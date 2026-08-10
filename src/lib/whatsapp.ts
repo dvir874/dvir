@@ -55,13 +55,28 @@ const API_VERSION = "v21.0";
    The original intent is served properly by sending in small concurrent
    batches and re-reading the outcome between them: a 131048 in the first batch
    stops the second, which is the only failure worth reacting to mid-run. Cloud
-   API permits 80 messages a second; six in flight is four orders of magnitude
-   under the throughput limit and has never produced a 130429. */
-const MIN_GAP_MS = 800;
-const JITTER_MS  = 400;
+   API permits 80 messages a second, so any of these numbers is orders of
+   magnitude below the throughput limit and none has ever produced a 130429.
+
+   Why these values and not the fastest ones that fit.
+
+   Rate is not what gets a number restricted — 131048 comes from recipients
+   blocking and reporting, and the failure table above shows the restriction
+   already in place at 11:00 regardless of spacing. But spacing does bound the
+   BLAST RADIUS, and that is worth paying for: a restriction that arrives after
+   twelve sends costs twelve guests, the same restriction during a burst of
+   sixty costs sixty. Four seconds a message with two in flight puts ~24 into a
+   single invocation — enough that the day's allowance is reachable, slow
+   enough that a bad run is a small run.
+
+   Spreading across the DAY is a scheduling problem, not a pacing one, and the
+   answer is more runs rather than slower ones: this function cannot outlive its
+   60-second maxDuration no matter how patient the gap is. */
+const MIN_GAP_MS = 2_500;
+const JITTER_MS  = 1_500;
 
 /** Sends allowed in flight at once — see the pacing note above. */
-export const SEND_CONCURRENCY = 6;
+export const SEND_CONCURRENCY = 2;
 
 /* What Meta actually counts, measured rather than assumed.
 

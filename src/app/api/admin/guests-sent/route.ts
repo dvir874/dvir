@@ -112,12 +112,34 @@ export async function DELETE(req: NextRequest) {
   if (!ids.length) return NextResponse.json({ error: "guest_ids required" }, { status: 400 });
 
   const sb = createServerClient();
-  const { error } = await sb
-    .from("guest_events")
-    .delete()
-    .eq("event_type", EVENT_TYPE)
-    .in("guest_id", ids);
 
-  if (error) return NextResponse.json({ error: "delete failed" }, { status: 500 });
-  return NextResponse.json({ cleared: ids.length });
+  /* BOTH markers, not just invite_sent.
+
+     manual_sent is the strongest "already reached" signal in the system —
+     five separate send paths treat it as proof of receipt and skip the guest.
+     Clearing only invite_sent therefore made "שלח שוב" a button that reports
+     success and does nothing: the delete returned ok, the send route then
+     skipped the guest on the manual_sent row it had just left behind, and the
+     screen printed "נשלחו 0 · נכשלו 0" without ever mentioning the skip.
+
+     64 guests carry manual_sent today, 47 of them with no delivery evidence of
+     any kind — and until this line there was no code anywhere in the repo that
+     could remove one. A marker that cannot be undone is not a record, it is a
+     one-way door out of the guest list. */
+  const TYPES = [EVENT_TYPE, MANUAL_TYPE];
+
+  /* Chunked for the same PostgREST .in() ceiling the send route hit at ~390
+     ids: past it the whole statement is rejected, and a delete that silently
+     did nothing is exactly the failure being fixed here. */
+  for (let i = 0; i < ids.length; i += 100) {
+    const slice = ids.slice(i, i + 100);
+    const { error } = await sb
+      .from("guest_events")
+      .delete()
+      .in("event_type", TYPES)
+      .in("guest_id", slice);
+    if (error) return NextResponse.json({ error: "delete failed" }, { status: 500 });
+  }
+
+  return NextResponse.json({ cleared: ids.length, types: TYPES });
 }

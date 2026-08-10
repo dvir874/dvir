@@ -33,26 +33,58 @@ export type RsvpLoad =
   | { kind: "not_found" }
   | { kind: "unavailable" };
 
-export async function loadRsvp(token: string): Promise<RsvpLoad> {
-  try {
-    const d = await loadRsvpData(token);
-    return d ? { kind: "ok", data: d } : { kind: "not_found" };
-  } catch {
-    return { kind: "unavailable" };
-  }
+/* Nothing here may take longer than this.
+
+   The whole point of moving the read to the server was that a request which
+   never settles never rejects. Moving it did not remove that risk, it relocated
+   it: supabase-js carries no default timeout, this function makes up to five
+   sequential round-trips, and the page awaits all of them before a single byte
+   of HTML is produced. A slow Supabase therefore gave the guest a blank tab and
+   eventually Vercel's own error page — in English, with no invitation and no
+   way back. Four seconds, then we render the page and let the client retry. */
+const LOAD_TIMEOUT_MS = 4_000;
+
+function withTimeout<T>(work: Promise<T>, fallback: T): Promise<T> {
+  return Promise.race([
+    work,
+    new Promise<T>(resolve => setTimeout(() => resolve(fallback), LOAD_TIMEOUT_MS)),
+  ]);
 }
 
-export async function loadRsvpData(token: string): Promise<RsvpData | null> {
-  try {
-    const sb = createServerClient();
+export async function loadRsvp(token: string): Promise<RsvpLoad> {
+  return withTimeout(loadRsvpInner(token), { kind: "unavailable" });
+}
 
-    const { data: guest } = await sb
+async function loadRsvpInner(token: string): Promise<RsvpLoad> {
+  let sb: ReturnType<typeof createServerClient>;
+  try {
+    sb = createServerClient();
+  } catch {
+    /* Missing env vars — our problem, not a dead link */
+    return { kind: "unavailable" };
+  }
+
+  try {
+    const { data: guest, error } = await sb
       .from("guests")
       .select("id, name, guest_count, status, event_id, opened_at, source_group, category, meal_preference, meal_note, wants_photos, ride_from, ride_role")
       .eq("rsvp_token", token)
       .maybeSingle();
-    if (!guest) return null;
 
+    /* The distinction this whole module exists to make, and the one the old
+       code threw away by discarding `error` and collapsing everything to null.
+       An error is OUR failure — an expired service key, a dropped connection,
+       a column renamed under us, an RLS change — and the guest should be asked
+       to try again. Zero rows is a dead link and can be said immediately.
+       Treating the first as the second is how a Supabase hiccup told a guest
+       holding a perfectly valid invitation that it does not exist, and then
+       disabled the client-side retry that was supposed to save them. */
+    if (error) return { kind: "unavailable" };
+    if (!guest) return { kind: "not_found" };
+
+    /* Everything below the guest row is decoration. A missing event, table or
+       memory token is worth rendering the invitation without — never worth
+       refusing to show it. Only the guest lookup can make this unavailable. */
     const [{ data: event }, { data: vault }, { data: assignment }] = await Promise.all([
       sb.from("events")
         .select("name, date, address, venue_name, theme, mini_site_hero_path, bit_phone, paybox_link")
@@ -68,10 +100,17 @@ export async function loadRsvpData(token: string): Promise<RsvpData | null> {
       tableName = table?.name ?? null;
     }
 
-    return { guest, event: event ?? null, tableName, memoryToken: vault?.token ?? null };
+    return {
+      kind: "ok",
+      data: { guest, event: event ?? null, tableName, memoryToken: vault?.token ?? null },
+    };
   } catch {
-    /* Fail to null, never throw. The client keeps its own fetch as a fallback,
-       so a hiccup here costs a slower first paint — not a broken invitation. */
-    return null;
+    return { kind: "unavailable" };
   }
+}
+
+/** Kept for callers that only care whether there is data. */
+export async function loadRsvpData(token: string): Promise<RsvpData | null> {
+  const r = await loadRsvp(token);
+  return r.kind === "ok" ? r.data : null;
 }

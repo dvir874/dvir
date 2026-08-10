@@ -369,6 +369,26 @@ export default function RsvpClient({
            signal we have about who actually looked. Its response must never be
            allowed to replace a working page with an error. */
         if (data.error) { if (!initialData) setScreen("error"); return; }
+
+        /* When the server already rendered the page, this response is DISCARDED
+           entirely — the call was made for its side effect and nothing else.
+
+           Guarding only setScreen, as this block used to, left every other
+           field to land whenever the network felt like it, and the guest lost
+           either way round:
+
+             · they raise the party size to 4, the in-flight GET returns the
+               stored 1 four seconds later, the input silently drops back, and
+               they submit 1 without noticing
+             · their POST lands first and writes "confirmed"; the older GET
+               then overwrites the row in state with the stale "pending" it
+               read before they answered, and someone who just confirmed reads
+               "חבל שלא תוכלו להגיע"
+
+           Neither is exotic: the GET makes five round-trips and two writes, the
+           POST makes one update. The GET losing the race is the normal case. */
+        if (initialData) return;
+
         setGuest(data.guest);
         setEvent(data.event);
         setTableName(data.tableName ?? null);
@@ -382,9 +402,7 @@ export default function RsvpClient({
         if (data.guest.meal_preference) setMeal(data.guest.meal_preference);
         if (data.guest.meal_note) { setMealNote(data.guest.meal_note); setHasNotes(true); }
         if (typeof data.guest.wants_photos === "boolean") setWantsPhotos(data.guest.wants_photos);
-        /* Only when the server render did not already decide. Re-setting it
-           here would throw away an answer the guest is midway through. */
-        if (!initialData) setScreen(data.guest.status !== "pending" ? "done" : "form");
+        setScreen(data.guest.status !== "pending" ? "done" : "form");
       })
       .catch(() => { if (!initialData) setScreen("error"); })
       .finally(() => clearTimeout(timer));
@@ -407,7 +425,31 @@ export default function RsvpClient({
      question, which every guest now sees. */
   const isHorim = guest?.source_group === "horim_tveria"
     || guest?.source_group === "horim_list";
-  const finishIntro = useCallback(() => setIntroDone(true), []);
+  const INTRO_SEEN_KEY = `intro_seen_${token}`;
+  const finishIntro = useCallback(() => {
+    setIntroDone(true);
+    try { localStorage.setItem(INTRO_SEEN_KEY, "1"); } catch { /* private mode */ }
+  }, [INTRO_SEEN_KEY]);
+
+  /* The opening runs once, on a guest's first visit.
+
+     introDone starts `true` so the server-rendered HTML and the first client
+     render agree — seeding it from localStorage directly is a hydration
+     mismatch. Flipping it a tick later also means the envelope arrives OVER a
+     working invitation rather than instead of one: if the animation fails to
+     mount for any reason at all, the guest is already looking at the page they
+     came for. That ordering is the whole difference between a flourish and
+     another thing standing between a guest and their answer.
+
+     Once only. Someone returning to change their headcount has already seen
+     it, and making them sit through it again turns the magic into an obstacle. */
+  useEffect(() => {
+    if (!isDvir) return;
+    try {
+      if (localStorage.getItem(INTRO_SEEN_KEY)) return;
+    } catch { return; }
+    setIntroDone(false);
+  }, [isDvir, INTRO_SEEN_KEY]);
   const mealTotal = Object.values(mealCounts).reduce((s, n) => s + (n ?? 0), 0);
   /* Most-selected meal type — kept for backward compat with meal_preference */
   const primaryMeal: MealOption | null =
@@ -1880,10 +1922,15 @@ function WeddingIntro({ onDone }: { onDone: () => void }) {
       onDone();
       return;
     }
-    /* Senior-friendly: the envelope appears at ~6.9s. If nobody taps the seal
-       within ~4s, it opens itself — less tech-savvy guests see the same magic
-       without needing to discover the tap. */
-    const t1 = setTimeout(runOpen, 12000);
+    /* The envelope appears at ~6.9s and used to wait a further 5 before opening
+       itself — fourteen seconds, worst case, for a guest who did not know the
+       wax seal was tappable. That is not a flourish, it is a queue, and it sat
+       between people and the only thing they opened the link to do.
+
+       Two and a half seconds is enough to register the envelope and want it
+       open. Tapping anywhere still skips instantly (the root's onClick), and
+       reduced-motion still bypasses the whole thing. */
+    const t1 = setTimeout(runOpen, 4500);
     return () => clearTimeout(t1);
   }, [onDone, runOpen]);
 

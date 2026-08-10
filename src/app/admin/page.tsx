@@ -878,6 +878,34 @@ export default function AdminPage() {
     }
   }
 
+  /* Opening WhatsApp is not sending — and this icon treated them as the same
+     event.
+
+     The old onClick fired the instant the tab opened: before WhatsApp Web had
+     decided whether to show a chat or a QR screen, before the operator typed
+     anything, before any send button existed to press. It then wrote BOTH
+     invite_sent AND manual_sent, and manual_sent is the strongest "already
+     reached" marker in the system — five separate send paths skip a guest who
+     carries one. So a mis-click, a logged-out WhatsApp Web or a tab closed by
+     accident removed that guest from every future send, permanently, while the
+     admin table showed them as handled.
+
+     This is the precise failure /admin/send was built to prevent, and it sat
+     one screen away still doing it. The prompt below is the browser's own on
+     purpose rather than a designed dialog: it has to interrupt, and it has to
+     be answered AFTER the trip to WhatsApp — the question is whether a message
+     actually went out, which is not knowable at the moment of the click. */
+  function sendViaWhatsApp(id: string, name: string, phone: string, token: string) {
+    window.open(whatsappInviteLink(phone, name, token), "_blank", "noopener,noreferrer");
+    setTimeout(() => {
+      const ok = window.confirm(
+        `ההודעה ל${name} נשלחה בפועל?\n\n` +
+        `אישור מסמן שהאורח קיבל הזמנה ומוציא אותו מכל שליחה אוטומטית עתידית.`,
+      );
+      if (ok) logActivity(id, "invitation_sent");
+    }, 800);
+  }
+
   const selectedEvent = events.find((e) => e.id === selectedEventId);
   const insights  = generateInsights(guests, selectedEvent?.name ?? "האירוע", selectedEvent?.date);
   const forecast  = computeForecast(guests);
@@ -2717,17 +2745,14 @@ export default function AdminPage() {
                             >
                               <Copy size={13} />
                             </button>
-                            <a
-                              href={whatsappInviteLink(g.phone, g.name, g.rsvp_token)}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
                               title="שלח הזמנה בוואטסאפ"
-                              onClick={() => logActivity(g.id, "invitation_sent")}
+                              onClick={() => sendViaWhatsApp(g.id, g.name, g.phone, g.rsvp_token)}
                               className="p-1.5 rounded-lg transition-all hover:opacity-70"
                               style={{ background: "rgba(37,211,102,0.10)", color: "#25D366" }}
                             >
                               <MessageCircle size={13} />
-                            </a>
+                            </button>
                             <button
                               title="מחק"
                               onClick={() => handleDelete(g.id)}
