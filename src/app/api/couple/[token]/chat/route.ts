@@ -18,12 +18,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
   // Mark admin messages as read by couple
   await sb.from("chat_messages").update({ read_by_couple: true }).eq("event_id", eventId).eq("sender", "admin");
 
-  const { data } = await sb.from("chat_messages")
+  const { data, error } = await sb.from("chat_messages")
     .select("id, sender, body, created_at, read_by_admin")
     .eq("event_id", eventId)
     .order("created_at", { ascending: true })
     .limit(100);
 
+  /* An empty array because the table is missing looks exactly like an empty
+     array because nobody has written yet. Say which. */
+  if (error) return NextResponse.json({ error: "chat_unavailable" }, { status: 503 });
   return NextResponse.json(data ?? []);
 }
 

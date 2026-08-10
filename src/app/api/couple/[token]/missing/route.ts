@@ -9,7 +9,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const { data: event } = await sb
     .from("events")
-    .select("id, name, date, address, venue_name, dress_code, client_phone, bit_phone")
+    /* dress_code does not exist on events; selecting it made the whole query
+       fail and the route answer 404 for a couple that is perfectly real. */
+    .select("id, name, date, address, venue_name, client_phone, bit_phone")
     .eq("couple_token", token)
     .single();
 
@@ -22,7 +24,6 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (!event.address && !event.venue_name) missing.push({ label: "לא הוגדרה כתובת אולם", severity: "high" });
 
   // Check dress code
-  if (!event.dress_code) missing.push({ label: "לא הוגדר קוד לבוש", severity: "low" });
 
   // Check bit phone for gifts
   if (!event.bit_phone) missing.push({ label: "לא הוגדר מספר ביט למתנות", severity: "medium" });

@@ -15,7 +15,7 @@ export async function GET(
   const sb     = createServerClient();
 
   const [evRes, tmplRes, guestRes, albumRes] = await Promise.all([
-    sb.from('events').select('id,name,date,address,venue').eq('id', eventId).single(),
+    sb.from('events').select('id,name,date,address,venue_name').eq('id', eventId).single(),
     type ? sb.from('message_templates').select('body').eq('event_id', eventId).eq('type', type).maybeSingle() : Promise.resolve({ data: null }),
     sb.from('guests').select('id,name,phone,status').eq('event_id', eventId).eq('status', 'confirmed'),
     sb.from('gallery_albums').select('public_token').eq('event_id', eventId).maybeSingle(),
@@ -39,7 +39,7 @@ export async function GET(
     couple_name:     event.name,
     event_date:      dateStr,
     event_time:      '19:00',
-    venue:           (event as { venue?: string }).venue ?? event.address ?? '',
+    venue:           (event as { venue_name?: string }).venue_name ?? event.address ?? '',
     address:         event.address ?? '',
     event_link:      `${appUrl}/event/${eventId}`,
     navigation_link: wazeLink,
@@ -52,7 +52,7 @@ export async function GET(
       couple_name:     event.name,
       event_date:      dateStr,
       event_time:      '19:00',
-      venue:           (event as { venue?: string }).venue ?? event.address ?? '',
+      venue:           (event as { venue_name?: string }).venue_name ?? event.address ?? '',
       event_link:      `${appUrl}/event/${eventId}`,
       navigation_link: wazeLink,
     });
