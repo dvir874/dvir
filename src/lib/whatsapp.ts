@@ -373,10 +373,17 @@ export async function fetchAccountHealth(cfg: WhatsAppConfig): Promise<AccountHe
   const posture: SendPosture =
     roll === "AVAILABLE" ? "open" : roll === "BLOCKED" ? "blocked" : "limited";
 
-  let cap =
-    posture === "blocked" ? 0
-    : posture === "open"  ? tier
-    :                       Math.min(tier, FLOOR_CAP);
+  /* LIMITED is not a number, it is a reason — "business not verified" — and the
+     published ceiling for the tier still applies underneath it. Clamping
+     LIMITED to FLOOR_CAP, as this first did, threw away both the tier AND the
+     warm-up ramp below, which exists precisely so a cap can be raised without
+     guessing: it pinned us to 60 a day on a GREEN number whose tier says 250,
+     which is the same mistake as the hardcoded constants it replaced, made one
+     level further in.
+
+     The ramp is what keeps this safe, and quality is what overrides it. The
+     tier is a ceiling, never a target. */
+  let cap = posture === "blocked" ? 0 : tier;
 
   /* Quality is the only signal that reflects what RECIPIENTS think, and it is
      the one that precedes a restriction rather than following it. YELLOW is
@@ -412,24 +419,43 @@ export function warmupCap(health: AccountHealth, recentPeak: number): number {
   return Math.min(health.cap, ramp);
 }
 
-/** Busiest single rolling-day in the recent past, in unique recipients — the
-    input the ramp grows from. Fails closed to 0, which leaves the cold-start
-    floor as the only allowance. */
+/** Busiest CLEAN day in the recent past, in unique recipients — the input the
+    ramp grows from.
+
+    Clean matters more than busy. Our busiest day is 9/8 at 80 recipients, and
+    9/8 is the day the number was restricted: growing 1.6× from there would set
+    tomorrow's allowance at 128 by reasoning forward from a failure. A day that
+    produced a 131048 is evidence of the ceiling, not of headroom, so it is
+    excluded and the ramp grows from the busiest day that finished intact —
+    10/8 at 56.
+
+    Fails closed to 0, leaving the cold-start floor as the only allowance. */
 export async function recentPeakRecipients(
   sb: SupabaseClient<never, "public", "public", never, never>,
   days = 7,
 ): Promise<number> {
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
+  /* `error` as well as `error_code`, because the rows that matter most predate
+     the code column. Every one of the 28 failures on 9/8 — the day this ramp
+     must not learn from — carries error_code NULL and the text "Spam Rate limit
+     hit", and policyFor already knows how to read that. Selecting only the
+     numeric column let the worst day in our history pass as a clean one. */
   const { data, error } = await sb
-    .from("wa_messages").select("wa_phone, created_at")
+    .from("wa_messages").select("wa_phone, created_at, error_code, error")
     .eq("direction", "out").gte("created_at", since)
-    .returns<{ wa_phone: string; created_at: string }[]>();
+    .returns<{ wa_phone: string; created_at: string; error_code: number | null; error: string | null }[]>();
   if (error || !data) return 0;
+
+  const burned = new Set<string>();
+  for (const r of data) {
+    if (policyFor(r.error_code, r.error).action === "stop_run") burned.add(r.created_at.slice(0, 10));
+  }
 
   const byDay = new Map<string, Set<string>>();
   for (const r of data) {
     if (!r.wa_phone) continue;
     const d = r.created_at.slice(0, 10);
+    if (burned.has(d)) continue;
     (byDay.get(d) ?? byDay.set(d, new Set()).get(d)!).add(r.wa_phone);
   }
   return Math.max(0, ...[...byDay.values()].map(s => s.size));
