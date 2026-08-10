@@ -5,12 +5,12 @@
   "installCommand": "npm install",
   "crons": [
     {
-      "path": "/api/cron/daily",
+      "path": "/api/cron/wa-send",
       "schedule": "0 7 * * *"
     },
     {
       "path": "/api/cron/wa-send",
-      "schedule": "0 7 * * *"
+      "schedule": "0 12 * * *"
     }
   ]
 }

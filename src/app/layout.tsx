@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import Analytics from "@/components/Analytics";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://regalifnei.vercel.app'),
@@ -94,27 +95,8 @@ export default function RootLayout({
           rel="stylesheet"
         />
 
-        {/* Google Analytics 4 — set NEXT_PUBLIC_GA_ID in Vercel env vars */}
-        {process.env.NEXT_PUBLIC_GA_ID && (
-          <>
-            <script
-              async
-              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`}
-            />
-            <script
-              dangerouslySetInnerHTML={{
-                __html: `
-                  window.dataLayer = window.dataLayer || [];
-                  function gtag(){dataLayer.push(arguments);}
-                  gtag('js', new Date());
-                  gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}', {
-                    page_path: window.location.pathname,
-                  });
-                `,
-              }}
-            />
-          </>
-        )}
+        {/* Analytics — deliberately absent from guest pages; see Analytics.tsx */}
+        <Analytics />
 
         {/* Hotjar — set NEXT_PUBLIC_HOTJAR_ID in Vercel env vars */}
         {process.env.NEXT_PUBLIC_HOTJAR_ID && (

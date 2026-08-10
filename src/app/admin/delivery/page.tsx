@@ -25,7 +25,7 @@ const GROUPS: Record<string, string> = {
 interface Row {
   id: string; name: string; phone: string | null; group: string | null;
   he?: string; action?: string; retryable?: boolean; raw?: string | null;
-  reason?: string; at?: string; evidence?: string;
+  reason?: string; at?: string; evidence?: string; exhausted?: boolean;
 }
 interface Data {
   trackingAvailable: boolean;
@@ -51,6 +51,18 @@ function Delivery() {
      would skip the guest by design. */
   async function resend(ids: string[], label: string) {
     if (!ids.length || busy) return;
+
+    /* A WhatsApp message cannot be recalled, and this button reaches dozens of
+       real guests at once. Two weeks before a wedding, working fast on a phone,
+       one stray tap is all it takes — and the number's own ceiling is roughly
+       60 recipients a day, so a mistaken bulk send costs days of capacity the
+       guests who were never invited are waiting on. */
+    if (ids.length > 1 && !confirm(
+      `לשלוח ל-${ids.length} אורחים?\n\n` +
+      `כל אחד יקבל הודעת וואטסאפ עם ההזמנה והקישור האישי שלו.\n` +
+      `אי אפשר לבטל הודעה שנשלחה.`,
+    )) return;
+
     setBusy(label); setNote(null);
     try {
       await fetch("/api/admin/guests-sent", {
@@ -156,7 +168,13 @@ function Delivery() {
                 padding: "11px 16px", marginBottom: 14, fontSize: 14 }}>{note}</div>
             )}
 
-            {section("נכשלו במסירה", "וואטסאפ חסם או דחה — האורח לא קיבל", d.failed, C.red,
+            {section("נכשלו — נגמרו הניסיונות", "המערכת כבר לא תנסה שוב. צריך טיפול ידני",
+              d.failed.filter(r => r.exhausted), C.red,
+              d.failed.filter(r => r.exhausted).length
+                ? { label: "נסה שוב ידנית", ids: d.failed.filter(r => r.exhausted).map(r => r.id) }
+                : undefined)}
+
+            {section("נכשלו במסירה", "וואטסאפ חסם או דחה — האורח לא קיבל", d.failed.filter(r => !r.exhausted), C.red,
               retryable.length ? { label: "שלח שוב לכל הניתנים", ids: retryable } : undefined)}
 
             {section("ללא נתוני מסירה", "נשלחו לפני שהמעקב הופעל — לא ידוע אם הגיעו",

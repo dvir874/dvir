@@ -38,7 +38,7 @@ export async function eventIdForReportCode(code: string): Promise<string | null>
 export interface Row {
   id: string; name: string; phone: string | null; status: string;
   guest_count: number | null; source_group: string | null; category: string | null;
-  notes: string | null; ride_from: string | null;
+  notes: string | null; meal_note: string | null; ride_from: string | null;
   response_time: string | null; opened_at: string | null;
 }
 
@@ -71,7 +71,10 @@ export function toCsv(rows: Row[]): string {
     r.status === "confirmed" ? (r.guest_count ?? 1) : "",
     GROUPS[r.source_group ?? ""] ?? r.source_group ?? "",
     r.ride_from ?? "",
-    (r.notes ?? "").replace(/\n/g, " "),
+    /* Both free-text fields. notes is what the operator wrote about the
+       guest; meal_note is what the GUEST wrote — and only one of them was
+       reaching the couple. */
+    [(r.notes ?? "").trim(), (r.meal_note ?? "").trim()].filter(Boolean).join(" · ").replace(/\n/g, " "),
     r.response_time ? new Date(r.response_time).toLocaleString("he-IL") : "",
   ].map(esc).join(","));
   return "﻿" + [header.join(","), ...body].join("\n");
@@ -81,7 +84,11 @@ export async function loadRows(eventId: string): Promise<Row[]> {
   const sb = createServerClient();
   const { data } = await sb
     .from("guests")
-    .select("id, name, phone, status, guest_count, source_group, category, notes, ride_from, response_time, opened_at")
+    /* meal_note is the free-text box on the RSVP form — "אני צריך 12 כיסאות
+       תינוק וקופסת חמצוצים". It was collected and shown to the operator but
+       never reached the couple's own report, so a guest could write a request
+       and the person actually organising the wedding would never see it. */
+    .select("id, name, phone, status, guest_count, source_group, category, notes, meal_note, ride_from, response_time, opened_at")
     .eq("event_id", eventId);
   return ((data ?? []) as Row[])
     .filter(g => g.category !== "demo")          // demo guests never count
@@ -131,8 +138,12 @@ export async function buildReport(eventId: string) {
       .filter(r => (r.ride_from ?? "").includes("טבריה"))
       .map(r => ({ name: r.name, count: Number(r.guest_count) || 1 })),
     notes: confirmed
-      .filter(r => (r.notes ?? "").trim() && !(r.notes ?? "").includes("🚫"))
-      .map(r => ({ name: r.name, note: (r.notes ?? "").trim() })),
+      .map(r => ({
+        name: r.name,
+        note: [(r.notes ?? "").trim(), (r.meal_note ?? "").trim()]
+          .filter(Boolean).join(" · "),
+      }))
+      .filter(n => n.note && !n.note.includes("🚫")),
     guests: rows.map(r => ({
       name: r.name,
       /* Phone numbers stay out of the shareable report — it gets forwarded

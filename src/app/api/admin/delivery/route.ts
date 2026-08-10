@@ -13,6 +13,8 @@ export const dynamic = "force-dynamic";
    - unsent     → never queued at all (no phone, no token, or skipped) */
 
 interface Msg {
+  retry_after?: string | null;
+  retry_count?: number | null;
   guest_id: string | null;
   wa_phone: string;
   status: string | null;
@@ -74,7 +76,7 @@ export async function GET(req: NextRequest) {
   /* Delivery log — may not exist on older deployments */
   const { data: msgRows, error: msgErr } = await sb
     .from("wa_messages")
-    .select("guest_id, wa_phone, status, error, created_at")
+    .select("guest_id, wa_phone, status, error, created_at, retry_after, retry_count")
     .eq("event_id", eventId)
     .eq("direction", "out")
     .order("created_at", { ascending: false });
@@ -132,7 +134,15 @@ export async function GET(req: NextRequest) {
     }
 
     if (m.status === "failed") {
-      failed.push({ ...base, at: m.created_at, raw: m.error, ...explain(m.error) });
+      /* A failure whose retries are spent still belongs on this screen —
+         arguably more than one that will be tried again. It used to fall out of
+         every timer-driven query and appear nowhere, so the guest simply
+         stopped existing as a problem while still never having received
+         anything. */
+      failed.push({
+        ...base, at: m.created_at, raw: m.error, ...explain(m.error),
+        exhausted: !m.retry_after && (m.retry_count ?? 0) > 0,
+      });
     } else {
       reached.push({ ...base, status: m.status, at: m.created_at });
       if (m.status === "read")            tally.read++;

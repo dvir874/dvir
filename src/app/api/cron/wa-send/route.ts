@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
     .order("retry_after").limit(100);
 
   const seenGuest = new Set<string>();
-  const targets: { id: string; row?: string; count?: number }[] = [];
+  const targets: { id: string; row?: string; count?: number; reminder?: boolean }[] = [];
   for (const d of dueRaw ?? []) {
     if (!d.guest_id || seenGuest.has(d.guest_id)) continue;
     if (policyFor(d.error_code, d.error).action !== "retry_later") continue;
@@ -163,11 +163,22 @@ export async function GET(req: NextRequest) {
         .eq("event_type", "manual_sent").in("guest_id", slice);
       (manual ?? []).forEach(m => m.guest_id && contacted.add(m.guest_id));
     }
-    /* Anyone whose invitation is confirmed delivered is a reminder, and the
-       reminder template is still PENDING — so they wait rather than receive a
-       second identical invitation. */
+    /* First contact before reminders, always. Someone who has never heard from
+       the couple is a different problem from someone who has the invitation and
+       has not got round to answering, and the first has to be solved first —
+       there is no reminding a guest who was never invited. */
     const firstContact = ids.filter(id => !contacted.has(id) && !targets.some(t => t.id === id));
     firstContact.slice(0, need).forEach(id => targets.push({ id }));
+
+    /* Only once nobody is left uninvited does the budget go to reminders, and
+       they get their own approved template: sending the invitation a second
+       time to someone who already has it reads as a system that lost track. */
+    if (targets.length < budget) {
+      const spare = budget - targets.length;
+      ids.filter(id => contacted.has(id) && !targets.some(t => t.id === id))
+        .slice(0, spare)
+        .forEach(id => targets.push({ id, reminder: true }));
+    }
   }
 
   if (!targets.length) return NextResponse.json({ sent: 0, reason: "nothing_due" });
@@ -185,7 +196,10 @@ export async function GET(req: NextRequest) {
         .update({ retry_count: t.count, retry_after: null }).eq("id", t.row);
     }
 
-    const res = await sendInvitation(cfg, g.phone, g.rsvp_token, image);
+    const res = await sendInvitation(
+      cfg, g.phone, g.rsvp_token, image, undefined,
+      t.reminder ? "reminder" : "invitation",
+    );
     if (res.ok) {
       sent.push(g.name);
       await sb.from("guest_events").insert({ guest_id: g.id, event_type: "invite_sent" });
@@ -194,7 +208,9 @@ export async function GET(req: NextRequest) {
           event_id: ev.id, guest_id: g.id,
           wa_phone: toE164(g.phone) ?? "",
           direction: "out",
-          body: t.row ? "הזמנה לחתונה (ניסיון חוזר)" : "הזמנה לחתונה (תבנית)",
+          body: t.reminder ? "תזכורת אישור הגעה"
+              : t.row      ? "הזמנה לחתונה (ניסיון חוזר)"
+              :              "הזמנה לחתונה (תבנית)",
           wamid: res.messageId, status: "accepted",
           ...(t.row ? { retry_count: t.count, retried_from: t.row } : {}),
         });

@@ -247,6 +247,10 @@ export interface WhatsAppConfig {
   headerImageUrl: string;
   /** Generic template whose body text is filled per couple */
   genericTemplateName: string;
+  /* Approved reminder for guests who already have the invitation and have not
+     answered. Same shape as the invitation — image header, one token variable
+     in the URL button — so it goes through the same send path. */
+  reminderTemplateName: string;
 }
 
 /** The four body variables of the generic invitation template */
@@ -267,6 +271,7 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
     accessToken,
     templateName: process.env.WHATSAPP_TEMPLATE_NAME ?? "wedding_invitation_regalifnei",
     genericTemplateName: process.env.WHATSAPP_TEMPLATE_GENERIC ?? "wedding_invitation_v2",
+    reminderTemplateName: process.env.WHATSAPP_TEMPLATE_REMINDER ?? "wedding_reminder_regalifnei",
     templateLang: process.env.WHATSAPP_TEMPLATE_LANG ?? "he",
     /* Kept only so existing callers still typecheck; nothing reads it as a
        fallback any more. The comment used to say there was deliberately no
@@ -307,6 +312,11 @@ export async function sendInvitation(
   token: string,
   headerImageUrl?: string,
   details?: EventDetails,
+  /* "reminder" is for guests whose invitation is confirmed delivered and who
+     have not answered. Sending the invitation again to them reads as a system
+     that lost track of them; sending it to someone who never received one is
+     the whole job. The two must not share a template. */
+  kind: "invitation" | "reminder" = "invitation",
 ): Promise<SendResult> {
   const to = toE164(phone);
   if (!to) return { ok: false, error: "invalid phone" };
@@ -321,7 +331,7 @@ export async function sendInvitation(
   let last: SendResult = { ok: false, error: "unknown" };
   for (let attempt = 0; attempt <= BACKOFF_MS.length; attempt++) {
     await pace();
-    last = await sendOnce(cfg, to, token, image, details);
+    last = await sendOnce(cfg, to, token, image, details, kind);
     if (last.ok) return attempt === 0 ? last : { ...last, retries: attempt };
     if (!isTransient(last.error ?? "")) return last;
     if (attempt < BACKOFF_MS.length) await sleep(BACKOFF_MS[attempt]);
@@ -335,6 +345,7 @@ async function sendOnce(
   token: string,
   image: string,
   details?: EventDetails,
+  kind: "invitation" | "reminder" = "invitation",
 ): Promise<SendResult> {
 
   /* With details we use the generic template and fill its four variables;
@@ -346,7 +357,9 @@ async function sendOnce(
     to,
     type: "template",
     template: {
-      name: useGeneric ? cfg.genericTemplateName : cfg.templateName,
+      name: kind === "reminder" ? cfg.reminderTemplateName
+          : useGeneric        ? cfg.genericTemplateName
+          :                     cfg.templateName,
       language: { code: cfg.templateLang },
       components: [
         {

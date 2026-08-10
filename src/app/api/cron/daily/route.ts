@@ -4,8 +4,14 @@
  * Called by an external scheduler (Vercel Cron, pg_cron, etc.) once per day.
  * MUST be protected by CRON_SECRET in production.
  *
- * Current behaviour: dry-run only — computes tasks and health scores
- * but does NOT send messages or mutate data.
+ * NO LONGER SCHEDULED. It queued message_queue rows holding wa.me links — the
+ * manual click-through flow that /api/cron/wa-send replaced — and it was
+ * dry-run by default on top of that, so in its whole life it never sent a
+ * single message while the site advertised automatic reminders.
+ *
+ * Kept because the task and health calculations are still useful and still
+ * called from elsewhere. Removed from vercel.json so its cron slot goes to the
+ * sender that actually sends; Hobby allows only two.
  *
  * To activate mutations:
  *   1. Set CRON_ENABLED=true in env
