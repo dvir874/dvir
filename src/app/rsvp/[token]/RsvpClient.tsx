@@ -1011,6 +1011,24 @@ export default function RsvpClient({
 
           <div style={{ width: "64px", height: "1px", background: `linear-gradient(90deg,transparent,${T.gold},transparent)`, margin: "28px auto 0" }} />
 
+          {/* A way out when something goes wrong, on the page itself.
+              A guest hit a load that hung, tried three devices, and had no way
+              to tell anyone — she eventually messaged the couple's mother, who
+              relayed it hours later. The failures that cost us guests are the
+              silent ones, and this is the cheapest possible way to make one
+              audible: the guest is already holding WhatsApp. */}
+          <p style={{ textAlign: "center", fontSize: "12.5px", padding: "4px 0 0", margin: 0, lineHeight: 1.7 }}>
+            <a
+              href={`https://wa.me/972775494850?text=${encodeURIComponent(
+                `היי, יש לי בעיה עם ההזמנה של ${event?.name ?? "החתונה"} — `,
+              )}`}
+              target="_blank" rel="noopener noreferrer"
+              style={{ color: T.goldText, textDecoration: "none", fontWeight: 600 }}
+            >
+              משהו לא עובד? הקישור לא נפתח? כתבו לנו ונטפל בזה 💬
+            </a>
+          </p>
+
           {/* Speaks to the guest instead of about us. The credit half of the
               old line was spending half the width on something nobody was
               looking for; "an invitation like this" points at the invitation
