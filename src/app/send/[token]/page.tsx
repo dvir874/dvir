@@ -56,19 +56,26 @@ export default function HelperSendPage({ params }: { params: Promise<{ token: st
       ? new Date(ev.date).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
       : "";
     const where = [ev.venue_name, ev.address].filter(Boolean).join(", ");
+    /* Sent in the service's voice, not the couple's and not the helper's.
+       A guest reading "אנחנו שמחים להזמין" from a number that is neither bride
+       nor groom is being told something that is not true of the sender; the
+       closing line is what makes the message honest about where it came from,
+       and it matches every other template in the system. */
     return `💍 משפחה וחברים יקרים!
 
-בעזרת ה׳ *${ev.name}* מתחתנים 🤍
-ואנחנו שמחים להזמין אתכם לחגוג איתנו!
+בעזרת ה׳ *${ev.name}* מתחתנים! 🤍
+והם שמחים להזמין אתכם לחגוג איתם:
 
 🗓 ${when}
 📍 ${where}
 🥂 קבלת פנים 19:00 | חופה וקידושין 20:00
 
-👇 לחצו כאן לצפייה בהזמנה ואישור הגעה 👇
+👇 לחצו כאן לצפייה בהזמנה המלאה ואישור הגעה 👇
 ${location.origin}/rsvp/${g.rsvp_token}
 
-מחכים לחגוג איתכם! 🤍`;
+מחכים לחגוג איתכם ביום המאושר שלהם! 🤍
+
+_(הודעה זו נשלחה באמצעות שירות רגע לפני)_`;
   }
 
   function openWhatsApp(g: Guest) {
