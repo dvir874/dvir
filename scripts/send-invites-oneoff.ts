@@ -13,7 +13,7 @@
 import { createClient } from "@supabase/supabase-js";
 import {
   getWhatsAppConfig, sendInvitation, toE164,
-  SAFE_DAILY_LIMIT, SECONDS_PER_MESSAGE,
+  SAFE_DAILY_LIMIT, SECONDS_PER_MESSAGE, rollingWindowUsage,
 } from "../src/lib/whatsapp";
 
 const EVENT_TYPE = "invite_sent";
@@ -62,17 +62,14 @@ async function main() {
     already = new Set((sentRows ?? []).map(r => r.guest_id));
   }
 
-  /* The blocked messages were caused by the day's volume, not by the gap
-     between them. Sending the recovery batch into the same wall reproduces
-     the failure it is meant to repair. */
-  const since = new Date(Date.now() - 86_400_000).toISOString();
-  const { count: sentToday } = await sb.from("wa_messages")
-    .select("id", { count: "exact", head: true })
-    .eq("direction", "out").gte("created_at", since);
-  const budget = SAFE_DAILY_LIMIT - (sentToday ?? 0);
-  console.log(`נשלחו ב-24 שעות: ${sentToday} · מכסה בטוחה: ${SAFE_DAILY_LIMIT} · פנוי: ${budget}`);
+  /* Same unit the routes use, and the one Meta enforces: unique recipients in
+     a rolling 24 hours. Counting messages instead charged three retries to one
+     guest as three, and split a single window across two calendar days. */
+  const usage = await rollingWindowUsage(sb);
+  const budget = Math.min(usage.remaining, SAFE_DAILY_LIMIT);
+  console.log(`נמענים בחלון 24 שעות: ${usage.recipients} · פנוי: ${usage.remaining} · מנה: ${budget}`);
   if (budget <= 0) {
-    console.log("\nאין מכסה פנויה. עצירה — שליחה עכשיו תיחסם כמו קודם.");
+    console.log("\nהחלון מלא. עצירה — שליחה עכשיו תיחסם.");
     return;
   }
 
