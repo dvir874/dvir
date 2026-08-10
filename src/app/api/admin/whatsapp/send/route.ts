@@ -75,19 +75,37 @@ export async function POST(req: NextRequest) {
     guests = guests.filter(g => want.has(g.id));
   }
 
-  /* Never message anyone twice — the server record is the source of truth.
+  /* Never message anyone twice — but "twice" has to mean they actually got it
+     once. Skipping on guest_events.invite_sent alone made this route refuse to
+     send to ANYONE on this event: every guest carries that row from the
+     pre-tracking era, when invitations went out as wa.me links with no delivery
+     reporting. The button offering to invite 111 guests would have reported
+     "נשלחו 0 · דולגו 111".
+
+     Evidence of receipt is what counts:
+       delivered / read   — Meta confirmed it arrived
+       manual_sent        — a human sent it from their own phone, recorded
+       answered or opened — the guest demonstrably has the link
+
      Chunked because PostgREST rejects .in() lists past roughly 390 ids (the
      16KB header limit): at 550 guests the unchunked query failed outright,
      `already` stayed empty, and every guest would have been invited twice.
      A failure here must abort, never silently proceed. */
   const ids = guests.map(g => g.id);
   const already = new Set<string>();
+
+  const { data: statusRows } = await sb.from("guests")
+    .select("id, status, opened_at").eq("event_id", eventId);
+  (statusRows ?? []).forEach(g => {
+    if (g.status !== "pending" || g.opened_at) already.add(g.id);
+  });
+
   for (let i = 0; i < ids.length; i += 100) {
-    const { data: sentRows, error: sentErr } = await sb
-      .from("guest_events")
-      .select("guest_id")
-      .eq("event_type", EVENT_TYPE)
-      .in("guest_id", ids.slice(i, i + 100));
+    const slice = ids.slice(i, i + 100);
+
+    const { data: manualRows, error: sentErr } = await sb
+      .from("guest_events").select("guest_id")
+      .eq("event_type", "manual_sent").in("guest_id", slice);
     if (sentErr) {
       return NextResponse.json(
         { error: "dedupe_check_failed",
@@ -95,12 +113,26 @@ export async function POST(req: NextRequest) {
         { status: 503 },
       );
     }
-    (sentRows ?? []).forEach(r => already.add(r.guest_id));
+    (manualRows ?? []).forEach(r => already.add(r.guest_id));
+
+    const { data: msgRows, error: msgErr } = await sb
+      .from("wa_messages").select("guest_id, status")
+      .eq("direction", "out").in("guest_id", slice);
+    if (msgErr) {
+      return NextResponse.json(
+        { error: "dedupe_check_failed",
+          hint: "לא ניתן לוודא מי כבר קיבל — השליחה נעצרה כדי למנוע כפילויות" },
+        { status: 503 },
+      );
+    }
+    (msgRows ?? []).forEach(m => {
+      if (m.guest_id && ["delivered", "read"].includes(m.status)) already.add(m.guest_id);
+    });
   }
 
   const skipped: { name: string; reason: string }[] = [];
   const queue = guests.filter(g => {
-    if (already.has(g.id)) { skipped.push({ name: g.name, reason: "כבר נשלח" }); return false; }
+    if (already.has(g.id)) { skipped.push({ name: g.name, reason: "כבר קיבל" }); return false; }
     if (!String(g.phone ?? "").trim()) { skipped.push({ name: g.name, reason: "אין טלפון" }); return false; }
     if (!g.rsvp_token) { skipped.push({ name: g.name, reason: "אין קישור" }); return false; }
     return true;

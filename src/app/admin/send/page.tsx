@@ -90,6 +90,7 @@ function SendStation() {
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [apiBusy, setApiBusy] = useState(false);
+  const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set());
   const [apiResult, setApiResult] = useState<ApiSendResult | null>(null);
 
   const LS_KEY = `send_station_${eventId}`;
@@ -141,7 +142,9 @@ function SendStation() {
     return true;
   }), [guests, filter, group]);
 
-  const queue = eligible.filter(g => !sentIds.has(g.id));
+  /* Skipped guests drop out of the queue for this session and come back on the
+     next load — they were passed over, not reached. */
+  const queue = eligible.filter(g => !sentIds.has(g.id) && !skippedIds.has(g.id));
   const current = queue[0] ?? null;
   const doneCount = eligible.length - queue.length;
 
@@ -468,7 +471,12 @@ function SendStation() {
                     💬 שלח ל{current.name} ←
                   </button>
                 )}
-                <button onClick={() => markSent(current.id)}
+                {/* Skip means "not this one, now" — it must not tell the server
+                    the guest was contacted. It used to call markSent, which
+                    writes manual_sent, and the automatic sender then skipped
+                    them too: one click and a guest silently never heard from
+                    the couple at all. Local to this session only. */}
+                <button onClick={() => setSkippedIds(prev => new Set(prev).add(current.id))}
                   style={{ marginTop: 10, background: "none", border: "none", cursor: "pointer", color: C.muted, fontSize: 13, fontFamily: "Heebo, sans-serif", display: "inline-flex", alignItems: "center", gap: 5 }}>
                   <SkipForward size={13} /> דלג על אורח זה
                 </button>
