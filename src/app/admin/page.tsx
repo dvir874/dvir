@@ -571,7 +571,7 @@ export default function AdminPage() {
       g.name.includes(search) ||
       g.phone.includes(search);
     const d = deliveryMap[g.id]?.label;
-    const reached = d === "נמסר" || d === "נקרא" || d === "פתח קישור";
+    const reached = d === "נמסר" || d === "נקרא" || d === "פתח קישור" || d === "נשלח ידנית";
 
     const matchStatus =
       statusFilter === "all"       ? true
@@ -803,8 +803,12 @@ export default function AdminPage() {
            Labelling it "הגיע" beside a "נקרא" that Meta actually confirmed made
            the two look interchangeable and the wrong one look better. */
         (d.reachedNoLog ?? []).forEach((r: { id: string; evidence?: string }) => {
-          m[r.id] = { icon: "🔗", label: "פתח קישור", color: "#6B7B5A",
-                      title: `${r.evidence ?? "פתח את הקישור"} — אין דוח מסירה מוואטסאפ, אבל ברור שקיבל` };
+          const byHand = r.evidence === "נשלח ידנית מהטלפון";
+          m[r.id] = byHand
+            ? { icon: "📱", label: "נשלח ידנית", color: "#6B7B5A",
+                title: "נשלח מהטלפון האישי — אין דוח מסירה מוואטסאפ" }
+            : { icon: "🔗", label: "פתח קישור", color: "#6B7B5A",
+                title: `${r.evidence ?? "פתח את הקישור"} — אין דוח מסירה, אבל ברור שקיבל` };
         });
         (d.untracked ?? []).forEach((r: { id: string }) => {
           m[r.id] = { icon: "⏳", label: "לא ידוע", color: "rgba(28,16,8,0.45)",
@@ -2435,12 +2439,12 @@ export default function AdminPage() {
                   ["no_answer", `⏳ קיבלו ולא ענו (${guests.filter(g => {
                     const d = deliveryMap[g.id]?.label;
                     return g.status === "pending" &&
-                      (d === "נמסר" || d === "נקרא" || d === "פתח קישור");
+                      (d === "נמסר" || d === "נקרא" || d === "פתח קישור" || d === "נשלח ידנית");
                   }).length})`],
                   ["not_sent",  `⚠️ לא קיבלו (${guests.filter(g => {
                     const d = deliveryMap[g.id]?.label;
                     return g.status === "pending" &&
-                      !(d === "נמסר" || d === "נקרא" || d === "פתח קישור");
+                      !(d === "נמסר" || d === "נקרא" || d === "פתח קישור" || d === "נשלח ידנית");
                   }).length})`],
                   ["opened",    `🔗 נכנסו לקישור (${guests.filter(g => g.opened_at).length})`],
                 ] as [StatusFilter, string][]).map(([val, lbl]) => (
