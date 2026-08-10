@@ -325,7 +325,11 @@ interface CouponRow {
   created_by_event?: { name: string } | null;
   used_by_event?: { name: string } | null;
 }
-type StatusFilter = "all" | GuestStatus;
+/* "ממתין" was one bucket covering two situations that need opposite actions:
+   a guest who has the invitation and has not replied wants a reminder, and a
+   guest who never received one wants an invitation. Merging them is how 130
+   people sat in a list labelled "waiting" having heard nothing at all. */
+type StatusFilter = "all" | GuestStatus | "no_answer" | "not_sent" | "opened";
 
 /* ══════════════════════════════════════════════════════
    Main Admin Page
@@ -566,8 +570,17 @@ export default function AdminPage() {
       !search ||
       g.name.includes(search) ||
       g.phone.includes(search);
+    const d = deliveryMap[g.id]?.label;
+    const reached = d === "נמסר" || d === "נקרא" || d === "פתח קישור";
+
     const matchStatus =
-      statusFilter === "all" || g.status === statusFilter;
+      statusFilter === "all"       ? true
+      /* has the invitation, has not answered */
+      : statusFilter === "no_answer" ? g.status === "pending" && reached
+      /* no evidence anything ever arrived */
+      : statusFilter === "not_sent"  ? g.status === "pending" && !reached
+      : statusFilter === "opened"    ? !!g.opened_at
+      : g.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
@@ -2416,10 +2429,20 @@ export default function AdminPage() {
               </div>
               <div className="flex gap-1.5 flex-wrap">
                 {([
-                  ["all","הכל"],
-                  ["confirmed","אישרו"],
-                  ["pending","ממתינים"],
-                  ["declined","לא מגיעים"],
+                  ["all",       `הכל (${guests.filter(g => g.category !== "demo").length})`],
+                  ["confirmed", `✅ מגיעים (${confirmed})`],
+                  ["declined",  `❌ לא מגיעים (${declined})`],
+                  ["no_answer", `⏳ קיבלו ולא ענו (${guests.filter(g => {
+                    const d = deliveryMap[g.id]?.label;
+                    return g.status === "pending" &&
+                      (d === "נמסר" || d === "נקרא" || d === "פתח קישור");
+                  }).length})`],
+                  ["not_sent",  `⚠️ לא קיבלו (${guests.filter(g => {
+                    const d = deliveryMap[g.id]?.label;
+                    return g.status === "pending" &&
+                      !(d === "נמסר" || d === "נקרא" || d === "פתח קישור");
+                  }).length})`],
+                  ["opened",    `🔗 נכנסו לקישור (${guests.filter(g => g.opened_at).length})`],
                 ] as [StatusFilter, string][]).map(([val, lbl]) => (
                   <button
                     key={val}
