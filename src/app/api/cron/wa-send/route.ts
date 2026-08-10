@@ -142,8 +142,13 @@ export async function GET(req: NextRequest) {
        run, and nothing reports it: the guests past the cutoff wait forever
        while the screen shows a healthy send rate. */
     const { data: pending } = await sb.from("guests")
-      .select("id, phone, rsvp_token, category, status, opened_at")
-      .eq("event_id", ev.id).eq("status", "pending");
+      .select("id, phone, rsvp_token, category, status, opened_at, send_priority")
+      .eq("event_id", ev.id).eq("status", "pending")
+      /* Highest priority first. Set by hand for guests who need reaching ahead
+         of the normal order — the 22 who opened their link and never answered,
+         who may have pressed submit into a request that hung and believe they
+         already replied. */
+      .order("send_priority", { ascending: false });
 
     const ids = (pending ?? []).filter(g => g.category !== "demo" && g.phone && g.rsvp_token)
       .map(g => g.id);
@@ -167,8 +172,18 @@ export async function GET(req: NextRequest) {
        the couple is a different problem from someone who has the invitation and
        has not got round to answering, and the first has to be solved first —
        there is no reminding a guest who was never invited. */
+    /* Priority overrides the usual first-contact-before-reminders rule, and
+       only ever by explicit instruction — nothing sets send_priority on its
+       own. */
+    const prio = new Set(
+      (pending ?? []).filter(g => (g.send_priority ?? 0) > 0).map(g => g.id));
+
+    const prioReminders = ids.filter(id => prio.has(id) && contacted.has(id)
+      && !targets.some(t => t.id === id));
+    prioReminders.slice(0, need).forEach(id => targets.push({ id, reminder: true }));
+
     const firstContact = ids.filter(id => !contacted.has(id) && !targets.some(t => t.id === id));
-    firstContact.slice(0, need).forEach(id => targets.push({ id }));
+    firstContact.slice(0, Math.max(0, budget - targets.length)).forEach(id => targets.push({ id }));
 
     /* Only once nobody is left uninvited does the budget go to reminders, and
        they get their own approved template: sending the invitation a second
