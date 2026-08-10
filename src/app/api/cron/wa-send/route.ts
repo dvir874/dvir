@@ -144,11 +144,19 @@ export async function GET(req: NextRequest) {
       .map(g => g.id);
     const contacted = new Set<string>();
     for (let i = 0; i < ids.length; i += 100) {
+      const slice = ids.slice(i, i + 100);
       const { data } = await sb.from("wa_messages").select("guest_id, status")
-        .eq("direction", "out").in("guest_id", ids.slice(i, i + 100));
+        .eq("direction", "out").in("guest_id", slice);
       (data ?? []).forEach(m => {
         if (["delivered", "read"].includes(m.status) && m.guest_id) contacted.add(m.guest_id);
       });
+
+      /* A send made by hand from a personal phone leaves no wa_messages row,
+         so without this the couple messages someone at 11:00 and the business
+         number messages them again at 13:00. */
+      const { data: manual } = await sb.from("guest_events").select("guest_id")
+        .eq("event_type", "manual_sent").in("guest_id", slice);
+      (manual ?? []).forEach(m => m.guest_id && contacted.add(m.guest_id));
     }
     /* Anyone whose invitation is confirmed delivered is a reminder, and the
        reminder template is still PENDING — so they wait rather than receive a
