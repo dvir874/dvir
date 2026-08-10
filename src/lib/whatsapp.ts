@@ -43,12 +43,25 @@ const API_VERSION = "v21.0";
    buys time for the first failure to be reported before the rest of the list
    has already gone out. It is an observability window, not a spam defence.
 
-   Six seconds is enough for that and keeps a batch inside one serverless
-   invocation. At the old 20s, SECONDS_PER_MESSAGE was 26 and the send route's
-   time budget computed to exactly ONE message per request — 550 guests would
-   have needed 550 clicks. */
-const MIN_GAP_MS = 6_000;
-const JITTER_MS  = 3_000;
+   Six seconds did not buy that window, though — it only looked like it. A
+   webhook failure arrives MINUTES after the send call returns, so no gap short
+   enough to fit inside a 60-second invocation ever sees one. What six seconds
+   did buy was a hard ceiling of five messages per run: floor((60 - 12) / 9).
+   Two scheduled runs a day made the automatic sender's real capacity TEN
+   MESSAGES A DAY — an order of magnitude below what Meta permitted even while
+   restricting us, and the reason 55 guests were still sitting with nothing
+   while every screen reported a healthy system.
+
+   The original intent is served properly by sending in small concurrent
+   batches and re-reading the outcome between them: a 131048 in the first batch
+   stops the second, which is the only failure worth reacting to mid-run. Cloud
+   API permits 80 messages a second; six in flight is four orders of magnitude
+   under the throughput limit and has never produced a 130429. */
+const MIN_GAP_MS = 800;
+const JITTER_MS  = 400;
+
+/** Sends allowed in flight at once — see the pacing note above. */
+export const SEND_CONCURRENCY = 6;
 
 /* What Meta actually counts, measured rather than assumed.
 
@@ -225,17 +238,186 @@ export interface WindowUsage {
     because sending blind is what produced a 90%-failure run. */
 export async function rollingWindowUsage(
   sb: SupabaseClient<never, "public", "public", never, never>,
+  /* The ceiling is an argument rather than a constant because Meta moves it.
+     Omitted, it falls back to the hardcoded floor, so every existing caller
+     keeps the behaviour it had. */
+  cap: number = ROLLING_24H_RECIPIENT_CAP,
 ): Promise<WindowUsage> {
   const since = new Date(Date.now() - 86_400_000).toISOString();
   const { data, error } = await sb
     .from("wa_messages").select("wa_phone")
     .eq("direction", "out").gte("created_at", since)
     .returns<{ wa_phone: string }[]>();
-  if (error || !data) return { recipients: ROLLING_24H_RECIPIENT_CAP, remaining: 0, blocked: true };
+  if (error || !data) return { recipients: cap, remaining: 0, blocked: true };
 
   const recipients = new Set(data.map(r => r.wa_phone).filter(Boolean)).size;
-  const remaining = Math.max(0, ROLLING_24H_RECIPIENT_CAP - recipients);
+  const remaining = Math.max(0, cap - recipients);
   return { recipients, remaining, blocked: remaining === 0 };
+}
+
+
+/* ── What Meta will actually let us do today ─────────────────────────────
+
+   Every ceiling above this line is a number I typed on the afternoon the
+   number was restricted, and a number typed on the worst day is wrong in both
+   directions. It throttled us to a tenth of the real allowance once the
+   restriction lifted — quality_rating went back to GREEN and nobody noticed
+   for two days — and it would have gone on sending at exactly the same rate
+   had the restriction deepened instead.
+
+   Meta publishes the answer on every one of these, and we were not reading it:
+
+     health_status.can_send_message   BLOCKED | LIMITED | AVAILABLE, plus the
+                                      reason: display name not yet approved,
+                                      business verification not passed
+     quality_rating                   GREEN | YELLOW | RED, from recipient
+                                      blocks and reports over the last 7 days
+     messaging_limit_tier             the nominal ceiling for the window
+
+   Reading those three before each run is what makes the sender self-adjusting:
+   it raises its own limit the morning the display name is approved, and lowers
+   it the morning recipients start reporting — with nobody editing this file on
+   either day.
+
+   Fails closed. Any network error, any missing field, any tier string Meta
+   invents later, and we return the hardcoded floor that is already known to be
+   survivable. A sender that guesses high when it cannot see is how this number
+   got restricted in the first place. */
+
+export type SendPosture = "blocked" | "limited" | "open";
+
+export interface AccountHealth {
+  posture: SendPosture;
+  quality: "GREEN" | "YELLOW" | "RED" | "UNKNOWN";
+  /** Nominal ceiling Meta advertises for the rolling window */
+  tier: number;
+  /** What we will actually allow ourselves, after posture and quality */
+  cap: number;
+  /** Plain Hebrew, for the admin screen and the cron's own response */
+  reasons: string[];
+}
+
+const TIER_CEILING: Record<string, number> = {
+  TIER_50: 50, TIER_250: 250, TIER_1K: 1_000,
+  TIER_10K: 10_000, TIER_100K: 100_000, TIER_UNLIMITED: 100_000,
+};
+
+/** The cap we know from experience is survivable while Meta is still gating
+    us — 60 recipients, against the 82 at which 131048 first appeared. */
+const FLOOR_CAP = ROLLING_24H_RECIPIENT_CAP;
+
+export async function fetchAccountHealth(cfg: WhatsAppConfig): Promise<AccountHealth> {
+  const unknown = (why: string): AccountHealth => ({
+    posture: "limited", quality: "UNKNOWN", tier: FLOOR_CAP,
+    cap: FLOOR_CAP, reasons: [why],
+  });
+
+  let json: Record<string, unknown>;
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/${API_VERSION}/${cfg.phoneNumberId}` +
+      `?fields=health_status,quality_rating,messaging_limit_tier`,
+      {
+        headers: { Authorization: `Bearer ${cfg.accessToken}` },
+        signal: AbortSignal.timeout(10_000),
+      },
+    );
+    if (!res.ok) return unknown(`מטא לא השיבה (${res.status}) — נשארים בתקרת הבטיחות`);
+    json = await res.json();
+  } catch {
+    return unknown("לא הצלחנו לקרוא את מצב החשבון במטא — נשארים בתקרת הבטיחות");
+  }
+
+  const quality = (["GREEN", "YELLOW", "RED"] as const)
+    .find(q => q === json.quality_rating) ?? "UNKNOWN";
+  const tier = TIER_CEILING[String(json.messaging_limit_tier)] ?? FLOOR_CAP;
+
+  /* can_send_message at the top level is the roll-up, but the reason lives on
+     the individual entities — the phone number, the WABA, the business and the
+     app each answer separately, and it is the BUSINESS entity that carries
+     141010. Reporting the roll-up without the reason is how "LIMITED" looked
+     for weeks like something we had done wrong. */
+  const hs = (json.health_status ?? {}) as {
+    can_send_message?: string;
+    entities?: { can_send_message?: string; errors?: { error_description?: string }[];
+                 additional_info?: string[] }[];
+  };
+  const reasons: string[] = [];
+  for (const e of hs.entities ?? []) {
+    if (e.can_send_message === "AVAILABLE") continue;
+    /* SIP/calling errors ride along on the same payload and say nothing about
+       whether a template can be delivered. */
+    (e.errors ?? []).forEach(err => {
+      const d = err.error_description ?? "";
+      if (!/SIP|calling/i.test(d)) reasons.push(d);
+    });
+    (e.additional_info ?? []).forEach(i => reasons.push(i));
+  }
+
+  const roll = hs.can_send_message;
+  const posture: SendPosture =
+    roll === "AVAILABLE" ? "open" : roll === "BLOCKED" ? "blocked" : "limited";
+
+  let cap =
+    posture === "blocked" ? 0
+    : posture === "open"  ? tier
+    :                       Math.min(tier, FLOOR_CAP);
+
+  /* Quality is the only signal that reflects what RECIPIENTS think, and it is
+     the one that precedes a restriction rather than following it. YELLOW is
+     the warning shot 131048 gives before it arrives. */
+  if (quality === "RED") {
+    cap = 0;
+    reasons.push("דירוג האיכות אדום — עצירה מלאה עד שיתאושש");
+  } else if (quality === "YELLOW") {
+    cap = Math.floor(cap / 2);
+    reasons.push("דירוג האיכות צהוב — חצי תקרה");
+  }
+
+  return { posture, quality, tier, cap, reasons };
+}
+
+/** Warm-up.
+
+    A number that sent 58 messages yesterday and 250 today looks to Meta's spam
+    heuristics like a different business, and that is the exact shape that
+    restricted us on 9/8 at 82 recipients while the advertised tier said 250.
+    Growth is therefore capped at 1.6× the busiest of the recent days, with a
+    floor low enough that a cold start can still move.
+
+    This is the piece that makes "raise the limit" safe to do automatically:
+    the ceiling can jump the moment Meta lifts a gate, but the actual send rate
+    can only climb one day at a time. */
+export const WARMUP_MULTIPLIER = 1.6;
+export const WARMUP_COLD_START = 30;
+
+export function warmupCap(health: AccountHealth, recentPeak: number): number {
+  if (health.cap === 0) return 0;
+  const ramp = Math.max(WARMUP_COLD_START, Math.ceil(recentPeak * WARMUP_MULTIPLIER));
+  return Math.min(health.cap, ramp);
+}
+
+/** Busiest single rolling-day in the recent past, in unique recipients — the
+    input the ramp grows from. Fails closed to 0, which leaves the cold-start
+    floor as the only allowance. */
+export async function recentPeakRecipients(
+  sb: SupabaseClient<never, "public", "public", never, never>,
+  days = 7,
+): Promise<number> {
+  const since = new Date(Date.now() - days * 86_400_000).toISOString();
+  const { data, error } = await sb
+    .from("wa_messages").select("wa_phone, created_at")
+    .eq("direction", "out").gte("created_at", since)
+    .returns<{ wa_phone: string; created_at: string }[]>();
+  if (error || !data) return 0;
+
+  const byDay = new Map<string, Set<string>>();
+  for (const r of data) {
+    if (!r.wa_phone) continue;
+    const d = r.created_at.slice(0, 10);
+    (byDay.get(d) ?? byDay.set(d, new Set()).get(d)!).add(r.wa_phone);
+  }
+  return Math.max(0, ...[...byDay.values()].map(s => s.size));
 }
 
 export interface WhatsAppConfig {

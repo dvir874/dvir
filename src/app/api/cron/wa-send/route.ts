@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import {
   getWhatsAppConfig, sendInvitation, toE164, policyFor,
-  rollingWindowUsage, SAFE_DAILY_LIMIT, MAX_PER_HOUR, SECONDS_PER_MESSAGE,
+  rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY,
+  fetchAccountHealth, warmupCap, recentPeakRecipients,
 } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
@@ -57,29 +58,41 @@ export async function GET(req: NextRequest) {
 
   const sb = createServerClient();
 
+  /* Ask Meta what it will allow today rather than trusting a constant written
+     on the day the number was restricted. The old constants held us to 25 a
+     day and 4 an hour long after quality_rating returned to GREEN — with 55
+     guests waiting and every screen reporting a healthy system. */
+  const [health, peak] = await Promise.all([
+    fetchAccountHealth(cfg),
+    recentPeakRecipients(sb),
+  ]);
+  const cap = warmupCap(health, peak);
+
+  if (!cap) {
+    return NextResponse.json({
+      sent: 0, reason: "meta_blocked",
+      quality: health.quality, posture: health.posture, reasons: health.reasons,
+    });
+  }
+
   /* Meta counts unique recipients in a rolling 24h and refuses past the
      ceiling with 141015. Reading it first is the difference between pausing
      and reproducing the run that failed 90%. */
-  const usage = await rollingWindowUsage(sb);
-  if (usage.blocked)
-    return NextResponse.json({ sent: 0, reason: "window_full", recipients: usage.recipients });
+  const usage = await rollingWindowUsage(sb, cap);
+  if (usage.blocked) {
+    return NextResponse.json({
+      sent: 0, reason: "window_full",
+      recipients: usage.recipients, cap, quality: health.quality,
+    });
+  }
 
-  const sinceDay = new Date(Date.now() - 86_400_000).toISOString();
-  const sinceHour = new Date(Date.now() - 3_600_000).toISOString();
-  const [{ count: dayCount }, { count: hourCount }] = await Promise.all([
-    sb.from("wa_messages").select("id", { count: "exact", head: true })
-      .eq("direction", "out").gte("created_at", sinceDay),
-    sb.from("wa_messages").select("id", { count: "exact", head: true })
-      .eq("direction", "out").gte("created_at", sinceHour),
-  ]);
-
-  const budget = Math.max(0, Math.min(
-    usage.remaining,
-    SAFE_DAILY_LIMIT - (dayCount ?? 0),
-    MAX_PER_HOUR - (hourCount ?? 0),
-    Math.floor((maxDuration - 12) / SECONDS_PER_MESSAGE),
-  ));
-  if (!budget) return NextResponse.json({ sent: 0, reason: "budget_exhausted" });
+  /* Time is now the only per-run ceiling that matters. At six in flight and
+     ~1.2s each, a 48-second working window holds far more than any day's cap,
+     so the run is bounded by the rolling window rather than by the clock —
+     which is the whole point of the change. */
+  const timeCap = Math.floor(((maxDuration - 12) / SECONDS_PER_MESSAGE) * SEND_CONCURRENCY);
+  const budget = Math.max(0, Math.min(usage.remaining, timeCap));
+  if (!budget) return NextResponse.json({ sent: 0, reason: "budget_exhausted", cap });
 
   /* An event with no card of its own is skipped, never sent with someone
      else's. Reported, so a missing image surfaces instead of looking like a
@@ -202,40 +215,71 @@ export async function GET(req: NextRequest) {
     .select("id, name, phone, rsvp_token").in("id", targets.map(t => t.id));
   const byId = new Map((guests ?? []).map(g => [g.id, g]));
 
-  for (const t of targets) {
-    const g = byId.get(t.id);
-    if (!g?.phone || !g.rsvp_token) continue;
+  /* Batches, not one at a time.
 
-    if (t.row) {
-      await sb.from("wa_messages")
-        .update({ retry_count: t.count, retry_after: null }).eq("id", t.row);
-    }
+     Sequentially at nine seconds a message, a 60-second invocation fit five
+     sends, and two scheduled runs a day made the automatic sender's real
+     capacity ten messages — while 55 guests had received nothing at all. The
+     batch boundary is also where the one failure worth reacting to mid-run is
+     caught: 131048 describes the NUMBER, so the next guest fails too and
+     sending the rest of the list is pure damage. */
+  for (let i = 0; i < targets.length && !stopped; i += SEND_CONCURRENCY) {
+    const batch = targets.slice(i, i + SEND_CONCURRENCY);
 
-    const res = await sendInvitation(
-      cfg, g.phone, g.rsvp_token, image, undefined,
-      t.reminder ? "reminder" : "invitation",
-    );
-    if (res.ok) {
-      sent.push(g.name);
-      await sb.from("guest_events").insert({ guest_id: g.id, event_type: "invite_sent" });
-      if (res.messageId) {
-        await sb.from("wa_messages").insert({
-          event_id: ev.id, guest_id: g.id,
-          wa_phone: toE164(g.phone) ?? "",
-          direction: "out",
-          body: t.reminder ? "תזכורת אישור הגעה"
-              : t.row      ? "הזמנה לחתונה (ניסיון חוזר)"
-              :              "הזמנה לחתונה (תבנית)",
-          wamid: res.messageId, status: "accepted",
-          ...(t.row ? { retry_count: t.count, retried_from: t.row } : {}),
-        });
-      }
-    } else {
-      failed.push({ name: g.name, error: res.error ?? "unknown" });
-      /* 131048 describes the number, not this guest — the next one fails too */
-      if (policyFor(null, res.error).action === "stop_run") {
-        stopped = "המספר מוגבל — עצירת ההרצה";
-        break;
+    const results = await Promise.all(batch.map(async t => {
+      const g = byId.get(t.id);
+      if (!g?.phone || !g.rsvp_token) return null;
+      const res = await sendInvitation(
+        cfg, g.phone, g.rsvp_token, image, undefined,
+        t.reminder ? "reminder" : "invitation",
+      );
+      return { t, g, res };
+    }));
+
+    for (const r of results) {
+      if (!r) continue;
+      const { t, g, res } = r;
+
+      if (res.ok) {
+        sent.push(g.name);
+        /* Dequeued only once the send has actually succeeded. This loop used
+           to clear retry_after BEFORE the attempt, so a retry that failed was
+           evicted from the queue and nothing anywhere put it back — the guest
+           silently left every send path forever. */
+        if (t.row) {
+          await sb.from("wa_messages")
+            .update({ retry_count: t.count, retry_after: null }).eq("id", t.row);
+        }
+        await sb.from("guest_events").insert({ guest_id: g.id, event_type: "invite_sent" });
+        if (res.messageId) {
+          await sb.from("wa_messages").insert({
+            event_id: ev.id, guest_id: g.id,
+            wa_phone: toE164(g.phone) ?? "",
+            direction: "out",
+            body: t.reminder ? "תזכורת אישור הגעה"
+                : t.row      ? "הזמנה לחתונה (ניסיון חוזר)"
+                :              "הזמנה לחתונה (תבנית)",
+            wamid: res.messageId, status: "accepted",
+            ...(t.row ? { retry_count: t.count, retried_from: t.row } : {}),
+          });
+        }
+      } else {
+        failed.push({ name: g.name, error: res.error ?? "unknown" });
+        const pol = policyFor(null, res.error);
+
+        /* A retry that failed is either rescheduled or retired on purpose —
+           never silently dropped. */
+        if (t.row) {
+          const again = pol.action === "retry_later";
+          await sb.from("wa_messages").update({
+            retry_count: t.count,
+            retry_after: again
+              ? new Date(Date.now() + (pol.delayH ?? 24) * 3_600_000).toISOString()
+              : null,
+          }).eq("id", t.row);
+        }
+
+        if (pol.action === "stop_run") stopped = "המספר מוגבל — עצירת ההרצה";
       }
     }
   }
@@ -244,6 +288,13 @@ export async function GET(req: NextRequest) {
     event: ev.name,
     sent: sent.length, failed: failed.length, stopped,
     windowRecipients: usage.recipients,
+    /* Reported on every run so a quiet day can be told apart from a throttled
+       one without opening Meta's dashboard. "sent: 0" meant both for weeks. */
+    limits: {
+      cap, tier: health.tier, quality: health.quality,
+      posture: health.posture, recentPeak: peak,
+      reasons: health.reasons,
+    },
     skippedEvents,
     details: { sent, failed },
   });

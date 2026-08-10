@@ -27,7 +27,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
   const { data: guest, error } = await supabase
     .from('guests')
-    .select('id, name, guest_count, status, event_id, opened_at, source_group, category')
+    .select('id, name, guest_count, status, event_id, opened_at, source_group, category, phone')
     .eq('rsvp_token', token)
     .single();
 
@@ -35,8 +35,20 @@ export async function GET(_request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   /* Demo guests (category='demo') reset on every open — the link always starts
-     fresh so the couple can share a live preview that never keeps answers. */
-  if (guest.category === 'demo' && guest.status !== 'pending') {
+     fresh so the couple can share a live preview that never keeps answers.
+
+     The phone check is the guard that was missing, and it is not theoretical:
+     one guest on the live 24.08 wedding carries category='demo' with a real
+     phone number, and had already confirmed for two. Every condition above was
+     true for them, so the next time they opened their own invitation this
+     branch would have erased the answer they gave — silently, from a GET they
+     triggered themselves, and then shown them "חבל שלא תוכלו להגיע".
+
+     A demo record is a preview with nobody behind it. A row with a phone number
+     is a person, whatever the category column says, and a destructive reset
+     must never be one mislabelled field away from firing. */
+  const isPreviewOnly = !String(guest.phone ?? '').trim();
+  if (guest.category === 'demo' && isPreviewOnly && guest.status !== 'pending') {
     await supabase
       .from('guests')
       .update({ status: 'pending', response_time: null, guest_count: 1, meal_preference: null, meal_note: null })

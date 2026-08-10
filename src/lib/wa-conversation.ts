@@ -20,7 +20,11 @@ import { sendButtons, sendList, sendText, parseGuestCount } from "@/lib/wa-inter
  * keep working without knowing this exists.
  */
 
-type Sb = SupabaseClient<never, "public", "public", never, never>;
+/* Untyped schema on purpose. Pinning the Database generic to `never` — as this
+   line used to — resolves every .update()/.insert() argument to `never`, so the
+   three writes below could not compile at all. The client this receives is
+   createServerClient()'s, which carries no generated types either way. */
+type Sb = SupabaseClient;
 
 interface Guest {
   id: string; name: string; phone: string;
