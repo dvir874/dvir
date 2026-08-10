@@ -60,6 +60,17 @@ export async function GET(req: NextRequest) {
     (data ?? []).forEach(r => sentIds.add(r.guest_id));
   }
 
+  /* Sends made by hand from a personal phone. They produce no wa_messages row
+     at all, so without this they landed in "ללא נתוני מסירה" — the operator
+     had just messaged them minutes earlier and the screen said it did not
+     know. */
+  const manualSent = new Set<string>();
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data } = await sb.from("guest_events").select("guest_id")
+      .eq("event_type", "manual_sent").in("guest_id", ids.slice(i, i + 100));
+    (data ?? []).forEach(r => r.guest_id && manualSent.add(r.guest_id));
+  }
+
   /* Delivery log — may not exist on older deployments */
   const { data: msgRows, error: msgErr } = await sb
     .from("wa_messages")
@@ -107,12 +118,15 @@ export async function GET(req: NextRequest) {
        — one click would have re-invited people who answered days ago and spent
        weeks of Meta quota doing it. */
     const answered = g.status !== "pending" || !!g.opened_at;
+    const byHand = manualSent.has(g.id);
 
     const m = latest.get(g.id);
     if (!m) {
-      (answered ? reachedNoLog : untracked).push({
+      (answered || byHand ? reachedNoLog : untracked).push({
         ...base,
-        evidence: g.opened_at ? "פתח את הקישור" : "השיב",
+        evidence: g.opened_at ? "פתח את הקישור"
+                : g.status !== "pending" ? "השיב"
+                : "נשלח ידנית מהטלפון",
       });
       continue;
     }
