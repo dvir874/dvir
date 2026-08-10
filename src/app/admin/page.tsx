@@ -564,6 +564,60 @@ export default function AdminPage() {
     ? Math.round(((confirmed + declined) / total) * 100)
     : 0;
 
+  /* Delivery state per guest, keyed by id.
+     Read from /api/admin/delivery, which already classifies every guest and
+     knows that opening the personal link counts as proof of receipt even when
+     no delivery report exists. Duplicating that judgement here would be a
+     second definition of "arrived" to keep in sync. */
+  const [deliveryMap, setDeliveryMap] = useState<Record<string,
+    { icon: string; label: string; color: string; title: string }>>({});
+
+  useEffect(() => {
+    if (!selectedEventId) { setDeliveryMap({}); return; }
+    fetch(`/api/admin/delivery?event_id=${selectedEventId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d) return;
+        const m: Record<string, { icon: string; label: string; color: string; title: string }> = {};
+        (d.failed ?? []).forEach((r: { id: string; he?: string; raw?: string }) => {
+          m[r.id] = { icon: "❌", label: "נכשל", color: "#C05050",
+                      title: r.he ?? r.raw ?? "ההודעה לא נמסרה" };
+        });
+        /* Weaker evidence than a delivery report, and it must not read as
+           stronger: there is no report at all, only the guest's own behaviour.
+           Labelling it "הגיע" beside a "נקרא" that Meta actually confirmed made
+           the two look interchangeable and the wrong one look better. */
+        (d.reachedNoLog ?? []).forEach((r: { id: string; evidence?: string }) => {
+          const byHand = r.evidence === "נשלח ידנית מהטלפון";
+          m[r.id] = byHand
+            ? { icon: "📱", label: "נשלח ידנית", color: "#6B7B5A",
+                title: "נשלח מהטלפון האישי — אין דוח מסירה מוואטסאפ" }
+            : { icon: "🔗", label: "פתח קישור", color: "#6B7B5A",
+                title: `${r.evidence ?? "פתח את הקישור"} — אין דוח מסירה, אבל ברור שקיבל` };
+        });
+        (d.untracked ?? []).forEach((r: { id: string }) => {
+          m[r.id] = { icon: "⏳", label: "לא ידוע", color: "rgba(28,16,8,0.45)",
+                      title: "נשלח, אך לא התקבל דוח מסירה" };
+        });
+        (d.unsent ?? []).forEach((r: { id: string; reason?: string }) => {
+          m[r.id] = { icon: "◻️", label: "לא נשלח", color: "#B8860B",
+                      title: r.reason ?? "טרם נשלחה הודעה" };
+        });
+        (d.reached ?? []).forEach((r: { id: string; status?: string }) => {
+          m[r.id] = r.status === "read"
+            ? { icon: "👁", label: "נקרא", color: "#4A7C59",
+                title: "וואטסאפ אישרה שהאורח פתח את ההודעה" }
+            : r.status === "delivered"
+            ? { icon: "✅", label: "נמסר", color: "#4A7C59",
+                title: "וואטסאפ אישרה שההודעה הגיעה למכשיר" }
+            : { icon: "📤", label: "בדרך", color: "#B8860B",
+                title: "נשלח, טרם התקבל אישור מסירה" };
+        });
+        setDeliveryMap(m);
+      })
+      .catch(() => {});
+  }, [selectedEventId, guests.length]);
+
   /* ── Filtered + paginated guests ───────────────── */
   const filtered = guests.filter((g) => {
     const matchSearch =
@@ -779,59 +833,6 @@ export default function AdminPage() {
     }
   }
 
-  /* Delivery state per guest, keyed by id.
-     Read from /api/admin/delivery, which already classifies every guest and
-     knows that opening the personal link counts as proof of receipt even when
-     no delivery report exists. Duplicating that judgement here would be a
-     second definition of "arrived" to keep in sync. */
-  const [deliveryMap, setDeliveryMap] = useState<Record<string,
-    { icon: string; label: string; color: string; title: string }>>({});
-
-  useEffect(() => {
-    if (!selectedEventId) { setDeliveryMap({}); return; }
-    fetch(`/api/admin/delivery?event_id=${selectedEventId}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (!d) return;
-        const m: Record<string, { icon: string; label: string; color: string; title: string }> = {};
-        (d.failed ?? []).forEach((r: { id: string; he?: string; raw?: string }) => {
-          m[r.id] = { icon: "❌", label: "נכשל", color: "#C05050",
-                      title: r.he ?? r.raw ?? "ההודעה לא נמסרה" };
-        });
-        /* Weaker evidence than a delivery report, and it must not read as
-           stronger: there is no report at all, only the guest's own behaviour.
-           Labelling it "הגיע" beside a "נקרא" that Meta actually confirmed made
-           the two look interchangeable and the wrong one look better. */
-        (d.reachedNoLog ?? []).forEach((r: { id: string; evidence?: string }) => {
-          const byHand = r.evidence === "נשלח ידנית מהטלפון";
-          m[r.id] = byHand
-            ? { icon: "📱", label: "נשלח ידנית", color: "#6B7B5A",
-                title: "נשלח מהטלפון האישי — אין דוח מסירה מוואטסאפ" }
-            : { icon: "🔗", label: "פתח קישור", color: "#6B7B5A",
-                title: `${r.evidence ?? "פתח את הקישור"} — אין דוח מסירה, אבל ברור שקיבל` };
-        });
-        (d.untracked ?? []).forEach((r: { id: string }) => {
-          m[r.id] = { icon: "⏳", label: "לא ידוע", color: "rgba(28,16,8,0.45)",
-                      title: "נשלח, אך לא התקבל דוח מסירה" };
-        });
-        (d.unsent ?? []).forEach((r: { id: string; reason?: string }) => {
-          m[r.id] = { icon: "◻️", label: "לא נשלח", color: "#B8860B",
-                      title: r.reason ?? "טרם נשלחה הודעה" };
-        });
-        (d.reached ?? []).forEach((r: { id: string; status?: string }) => {
-          m[r.id] = r.status === "read"
-            ? { icon: "👁", label: "נקרא", color: "#4A7C59",
-                title: "וואטסאפ אישרה שהאורח פתח את ההודעה" }
-            : r.status === "delivered"
-            ? { icon: "✅", label: "נמסר", color: "#4A7C59",
-                title: "וואטסאפ אישרה שההודעה הגיעה למכשיר" }
-            : { icon: "📤", label: "בדרך", color: "#B8860B",
-                title: "נשלח, טרם התקבל אישור מסירה" };
-        });
-        setDeliveryMap(m);
-      })
-      .catch(() => {});
-  }, [selectedEventId, guests.length]);
 
   function logActivity(guestId: string, eventType: string) {
     fetch(`/api/guests/${guestId}/activity`, {
