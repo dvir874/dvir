@@ -429,6 +429,7 @@ export default function RsvpClient({
     setWrongSending(true);
     try {
       await fetch(`/api/rsvp/${token}/wrong-person`, {
+        signal: AbortSignal.timeout(15_000),
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: wrongMsg.trim() || null }),
@@ -445,8 +446,18 @@ export default function RsvpClient({
     setChoice(newChoice);
     setSubmitting(true);
     setErrorMsg("");
+
+    /* Same missing guard as the page load had, in the worse place: this is a
+       guest who has already decided. Without a timeout a request that never
+       settles never rejects, the button sits on "שולח…" forever, and the
+       answer is simply lost — the couple never learns they meant to come.
+       Twenty seconds, because a submit deserves more patience than a read. */
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20_000);
+
     try {
       const res = await fetch(`/api/rsvp/${token}`, {
+        signal: ctrl.signal,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -473,8 +484,9 @@ export default function RsvpClient({
       setGuest(g => g ? { ...g, status: newChoice, guest_count: guestCount } : g);
       setScreen("done");
     } catch {
-      setErrorMsg("אירעה שגיאה. אנא נסו שוב.");
+      setErrorMsg("לא הצלחנו לשמור — ייתכן שהחיבור נקטע. נסו שוב.");
     } finally {
+      clearTimeout(timer);
       setSubmitting(false);
     }
   }

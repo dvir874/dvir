@@ -60,7 +60,7 @@ export default function HelperSendPage({ params }: { params: Promise<{ token: st
 
   const load = useCallback(async () => {
     try {
-      const r = await fetch(`/api/helper/${token}`);
+      const r = await fetch(`/api/helper/${token}`, { signal: AbortSignal.timeout(15_000) });
       if (!r.ok) { setError(r.status === 404 ? "הקישור אינו תקין" : "לא הצלחנו לטעון את הרשימה"); return; }
       setData(await r.json());
     } catch { setError("לא הצלחנו לטעון את הרשימה"); }
@@ -119,6 +119,7 @@ _(הודעה זו נשלחה באמצעות שירות רגע לפני)_`;
     setBusy(true);
     try {
       const r = await fetch(`/api/helper/${token}`, {
+        signal: AbortSignal.timeout(15_000),
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ guest_id: g.id }),
       });

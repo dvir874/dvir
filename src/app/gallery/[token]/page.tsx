@@ -41,7 +41,7 @@ export default function GalleryPage({ params }: { params: Promise<{ token: strin
   const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
-    fetch(`/api/gallery/${token}`)
+    fetch(`/api/gallery/${token}`, { signal: AbortSignal.timeout(15_000) })
       .then(r => r.json())
       .then((d: { album?: AlbumInfo; photos?: Photo[]; error?: string }) => {
         if (d.error || !d.album) { setScreen("error"); return; }
