@@ -588,12 +588,18 @@ export default function AdminPage() {
            Labelling it "הגיע" beside a "נקרא" that Meta actually confirmed made
            the two look interchangeable and the wrong one look better. */
         (d.reachedNoLog ?? []).forEach((r: { id: string; evidence?: string }) => {
+          /* This column answers one question — what happened to the WhatsApp
+             message — so the fallback has to be phrased in those terms too.
+             Labelling it "פתח קישור" put link-opening inside a delivery column
+             that already sits beside a "נפתח" column, and made a guest who both
+             read the message and opened the link look like two different states.
+             The evidence still shows on hover. */
           const byHand = r.evidence === "נשלח ידנית מהטלפון";
           m[r.id] = byHand
             ? { icon: "📱", label: "נשלח ידנית", color: "#6B7B5A",
-                title: "נשלח מהטלפון האישי — אין דוח מסירה מוואטסאפ" }
-            : { icon: "🔗", label: "פתח קישור", color: "#6B7B5A",
-                title: `${r.evidence ?? "פתח את הקישור"} — אין דוח מסירה, אבל ברור שקיבל` };
+                title: "נשלח מהטלפון האישי — וואטסאפ לא מדווחת על מסירה בשליחה כזו" }
+            : { icon: "✓", label: "הגיע", color: "#6B7B5A",
+                title: `אין דוח מסירה מוואטסאפ, אבל ${r.evidence ?? "פתח את הקישור"} — כלומר ההודעה הגיעה` };
         });
         (d.untracked ?? []).forEach((r: { id: string }) => {
           m[r.id] = { icon: "⏳", label: "לא ידוע", color: "rgba(28,16,8,0.45)",
@@ -625,7 +631,7 @@ export default function AdminPage() {
       g.name.includes(search) ||
       g.phone.includes(search);
     const d = deliveryMap[g.id]?.label;
-    const reached = d === "נמסר" || d === "נקרא" || d === "פתח קישור" || d === "נשלח ידנית";
+    const reached = d === "נמסר" || d === "נקרא" || d === "הגיע" || d === "נשלח ידנית";
 
     const matchStatus =
       statusFilter === "all"       ? true
@@ -2440,12 +2446,12 @@ export default function AdminPage() {
                   ["no_answer", `⏳ קיבלו ולא ענו (${guests.filter(g => {
                     const d = deliveryMap[g.id]?.label;
                     return g.status === "pending" &&
-                      (d === "נמסר" || d === "נקרא" || d === "פתח קישור" || d === "נשלח ידנית");
+                      (d === "נמסר" || d === "נקרא" || d === "הגיע" || d === "נשלח ידנית");
                   }).length})`],
                   ["not_sent",  `⚠️ לא קיבלו (${guests.filter(g => {
                     const d = deliveryMap[g.id]?.label;
                     return g.status === "pending" &&
-                      !(d === "נמסר" || d === "נקרא" || d === "פתח קישור" || d === "נשלח ידנית");
+                      !(d === "נמסר" || d === "נקרא" || d === "הגיע" || d === "נשלח ידנית");
                   }).length})`],
                   ["opened",    `🔗 נכנסו לקישור (${guests.filter(g => g.opened_at).length})`],
                 ] as [StatusFilter, string][]).map(([val, lbl]) => (
