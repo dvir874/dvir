@@ -82,6 +82,7 @@ export default function AutomationsPage() {
   const [selectedEvent,  setSelectedEvent]  = useState<Event | null>(null);
   const [state,          setState]          = useState<StateItem[]>([]);
   const [daysUntil,      setDaysUntil]      = useState<number>(0);
+  const [loadError,      setLoadError]      = useState<string | null>(null);
   const [confirmedCount, setConfirmedCount] = useState<number>(0);
   const [loading,        setLoading]        = useState(false);
   const [expanded,       setExpanded]       = useState<Record<string, boolean>>({});
@@ -108,13 +109,25 @@ export default function AutomationsPage() {
   // Load automation state when event changes
   const loadState = useCallback(async (eventId: string) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res  = await fetch(`/api/admin/automations/${eventId}`);
+      if (!res.ok) {
+        /* Say so. Defaulting daysUntil to 0 on a failed request is what
+           announced the wedding as "today" a fortnight early. */
+        setLoadError(`לא הצלחנו לטעון את נתוני האירוע (${res.status})`);
+        setState([]);
+        setLoading(false);
+        return;
+      }
       const data = await res.json() as { state: StateItem[]; daysUntil: number; confirmedCount: number };
       setState(data.state ?? []);
       setDaysUntil(data.daysUntil ?? 0);
       setConfirmedCount(data.confirmedCount ?? 0);
-    } catch { /* ignore */ }
+    } catch {
+      setLoadError("לא הצלחנו לטעון את נתוני האירוע");
+      setState([]);
+    }
     setLoading(false);
   }, []);
 
@@ -214,7 +227,16 @@ export default function AutomationsPage() {
             ))}
           </select>
 
-          {selectedEvent && (
+          {loadError && (
+            <div
+              className="mt-4 rounded-lg px-4 py-3 text-sm"
+              style={{ background: "rgba(192,80,80,0.08)", color: "#C05050", ...HEEBO }}
+            >
+              {loadError} — המספרים למטה אינם מעודכנים. רעננו את הדף.
+            </div>
+          )}
+
+          {selectedEvent && !loadError && (
             <div className="mt-4 flex flex-wrap gap-4">
               <div className="flex items-center gap-2 text-sm" style={{ color: G.olive, ...HEEBO }}>
                 <Users size={14} />

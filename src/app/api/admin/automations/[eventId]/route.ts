@@ -18,7 +18,11 @@ export async function GET(
   const sb = createServerClient();
 
   const [evRes, campRes, tmplRes, guestRes] = await Promise.all([
-    sb.from('events').select('id,name,date,address,venue,theme').eq('id', eventId).single(),
+    /* venue_name, not venue. The wrong name made PostgREST reject the query,
+       the route answered 404 "Event not found", and the screen fell back to its
+       initial state: daysUntil 0 rendered as "היום האירוע 🎉" two weeks early,
+       and confirmedCount 0 rendered as "0 אורחים מאשרים" with 86 confirmed. */
+    sb.from('events').select('id,name,date,address,venue_name,theme').eq('id', eventId).single(),
     sb.from('guest_campaigns').select('*').eq('event_id', eventId),
     sb.from('message_templates').select('*').eq('event_id', eventId),
     sb.from('guests').select('id', { count: 'exact', head: true }).eq('event_id', eventId).eq('status', 'confirmed'),
