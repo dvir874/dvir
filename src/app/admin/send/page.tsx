@@ -91,6 +91,8 @@ function SendStation() {
   const [loading, setLoading] = useState(true);
   const [apiBusy, setApiBusy] = useState(false);
   const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set());
+  /* The guest whose WhatsApp window is open and whose send is unconfirmed */
+  const [awaitingConfirm, setAwaitingConfirm] = useState<string | null>(null);
   const [apiResult, setApiResult] = useState<ApiSendResult | null>(null);
 
   const LS_KEY = `send_station_${eventId}`;
@@ -185,7 +187,19 @@ function SendStation() {
       ? `https://wa.me/${phone}?text=${text}`
       : `https://web.whatsapp.com/send?phone=${phone}&text=${text}`;
     window.open(url, "_blank");
-    markSent(current.id);
+
+    /* Opening WhatsApp is not sending. WhatsApp Web logged the sender out
+       mid-run and served a QR screen instead of the chat; the click had
+       already marked the guest as contacted and moved on, so a guest was
+       recorded as invited having received nothing at all — and nobody would
+       ever have known. The confirmation below is the only thing that can tell
+       the difference, because only the person looking at the screen can. */
+    setAwaitingConfirm(current.id);
+  }
+
+  function confirmSent(id: string) {
+    markSent(id);
+    setAwaitingConfirm(null);
   }
 
   function resetProgress() {
@@ -471,6 +485,37 @@ function SendStation() {
                     💬 שלח ל{current.name} ←
                   </button>
                 )}
+                {/* Confirmation, shown only after WhatsApp was opened for this
+                    guest. The screen cannot see whether the message was
+                    actually sent — WhatsApp Web can log out and show a QR code
+                    instead of the chat — so the person who just looked at it
+                    is the only reliable witness. */}
+                {awaitingConfirm === current.id && (
+                  <div style={{ marginTop: 14, padding: "14px 16px", background: "rgba(197,164,109,0.10)",
+                    border: `1.5px solid ${C.gold}`, borderRadius: 14 }}>
+                    <p style={{ fontSize: 15, fontWeight: 700, color: C.dark, margin: "0 0 4px" }}>
+                      ההודעה נשלחה ל{current.name}?
+                    </p>
+                    <p style={{ fontSize: 13, color: C.muted, margin: "0 0 12px", lineHeight: 1.6 }}>
+                      אם וואטסאפ ביקש לסרוק קוד QR — ההודעה לא נשלחה. בחרו &quot;לא&quot;.
+                    </p>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => confirmSent(current.id)}
+                        style={{ flex: 1, padding: "13px", background: "#25D366", color: "#fff", border: "none",
+                          borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer",
+                          fontFamily: "Heebo, sans-serif", minHeight: 44 }}>
+                        ✓ כן, נשלחה
+                      </button>
+                      <button onClick={() => setAwaitingConfirm(null)}
+                        style={{ flex: 1, padding: "13px", background: "#fff", color: C.dark,
+                          border: `1.5px solid ${C.border}`, borderRadius: 12, fontSize: 15, fontWeight: 600,
+                          cursor: "pointer", fontFamily: "Heebo, sans-serif", minHeight: 44 }}>
+                        ✗ לא — נשאר בתור
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Skip means "not this one, now" — it must not tell the server
                     the guest was contacted. It used to call markSent, which
                     writes manual_sent, and the automatic sender then skipped
