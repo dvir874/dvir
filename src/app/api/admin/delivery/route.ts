@@ -80,6 +80,9 @@ export async function GET(req: NextRequest) {
   const untracked: unknown[] = [];
   const unsent: unknown[] = [];
   const reachedNoLog: unknown[] = [];
+  /* Per-guest, not just a tally: the guest table needs to show a state beside
+     each name, and a count cannot do that. */
+  const reached: unknown[] = [];
   const tally = { delivered: 0, read: 0, accepted: 0, sent: 0 };
 
   for (const g of guests) {
@@ -116,15 +119,18 @@ export async function GET(req: NextRequest) {
 
     if (m.status === "failed") {
       failed.push({ ...base, at: m.created_at, raw: m.error, ...explain(m.error) });
-    } else if (m.status === "read")      tally.read++;
-    else if (m.status === "delivered")   tally.delivered++;
-    else if (m.status === "sent")        tally.sent++;
-    else                                 tally.accepted++;
+    } else {
+      reached.push({ ...base, status: m.status, at: m.created_at });
+      if (m.status === "read")            tally.read++;
+      else if (m.status === "delivered")  tally.delivered++;
+      else if (m.status === "sent")       tally.sent++;
+      else                                tally.accepted++;
+    }
   }
 
   return NextResponse.json({
     trackingAvailable: !msgErr,
-    reachedNoLog,
+    reachedNoLog, reached,
     totals: {
       guests: guests.length,
       queued: sentIds.size,

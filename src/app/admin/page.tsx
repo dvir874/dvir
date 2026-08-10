@@ -766,6 +766,47 @@ export default function AdminPage() {
     }
   }
 
+  /* Delivery state per guest, keyed by id.
+     Read from /api/admin/delivery, which already classifies every guest and
+     knows that opening the personal link counts as proof of receipt even when
+     no delivery report exists. Duplicating that judgement here would be a
+     second definition of "arrived" to keep in sync. */
+  const [deliveryMap, setDeliveryMap] = useState<Record<string,
+    { icon: string; label: string; color: string; title: string }>>({});
+
+  useEffect(() => {
+    if (!selectedEventId) { setDeliveryMap({}); return; }
+    fetch(`/api/admin/delivery?event_id=${selectedEventId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d) return;
+        const m: Record<string, { icon: string; label: string; color: string; title: string }> = {};
+        (d.failed ?? []).forEach((r: { id: string; he?: string; raw?: string }) => {
+          m[r.id] = { icon: "❌", label: "נכשל", color: "#C05050",
+                      title: r.he ?? r.raw ?? "ההודעה לא נמסרה" };
+        });
+        (d.reachedNoLog ?? []).forEach((r: { id: string; evidence?: string }) => {
+          m[r.id] = { icon: "✅", label: "הגיע", color: "#4A7C59",
+                      title: r.evidence ?? "פתח את הקישור" };
+        });
+        (d.untracked ?? []).forEach((r: { id: string }) => {
+          m[r.id] = { icon: "⏳", label: "לא ידוע", color: "rgba(28,16,8,0.45)",
+                      title: "נשלח, אך לא התקבל דוח מסירה" };
+        });
+        (d.unsent ?? []).forEach((r: { id: string; reason?: string }) => {
+          m[r.id] = { icon: "◻️", label: "לא נשלח", color: "#B8860B",
+                      title: r.reason ?? "טרם נשלחה הודעה" };
+        });
+        (d.reached ?? []).forEach((r: { id: string; status?: string }) => {
+          m[r.id] = r.status === "read"
+            ? { icon: "👁", label: "נקרא", color: "#4A7C59", title: "האורח קרא את ההודעה" }
+            : { icon: "✅", label: "נמסר", color: "#4A7C59", title: "ההודעה נמסרה" };
+        });
+        setDeliveryMap(m);
+      })
+      .catch(() => {});
+  }, [selectedEventId, guests.length]);
+
   function logActivity(guestId: string, eventType: string) {
     fetch(`/api/guests/${guestId}/activity`, {
       method: "POST",
@@ -2511,13 +2552,13 @@ export default function AdminPage() {
                   <tbody>
                     {guestsLoading ? (
                       <tr>
-                        <td colSpan={7} className="text-center py-12">
+                        <td colSpan={9} className="text-center py-12">
                           <Loader2 size={24} className="animate-spin mx-auto" style={{ color: C.gold }} />
                         </td>
                       </tr>
                     ) : paginated.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="text-center py-12 text-sm" style={{ color: C.muted }}>
+                        <td colSpan={9} className="text-center py-12 text-sm" style={{ color: C.muted }}>
                           לא נמצאו אורחים
                         </td>
                       </tr>
@@ -2633,7 +2674,7 @@ export default function AdminPage() {
                       {/* Timeline row */}
                       {expandedGuestId === g.id && (
                         <tr style={{ background: "rgba(107,123,90,0.04)" }}>
-                          <td colSpan={7} className="px-6 py-3">
+                          <td colSpan={9} className="px-6 py-3">
                             {activityLoading && !activityMap[g.id] ? (
                               <Loader2 size={14} className="animate-spin" style={{ color: C.gold }} />
                             ) : (activityMap[g.id] ?? []).length === 0 ? (
