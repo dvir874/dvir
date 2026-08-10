@@ -775,6 +775,21 @@ export default function AdminPage() {
       // Invalidate cached timeline so it reloads on next expand
       setActivityMap((prev) => { const n = { ...prev }; delete n[guestId]; return n; });
     }).catch(() => {});
+
+    /* An invitation opened from this table goes out of a human's own phone, so
+       it never produces a wa_messages row and the automatic sender cannot see
+       it. Without this second marker it messages the same guest again from the
+       business number a few hours later.
+       invitation_sent alone could not carry it: nothing downstream reads that
+       type, and every guest already carries invite_sent from before delivery
+       tracking existed. */
+    if (eventType === "invitation_sent" || eventType === "reminder_sent") {
+      fetch("/api/admin/guests-sent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guest_ids: [guestId] }),
+      }).catch(() => {});
+    }
   }
 
   const selectedEvent = events.find((e) => e.id === selectedEventId);
