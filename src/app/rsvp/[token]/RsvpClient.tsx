@@ -286,6 +286,7 @@ function PageShell({ children }: { children: React.ReactNode }) {
 export default function RsvpClient({
   token,
   initialData,
+  notFound,
 }: {
   token: string;
   /* Rendered by the server so the first paint needs no network call of its own.
@@ -293,6 +294,8 @@ export default function RsvpClient({
      always did, so a bad server read costs a slower start, never a broken
      invitation. */
   initialData?: RsvpInitialData | null;
+  /* The server matched no guest for this token */
+  notFound?: boolean;
 }) {
 
   /* Every one of these is seeded from the server render when it is available,
@@ -300,7 +303,7 @@ export default function RsvpClient({
      waiting on a request that might never come back. */
   const seed = initialData?.guest as GuestInfo | undefined;
   const [screen,     setScreen]     = useState<Screen>(
-    !seed ? "loading" : seed.status !== "pending" ? "done" : "form");
+    notFound ? "error" : !seed ? "loading" : seed.status !== "pending" ? "done" : "form");
   const [guest,      setGuest]      = useState<GuestInfo | null>(seed ?? null);
   const [event,      setEvent]      = useState<EventInfo | null>(
     (initialData?.event as EventInfo | null) ?? null);
@@ -351,6 +354,9 @@ export default function RsvpClient({
        server's side the request simply never completed.
 
        Fifteen seconds, then say so and offer to try again. */
+    /* Nothing to ask about a token the server already failed to match. */
+    if (notFound) return;
+
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 15_000);
 
@@ -384,7 +390,7 @@ export default function RsvpClient({
       .finally(() => clearTimeout(timer));
 
     return () => { clearTimeout(timer); ctrl.abort(); };
-  }, [token]);
+  }, [token, initialData, notFound]);
 
   /* The full cinematic flow — verse intro, envelope, invitation, countdown —
      is bespoke to Dvir & Mirav's own wedding: it hard-codes their verse, their

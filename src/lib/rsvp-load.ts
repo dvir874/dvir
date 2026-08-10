@@ -23,6 +23,25 @@ export interface RsvpData {
   memoryToken: string | null;
 }
 
+/* "no such guest" and "the read failed" are different answers and the page
+   should act differently on each: the first is a dead link and can say so at
+   once, the second is our problem and the client should retry. Collapsing both
+   to null made an invalid link sit on the loading screen waiting for a fetch
+   whose answer the server already knew. */
+export type RsvpLoad =
+  | { kind: "ok"; data: RsvpData }
+  | { kind: "not_found" }
+  | { kind: "unavailable" };
+
+export async function loadRsvp(token: string): Promise<RsvpLoad> {
+  try {
+    const d = await loadRsvpData(token);
+    return d ? { kind: "ok", data: d } : { kind: "not_found" };
+  } catch {
+    return { kind: "unavailable" };
+  }
+}
+
 export async function loadRsvpData(token: string): Promise<RsvpData | null> {
   try {
     const sb = createServerClient();

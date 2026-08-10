@@ -1,4 +1,4 @@
-import { loadRsvpData } from "@/lib/rsvp-load";
+import { loadRsvp } from "@/lib/rsvp-load";
 import RsvpClient from "./RsvpClient";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +28,15 @@ export default async function RsvpPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const initialData = await loadRsvpData(token);
-  return <RsvpClient token={token} initialData={initialData} />;
+  const res = await loadRsvp(token);
+  return (
+    <RsvpClient
+      token={token}
+      initialData={res.kind === "ok" ? res.data : null}
+      /* A link that matches no guest is a dead link, and the server already
+         knows it. Saying so immediately beats showing a spinner while the
+         browser asks a question that has already been answered. */
+      notFound={res.kind === "not_found"}
+    />
+  );
 }
