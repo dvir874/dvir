@@ -320,7 +320,18 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
   const [memoryToken, setMemoryToken] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/rsvp/${token}`)
+    /* A guest reported the page "just stayed on the waiting screen", on her
+       phone, her husband's phone and a computer. The fetch below had a .catch
+       but no timeout: a request that never settles never rejects either, so the
+       three pulsing dots stayed on screen forever and the guest concluded the
+       invitation was broken. Nothing in any log would show it — from the
+       server's side the request simply never completed.
+
+       Fifteen seconds, then say so and offer to try again. */
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15_000);
+
+    fetch(`/api/rsvp/${token}`, { signal: ctrl.signal })
       .then(r => r.json())
       .then(data => {
         if (data.error) { setScreen("error"); return; }
@@ -339,7 +350,10 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
         if (typeof data.guest.wants_photos === "boolean") setWantsPhotos(data.guest.wants_photos);
         setScreen(data.guest.status !== "pending" ? "done" : "form");
       })
-      .catch(() => setScreen("error"));
+      .catch(() => setScreen("error"))
+      .finally(() => clearTimeout(timer));
+
+    return () => { clearTimeout(timer); ctrl.abort(); };
   }, [token]);
 
   /* The full cinematic flow — verse intro, envelope, invitation, countdown —
@@ -495,7 +509,25 @@ export default function RsvpPage({ params }: { params: Promise<{ token: string }
             לא מצאנו את ההזמנה
           </h2>
           <p style={{ color: T.muted, fontSize: "14px", lineHeight: 1.7 }}>
-            ייתכן שהקישור פג תוקף או שגוי.<br />פנו ישירות לבעלי השמחה.
+            ייתכן שהחיבור נקטע באמצע.<br />נסו שוב — לרוב זה פותר את זה.
+          </p>
+          {/* A guest who hits this has no idea whether to wait, retry or give
+              up. The one who told us "it just stayed on the waiting screen"
+              tried three devices before writing; a button would have cost her
+              one tap. */}
+          <button
+            onClick={() => location.reload()}
+            style={{
+              marginTop: 20, padding: "14px 32px", borderRadius: 14,
+              border: `1.5px solid ${T.goldText}`, background: "transparent",
+              color: T.goldText, fontFamily: "'Heebo', sans-serif",
+              fontSize: 16, fontWeight: 600, cursor: "pointer", minHeight: 48,
+            }}
+          >
+            נסו שוב
+          </button>
+          <p style={{ color: T.muted, fontSize: "13px", marginTop: 18, lineHeight: 1.7 }}>
+            אם זה חוזר — פנו ישירות לבעלי השמחה.
           </p>
         </div>
       </PageShell>

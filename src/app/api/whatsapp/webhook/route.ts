@@ -35,6 +35,7 @@ interface WaStatus {
   recipient_id?: string;
   errors?: { code?: number; title?: string; message?: string }[];
 }
+interface WaMedia { id?: string; mime_type?: string; caption?: string }
 interface WaMessage {
   id?: string;
   from?: string;
@@ -42,6 +43,15 @@ interface WaMessage {
   text?: { body?: string };
   button?: { text?: string };
   interactive?: { button_reply?: { title?: string }; list_reply?: { title?: string } };
+  /* Meta sends only an id; the file itself is fetched separately and expires.
+     Storing "[video]" and dropping the id, as this used to, threw away the
+     only handle to a guest's own evidence. */
+  image?: WaMedia; video?: WaMedia; audio?: WaMedia;
+  document?: WaMedia; sticker?: WaMedia;
+}
+
+function mediaOf(m: WaMessage): WaMedia | null {
+  return m.image ?? m.video ?? m.audio ?? m.document ?? m.sticker ?? null;
 }
 
 /* Israeli numbers are stored locally (05X…) but arrive as 9725X… */
@@ -120,19 +130,30 @@ export async function POST(req: NextRequest) {
     /* ---- inbound replies ---- */
     const inbound = messages.map(m => {
       const g = byPhone.get(localise(m.from ?? ""));
+      const media = mediaOf(m);
       return {
         event_id: g?.event_id ?? null,
         guest_id: g?.id ?? null,
         wa_phone: m.from ?? "",
         direction: "in",
-        body: bodyOf(m),
+        body: media?.caption?.trim() || bodyOf(m),
         wamid: m.id ?? null,
         status: "received",
+        media_id: media?.id ?? null,
+        media_mime: media?.mime_type ?? null,
       };
     }).filter(r => r.wa_phone);
 
     if (inbound.length) {
-      await sb.from("wa_messages").upsert(inbound, { onConflict: "wamid" });
+      const { error } = await sb.from("wa_messages").upsert(inbound, { onConflict: "wamid" });
+      /* The media columns arrive by migration. Until it has run, keeping the
+         message matters more than keeping the attachment. */
+      if (error) {
+        await sb.from("wa_messages").upsert(
+          inbound.map(({ media_id: _m, media_mime: _t, ...rest }) => rest),
+          { onConflict: "wamid" },
+        );
+      }
     }
   } catch {
     /* Swallow — never let a malformed payload disable the subscription */
