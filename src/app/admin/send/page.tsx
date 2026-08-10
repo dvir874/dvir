@@ -94,6 +94,16 @@ function SendStation() {
 
   const LS_KEY = `send_station_${eventId}`;
 
+  /* Loaded only when no event is selected, so the picker has something to show */
+  const [allEvents, setAllEvents] = useState<{ id: string; name: string; date: string }[] | null>(null);
+  useEffect(() => {
+    if (eventId) return;
+    fetch("/api/admin/events-list")
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setAllEvents(Array.isArray(d) ? d : (d?.events ?? [])))
+      .catch(() => setAllEvents([]));
+  }, [eventId]);
+
   useEffect(() => {
     if (!eventId) { setLoading(false); return; }
     Promise.all([
@@ -275,9 +285,40 @@ function SendStation() {
     }
   }
 
+  /* An event picker, not an instruction to hand-assemble a URL. Telling the
+     operator to paste a uuid is fine right up until the operator is a paying
+     couple — and it is also how the wrong couple's guest list gets opened on a
+     screen whose main button sends messages. */
   if (!eventId) return (
-    <div dir="rtl" style={{ minHeight: "100dvh", background: C.ivory, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Heebo, sans-serif" }}>
-      <p style={{ color: C.muted }}>חסר מזהה אירוע — פתחו מהאדמין: /admin/send?event=[ID]</p>
+    <div dir="rtl" style={{ minHeight: "100dvh", background: C.ivory, fontFamily: "Heebo, sans-serif" }}>
+      <div style={{ maxWidth: 520, margin: "0 auto", padding: "56px 24px" }}>
+        <h1 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 26, fontWeight: 800, color: C.dark, margin: "0 0 6px" }}>
+          תחנת שליחה
+        </h1>
+        <p style={{ color: C.muted, fontSize: 14, margin: "0 0 28px" }}>
+          בחרו לאיזה אירוע לשלוח
+        </p>
+
+        {allEvents === null && <p style={{ color: C.muted, fontSize: 14 }}>טוען אירועים…</p>}
+        {allEvents?.length === 0 && <p style={{ color: C.muted, fontSize: 14 }}>לא נמצאו אירועים.</p>}
+
+        {allEvents?.map(ev => (
+          <a
+            key={ev.id}
+            href={`/admin/send?event=${ev.id}`}
+            style={{
+              display: "block", padding: "16px 18px", marginBottom: 10,
+              background: "#fff", border: `1.5px solid ${C.border}`,
+              borderRadius: 14, textDecoration: "none", minHeight: 44,
+            }}
+          >
+            <div style={{ fontSize: 16, fontWeight: 600, color: C.dark }}>{ev.name}</div>
+            <div style={{ fontSize: 13, color: C.muted, marginTop: 2 }}>
+              {ev.date ? new Date(ev.date).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "ללא תאריך"}
+            </div>
+          </a>
+        ))}
+      </div>
     </div>
   );
 
