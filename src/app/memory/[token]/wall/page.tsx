@@ -1,7 +1,8 @@
 "use client";
 
-import { use, useEffect, useState, useCallback, useRef } from "react";
-import { Camera, X, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { use, useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { Camera, X, Download, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { hebrewNumber, hebrewFrom } from "@/lib/hebrew-numbers";
 
 const T = {
   ivory:    "#FDFAF5",
@@ -36,8 +37,46 @@ const CSS = `
   .loading-dot:nth-child(2){animation-delay:.2s}
   .loading-dot:nth-child(3){animation-delay:.4s}
   @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-  .wall-item{break-inside:avoid;margin-bottom:4px}
+  @media(prefers-reduced-motion:reduce){*{animation:none!important}}
 `;
+
+/** The evening replays in the hour it happened, in the timezone it happened in. */
+const EVENT_TZ = "Asia/Jerusalem";
+
+function hourLabel(iso: string): string {
+  return new Intl.DateTimeFormat("he-IL", {
+    timeZone: EVENT_TZ, hour: "2-digit", minute: "2-digit", hour12: false,
+  }).format(new Date(iso));
+}
+
+/** Groups the evening into hours — the unit a night is actually remembered in. */
+function hourKey(iso: string): string {
+  const d = new Date(iso);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: EVENT_TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hour12: false,
+  }).format(d);
+}
+
+function greeting(): string {
+  const h = new Date().getHours();
+  if (h < 5)  return "לילה טוב";
+  if (h < 12) return "בוקר טוב";
+  if (h < 17) return "צהריים טובים";
+  if (h < 21) return "ערב טוב";
+  return "לילה טוב";
+}
+
+/** "החתונה של תהל ואביב" → "תהל ואביב". The greeting says a name, not a title. */
+function coupleName(eventName?: string): string {
+  if (!eventName) return "";
+  return eventName.replace(/^\s*(החתונה|חתונת|האירוע)\s+(של\s+)?/, "").trim();
+}
+
+type Moment = {
+  media: MemoryItem;
+  /** The blessing written by the same person, when there is one. */
+  blessing?: MemoryItem;
+};
 
 export default function MemoryWall({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -76,8 +115,55 @@ export default function MemoryWall({ params }: { params: Promise<{ token: string
     return () => clearInterval(id);
   }, [loadItems]);
 
-  // Only photos/videos in lightbox
-  const mediaItems = items.filter(i => i.type === "photo" && i.public_url);
+  /* ── The evening, assembled ──
+     Photographs that know when they were taken build the timeline. Each one
+     carries the name of whoever sent it, and — where the same person also
+     wrote — their blessing sits beside their photograph. That pairing is the
+     thing no photographer can hand over, so it is composed first and
+     everything else arranges around it. */
+  const { timeline, tail, lonelyBlessings, photographers } = useMemo(() => {
+    const media = items.filter(i => (i.type === "photo" || i.type === "video") && i.public_url);
+    const blessings = items.filter(i => i.type === "blessing" && i.blessing_text);
+
+    const unusedByGuest = new Map<string, MemoryItem[]>();
+    for (const b of blessings) {
+      const list = unusedByGuest.get(b.guest_name) ?? [];
+      list.push(b);
+      unusedByGuest.set(b.guest_name, list);
+    }
+
+    const toMoment = (m: MemoryItem): Moment => {
+      const pool = unusedByGuest.get(m.guest_name);
+      const blessing = pool?.shift();
+      if (pool && pool.length === 0) unusedByGuest.delete(m.guest_name);
+      return { media: m, blessing };
+    };
+
+    const placed = media.filter(m => m.taken_at);
+    const groups = new Map<string, { label: string; moments: Moment[] }>();
+    for (const m of placed) {
+      const k = hourKey(m.taken_at!);
+      if (!groups.has(k)) groups.set(k, { label: hourLabel(m.taken_at!), moments: [] });
+      groups.get(k)!.moments.push(toMoment(m));
+    }
+
+    /* Anything with no capture time cannot be placed in the evening honestly,
+       so it follows at the end rather than being guessed into the chuppah. */
+    const tail = media.filter(m => !m.taken_at).map(toMoment);
+
+    return {
+      timeline: [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, v]) => v),
+      tail,
+      lonelyBlessings: [...unusedByGuest.values()].flat(),
+      photographers: new Set(items.map(i => i.guest_name)).size,
+    };
+  }, [items]);
+
+  /** Lightbox order must match what the eye just scrolled past. */
+  const mediaItems = useMemo(
+    () => [...timeline.flatMap(g => g.moments), ...tail].map(m => m.media).filter(m => m.type === "photo"),
+    [timeline, tail],
+  );
 
   const closeLightbox = useCallback(() => setLightbox(null), []);
   const prevPhoto = useCallback(() => setLightbox(i => i !== null ? Math.max(0, i - 1) : null), []);
@@ -87,6 +173,7 @@ export default function MemoryWall({ params }: { params: Promise<{ token: string
     if (lightbox === null) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") closeLightbox();
+      /* RTL: onward through the evening is leftward. */
       if (e.key === "ArrowLeft")  nextPhoto();
       if (e.key === "ArrowRight") prevPhoto();
     };
@@ -94,8 +181,9 @@ export default function MemoryWall({ params }: { params: Promise<{ token: string
     return () => window.removeEventListener("keydown", handler);
   }, [lightbox, closeLightbox, nextPhoto, prevPhoto]);
 
-  const totalGuests = new Set(items.map(i => i.guest_name)).size;
   const currentPhoto = lightbox !== null ? mediaItems[lightbox] : null;
+  const names = coupleName(event?.name);
+  const momentCount = timeline.reduce((n, g) => n + g.moments.length, 0) + tail.length;
 
   // ──── Loading ────
   if (loading) return (
@@ -138,101 +226,160 @@ export default function MemoryWall({ params }: { params: Promise<{ token: string
     </div>
   );
 
-  // ──── Empty state ────
+  /* ──── Empty ────
+     The couple will open this the morning after, before anyone has uploaded.
+     It promises rather than apologises: nothing is missing yet. */
   if (items.length === 0) return (
-    <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:"16px", padding:"32px", textAlign:"center" }}>
+    <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:"20px", padding:"32px", textAlign:"center" }}>
       <style>{CSS}</style>
-      {/* Botanical branch */}
-      <svg width="80" height="60" viewBox="0 0 80 60" fill="none" style={{ display:"block", margin:"0 auto" }} aria-hidden="true">
+      <svg width="80" height="60" viewBox="0 0 80 60" fill="none" aria-hidden="true">
         <path d="M40 56 C40 56 40 28 40 8" stroke={T.olive} strokeWidth="1.5" strokeLinecap="round"/>
         <path d="M40 40 C30 35 18 36 12 30" stroke={T.olive} strokeWidth="1.2" strokeLinecap="round"/>
         <path d="M40 30 C50 25 62 26 68 20" stroke={T.olive} strokeWidth="1.2" strokeLinecap="round"/>
-        <circle cx="12" cy="30" r="2" fill={T.olive}/>
-        <circle cx="68" cy="20" r="2" fill={T.olive}/>
+        <circle cx="12" cy="30" r="2" fill={T.olive}/><circle cx="68" cy="20" r="2" fill={T.olive}/>
         <circle cx="40" cy="8" r="2.5" fill={T.gold}/>
       </svg>
-      <h1 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"24px", fontWeight:700, color:T.dark }}>
-        הזיכרונות בדרך...
+      <h1 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"28px", fontWeight:900, color:T.dark, margin:0, lineHeight:1.25 }}>
+        {greeting()}{names ? ` ${names}` : ""}
       </h1>
-      <p style={{ fontFamily:"'Heebo',sans-serif", fontSize:"14px", fontWeight:300, color:T.muted }}>
-        היו הראשונים לשתף רגע
+      <p style={{ fontFamily:"'Heebo',sans-serif", fontSize:"16px", fontWeight:300, lineHeight:1.7, color:T.muted, maxWidth:"340px", margin:0 }}>
+        כאן יחכו לכם כל הרגעים שהאורחים שלכם תפסו. ברגע שהתמונות הראשונות יגיעו,
+        הן יופיעו כאן לפי סדר הערב.
       </p>
-      <a
-        href={`/memory/${token}`}
-        style={{ marginTop:"8px", padding:"16px 32px", borderRadius:"14px", background:`linear-gradient(135deg,${T.gold},#B8935A)`, color:"#fff", fontFamily:"'Heebo',sans-serif", fontWeight:700, fontSize:"15px", textDecoration:"none", boxShadow:T.shadowCta }}
+      <button
+        onClick={() => { setLoading(true); loadItems(); }}
+        style={{ marginTop:"8px", minHeight:"44px", display:"inline-flex", alignItems:"center", gap:"8px", padding:"0 28px", borderRadius:"14px", border:`1.5px solid ${T.border}`, background:"transparent", color:T.goldText, fontFamily:"'Heebo',sans-serif", fontWeight:600, fontSize:"15px", cursor:"pointer" }}
       >
-        הוסיפו זיכרון ראשון
-      </a>
+        <RefreshCw size={16} aria-hidden="true"/> רענון
+      </button>
     </div>
   );
 
-  // ──── E2-S10 Memory Wall ────
+  /* ──── E2-S10 — the evening, in order (Stitch Direction B, approved 2026-08-12) ──── */
+  const credit = (m: MemoryItem) => (
+    <p style={{ marginTop:"10px", fontFamily:"'Heebo',sans-serif", fontSize:"14px", fontWeight:400, color:T.muted }}>
+      צולם על ידי: <span style={{ color:T.dark, fontWeight:500 }}>{m.guest_name}</span>
+    </p>
+  );
+
+  const photoBlock = (mo: Moment, idx: number) => {
+    const i = mediaItems.findIndex(x => x.id === mo.media.id);
+    const isVideo = mo.media.type === "video";
+    return (
+      <div key={mo.media.id} style={{ marginBottom:"40px", animation:`fadeUp .5s ease ${Math.min(idx * 0.05, 0.4).toFixed(2)}s both` }}>
+        {isVideo ? (
+          <video
+            src={mo.media.public_url!}
+            controls
+            playsInline
+            preload="metadata"
+            style={{ width:"100%", display:"block", borderRadius:"10px", background:T.cream }}
+          />
+        ) : (
+          <button
+            onClick={() => setLightbox(i)}
+            aria-label={`הגדלת התמונה של ${mo.media.guest_name}`}
+            style={{ display:"block", width:"100%", padding:0, border:"none", background:"none", cursor:"pointer", borderRadius:"10px", overflow:"hidden" }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={mo.media.public_url!}
+              alt={`רגע מהערב, צולם על ידי ${mo.media.guest_name}`}
+              loading="lazy"
+              style={{ width:"100%", display:"block", borderRadius:"10px", background:T.cream }}
+            />
+          </button>
+        )}
+        {credit(mo.media)}
+
+        {/* The pairing: what they saw, beside what they wrote. */}
+        {mo.blessing?.blessing_text && (
+          <figure style={{ margin:"16px 0 0", background:"#fff", border:`1px solid ${T.border}`, borderRight:`3px solid ${T.gold}`, borderRadius:"10px", padding:"20px" }}>
+            <blockquote style={{ margin:0, fontFamily:"'Frank Ruhl Libre',serif", fontSize:"18px", fontWeight:400, lineHeight:1.65, color:T.dark }}>
+              {mo.blessing.blessing_text}
+            </blockquote>
+            <figcaption style={{ marginTop:"12px", fontFamily:"'Heebo',sans-serif", fontSize:"13px", fontWeight:600, color:T.goldText }}>
+              {mo.blessing.guest_name}
+            </figcaption>
+          </figure>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, fontFamily:"'Heebo',sans-serif" }}>
       <style>{CSS}</style>
 
-      {/* Header */}
-      <div style={{ padding:"24px 20px 16px", textAlign:"center", animation:"fadeUp .4s ease both" }}>
-        <h1 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"24px", fontWeight:700, color:T.dark, marginBottom:"6px" }}>
-          קיר הזכרונות
+      {/* Opening */}
+      <header style={{ padding:"56px 24px 40px", textAlign:"center", borderBottom:`1px solid ${T.border}` }}>
+        <h1 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"32px", fontWeight:900, lineHeight:1.2, color:T.dark, margin:"0 0 12px" }}>
+          {greeting()}{names ? ` ${names}` : ""}
         </h1>
-        {totalGuests > 0 && (
-          <p style={{ fontSize:"13px", color:T.muted }}>
-            מ-{totalGuests} {totalGuests === 1 ? "אורח" : "אורחים"}
-          </p>
+        <p style={{ fontFamily:"'Heebo',sans-serif", fontSize:"18px", fontWeight:300, lineHeight:1.6, color:T.muted, margin:0 }}>
+          {hebrewNumber(momentCount)} {momentCount === 1 ? "רגע" : "רגעים"}, {hebrewFrom(photographers)}{" "}
+          {photographers === 1 ? "אדם" : "אנשים"}
+        </p>
+      </header>
+
+      <main style={{ padding:"32px 20px 120px", maxWidth:"720px", margin:"0 auto" }}>
+        {timeline.map(group => (
+          <section key={group.label} style={{ marginBottom:"16px" }}>
+            <h2 style={{ display:"inline-block", margin:"0 0 20px", padding:"6px 16px", borderRadius:"999px", background:T.cream, fontFamily:"'Heebo',sans-serif", fontSize:"14px", fontWeight:600, letterSpacing:".02em", color:T.dark }}>
+              {group.label}
+            </h2>
+            {group.moments.map(photoBlock)}
+          </section>
+        ))}
+
+        {/* Letters from people who did not send a photograph. Not a lesser card. */}
+        {lonelyBlessings.length > 0 && (
+          <section style={{ marginTop:"24px" }}>
+            <h2 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"22px", fontWeight:700, color:T.dark, margin:"0 0 8px" }}>
+              ומה שכתבו לכם
+            </h2>
+            <p style={{ fontSize:"14px", fontWeight:300, color:T.muted, margin:"0 0 20px" }}>
+              {hebrewNumber(lonelyBlessings.length)} {lonelyBlessings.length === 1 ? "ברכה" : "ברכות"} שהגיעו בלי תמונה
+            </p>
+            {lonelyBlessings.map(b => (
+              <figure key={b.id} style={{ margin:"0 0 16px", background:"#fff", border:`1px solid ${T.border}`, borderRight:`3px solid ${T.gold}`, borderRadius:"10px", padding:"20px" }}>
+                <blockquote style={{ margin:0, fontFamily:"'Frank Ruhl Libre',serif", fontSize:"18px", fontWeight:400, lineHeight:1.65, color:T.dark }}>
+                  {b.blessing_text}
+                </blockquote>
+                <figcaption style={{ marginTop:"12px", fontFamily:"'Heebo',sans-serif", fontSize:"13px", fontWeight:600, color:T.goldText }}>
+                  {b.guest_name}
+                </figcaption>
+              </figure>
+            ))}
+          </section>
         )}
-        {event?.name && (
-          <p style={{ fontSize:"13px", fontWeight:600, color:T.goldText, marginTop:"4px", letterSpacing:".03em" }}>
-            {event.name}
-          </p>
+
+        {/* Everything the clock could not place. Named honestly. */}
+        {tail.length > 0 && (
+          <section style={{ marginTop:"40px", paddingTop:"32px", borderTop:`1px solid ${T.border}` }}>
+            <h2 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"22px", fontWeight:700, color:T.dark, margin:"0 0 8px" }}>
+              עוד רגעים שנאספו
+            </h2>
+            <p style={{ fontSize:"14px", fontWeight:300, lineHeight:1.6, color:T.muted, margin:"0 0 24px" }}>
+              אלה הגיעו בלי שעת צילום, אז הם לא יכלו להיכנס לסדר של הערב.
+            </p>
+            {tail.map(photoBlock)}
+          </section>
         )}
-      </div>
 
-      {/* Masonry grid — mixed photos + blessings */}
-      <div style={{ padding:"0 4px 100px", columnCount:2, columnGap:"4px" }}>
-        {items.map((item, idx) => {
-          if (item.type === "photo" && item.public_url) {
-            const mediaIdx = mediaItems.findIndex(m => m.id === item.id);
-            return (
-              <div key={item.id} className="wall-item" onClick={() => setLightbox(mediaIdx)} style={{ cursor:"pointer" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={item.public_url}
-                  alt={`תמונה מהאירוע מאת ${item.guest_name}`}
-                  loading="lazy"
-                  style={{ width:"100%", display:"block", borderRadius:"8px", filter:"sepia(0.12) saturate(1.08) brightness(1.02)" }}
-                />
-              </div>
-            );
-          }
+        {/* The evening ends. Say so. */}
+        <p style={{ marginTop:"48px", textAlign:"center", fontFamily:"'Frank Ruhl Libre',serif", fontSize:"18px", fontWeight:400, color:T.muted }}>
+          סוף הערב.
+        </p>
+      </main>
 
-          if (item.type === "blessing" && item.blessing_text) {
-            return (
-              <div key={item.id} className="wall-item">
-                {/* BlessingCard per spec */}
-                <div style={{ background:T.cream, borderRadius:"16px", padding:"16px", border:`1px solid ${T.border}`, animation:`fadeUp .4s ease ${(idx * 0.04).toFixed(2)}s both` }}>
-                  <p style={{ fontFamily:"'Heebo',sans-serif", fontSize:"15px", fontWeight:400, color:T.dark, lineHeight:1.6, marginBottom:"10px", display:"-webkit-box", WebkitLineClamp:4, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
-                    {item.blessing_text}
-                  </p>
-                  <p style={{ fontFamily:"'Heebo',sans-serif", fontSize:"13px", fontWeight:600, color:T.muted, textAlign:"end" }}>
-                    — {item.guest_name} ❤️
-                  </p>
-                </div>
-              </div>
-            );
-          }
-
-          return null;
-        })}
-      </div>
-
-      {/* FAB */}
+      {/* Add your own */}
       <a
         href={`/memory/${token}`}
-        aria-label="הוסיפו זיכרון"
-        style={{ position:"fixed", bottom:`calc(24px + env(safe-area-inset-bottom))`, right:"20px", width:"56px", height:"56px", borderRadius:"50%", background:`linear-gradient(135deg,${T.gold},#B8935A)`, boxShadow:"0 4px 16px rgba(197,164,109,0.5)", display:"flex", alignItems:"center", justifyContent:"center", textDecoration:"none" }}
+        aria-label="הוספת זיכרון"
+        style={{ position:"fixed", bottom:`calc(24px + env(safe-area-inset-bottom))`, right:"20px", width:"56px", height:"56px", borderRadius:"50%", background:T.gold, boxShadow:"0 4px 16px rgba(197,164,109,0.5)", display:"flex", alignItems:"center", justifyContent:"center", textDecoration:"none" }}
       >
-        <Camera size={22} color="#fff"/>
+        <Camera size={22} color="#1C1008"/>
       </a>
 
       {/* Lightbox */}
@@ -252,7 +399,7 @@ export default function MemoryWall({ params }: { params: Promise<{ token: string
           }}
         >
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"16px 20px", flexShrink:0 }}>
-            <button onClick={closeLightbox} aria-label="סגור" style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", padding:"8px", display:"flex" }}>
+            <button onClick={closeLightbox} aria-label="סגירה" style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", minWidth:"44px", minHeight:"44px", display:"flex", alignItems:"center", justifyContent:"center" }}>
               <X size={24}/>
             </button>
             <span style={{ color:"rgba(255,255,255,0.6)", fontFamily:"'Heebo',sans-serif", fontSize:"13px" }}>
@@ -263,37 +410,39 @@ export default function MemoryWall({ params }: { params: Promise<{ token: string
               download
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="הורד תמונה"
-              style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", padding:"8px", display:"flex" }}
+              aria-label="הורדת התמונה"
+              style={{ cursor:"pointer", color:"#fff", minWidth:"44px", minHeight:"44px", display:"flex", alignItems:"center", justifyContent:"center" }}
             >
               <Download size={22}/>
             </a>
           </div>
 
-          <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", padding:"0 48px" }}>
+          <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", padding:"0 56px" }}>
             {lightbox > 0 && (
-              <button onClick={prevPhoto} aria-label="תמונה קודמת" style={{ position:"absolute", right:"8px", background:"rgba(255,255,255,0.15)", border:"none", borderRadius:"50%", width:"36px", height:"36px", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff" }}>
+              <button onClick={prevPhoto} aria-label="התמונה הקודמת" style={{ position:"absolute", right:"6px", background:"rgba(255,255,255,0.15)", border:"none", borderRadius:"50%", width:"44px", height:"44px", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff" }}>
                 <ChevronRight size={20}/>
               </button>
             )}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={currentPhoto.public_url}
-              alt={`תמונה מהאירוע מאת ${currentPhoto.guest_name}`}
-              style={{ maxWidth:"100%", maxHeight:"70dvh", objectFit:"contain", borderRadius:"8px", filter:"sepia(0.12) saturate(1.08) brightness(1.02)" }}
+              alt={`רגע מהערב, צולם על ידי ${currentPhoto.guest_name}`}
+              style={{ maxWidth:"100%", maxHeight:"72dvh", objectFit:"contain", borderRadius:"8px" }}
             />
             {lightbox < mediaItems.length - 1 && (
-              <button onClick={nextPhoto} aria-label="תמונה הבאה" style={{ position:"absolute", left:"8px", background:"rgba(255,255,255,0.15)", border:"none", borderRadius:"50%", width:"36px", height:"36px", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff" }}>
+              <button onClick={nextPhoto} aria-label="התמונה הבאה" style={{ position:"absolute", left:"6px", background:"rgba(255,255,255,0.15)", border:"none", borderRadius:"50%", width:"44px", height:"44px", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff" }}>
                 <ChevronLeft size={20}/>
               </button>
             )}
           </div>
 
-          {currentPhoto.guest_name && (
-            <div style={{ textAlign:"center", padding:"16px", color:"rgba(255,255,255,0.5)", fontFamily:"'Heebo',sans-serif", fontSize:"13px" }}>
-              📷 {currentPhoto.guest_name}
-            </div>
-          )}
+          {/* The credit follows the photograph in here too. */}
+          <div style={{ textAlign:"center", padding:"16px 20px calc(16px + env(safe-area-inset-bottom))", color:"rgba(255,255,255,0.6)", fontFamily:"'Heebo',sans-serif", fontSize:"14px" }}>
+            צולם על ידי: <span style={{ color:"#fff" }}>{currentPhoto.guest_name}</span>
+            {currentPhoto.taken_at && (
+              <span style={{ color:"rgba(255,255,255,0.4)" }}> · {hourLabel(currentPhoto.taken_at)}</span>
+            )}
+          </div>
         </div>
       )}
     </div>
