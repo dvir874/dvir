@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { policyFor } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 
@@ -111,5 +112,46 @@ export async function GET(req: NextRequest) {
     };
   }
 
-  return NextResponse.json({ runs: runs ?? [], next, expectedRuns, available: true });
+  /* Guests the automation has permanently given up on, by name.
+
+     The sender already skips them, and a count of them appears in each run —
+     but a number nobody can act on is how 47 guests stayed invisible for two
+     days. These are the people whose most recent attempt failed with a policy
+     of "never": no timer, no retry and no verification will reach them, and
+     the only remaining move is a human with a phone. */
+  const needsHuman: { id: string; name: string; phone: string | null; why: string }[] = [];
+  if (ev) {
+    const { data: guests } = await sb.from("guests")
+      .select("id, name, phone, status").eq("event_id", ev.id).eq("status", "pending");
+    const byId = new Map((guests ?? []).map(g => [g.id as string, g]));
+
+    const ids = [...byId.keys()];
+    const latest = new Map<string,
+      { at: string; status: string; code: number | null; err: string | null }>();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data: m } = await sb.from("wa_messages")
+        .select("guest_id, status, error_code, error, created_at")
+        .eq("direction", "out").in("guest_id", ids.slice(i, i + 100));
+      for (const x of m ?? []) {
+        if (!x.guest_id) continue;
+        const prev = latest.get(x.guest_id);
+        if (!prev || x.created_at > prev.at) {
+          latest.set(x.guest_id, {
+            at: x.created_at, status: x.status, code: x.error_code, err: x.error,
+          });
+        }
+      }
+    }
+    for (const [id, m] of latest) {
+      if (m.status !== "failed") continue;
+      const pol = policyFor(m.code, m.err);
+      if (pol.action !== "never") continue;
+      const g = byId.get(id);
+      if (g) needsHuman.push({ id, name: g.name as string, phone: g.phone as string | null, why: pol.human });
+    }
+  }
+
+  return NextResponse.json({
+    runs: runs ?? [], next, expectedRuns, needsHuman, available: true,
+  });
 }
