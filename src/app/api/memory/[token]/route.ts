@@ -114,22 +114,34 @@ export async function POST(request: NextRequest, { params }: Params) {
     mime_type    = file.type;
   }
 
-  const { data: item, error: insertErr } = await supabase
+  const row = {
+    event_id:     vaultToken.event_id,
+    vault_token:  token,
+    guest_name,
+    type,
+    storage_path,
+    public_url,
+    blessing_text,
+    file_size,
+    mime_type,
+  };
+
+  let { data: item, error: insertErr } = await supabase
     .from('memory_items')
-    .insert({
-      event_id:     vaultToken.event_id,
-      vault_token:  token,
-      guest_name,
-      type,
-      storage_path,
-      public_url,
-      blessing_text,
-      file_size,
-      mime_type,
-      taken_at,
-    })
+    .insert({ ...row, taken_at })
     .select()
     .single();
+
+  /* taken_at arrives with a migration, and code reaches production before SQL
+     gets run. PostgREST rejects the whole insert over one unknown column, so
+     without this the guest sees "לא הצלחנו לשמור" for a photo there is nothing
+     wrong with — the upload path breaking on a column that only sorts things.
+     Capture time is a nicety; the photograph is the point. */
+  if (insertErr && /taken_at/.test(insertErr.message)) {
+    console.warn('[memory:insert] taken_at column missing — run 20260812_memory_owner_and_taken_at.sql');
+    ({ data: item, error: insertErr } = await supabase
+      .from('memory_items').insert(row).select().single());
+  }
 
   if (insertErr) {
     /* The file is already in storage at this point. Leaving it there with no

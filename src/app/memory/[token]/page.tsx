@@ -540,7 +540,7 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
             style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", gap:"8px", minHeight:"56px", padding:"16px 32px", marginTop:"56px", borderRadius:"20px", border:"none", background:T.gold, color:"#1C1008", fontFamily:"'Heebo',sans-serif", fontWeight:600, fontSize:"15px", letterSpacing:"0.05em", cursor:"pointer", boxShadow:T.shadowCta, animation:"fadeUp .5s ease .2s both" }}
           >
             {isBlessing ? "כתיבת ברכה נוספת" : "העלאת תמונה נוספת"}
-            <Upload size={18} aria-hidden="true"/>
+            {!isBlessing && <Upload size={18} aria-hidden="true"/>}
           </button>
         </main>
 
