@@ -31,11 +31,26 @@ export const maxDuration = 60;
    behaved. */
 const MAX_EVENTS_PER_RUN = 3;
 
-/* Israel is UTC+3 in August. Nothing goes out before 09:00 or after 18:00
-   local — a wedding invitation arriving at 04:00 gets reported, and reports
-   are what restricted this number in the first place. */
+/* Israel is UTC+3 in August. Nothing goes out before 09:00 local — a wedding
+   invitation arriving at 04:00 gets reported, and reports are what restricted
+   this number in the first place.
+
+   The evening end moved out from 18:00 to accommodate the second run, which
+   now goes at 20:00 rather than 15:00. The reason is in our own analytics:
+   invitations sent at 10:00 are opened in a clear peak at 22:00 — 51 opens in
+   that hour alone. People see the message during the day and deal with it in
+   the evening, so a message that arrives at 20:00 removes ten hours of decay
+   between arriving and being acted on, instead of sitting unread through a
+   working day.
+
+   21:59 rather than 20:59 because Vercel's Hobby scheduler is approximate —
+   this morning's 10:00 run actually fired at 10:51. An hour of slack is the
+   difference between a delayed run and a skipped one, and 21:00 is still an
+   ordinary hour to hear from family in Israel. Nothing may go out later than
+   that: past 22:00 an invitation reads as an intrusion, and an intrusion is
+   what a spam report is made of. */
 const HOUR_START_UTC = 6;
-const HOUR_END_UTC = 15;
+const HOUR_END_UTC = 18;
 
 /* Heal guests whose open was recorded in one place and not the other.
 
