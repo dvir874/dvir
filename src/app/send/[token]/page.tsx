@@ -58,6 +58,23 @@ export default function HelperSendPage({ params }: { params: Promise<{ token: st
     } catch { /* ignore */ }
   }, [AWAIT_KEY]);
 
+  /* "נשלחו על ידך" has to outlive the trip to WhatsApp, for the same reason the
+     pending confirmation does — and it did not.
+
+     The count lived only in React state, so every return from WhatsApp that
+     rebuilt the page reset it to zero while the server went on recording
+     correctly. Oriya finished nine guests and her screen said seven, which is
+     how a helper concludes she has more to do, or that the tool is losing her
+     work. The server was right the whole time; only the number she could see
+     was wrong, and that is the version of this bug that erodes trust fastest. */
+  const SENT_KEY = `helper_sent_${token}`;
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(SENT_KEY) ?? "[]");
+      if (Array.isArray(saved) && saved.length) setSentIds(new Set(saved));
+    } catch { /* private mode — the in-session count still works */ }
+  }, [SENT_KEY]);
+
   const load = useCallback(async () => {
     try {
       /* ?h=noya narrows the queue to the guests assigned to this helper, so two
@@ -131,7 +148,17 @@ _(הודעה זו נשלחה באמצעות שירות רגע לפני)_`;
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ guest_id: g.id }),
       });
-      if (r.ok) { setSentIds(prev => new Set(prev).add(g.id)); setAwaiting(null); await load(); }
+      if (r.ok) {
+        setSentIds(prev => {
+          const next = new Set(prev).add(g.id);
+          /* Written the moment the server confirms, not on unload: a phone
+             switching to WhatsApp may never run another line of this page. */
+          try { localStorage.setItem(SENT_KEY, JSON.stringify([...next])); } catch {}
+          return next;
+        });
+        setAwaiting(null);
+        await load();
+      }
       else alert("לא הצלחנו לשמור. נסו שוב.");
     } catch { alert("לא הצלחנו לשמור. בדקו חיבור לאינטרנט."); }
     setBusy(false);
