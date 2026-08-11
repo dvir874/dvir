@@ -177,17 +177,24 @@ export default function JourneyPage({ params }: { params: Promise<{ token: strin
   const [data,     setData]     = useState<DashboardData | null>(null);
   const [briefing, setBriefing] = useState<BriefingData | null>(null);
   const [loading,  setLoading]  = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
+        /* /api/couple/[token] — there is no /dashboard route and never was, so
+           this 404'd on every load. A null response then read as "you have done
+           nothing": the couple saw 2/10 steps, "הוסיפו כתובת אולם" for a venue
+           they had already entered, and RSVP locked while 101 guests had
+           already answered. A failed fetch is not an empty wedding. */
         const [dr, br] = await Promise.all([
-          fetch(`/api/couple/${token}/dashboard`).then(r => r.ok ? r.json() : null),
+          fetch(`/api/couple/${token}`).then(r => r.ok ? r.json() : null),
           fetch(`/api/couple/${token}/briefing`).then(r => r.ok ? r.json() : null),
         ]);
+        if (!dr) setLoadError(true);
         setData(dr);
         setBriefing(br);
-      } catch { /* graceful */ }
+      } catch { setLoadError(true); }
       setLoading(false);
     }
     load();
@@ -262,8 +269,28 @@ export default function JourneyPage({ params }: { params: Promise<{ token: strin
         </div>
       )}
 
+      {/* Load failure — never render an empty journey as if nothing was done */}
+      {!loading && loadError && (
+        <div style={{ padding: "3rem 1.25rem", textAlign: "center", maxWidth: 420, margin: "0 auto" }}>
+          <p style={{ color: C.muted, fontSize: 15, lineHeight: 1.7, margin: "0 0 16px" }}>
+            לא הצלחנו לטעון את המסע שלכם כרגע.<br />
+            כל הנתונים שלכם במקום — זו תקלת טעינה בלבד.
+          </p>
+          <button
+            onClick={() => location.reload()}
+            style={{
+              padding: "12px 28px", borderRadius: 12, border: `1.5px solid ${C.gold}`,
+              background: "transparent", color: C.gold, fontFamily: "'Heebo', sans-serif",
+              fontSize: 15, fontWeight: 600, cursor: "pointer", minHeight: 44,
+            }}
+          >
+            נסו שוב
+          </button>
+        </div>
+      )}
+
       {/* Timeline */}
-      {!loading && (
+      {!loading && !loadError && (
         <div style={{ padding: "1.5rem 1.25rem 2rem", maxWidth: 560, margin: "0 auto" }}>
           {resolvedSteps.map((step, idx) => {
             const cfg     = STATUS_CONFIG[step.status];

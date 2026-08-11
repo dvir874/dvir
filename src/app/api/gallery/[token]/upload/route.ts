@@ -28,14 +28,15 @@ export async function POST(
   if (!rl.ok) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   const sb = createServerClient();
 
+  /* `status` is not a column on gallery_albums; selecting it made PostgREST
+     error out, so every upload answered "album not found". */
   const { data: album } = await sb
     .from('gallery_albums')
-    .select('id, status, event_id, photo_count')
+    .select('id, event_id, photo_count')
     .eq('public_token', token)
     .single();
 
   if (!album) return NextResponse.json({ error: 'album not found' }, { status: 404 });
-  if (album.status === 'closed') return NextResponse.json({ error: 'album closed' }, { status: 403 });
 
   const formData     = await req.formData();
   const file         = formData.get('file') as File | null;

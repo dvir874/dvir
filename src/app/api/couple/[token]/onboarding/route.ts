@@ -98,17 +98,22 @@ export async function POST(
     .eq('event_id', event.id)
     .limit(1);
 
-  // Only seed if budget is completely empty
+  /* Column names must match the table: it is description/planned_amount/
+     actual_amount, not label/planned/actual. The insert failed for every couple
+     who ever completed onboarding, the error was discarded, and budget_items
+     stayed empty across the whole database — which also cost each couple 15%
+     of their readiness score permanently, with nothing to show why. */
   if (!existingBudget || existingBudget.length === 0) {
-    await supabase.from('budget_items').insert(
+    const { error: budgetErr } = await supabase.from('budget_items').insert(
       budgetCategories.map((b) => ({
-        event_id: event.id,
-        category: b.category,
-        label:    b.label,
-        planned:  b.planned,
-        actual:   0,
+        event_id:       event.id,
+        category:       b.category,
+        description:    b.label,
+        planned_amount: b.planned,
+        actual_amount:  0,
       }))
     );
+    if (budgetErr) console.error('[onboarding:budget]', budgetErr.message);
   }
 
   return NextResponse.json({

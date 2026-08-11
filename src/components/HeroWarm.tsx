@@ -83,7 +83,7 @@ export default function HeroWarm() {
           {/* Phone line */}
           <div className="flex items-center gap-2 pt-2 font-body text-sm text-ink/60">
             <Phone className="w-4 h-4 text-gold" />
-            <span>053-3318177 · דביר, זמין עד 22:00</span>
+            <span>053-3318177 · זמין עד 22:00</span>
           </div>
         </div>
 

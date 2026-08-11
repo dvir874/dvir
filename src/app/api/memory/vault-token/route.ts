@@ -1,10 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
+import { requireAdmin } from '@/lib/auth-guard';
 
 export const dynamic = 'force-dynamic';
 
+/* The vault token unlocks every blessing and photo guests have left for a
+   couple. Lookup by event_id was open to anyone, and event ids are not secret —
+   they appear in /event/[id] and in the public RSVP response — so a single
+   guest could read the whole wall for any wedding in the system.
+ *
+ * Two ways in, and only two:
+ *   couple_token  — proves you are the couple; stays open
+ *   event_id      — an operator lookup; now behind the admin session
+ *
+ * This route sits under /api/memory, which the middleware treats as public, so
+ * requireAdmin() here is the only gate and must not be removed.
+ */
+
 // POST — admin creates or retrieves a vault token for an event
 export async function POST(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const { event_id } = await request.json();
   if (!event_id) return NextResponse.json({ error: 'event_id required' }, { status: 400 });
 
@@ -55,6 +72,10 @@ export async function GET(request: NextRequest) {
   }
 
   if (!event_id) return NextResponse.json({ error: 'event_id or couple_token required' }, { status: 400 });
+
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const { data } = await supabase
     .from('vault_tokens')
     .select('token')

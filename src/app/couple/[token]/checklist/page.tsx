@@ -103,10 +103,19 @@ export default function ChecklistPage() {
       prevPct.current = pct;
     }
 
-    await fetch(`/api/wedding-tasks/${task.id}`, {
+    /* Token-scoped route. /api/wedding-tasks/* is behind the admin middleware,
+       so this returned 401 every time while the UI ticked the box and fired a
+       milestone toast — a celebration for a save that never happened. */
+    const r = await fetch(`/api/couple/${token}/tasks`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ completed: !task.completed }),
+      body: JSON.stringify({ id: task.id, completed: !task.completed }),
     });
+    if (!r.ok) {
+      /* Put the box back rather than leave the couple believing it saved. */
+      setTasks(ts => ts.map(t => t.id === task.id ? { ...t, completed: task.completed } : t));
+      prevPct.current = pct;
+      alert("לא הצלחנו לשמור את השינוי. נסו שוב.");
+    }
   };
 
   const addTask = async () => {
@@ -121,8 +130,13 @@ export default function ChecklistPage() {
   };
 
   const deleteTask = async (id: string) => {
-    await fetch(`/api/wedding-tasks/${id}`, { method: "DELETE" });
+    const before = tasks;
     setTasks(ts => ts.filter(t => t.id !== id));
+    const r = await fetch(`/api/couple/${token}/tasks?id=${id}`, { method: "DELETE" });
+    if (!r.ok) {
+      setTasks(before);
+      alert("לא הצלחנו למחוק את המשימה. נסו שוב.");
+    }
   };
 
   const done = tasks.filter(t => t.completed).length;

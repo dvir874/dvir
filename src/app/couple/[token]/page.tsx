@@ -1236,50 +1236,62 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
       .catch(() => {});
   }, [token]);
 
+  /* Token-scoped, not the admin routes. /api/wedding-tasks lives behind the
+     admin middleware, so this returned 401, Array.isArray(401 body) was false,
+     tasks stayed empty and the card read "0 משימות נותרו" to a couple with 63
+     of them. A 401 was being rendered as an achievement. */
   useEffect(() => {
     if (!data?.event?.id) return;
-    fetch(`/api/wedding-tasks?event_id=${data.event.id}`)
-      .then((r) => r.json())
-      .then((d) => Array.isArray(d) && setTasks(d));
-    fetch(`/api/wedding-vendors?event_id=${data.event.id}`)
-      .then((r) => r.json())
+    fetch(`/api/couple/${token}/tasks`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => Array.isArray(d) && setTasks(d))
+      .catch(() => {});
+    fetch(`/api/couple/${token}/vendors`)
+      .then((r) => r.ok ? r.json() : null)
       .then((d) => {
         if (Array.isArray(d)) {
           const map: Record<string, boolean> = {};
           d.forEach((v: { category: string; confirmed: boolean }) => { map[v.category] = v.confirmed; });
           setVendors(map);
         }
-      });
-  }, [data?.event?.id]);
+      })
+      .catch(() => {});
+  }, [data?.event?.id, token]);
 
   async function toggleTask(task: WeddingTask) {
     setTasks((prev) => prev.map((t) => t.id === task.id ? { ...t, completed: !t.completed } : t));
-    await fetch(`/api/wedding-tasks/${task.id}`, {
+    const r = await fetch(`/api/couple/${token}/tasks`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ completed: !task.completed }),
+      body: JSON.stringify({ id: task.id, completed: !task.completed }),
     });
+    if (!r.ok) {
+      setTasks((prev) => prev.map((t) => t.id === task.id ? { ...t, completed: task.completed } : t));
+      return;
+    }
     load();
   }
 
   async function addTask() {
     if (!newTask.trim() || !data?.event?.id) return;
     setSaving(true);
-    await fetch("/api/wedding-tasks", {
+    await fetch(`/api/couple/${token}/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event_id: data.event.id, title: newTask.trim(), category: "general" }),
+      body: JSON.stringify({ title: newTask.trim(), category: "general" }),
     });
     setNewTask("");
-    const res = await fetch(`/api/wedding-tasks?event_id=${data.event.id}`);
+    const res = await fetch(`/api/couple/${token}/tasks`);
     const d   = await res.json();
     if (Array.isArray(d)) setTasks(d);
     setSaving(false);
   }
 
   async function deleteTask(id: string) {
-    await fetch(`/api/wedding-tasks/${id}`, { method: "DELETE" });
+    const before = tasks;
     setTasks((prev) => prev.filter((t) => t.id !== id));
+    const r = await fetch(`/api/couple/${token}/tasks?id=${id}`, { method: "DELETE" });
+    if (!r.ok) setTasks(before);
   }
 
   async function doAction(action: string, extra?: Record<string, string>) {

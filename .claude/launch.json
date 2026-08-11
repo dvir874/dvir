@@ -2,14 +2,16 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "raga-lifnei",
+      "name": "raga-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "run",
-        "dev"
+        "dev",
+        "--",
+        "-p",
+        "3100"
       ],
-      "port": 3210,
-      "autoPort": true
+      "port": 3100
     }
   ]
 }

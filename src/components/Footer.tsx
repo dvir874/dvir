@@ -212,9 +212,19 @@ export default function Footer() {
             className="text-white/25 text-xs"
             style={{ fontFamily: "Heebo, sans-serif" }}
           >
+            {/* Meta's verification reviewer looks for these from the homepage;
+                terms alone was the only one linked, and contact did not exist. */}
             © {year} רגע לפני. כל הזכויות שמורות. ·{" "}
             <a href="/terms" className="hover:text-white/50 transition-colors" style={{ color: "inherit" }}>
               תנאי שירות
+            </a>
+            {" · "}
+            <a href="/privacy" className="hover:text-white/50 transition-colors" style={{ color: "inherit" }}>
+              מדיניות פרטיות
+            </a>
+            {" · "}
+            <a href="/contact" className="hover:text-white/50 transition-colors" style={{ color: "inherit" }}>
+              צור קשר
             </a>
           </p>
           <div

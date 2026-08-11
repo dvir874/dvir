@@ -61,7 +61,7 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch(`/api/memory/${token}`)
+    fetch(`/api/memory/${token}`, { signal: AbortSignal.timeout(15_000) })
       .then(r => r.json())
       .then(d => {
         if (d.error) { setScreen("error"); return; }
@@ -98,6 +98,7 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
       if (uploadType === "capsule") {
         if (!capsuleText.trim()) { setErrorMsg("כתבו הודעה"); setUploading(false); return; }
         const res = await fetch(`/api/memory/${token}/capsule`, {
+          signal: AbortSignal.timeout(20_000),
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ guest_name: guestName.trim(), message_type: capsuleType, content: capsuleText.trim(), unlock_years: unlockYears }),
@@ -121,7 +122,10 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
         fd.append("file", file);
       }
 
-      const res  = await fetch(`/api/memory/${token}`, { method: "POST", body: fd });
+      /* Uploads carry a file, so they get longer — but still finite. */
+      const res  = await fetch(`/api/memory/${token}`, {
+        method: "POST", body: fd, signal: AbortSignal.timeout(120_000),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "שגיאה בהעלאה");
       setScreen("done");

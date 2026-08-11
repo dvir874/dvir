@@ -363,7 +363,7 @@ function WebsiteLeadRow({ lead, onStatusChange, onSelect, onDelete }: {
         </div>
         <div style={{ fontSize: 11, color: "rgba(51,51,51,0.5)", display: "flex", gap: 10, flexWrap: "wrap" }}>
           <span>📱 {lead.phone}</span>
-          {days !== null && <span>💒 {days > 0 ? `בעוד ${days} ימים` : "עבר"}</span>}
+          {days !== null && <span>💍 {days > 0 ? `בעוד ${days} ימים` : "עבר"}</span>}
           <span style={{ color: "rgba(51,51,51,0.35)" }}>{agoLabel}</span>
         </div>
       </div>

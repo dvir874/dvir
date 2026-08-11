@@ -325,7 +325,11 @@ interface CouponRow {
   created_by_event?: { name: string } | null;
   used_by_event?: { name: string } | null;
 }
-type StatusFilter = "all" | GuestStatus;
+/* "ממתין" was one bucket covering two situations that need opposite actions:
+   a guest who has the invitation and has not replied wants a reminder, and a
+   guest who never received one wants an invitation. Merging them is how 130
+   people sat in a list labelled "waiting" having heard nothing at all. */
+type StatusFilter = "all" | GuestStatus | "no_answer" | "not_sent" | "opened";
 
 /* ══════════════════════════════════════════════════════
    Main Admin Page
@@ -560,14 +564,95 @@ export default function AdminPage() {
     ? Math.round(((confirmed + declined) / total) * 100)
     : 0;
 
+  /* Delivery state per guest, keyed by id.
+     Read from /api/admin/delivery, which already classifies every guest and
+     knows that opening the personal link counts as proof of receipt even when
+     no delivery report exists. Duplicating that judgement here would be a
+     second definition of "arrived" to keep in sync. */
+  /* Unread guest replies. The inbox has worked for days; nothing pointed at
+     it, so "הקישור לא עובד" sat unread for three hours and two guests who had
+     declined in plain words stayed counted as attending. */
+  const [unreadInbox, setUnreadInbox] = useState(0);
+  useEffect(() => {
+    if (!selectedEventId) { setUnreadInbox(0); return; }
+    fetch(`/api/admin/inbox/unread?event_id=${selectedEventId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => typeof d?.unread === "number" && setUnreadInbox(d.unread))
+      .catch(() => {});
+  }, [selectedEventId]);
+
+  const [deliveryMap, setDeliveryMap] = useState<Record<string,
+    { icon: string; label: string; color: string; title: string }>>({});
+
+  useEffect(() => {
+    if (!selectedEventId) { setDeliveryMap({}); return; }
+    fetch(`/api/admin/delivery?event_id=${selectedEventId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d) return;
+        const m: Record<string, { icon: string; label: string; color: string; title: string }> = {};
+        (d.failed ?? []).forEach((r: { id: string; he?: string; raw?: string }) => {
+          m[r.id] = { icon: "❌", label: "נכשל", color: "#C05050",
+                      title: r.he ?? r.raw ?? "ההודעה לא נמסרה" };
+        });
+        /* Weaker evidence than a delivery report, and it must not read as
+           stronger: there is no report at all, only the guest's own behaviour.
+           Labelling it "הגיע" beside a "נקרא" that Meta actually confirmed made
+           the two look interchangeable and the wrong one look better. */
+        (d.reachedNoLog ?? []).forEach((r: { id: string; evidence?: string }) => {
+          /* This column answers one question — what happened to the WhatsApp
+             message — so the fallback has to be phrased in those terms too.
+             Labelling it "פתח קישור" put link-opening inside a delivery column
+             that already sits beside a "נפתח" column, and made a guest who both
+             read the message and opened the link look like two different states.
+             The evidence still shows on hover. */
+          const byHand = r.evidence === "נשלח ידנית מהטלפון";
+          m[r.id] = byHand
+            ? { icon: "📱", label: "נשלח ידנית", color: "#6B7B5A",
+                title: "נשלח מהטלפון האישי — וואטסאפ לא מדווחת על מסירה בשליחה כזו" }
+            : { icon: "✓", label: "הגיע", color: "#6B7B5A",
+                title: `אין דוח מסירה מוואטסאפ, אבל ${r.evidence ?? "פתח את הקישור"} — כלומר ההודעה הגיעה` };
+        });
+        (d.untracked ?? []).forEach((r: { id: string }) => {
+          m[r.id] = { icon: "⏳", label: "לא ידוע", color: "rgba(28,16,8,0.45)",
+                      title: "נשלח, אך לא התקבל דוח מסירה" };
+        });
+        (d.unsent ?? []).forEach((r: { id: string; reason?: string }) => {
+          m[r.id] = { icon: "◻️", label: "לא נשלח", color: "#B8860B",
+                      title: r.reason ?? "טרם נשלחה הודעה" };
+        });
+        (d.reached ?? []).forEach((r: { id: string; status?: string }) => {
+          m[r.id] = r.status === "read"
+            ? { icon: "👁", label: "נקרא", color: "#4A7C59",
+                title: "וואטסאפ אישרה שהאורח פתח את ההודעה" }
+            : r.status === "delivered"
+            ? { icon: "✅", label: "נמסר", color: "#4A7C59",
+                title: "וואטסאפ אישרה שההודעה הגיעה למכשיר" }
+            : { icon: "📤", label: "בדרך", color: "#B8860B",
+                title: "נשלח, טרם התקבל אישור מסירה" };
+        });
+        setDeliveryMap(m);
+      })
+      .catch(() => {});
+  }, [selectedEventId, guests.length]);
+
   /* ── Filtered + paginated guests ───────────────── */
   const filtered = guests.filter((g) => {
     const matchSearch =
       !search ||
       g.name.includes(search) ||
       g.phone.includes(search);
+    const d = deliveryMap[g.id]?.label;
+    const reached = d === "נמסר" || d === "נקרא" || d === "הגיע" || d === "נשלח ידנית";
+
     const matchStatus =
-      statusFilter === "all" || g.status === statusFilter;
+      statusFilter === "all"       ? true
+      /* has the invitation, has not answered */
+      : statusFilter === "no_answer" ? g.status === "pending" && reached
+      /* no evidence anything ever arrived */
+      : statusFilter === "not_sent"  ? g.status === "pending" && !reached
+      : statusFilter === "opened"    ? !!g.opened_at
+      : g.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
@@ -766,6 +851,7 @@ export default function AdminPage() {
     }
   }
 
+
   function logActivity(guestId: string, eventType: string) {
     fetch(`/api/guests/${guestId}/activity`, {
       method: "POST",
@@ -775,6 +861,49 @@ export default function AdminPage() {
       // Invalidate cached timeline so it reloads on next expand
       setActivityMap((prev) => { const n = { ...prev }; delete n[guestId]; return n; });
     }).catch(() => {});
+
+    /* An invitation opened from this table goes out of a human's own phone, so
+       it never produces a wa_messages row and the automatic sender cannot see
+       it. Without this second marker it messages the same guest again from the
+       business number a few hours later.
+       invitation_sent alone could not carry it: nothing downstream reads that
+       type, and every guest already carries invite_sent from before delivery
+       tracking existed. */
+    if (eventType === "invitation_sent" || eventType === "reminder_sent") {
+      fetch("/api/admin/guests-sent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guest_ids: [guestId] }),
+      }).catch(() => {});
+    }
+  }
+
+  /* Opening WhatsApp is not sending — and this icon treated them as the same
+     event.
+
+     The old onClick fired the instant the tab opened: before WhatsApp Web had
+     decided whether to show a chat or a QR screen, before the operator typed
+     anything, before any send button existed to press. It then wrote BOTH
+     invite_sent AND manual_sent, and manual_sent is the strongest "already
+     reached" marker in the system — five separate send paths skip a guest who
+     carries one. So a mis-click, a logged-out WhatsApp Web or a tab closed by
+     accident removed that guest from every future send, permanently, while the
+     admin table showed them as handled.
+
+     This is the precise failure /admin/send was built to prevent, and it sat
+     one screen away still doing it. The prompt below is the browser's own on
+     purpose rather than a designed dialog: it has to interrupt, and it has to
+     be answered AFTER the trip to WhatsApp — the question is whether a message
+     actually went out, which is not knowable at the moment of the click. */
+  function sendViaWhatsApp(id: string, name: string, phone: string, token: string) {
+    window.open(whatsappInviteLink(phone, name, token), "_blank", "noopener,noreferrer");
+    setTimeout(() => {
+      const ok = window.confirm(
+        `ההודעה ל${name} נשלחה בפועל?\n\n` +
+        `אישור מסמן שהאורח קיבל הזמנה ומוציא אותו מכל שליחה אוטומטית עתידית.`,
+      );
+      if (ok) logActivity(id, "invitation_sent");
+    }, 800);
   }
 
   const selectedEvent = events.find((e) => e.id === selectedEventId);
@@ -862,6 +991,54 @@ export default function AdminPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap mr-auto">
+          <a
+            href="/admin/internal/dvir-wedding"
+            className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all hover:opacity-80"
+            style={{ background: "rgba(28,16,8,0.85)", color: "#E5C188" }}
+          >
+            💍 החתונה שלי
+          </a>
+          <a
+            href="/admin/flow"
+            className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all hover:opacity-80"
+            style={{ background: "rgba(197,164,109,0.30)", color: "#8B6914" }}
+          >
+            🧭 ניהול אירוע
+          </a>
+          <a
+            href="/admin/delivery"
+            className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all hover:opacity-80"
+            style={{ background: "rgba(180,69,60,0.12)", color: "#B4453C" }}
+          >
+            📊 מצב מסירה
+          </a>
+          <a
+            href="/admin/inbox"
+            className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all hover:opacity-80"
+            style={{ background: "rgba(37,211,102,0.16)", color: "#1A9B4E" }}
+          >
+            💬 תיבת הודעות
+            {unreadInbox > 0 && (
+              <span
+                title={`${unreadInbox} הודעות מאורחים שטרם נקראו`}
+                style={{
+                  background: "#B4453C", color: "white", borderRadius: 99,
+                  minWidth: 18, height: 18, display: "inline-flex",
+                  alignItems: "center", justifyContent: "center",
+                  fontSize: 11, fontWeight: 700, padding: "0 5px",
+                }}
+              >
+                {unreadInbox}
+              </span>
+            )}
+          </a>
+          <a
+            href="/admin/quote"
+            className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
+            style={{ background: "rgba(197,164,109,0.12)", color: "#8B6914" }}
+          >
+            🧮 הצעת מחיר
+          </a>
           <a
             href="/admin/today"
             className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all hover:opacity-80"
@@ -1270,8 +1447,14 @@ export default function AdminPage() {
                     <button onClick={async () => {
                       if (!selectedEvent?.client_phone) { alert("לא הוגדר טלפון לזוג"); return; }
                       const phone = selectedEvent.client_phone.replace(/\D/g,"").replace(/^0/,"972");
-                      const url = `https://g.page/r/YOUR_GOOGLE_PLACE_ID/review`;
-                      const msg = encodeURIComponent(`שלום! 🌟\nשמחנו לנהל את החתונה שלכם.\nנשמח אם תשאירו לנו ביקורת קצרה:\n${url}`);
+                      const saved = typeof window !== "undefined" ? localStorage.getItem("google_review_url") : null;
+                      let url = saved ?? "";
+                      if (!url) {
+                        url = prompt("הדביקו את קישור הביקורת של Google לעסק שלכם (נשמר לפעם הבאה):") ?? "";
+                        if (!url.trim()) { setShowToolsMenu(false); return; }
+                        localStorage.setItem("google_review_url", url.trim());
+                      }
+                      const msg = encodeURIComponent(`שלום! 🌟\nשמחנו לנהל את החתונה שלכם.\nנשמח אם תשאירו לנו ביקורת קצרה:\n${url.trim()}`);
                       window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
                       setShowToolsMenu(false);
                     }} className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-amber-50 transition-colors" style={{ color: "#E67E22", fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
@@ -2310,10 +2493,20 @@ export default function AdminPage() {
               </div>
               <div className="flex gap-1.5 flex-wrap">
                 {([
-                  ["all","הכל"],
-                  ["confirmed","אישרו"],
-                  ["pending","ממתינים"],
-                  ["declined","לא מגיעים"],
+                  ["all",       `הכל (${guests.filter(g => g.category !== "demo").length})`],
+                  ["confirmed", `✅ מגיעים (${confirmed})`],
+                  ["declined",  `❌ לא מגיעים (${declined})`],
+                  ["no_answer", `⏳ קיבלו ולא ענו (${guests.filter(g => {
+                    const d = deliveryMap[g.id]?.label;
+                    return g.status === "pending" &&
+                      (d === "נמסר" || d === "נקרא" || d === "הגיע" || d === "נשלח ידנית");
+                  }).length})`],
+                  ["not_sent",  `⚠️ לא קיבלו (${guests.filter(g => {
+                    const d = deliveryMap[g.id]?.label;
+                    return g.status === "pending" &&
+                      !(d === "נמסר" || d === "נקרא" || d === "הגיע" || d === "נשלח ידנית");
+                  }).length})`],
+                  ["opened",    `🔗 נכנסו לקישור (${guests.filter(g => g.opened_at).length})`],
                 ] as [StatusFilter, string][]).map(([val, lbl]) => (
                   <button
                     key={val}
@@ -2445,7 +2638,7 @@ export default function AdminPage() {
                 <table className="w-full text-sm guest-table">
                   <thead>
                     <tr style={{ background: "rgba(197,164,109,0.07)", borderBottom: `1px solid ${C.borderS}` }}>
-                      {["שם","טלפון","סטטוס","מוזמנים","מנה","זמן תגובה","נפתח","פעולות"].map((h) => (
+                      {["שם","טלפון","מסירה","סטטוס","מוזמנים","מנה","זמן תגובה","נפתח","פעולות"].map((h) => (
                         <th key={h} className="text-right px-4 py-3 font-semibold text-xs" style={{ color: C.muted }}>
                           {h}
                         </th>
@@ -2455,13 +2648,13 @@ export default function AdminPage() {
                   <tbody>
                     {guestsLoading ? (
                       <tr>
-                        <td colSpan={7} className="text-center py-12">
+                        <td colSpan={9} className="text-center py-12">
                           <Loader2 size={24} className="animate-spin mx-auto" style={{ color: C.gold }} />
                         </td>
                       </tr>
                     ) : paginated.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="text-center py-12 text-sm" style={{ color: C.muted }}>
+                        <td colSpan={9} className="text-center py-12 text-sm" style={{ color: C.muted }}>
                           לא נמצאו אורחים
                         </td>
                       </tr>
@@ -2475,6 +2668,25 @@ export default function AdminPage() {
                       >
                         <td className="px-4 py-3 font-medium" data-label="שם" style={{ color: C.dark }}>{g.name}</td>
                         <td className="px-4 py-3" data-label="טלפון" style={{ color: C.muted }}>{g.phone || "—"}</td>
+                        {/* Delivery, next to the guest rather than on a separate
+                            screen. A blocked invitation used to look exactly
+                            like an invitation nobody bothered answering — the
+                            same "ממתין" chip for both — so the only way to know
+                            was to remember to open /admin/delivery. */}
+                        <td className="px-4 py-3" data-label="מסירה">
+                          {(() => {
+                            const d = deliveryMap[g.id];
+                            if (!d) return <span style={{ color: C.muted, fontSize: 12 }}>—</span>;
+                            return (
+                              <span
+                                title={d.title}
+                                style={{ fontSize: 12, color: d.color, whiteSpace: "nowrap", cursor: "help" }}
+                              >
+                                {d.icon} {d.label}
+                              </span>
+                            );
+                          })()}
+                        </td>
                         <td className="px-4 py-3">
                           <select
                             value={g.status}
@@ -2533,17 +2745,14 @@ export default function AdminPage() {
                             >
                               <Copy size={13} />
                             </button>
-                            <a
-                              href={whatsappInviteLink(g.phone, g.name, g.rsvp_token)}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
                               title="שלח הזמנה בוואטסאפ"
-                              onClick={() => logActivity(g.id, "invitation_sent")}
+                              onClick={() => sendViaWhatsApp(g.id, g.name, g.phone, g.rsvp_token)}
                               className="p-1.5 rounded-lg transition-all hover:opacity-70"
                               style={{ background: "rgba(37,211,102,0.10)", color: "#25D366" }}
                             >
                               <MessageCircle size={13} />
-                            </a>
+                            </button>
                             <button
                               title="מחק"
                               onClick={() => handleDelete(g.id)}
@@ -2558,7 +2767,7 @@ export default function AdminPage() {
                       {/* Timeline row */}
                       {expandedGuestId === g.id && (
                         <tr style={{ background: "rgba(107,123,90,0.04)" }}>
-                          <td colSpan={7} className="px-6 py-3">
+                          <td colSpan={9} className="px-6 py-3">
                             {activityLoading && !activityMap[g.id] ? (
                               <Loader2 size={14} className="animate-spin" style={{ color: C.gold }} />
                             ) : (activityMap[g.id] ?? []).length === 0 ? (

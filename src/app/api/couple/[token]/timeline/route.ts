@@ -17,12 +17,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
   const sb = createServerClient();
   const { data, error } = await sb
     .from("events")
-    .select("timeline")
+    /* event_timeline. Asking for "timeline" returned a 500 that handed the
+       couple the raw Postgres error text. */
+    .select("event_timeline")
     .eq("id", eventId)
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data?.timeline ?? []);
+  return NextResponse.json(data?.event_timeline ?? []);
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {

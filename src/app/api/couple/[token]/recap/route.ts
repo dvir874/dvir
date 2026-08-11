@@ -42,7 +42,8 @@ export async function GET(
     { data: tables },
   ] = await Promise.all([
     supabase.from('guests').select('status, guest_count, response_time, opened_at').eq('event_id', event.id),
-    supabase.from('budget_items').select('planned, actual').eq('event_id', event.id),
+    /* planned_amount / actual_amount — the names the table actually uses */
+      supabase.from('budget_items').select('planned_amount, actual_amount').eq('event_id', event.id),
     supabase.from('memory_items').select('type, vault_token').eq('event_id', event.id),
     supabase.from('wedding_tasks').select('completed').eq('event_id', event.id),
     supabase.from('seating_tables').select('id, name').eq('event_id', event.id),
@@ -62,8 +63,8 @@ export async function GET(
     ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length / 86400
     : null;
 
-  const budgetPlanned = (budgetItems ?? []).reduce((s, b) => s + (b.planned || 0), 0);
-  const budgetActual  = (budgetItems ?? []).reduce((s, b) => s + (b.actual  || 0), 0);
+  const budgetPlanned = (budgetItems ?? []).reduce((s, b) => s + (b.planned_amount || 0), 0);
+  const budgetActual  = (budgetItems ?? []).reduce((s, b) => s + (b.actual_amount || 0), 0);
 
   const allMemories = memories ?? [];
   const totalMemories = allMemories.filter((m) => ['photo', 'video', 'blessing'].includes(m.type)).length;

@@ -82,6 +82,7 @@ interface EventData {
   name: string;
   date: string;
   address?: string | null;
+  venue_name?: string | null;
   theme?: string | null;
   bit_phone?: string | null;
   paybox_link?: string | null;
@@ -94,7 +95,6 @@ interface EventData {
   event_timeline?: Array<{ time: string; title: string }> | null;
   partner1_name?: string | null;
   partner2_name?: string | null;
-  couple_token?: string | null;
 }
 
 /* ── Countdown hook ─────────────────────────────────── */
@@ -456,7 +456,7 @@ export default function EventPageClient({
             </h2>
             <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
               <a
-                href={`https://waze.com/ul?q=${encodeURIComponent(event.address)}`}
+                href={`https://waze.com/ul?q=${encodeURIComponent([event.venue_name, event.address].filter(Boolean).join(", "))}`}
                 target="_blank" rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 hover:scale-105"
                 style={{ background: "linear-gradient(135deg,#33CCFF,#0099CC)", color: "white",

@@ -4,6 +4,28 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Forced-dark defence ───────────────────────────────────────────────
+   `color-scheme: only light` is the standard opt-out and Chrome honours it,
+   but Samsung Internet's "Dark mode" ignores it and algorithmically inverts
+   the page — a guest opened the invitation and saw black with neon blue.
+
+   Samsung only force-inverts pages that do NOT declare their own dark
+   handling. Declaring an explicit `prefers-color-scheme: dark` block makes it
+   step aside and use ours — and ours deliberately keeps the ivory palette,
+   so the invitation looks identical in both modes. */
+@media (prefers-color-scheme: dark) {
+  html, body {
+    background: #FDFAF5 !important;
+    color: #1C1008 !important;
+    forced-color-adjust: none;
+  }
+}
+html { forced-color-adjust: none; }
+
+/* Never set -webkit-text-fill-color globally: it inherits and destroys
+   gradient-clipped text (the countdown digits use background-clip:text with a
+   transparent fill, and a global fill turns them into flat dark brown). */
+
 :root {
   /* The site is light-only — blocks mobile browsers' "auto dark mode"
      from force-inverting guest-facing pages (RSVP, join, gallery) */
