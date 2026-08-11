@@ -70,11 +70,22 @@ export async function POST(req: NextRequest) {
   /* Always 200 — a non-200 makes Meta retry and eventually disable the hook */
   try {
     const body = await req.json();
-    const value = body?.entry?.[0]?.changes?.[0]?.value;
-    if (!value) return NextResponse.json({ ok: true });
 
-    const statuses: WaStatus[] = value.statuses ?? [];
-    const messages: WaMessage[] = value.messages ?? [];
+    /* EVERY entry and EVERY change, not just the first of each.
+       Meta batches: one POST can carry several entries, each with several
+       changes. Reading entry[0].changes[0] processed the first and silently
+       dropped the rest — and an account_update landing at index 0 voided the
+       whole payload, statuses and replies together. Sixteen delivery reports
+       were lost this way, which is why messages sat at "accepted" for 55 hours
+       with nothing to age them out. */
+    const values = (body?.entry ?? [])
+      .flatMap((e: { changes?: { value?: unknown }[] }) => e?.changes ?? [])
+      .map((c: { value?: unknown }) => c?.value)
+      .filter(Boolean) as { statuses?: WaStatus[]; messages?: WaMessage[] }[];
+    if (!values.length) return NextResponse.json({ ok: true });
+
+    const statuses: WaStatus[] = values.flatMap(v => v.statuses ?? []);
+    const messages: WaMessage[] = values.flatMap(v => v.messages ?? []);
     if (!statuses.length && !messages.length) return NextResponse.json({ ok: true });
 
     const sb = createServerClient();
@@ -92,6 +103,10 @@ export async function POST(req: NextRequest) {
     /* ---- delivery status on messages we sent ---- */
     for (const s of statuses) {
       if (!s.id || !s.status) continue;
+      /* Per-status isolation. A single throw used to abandon every remaining
+         status AND the whole inbound block, and still answer 200 — so Meta
+         never retried and the rest of the batch was gone for good. */
+      try {
       const err = s.errors?.[0]?.title ?? s.errors?.[0]?.message ?? null;
       /* The numeric code is the only thing that distinguishes an account-level
          emergency (131048) from an unavoidable 1% (130472). Storing just the
@@ -114,17 +129,35 @@ export async function POST(req: NextRequest) {
         status: s.status, error: err, error_code: code,
         updated_at: new Date().toISOString(),
       };
-      const { error } = await sb
-        .from("wa_messages").update({ ...base, ...retry }).eq("wamid", s.id);
+      /* .select() so we can see how many rows were actually touched. Without
+         it PostgREST reports success for updating nothing, which is exactly
+         what happens when the report wins the race against the INSERT that
+         records the send. */
+      const { data: hit, error } = await sb
+        .from("wa_messages").update({ ...base, ...retry }).eq("wamid", s.id).select("id");
 
       /* error_code and the retry columns arrive by migration. Until each has
          run, recording the delivery status still matters more than the extras
          — fall back rather than lose the status entirely. */
+      let rows = hit?.length ?? 0;
       if (error) {
-        await sb.from("wa_messages")
+        const { data: hit2 } = await sb.from("wa_messages")
           .update({ status: s.status, error: err, updated_at: new Date().toISOString() })
-          .eq("wamid", s.id);
+          .eq("wamid", s.id).select("id");
+        rows = hit2?.length ?? 0;
       }
+
+      /* No such message yet. The row is written after the send call returns and
+         Meta can report delivery in milliseconds, so the report sometimes
+         arrives first — and this is the ONLY notice we ever get that a guest
+         did or did not receive their invitation. Park it; the scheduled sender
+         applies it later. Late is fine, lost is not. */
+      if (!rows) {
+        await sb.from("wa_status_orphans").upsert({
+          wamid: s.id, status: s.status, error: err, error_code: code,
+        }, { onConflict: "wamid" });
+      }
+      } catch { /* this status is lost; the next one need not be */ }
     }
 
     /* ---- inbound replies ---- */

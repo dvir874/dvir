@@ -117,6 +117,53 @@ async function reconcileOpens(
   return healed;
 }
 
+/* Apply delivery reports that arrived before the message they describe.
+
+   The wa_messages row is written after the send call returns, and Meta can
+   report delivery in milliseconds — so the report sometimes wins that race,
+   the UPDATE matches nothing, and PostgREST reports success for updating
+   nothing. That report is the ONLY notice we ever get that a guest did or did
+   not receive their invitation, and it was evaporating.
+
+   The webhook now parks those instead of dropping them, and this puts them
+   where they belong on the next run. Late is fine; lost is not.
+
+   Attempts are counted so a wamid that never turns up — a message from a
+   deleted event, a payload for another account — stops being retried forever
+   rather than accumulating into a queue nobody drains, which is the shape of
+   the failure this whole day was spent removing. */
+const ORPHAN_MAX_ATTEMPTS = 20;
+
+async function applyOrphanStatuses(
+  sb: ReturnType<typeof createServerClient>,
+): Promise<number> {
+  const { data: orphans } = await sb
+    .from("wa_status_orphans")
+    .select("id, wamid, status, error, error_code, attempts")
+    .lt("attempts", ORPHAN_MAX_ATTEMPTS)
+    .limit(200);
+  if (!orphans?.length) return 0;
+
+  let applied = 0;
+  for (const o of orphans) {
+    const { data: hit } = await sb.from("wa_messages")
+      .update({
+        status: o.status, error: o.error, error_code: o.error_code,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("wamid", o.wamid).select("id");
+
+    if (hit?.length) {
+      await sb.from("wa_status_orphans").delete().eq("id", o.id);
+      applied++;
+    } else {
+      await sb.from("wa_status_orphans")
+        .update({ attempts: (o.attempts ?? 0) + 1 }).eq("id", o.id);
+    }
+  }
+  return applied;
+}
+
 /* One row per run, whatever the outcome.
 
    Everything worth knowing already existed — it went into the HTTP response,
@@ -172,10 +219,11 @@ export async function GET(req: NextRequest) {
      that goes home because it is 2am or because the window is full must still
      leave the books straight. */
   const healed = await reconcileOpens(sb);
+  const statusesApplied = await applyOrphanStatuses(sb);
 
   const hour = new Date().getUTCHours();
   if (hour < HOUR_START_UTC || hour > HOUR_END_UTC)
-    return record(sb, { sent: 0, reason: "outside_sending_hours", healed });
+    return record(sb, { sent: 0, reason: "outside_sending_hours", healed, statusesApplied });
 
   /* Refuse to start if a run that actually sent has just been here.
 
@@ -517,7 +565,7 @@ export async function GET(req: NextRequest) {
     /* Named, not just counted. These are the guests the automation has given
        up on, and somebody has to phone them. */
     unreachable: [...unreachable.values()].length,
-    healed,
+    healed, statusesApplied,
     details: { sent, failed },
   }, {
     event_id: ev.id, cap, tier: health.tier, quality: health.quality,
