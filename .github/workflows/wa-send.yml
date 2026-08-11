@@ -1,0 +1,92 @@
+name: שליחת הזמנות ותזכורות
+
+# Why this file exists.
+#
+# The sender itself is correct and paced, but it can only send while it is
+# running, and it cannot outlive its 60-second maxDuration. On Vercel's Hobby
+# plan the scheduler gives it exactly two chances a day, so the real ceiling
+# was 2 runs x 24 messages = 48 a day — set by the hosting plan, not by Meta,
+# which currently allows 90.
+#
+# GitHub already runs scheduled jobs for this repository for free, so the extra
+# runs cost nothing and need no third-party account. Twenty short runs spread
+# across the day also send far more gently than two bursts: roughly one message
+# every six minutes, rather than 24 in a row twice.
+#
+# This job never decides anything. Every limit — the daily cap, the rolling
+# 24-hour window, quality, the warm-up ramp, who is next in line — lives in the
+# route. All this does is knock on the door more often.
+
+on:
+  schedule:
+    # Every half hour from 06:00 to 15:00 UTC = 09:00-18:00 Israel time, which
+    # is exactly the window the route enforces for itself. Outside it the route
+    # answers outside_sending_hours and sends nothing, so there is no reason to
+    # wake it. GitHub's scheduler runs in UTC and does not observe DST — worth
+    # revisiting in late October, when Israel returns to UTC+2 and this window
+    # would drift an hour early.
+    - cron: "0,30 6-15 * * *"
+  # Lets a run be started by hand from the Actions tab, without waiting for the
+  # next half hour.
+  workflow_dispatch:
+
+# One run at a time, always. Two overlapping runs would each read the rolling
+# window before either had written to it, and both would spend the same
+# allowance — the precise mistake that put this number at 80 recipients on 9/8.
+# Queued rather than cancelled: a skipped run is a delay, a cancelled one could
+# stop mid-batch with sends recorded and no response read.
+concurrency:
+  group: wa-send
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    # No checkout. This job needs nothing from the repository, and not cloning
+    # it keeps the runner from ever holding the source or the .env.
+    steps:
+      - name: קריאה לשולח
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -uo pipefail
+
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "::error::CRON_SECRET is not set on this repository."
+            echo "Add it under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+          # -w writes the status on its own line after the body, so both are
+          # captured without a second request.
+          response=$(curl -sS --max-time 90 \
+            -w '\n%{http_code}' \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "https://regalifnei.vercel.app/api/cron/wa-send")
+
+          status=$(printf '%s' "$response" | tail -n1)
+          body=$(printf '%s' "$response" | sed '$d')
+
+          echo "HTTP $status"
+          echo "$body"
+
+          # The run's own summary, so a week of sending can be read from the
+          # Actions list without opening anything: what went out, to how many,
+          # and — when nothing did — why.
+          {
+            echo "### $status"
+            echo ''
+            echo '```json'
+            echo "$body"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # A 401 or a 500 is a real failure and should show as a red run. A
+          # 200 that sent nothing is not: "window_full", "budget_exhausted" and
+          # "outside_sending_hours" are the system working as designed, and
+          # marking those as failures would turn the history into noise nobody
+          # reads — which is how a genuine outage goes unnoticed for two days.
+          if [ "$status" != "200" ]; then
+            echo "::error::sender returned HTTP $status"
+            exit 1
+          fi
