@@ -181,6 +181,26 @@ export async function GET(req: NextRequest) {
         exhausted: !m.retry_after && (m.retry_count ?? 0) > 0,
       });
     } else {
+      /* Meta accepting a message is the weakest evidence there is, and it
+         never expires on its own. Avia's row has sat at "accepted" for 55
+         hours: the delivery webhook never arrived and never will. Meanwhile
+         she was messaged by hand and OPENED HER INVITATION — and the screen
+         still described her as "בדרך", because it read the message and ignored
+         the guest.
+
+         Opening the link is proof the invitation arrived. It outranks any
+         status Meta did or did not report, so it is reported instead. */
+      const weak = m.status === "accepted" || m.status === "sent";
+      if (weak && (answered || byHand)) {
+        reachedNoLog.push({
+          ...base,
+          evidence: g.status !== "pending" ? "השיב"
+                  : g.opened_at ? "פתח את הקישור"
+                  : "נשלח ידנית מהטלפון",
+        });
+        continue;
+      }
+
       reached.push({ ...base, status: m.status, at: m.created_at });
       if (m.status === "read")            tally.read++;
       else if (m.status === "delivered")  tally.delivered++;
