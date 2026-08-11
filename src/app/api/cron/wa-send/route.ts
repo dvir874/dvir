@@ -154,12 +154,43 @@ export async function GET(req: NextRequest) {
     .map(g => g.id);
 
   const contacted = new Set<string>();
+  /* Guests the number can never reach, and must stop trying.
+
+     policyFor already classifies these — 131026 "the number cannot receive"
+     and 131050 "the recipient asked to stop" both return action "never" — but
+     nothing consulted it here. Eligibility was defined purely as "no evidence
+     of arrival", so a permanent failure looked exactly like a guest who had
+     simply not been contacted yet, and every run picked them up again.
+
+     For 131026 that is waste: one guest burning a slot of a 90-a-day budget,
+     twice a day, forever. For 131050 it is worse than waste — someone who
+     asked to stop hearing from us keeps being messaged, which is both a
+     promise broken and the fastest way back to the spam reports that
+     restricted this number in the first place.
+
+     Judged on the LATEST message per guest, not on any: a number that failed
+     in June and delivered in August is reachable, and only the most recent
+     attempt describes where things actually stand. */
+  const lastByGuest = new Map<string,
+    { at: string; status: string; code: number | null; err: string | null }>();
   for (let i = 0; i < ids.length; i += 100) {
     const slice = ids.slice(i, i + 100);
-    const { data } = await sb.from("wa_messages").select("guest_id, status")
+    const { data } = await sb.from("wa_messages")
+      .select("guest_id, status, error_code, error, created_at")
       .eq("direction", "out").in("guest_id", slice);
     (data ?? []).forEach(m => {
-      if (["delivered", "read"].includes(m.status) && m.guest_id) contacted.add(m.guest_id);
+      if (!m.guest_id) return;
+      if (["delivered", "read"].includes(m.status)) contacted.add(m.guest_id);
+      /* Every message, not only the failures. Recording failures alone would
+         make a guest who failed at 10:00 and was delivered at 11:00 look
+         permanently unreachable, because the failure would be the only row
+         this map had ever seen. */
+      const prev = lastByGuest.get(m.guest_id);
+      if (!prev || m.created_at > prev.at) {
+        lastByGuest.set(m.guest_id, {
+          at: m.created_at, status: m.status, code: m.error_code, err: m.error,
+        });
+      }
     });
 
     /* A send made by hand from a personal phone leaves no wa_messages row, so
@@ -182,6 +213,16 @@ export async function GET(req: NextRequest) {
      null, and the run reports "nothing_due" while 195 people wait. That
      already happened once, for two days. A missing column here costs the
      feature; it must never again cost the sending. */
+  /* Whose most recent attempt ended in a failure no retry can fix. Reported in
+     the response rather than only skipped, because "the automation has given
+     up on these three" is exactly the list a human has to work from. */
+  const unreachable = new Map<string, string>();
+  for (const [id, m] of lastByGuest) {
+    if (m.status !== "failed") continue;
+    const pol = policyFor(m.code, m.err);
+    if (pol.action === "never") unreachable.set(id, pol.human);
+  }
+
   const assignedSince = new Date(Date.now() - 48 * 3_600_000).toISOString();
   const { data: held } = await sb.from("guests")
     .select("id").eq("event_id", ev.id)
@@ -190,7 +231,7 @@ export async function GET(req: NextRequest) {
   const reserved = new Set((held ?? []).map(h => h.id as string));
 
   /* ---- 1. no evidence the invitation ever arrived ---- */
-  ids.filter(id => !contacted.has(id) && !reserved.has(id))
+  ids.filter(id => !contacted.has(id) && !reserved.has(id) && !unreachable.has(id))
     .slice(0, budget)
     .forEach(id => targets.push({ id }));
 
@@ -228,7 +269,8 @@ export async function GET(req: NextRequest) {
      that lost track of them. */
   if (targets.length < budget) {
     const already = new Set(targets.map(t => t.id));
-    ids.filter(id => contacted.has(id) && !already.has(id) && !reserved.has(id))
+    ids.filter(id => contacted.has(id) && !already.has(id) && !reserved.has(id)
+                  && !unreachable.has(id))
       .slice(0, budget - targets.length)
       .forEach(id => targets.push({ id, reminder: true }));
   }
@@ -320,6 +362,9 @@ export async function GET(req: NextRequest) {
       reasons: health.reasons,
     },
     skippedEvents,
+    /* Named, not just counted. These are the guests the automation has given
+       up on, and somebody has to phone them. */
+    unreachable: [...unreachable.values()].length,
     details: { sent, failed },
   });
 }
