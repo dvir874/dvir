@@ -104,9 +104,20 @@ const dayLabel = (iso: string) => {
 function missedRun(runs: Run[], hours: number[]): string | null {
   const now = new Date();
   const todayRuns = runs.filter(r => new Date(r.created_at).toDateString() === now.toDateString());
+
+  /* Nothing before the first row we have can be called missed — we simply were
+     not watching yet. Recording began mid-afternoon on the day it was built,
+     so the screen's first act was to accuse a 10:00 run that had in fact sent
+     24 invitations of never happening. An alarm that cries wolf on its own
+     first day is an alarm nobody will believe on the day it matters. */
+  const earliest = runs.length
+    ? new Date(runs[runs.length - 1].created_at).getTime()
+    : Infinity;
+
   for (const h of hours) {
     const due = new Date(now); due.setHours(h, GRACE_MIN, 0, 0);
     if (now < due) continue;
+    if (due.getTime() < earliest) continue;
     const ran = todayRuns.some(r => {
       const t = new Date(r.created_at);
       return t.getHours() >= h && t.getHours() < h + 2;
