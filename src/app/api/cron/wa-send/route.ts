@@ -35,20 +35,22 @@ const MAX_EVENTS_PER_RUN = 3;
    invitation arriving at 04:00 gets reported, and reports are what restricted
    this number in the first place.
 
-   The evening end moved out from 18:00 to accommodate the second run, which
-   now goes at 20:00 rather than 15:00. The reason is in our own analytics:
-   invitations sent at 10:00 are opened in a clear peak at 22:00 — 51 opens in
-   that hour alone. People see the message during the day and deal with it in
-   the evening, so a message that arrives at 20:00 removes ten hours of decay
-   between arriving and being acted on, instead of sitting unread through a
-   working day.
+   The second run moved from 15:00 to the evening, and the reason is in our own
+   analytics: invitations sent at 10:00 are opened in a clear peak at 22:00 —
+   51 opens in that hour alone, against single digits through the working day.
+   People see the message when it arrives and deal with it at night, so a 15:00
+   send spends ten hours decaying before anyone acts on it.
 
-   21:59 rather than 20:59 because Vercel's Hobby scheduler is approximate —
-   this morning's 10:00 run actually fired at 10:51. An hour of slack is the
-   difference between a delayed run and a skipped one, and 21:00 is still an
-   ordinary hour to hear from family in Israel. Nothing may go out later than
-   that: past 22:00 an invitation reads as an intrusion, and an intrusion is
-   what a spam report is made of. */
+   It is scheduled at 19:00 rather than 20:00 on purpose. Vercel's Hobby cron
+   is approximate — this morning's 10:00 run actually fired at 10:51 — so
+   aiming at the hour we want lands past it, while aiming an hour early puts a
+   typical delay exactly on it. An on-time run at 19:00 is still a good hour to
+   reach people, which makes the early aim safe in both directions.
+
+   The window closes at 21:59 so that even an unusually late run still goes
+   out, rather than being skipped entirely. Nothing may go later: past 22:00 an
+   invitation reads as an intrusion, and an intrusion is what a spam report is
+   made of. */
 const HOUR_START_UTC = 6;
 const HOUR_END_UTC = 18;
 
