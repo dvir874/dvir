@@ -34,3 +34,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Pulled from Vercel by the CLI. Never committed: it carries ADMIN_PASSWORD,
+# SUPABASE_SERVICE_ROLE_KEY and CRON_SECRET, and .env*.local above does not
+# match it.
+.env.vercel
+.env.production
