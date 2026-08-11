@@ -426,9 +426,34 @@ export async function fetchAccountHealth(cfg: WhatsAppConfig): Promise<AccountHe
 export const WARMUP_MULTIPLIER = 1.6;
 export const WARMUP_COLD_START = 30;
 
+/* The multiplier alone compounds, and compounding is the wrong shape here.
+
+   From 56 it reaches Meta's ceiling in three days: 56 → 90 → 144 → 231 → 250.
+   Each of those steps is justified only by the step before it, so a single
+   unusual day — 11/8 went out at 93 because a silent command was started twice
+   — becomes the floor everything after it grows from. 1.6× an accident is how
+   an accident gets made permanent.
+
+   Growth is therefore whichever is SMALLER: 1.6× at low volume, where a
+   proportional step is small in absolute terms, or +25 recipients once the
+   numbers get real. Linear rather than geometric, so every step stands on a
+   full day that finished intact.
+
+   Nothing is lost by it. The remaining work is about 182 messages: two days at
+   90, a day and a half at 144. The larger cap buys half a day and spends it on
+   ground nobody has walked — and 131048 does not restrict one guest, it stops
+   every client for days. */
+export const WARMUP_MAX_DAILY_STEP = 25;
+
 export function warmupCap(health: AccountHealth, recentPeak: number): number {
   if (health.cap === 0) return 0;
-  const ramp = Math.max(WARMUP_COLD_START, Math.ceil(recentPeak * WARMUP_MULTIPLIER));
+  const ramp = Math.max(
+    WARMUP_COLD_START,
+    Math.min(
+      Math.ceil(recentPeak * WARMUP_MULTIPLIER),
+      recentPeak + WARMUP_MAX_DAILY_STEP,
+    ),
+  );
   return Math.min(health.cap, ramp);
 }
 
