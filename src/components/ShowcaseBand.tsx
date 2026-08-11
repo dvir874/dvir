@@ -64,7 +64,7 @@ export default function ShowcaseBand() {
             <div className="mb-5 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="font-display text-lg font-bold text-primary-soft">רגע לפני</span>
-                <span className="rounded-pill bg-olive/25 px-2.5 py-0.5 font-body text-[11px] text-success-soft">חתונת נועה ואורי</span>
+                <span className="rounded-pill bg-olive/25 px-2.5 py-0.5 font-body text-[12px] text-success-soft">חתונת נועה ואורי</span>
               </div>
               <div className="flex gap-1.5" aria-hidden>
                 <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
@@ -81,7 +81,7 @@ export default function ShowcaseBand() {
                   <div className={`font-display text-2xl font-black ${tint}`}>
                     <CountUp value={value} />
                   </div>
-                  <div className="font-body text-[10px] text-white/40">{label}</div>
+                  <div className="font-body text-[12px] text-white/40">{label}</div>
                 </div>
               ))}
             </div>
@@ -90,12 +90,12 @@ export default function ShowcaseBand() {
             <div className="grid gap-3 sm:grid-cols-5">
               {/* guest list */}
               <div className="sm:col-span-3 rounded-2xl bg-white/[0.06] p-4">
-                <p className="mb-3 font-body text-[11px] uppercase tracking-wide text-white/40">אישורי הגעה · חי</p>
+                <p className="mb-3 font-body text-[12px] uppercase tracking-wide text-white/40">אישורי הגעה · חי</p>
                 <div className="space-y-2.5">
                   {GUESTS.map(({ name, tag, cls, I }) => (
                     <div key={name} className="flex items-center justify-between">
                       <span className="font-body text-[13px] text-white/75">{name}</span>
-                      <span className={`inline-flex items-center gap-1 rounded-pill px-2.5 py-0.5 font-body text-[11px] ${cls}`}>
+                      <span className={`inline-flex items-center gap-1 rounded-pill px-2.5 py-0.5 font-body text-[12px] ${cls}`}>
                         <I className="h-3 w-3" /> {tag}
                       </span>
                     </div>
@@ -106,7 +106,7 @@ export default function ShowcaseBand() {
               {/* side widgets */}
               <div className="sm:col-span-2 space-y-3">
                 <div className="rounded-2xl bg-white/[0.06] p-4">
-                  <div className="mb-2 flex items-center gap-2 font-body text-[11px] text-white/40">
+                  <div className="mb-2 flex items-center gap-2 font-body text-[12px] text-white/40">
                     <Wallet className="h-3.5 w-3.5 text-gold" /> תקציב ומתנות
                   </div>
                   <div className="font-display text-xl font-black text-primary-soft">
@@ -117,7 +117,7 @@ export default function ShowcaseBand() {
                   </div>
                 </div>
                 <div className="rounded-2xl bg-olive/20 p-4">
-                  <div className="mb-1 flex items-center gap-2 font-body text-[11px] text-success-soft">
+                  <div className="mb-1 flex items-center gap-2 font-body text-[12px] text-success-soft">
                     <Bell className="h-3.5 w-3.5" /> תזכורות
                   </div>
                   <div className="font-body text-[13px] text-white/80">

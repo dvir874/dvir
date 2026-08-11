@@ -23,7 +23,7 @@ export default function GalleryWarm() {
           <p className="font-body text-[13px] font-semibold uppercase tracking-[0.22em] text-gold">עיצובים נבחרים</p>
           <h2 className="mt-4 font-display text-4xl lg:text-[52px] font-black text-ink">הגלריה שלנו</h2>
           <p className="mt-4 font-body text-lg font-light text-ink/55">
-            חמשת העיצובים הנבחרים שאנחנו הכי גאים בהם. לחצו לתצוגה מלאה
+            העיצובים שאנחנו הכי גאים בהם. לחצו לתצוגה מלאה
           </p>
         </div>
 
@@ -60,7 +60,7 @@ export default function GalleryWarm() {
         </div>
 
         <div className="mt-12 text-center">
-          <Link href="/invitations" className="font-body font-semibold text-gold underline underline-offset-4">
+          <Link href="/invitations" className="inline-flex min-h-[44px] items-center font-body font-semibold text-gold underline underline-offset-4">
             לכל העיצובים ←
           </Link>
         </div>

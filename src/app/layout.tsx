@@ -118,6 +118,15 @@ export default function RootLayout({
 
       </head>
       <body className="bg-cream text-dark antialiased">
+        {/* Scroll-reveal sections are server-rendered with inline opacity:0 and
+            are only unhidden once framer-motion hydrates. Without JS that is a
+            page with a hero and nothing under it — 23 blocks on the landing
+            page alone. The copy is in the HTML either way, so this costs
+            nothing and removes a blank-page failure mode. */}
+        <noscript>
+          <style>{`[style*="opacity:0"],[style*="opacity: 0"]{opacity:1!important;transform:none!important}`}</style>
+        </noscript>
+
         {/* JSON-LD: LocalBusiness */}
         <script
           type="application/ld+json"

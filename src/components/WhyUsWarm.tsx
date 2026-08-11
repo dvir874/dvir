@@ -50,7 +50,7 @@ export default function WhyUsWarm() {
               </div>
               <h3 className="font-display text-2xl font-bold text-ink mb-2">הכל במקום אחד — ממש הכל</h3>
               <p className="font-body text-[15px] font-light text-ink/60 leading-relaxed">
-                14 כלים שרוב הזוגות מפזרים על פני אקסלים, וואטסאפ ו'קובץ של אמא'. אצלנו הם מערכת אחת שמסונכרנת ומכירה אתכם.
+                כל מה שהזוגות מפזרים על פני אקסלים, וואטסאפ ו'קובץ של אמא' — כאן זו מערכת אחת שמסונכרנת ומכירה אתכם.
               </p>
             </div>
           </article>

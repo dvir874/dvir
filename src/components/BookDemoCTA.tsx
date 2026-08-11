@@ -34,7 +34,7 @@ export default function BookDemoCTA() {
             className="text-sm text-white/65 max-w-md mx-auto mb-8 leading-relaxed"
             style={{ fontFamily: "Heebo, sans-serif" }}
           >
-            הצטרפו לעשרות זוגות שהחליטו לעזוב את האקסלים מאחור.
+            מספר מצומצם של אירועים בכל חודש, כדי שכל זוג יקבל ליווי אישי אמיתי.
             <br />
             ספרו לנו על האירוע — ונחזור תוך 24 שעות עם הצעה מותאמת.
           </p>

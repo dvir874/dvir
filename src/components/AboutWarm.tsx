@@ -81,13 +81,13 @@ export default function AboutWarm() {
             <div className="rounded-[28px] bg-ink p-6 shadow-modal text-white">
               <div className="mb-5 flex items-center justify-between">
                 <span className="font-display text-lg font-bold text-primary-soft">רגע לפני</span>
-                <span className="font-body text-[11px] text-white/50">ימים לחתונה</span>
+                <span className="font-body text-[12px] text-white/50">ימים לחתונה</span>
               </div>
               <div className="mb-5 grid grid-cols-4 gap-2 text-center">
                 {[["47", "ימים"], ["08", "שעות"], ["23", "דקות"], ["14", "שניות"]].map(([n, l]) => (
                   <div key={l} className="rounded-xl bg-white/5 py-3">
                     <div className="font-display text-2xl font-black text-primary-soft">{n}</div>
-                    <div className="font-body text-[10px] text-white/40">{l}</div>
+                    <div className="font-body text-[12px] text-white/40">{l}</div>
                   </div>
                 ))}
               </div>
@@ -95,12 +95,12 @@ export default function AboutWarm() {
                 {KPI.map(({ label, value }) => (
                   <div key={label} className="rounded-xl bg-white/5 p-3 text-center">
                     <div className="font-display text-xl font-bold text-white">{value}</div>
-                    <div className="font-body text-[10px] text-white/40">{label}</div>
+                    <div className="font-body text-[12px] text-white/40">{label}</div>
                   </div>
                 ))}
               </div>
               <div className="rounded-xl bg-white/5 p-4">
-                <div className="mb-2 flex items-center justify-between font-body text-[11px] text-white/50">
+                <div className="mb-2 flex items-center justify-between font-body text-[12px] text-white/50">
                   <span>תקציב ומתנות</span>
                   <span className="font-display text-lg font-black text-primary-soft">₪48,200</span>
                 </div>

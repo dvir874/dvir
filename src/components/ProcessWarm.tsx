@@ -87,8 +87,9 @@ export default function ProcessWarm() {
             <div className="rounded-card bg-surface-raised p-6 shadow-card">
               <p className="mb-4 text-center font-body text-[12px] text-ink/40">דוגמה להמחשת שירות אישורי ההגעה</p>
               <div className="grid grid-cols-3 gap-2 text-center">
-                {[["13", "אישרו", "text-olive"], ["2", "ממתינים", "text-gold"], ["3", "לא מגיעים", "text-danger"]].map(([n, l, c]) => (
-                  <div key={l} className="rounded-xl bg-cream/60 py-4"><div className={`font-display text-2xl font-black ${c}`}>{n}</div><div className="font-body text-[11px] text-ink/50">{l}</div></div>
+                {/* Same wedding as the summary below and as LiveSnapshot: 287 = 214 + 41 + 32. It read 13/2/3 here. */}
+                {[["214", "אישרו", "text-olive"], ["41", "ממתינים", "text-gold"], ["32", "לא מגיעים", "text-danger"]].map(([n, l, c]) => (
+                  <div key={l} className="rounded-xl bg-cream/60 py-4"><div className={`font-display text-2xl font-black ${c}`}>{n}</div><div className="font-body text-[12px] text-ink/50">{l}</div></div>
                 ))}
               </div>
               <div className="mt-4 space-y-2">
@@ -103,7 +104,7 @@ export default function ProcessWarm() {
                   </div>
                 ))}
               </div>
-              <p className="mt-3 font-body text-[11px] text-ink/40">* נתונים לדוגמה בלבד</p>
+              <p className="mt-3 font-body text-[12px] text-ink/40">* נתונים לדוגמה בלבד</p>
             </div>
             <div>
               <StepHead n="03" title="כך אנחנו מרכזים את אישורי ההגעה" />
@@ -150,10 +151,10 @@ export default function ProcessWarm() {
               <p className="mb-4 text-center font-display text-lg font-bold text-ink">חתונת נועה ואורי · 16 אוקטובר 2026</p>
               <div className="grid grid-cols-2 gap-3 text-center">
                 {[["287", "סך מוזמנים"], ["214", "אישרו הגעה"], ["32", "לא מגיעים"], ["41", "ממתינים"]].map(([n, l]) => (
-                  <div key={l} className="rounded-xl bg-cream/60 py-3"><div className="font-display text-xl font-black text-ink">{n}</div><div className="font-body text-[11px] text-ink/50">{l}</div></div>
+                  <div key={l} className="rounded-xl bg-cream/60 py-3"><div className="font-display text-xl font-black text-ink">{n}</div><div className="font-body text-[12px] text-ink/50">{l}</div></div>
                 ))}
               </div>
-              <p className="mt-3 font-body text-[11px] text-ink/40">* דוגמה להמחשה בלבד</p>
+              <p className="mt-3 font-body text-[12px] text-ink/40">* דוגמה להמחשה בלבד</p>
             </div>
             <div>
               <StepHead n="05" title="תמונת מצב לפני האירוע" />

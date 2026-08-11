@@ -441,7 +441,7 @@ export default function Hero() {
               className="flex items-center gap-2 mb-4"
               style={{ fontFamily: "Heebo, sans-serif" }}
             >
-              <span className="text-sm font-semibold" style={{ color: "#333" }}>053-3318177</span>
+              <span className="text-sm font-semibold" style={{ color: "#333" }}>053-331-8177</span>
               <span className="text-xs" style={{ color: "rgba(51,51,51,0.40)" }}>· דביר, זמין עד 22:00</span>
             </a>
 

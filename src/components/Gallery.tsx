@@ -70,7 +70,7 @@ export default function Gallery() {
             <div className="gold-divider" />
             <p className="section-subtitle">
               {active === "curated"
-                ? "חמשת העיצובים הנבחרים שאנחנו הכי גאים בהם. לחצו לתצוגה מלאה"
+                ? "העיצובים שאנחנו הכי גאים בהם. לחצו לתצוגה מלאה"
                 : `${filtered.length} עיצובים אמיתיים. לחצו על תמונה לתצוגה מלאה`}
             </p>
           </FadeIn>

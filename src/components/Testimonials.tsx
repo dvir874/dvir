@@ -124,7 +124,7 @@ export default function Testimonials() {
             אני רוצה כזה לחתונה שלי
           </motion.a>
           <p style={{ fontSize:11, color:"rgba(255,240,200,0.35)", marginTop:"0.75rem", fontFamily:"Heebo, sans-serif" }}>
-            053-3318177 · מענה תוך 24 שעות · ללא התחייבות
+            053-331-8177 · מענה תוך 24 שעות · ללא התחייבות
           </p>
         </div>
       </div>

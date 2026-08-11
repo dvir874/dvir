@@ -30,7 +30,7 @@ const DETAILS: { label: string; value: string; href?: string }[] = [
   { label: "שם העסק", value: "רגע לפני" },
   { label: "בעל העסק", value: "דביר בן ברוך" },
   ...(BUSINESS_ID ? [{ label: "מספר עוסק", value: BUSINESS_ID }] : []),
-  { label: "טלפון ווואטסאפ", value: "053-3318177", href: "https://wa.me/972533318177" },
+  { label: "טלפון ווואטסאפ", value: "053-331-8177", href: "https://wa.me/972533318177" },
   { label: "דוא״ל", value: "dvir874@gmail.com", href: "mailto:dvir874@gmail.com" },
   { label: "אזור פעילות", value: "ישראל" },
 ];

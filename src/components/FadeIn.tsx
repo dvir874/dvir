@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useInView } from "framer-motion";
+import { motion, useInView, useReducedMotion } from "framer-motion";
 import { useRef } from "react";
 
 interface FadeInProps {
@@ -24,6 +24,10 @@ export default function FadeIn({
 }: FadeInProps) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once, margin: "-60px 0px" });
+  /* Someone who has asked their device for less motion was still being served
+     a page where every section below the hero starts invisible and slides in.
+     For them there is no animation and nothing is ever hidden. */
+  const reduced = useReducedMotion();
 
   const initial: Record<string, number> = { opacity: 0 };
   if (direction === "up")    initial.y = distance;
@@ -31,16 +35,15 @@ export default function FadeIn({
   if (direction === "left")  initial.x = distance;
   if (direction === "right") initial.x = -distance;
 
-  const animate = inView
-    ? { opacity: 1, y: 0, x: 0 }
-    : initial;
+  const visible = { opacity: 1, y: 0, x: 0 };
+  const animate = reduced || inView ? visible : initial;
 
   return (
     <motion.div
       ref={ref}
-      initial={initial}
+      initial={reduced ? false : initial}
       animate={animate}
-      transition={{ duration, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={reduced ? { duration: 0 } : { duration, delay, ease: [0.22, 1, 0.36, 1] }}
       className={className}
     >
       {children}

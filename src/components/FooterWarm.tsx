@@ -11,7 +11,7 @@ const NAV = [
   { label: "פיצ'רים", href: "#features" },
   { label: "איך זה עובד", href: "#how" },
   { label: "מחשבון מחיר", href: "/pricing" },
-  { label: "✨ דמו חי", href: "/try" },
+  { label: "✨ נסו בעצמכם", href: "/try" }  /* was "דמו חי" — same page, two names */,
   { label: "צור קשר", href: "#contact" },
 ];
 
@@ -53,7 +53,7 @@ export default function FooterWarm() {
           <h4 className="mb-4 font-display text-lg font-bold text-white">ניווט</h4>
           <ul className="space-y-2">
             {NAV.map((n) => (
-              <li key={n.label}><a href={n.href} className="font-body text-[14px] text-white/60 hover:text-primary-soft">{n.label}</a></li>
+              <li key={n.label}><a href={n.href} className="inline-flex min-h-[44px] items-center font-body text-[14px] text-white/60 hover:text-primary-soft">{n.label}</a></li>
             ))}
           </ul>
         </div>
@@ -63,13 +63,13 @@ export default function FooterWarm() {
           <h4 className="mb-4 font-display text-lg font-bold text-white">אירועים</h4>
           <ul className="space-y-2">
             {EVENTS.map((e) => (
-              <li key={e.label}><Link href={e.href} className="font-body text-[14px] text-white/60 hover:text-primary-soft">{e.label}</Link></li>
+              <li key={e.label}><Link href={e.href} className="inline-flex min-h-[44px] items-center font-body text-[14px] text-white/60 hover:text-primary-soft">{e.label}</Link></li>
             ))}
           </ul>
           <h4 className="mb-4 mt-8 font-display text-lg font-bold text-white">מדריכים ושותפים</h4>
           <ul className="space-y-2">
             {RESOURCES.map((e) => (
-              <li key={e.label}><Link href={e.href} className="font-body text-[14px] text-white/60 hover:text-primary-soft">{e.label}</Link></li>
+              <li key={e.label}><Link href={e.href} className="inline-flex min-h-[44px] items-center font-body text-[14px] text-white/60 hover:text-primary-soft">{e.label}</Link></li>
             ))}
           </ul>
         </div>
@@ -77,16 +77,16 @@ export default function FooterWarm() {
         {/* contact */}
         <div>
           <h4 className="mb-4 font-display text-lg font-bold text-white">יצירת קשר</h4>
-          <ul className="space-y-2 font-body text-[14px] text-white/60">
-            <li dir="ltr" className="text-right">053-3318177</li>
+          <ul className="font-body text-[14px] text-white/60 [&_a]:inline-flex [&_a]:min-h-[44px] [&_a]:items-center">
+            <li dir="ltr" className="text-right">053-331-8177</li>
             <li>dvir874@gmail.com</li>
             <li><a href={WA_URL_FOOTER} className="hover:text-primary-soft">וואטסאפ</a></li>
           </ul>
-          <p className="mt-4 font-body text-[13px] text-white/40">הצעת מחיר אישית · מותאמת לאירוע ולכמות המוזמנים</p>
+          <p className="mt-4 font-body text-[14px] text-white/55">הצעת מחיר אישית · מותאמת לאירוע ולכמות המוזמנים</p>
         </div>
       </div>
 
-      <div className="mx-auto mt-12 max-w-[1150px] border-t border-white/10 pt-6 text-center font-body text-[13px] text-white/40">
+      <div className="mx-auto mt-12 max-w-[1150px] border-t border-white/10 pt-6 text-center font-body text-[14px] text-white/55">
         © 2026 רגע לפני · ניהול חתונה יוקרתי
       </div>
     </footer>

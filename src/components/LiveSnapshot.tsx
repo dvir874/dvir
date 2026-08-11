@@ -14,7 +14,7 @@ const KPIS = [
   { label: "מוזמנים", value: "287", Icon: Users, bar: "" },
   { label: "אישרו", value: "214", Icon: CheckCircle2, bar: "bg-olive" },
   { label: "ממתינים", value: "41", Icon: Clock, bar: "bg-gold" },
-  { label: "אחוז מענה", value: "75%", Icon: Gauge, bar: "bg-gold" },
+  { label: "אחוז מענה", value: "86%", Icon: Gauge, bar: "bg-gold" },  /* (287-41)/287 — it said 75%, which is 214/287, i.e. the attendance rate under a "response" label */
 ];
 
 function useCountdown(target: number) {
@@ -73,7 +73,7 @@ export default function LiveSnapshot() {
             <div className="flex items-start justify-between border-b border-cream pb-4">
               <div>
                 <h3 className="font-display text-xl font-bold text-ink">חתונת נועה ואורי</h3>
-                <p className="mt-1 font-body text-[11px] uppercase tracking-wider text-ink/50">זמן נותר</p>
+                <p className="mt-1 font-body text-[12px] uppercase tracking-wider text-ink/50">זמן נותר</p>
               </div>
               <div
                 className="font-display text-3xl font-black tracking-tight text-gold"
@@ -92,7 +92,7 @@ export default function LiveSnapshot() {
                   {bar && <span className={`absolute right-0 top-0 h-full w-1.5 ${bar}`} />}
                   <div className="mb-2 flex items-center gap-2">
                     <Icon className={`w-4 h-4 ${bar === "bg-gold" ? "text-gold" : "text-olive"}`} />
-                    <span className="font-body text-[11px] uppercase text-ink/50">{label}</span>
+                    <span className="font-body text-[12px] uppercase text-ink/50">{label}</span>
                   </div>
                   <div className="font-display text-2xl font-bold text-ink">{value}</div>
                 </div>
@@ -100,12 +100,12 @@ export default function LiveSnapshot() {
             </div>
 
             {/* Footer status */}
-            <div className="mt-4 flex items-center justify-between font-body text-[11px] text-ink/50">
+            <div className="mt-4 flex items-center justify-between font-body text-[12px] text-ink/50">
               <div className="flex items-center gap-2">
                 <div className="h-1.5 w-24 overflow-hidden rounded-full bg-cream">
-                  <div className="h-full w-3/4 bg-olive" />
+                  <div className="h-full w-[86%] bg-olive" />
                 </div>
-                <span>75%</span>
+                <span>86%</span>
               </div>
               <span className="flex items-center gap-1">
                 <span className="h-1.5 w-1.5 rounded-full bg-olive" />

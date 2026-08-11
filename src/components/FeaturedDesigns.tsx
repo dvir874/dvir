@@ -129,7 +129,7 @@ export default function FeaturedDesigns() {
                   רגע לפני
                 </span>
                 <span
-                  className="mr-auto text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                  className="mr-auto text-[12px] font-semibold px-2 py-0.5 rounded-full"
                   style={{ background: "rgba(107,123,90,0.10)", color: G.olive, fontFamily: "Heebo, sans-serif" }}
                 >
                   הכל כאן

@@ -1924,7 +1924,7 @@ export default function AdminPage() {
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 
 בין: דביר בן ברוך, מנהל אירועים
-     טל׳: 053-3318177
+     טל׳: 053-331-8177
 
 לבין: ${selectedEvent.client_name ?? "[שם הלקוח]"}
      טל׳: ${selectedEvent.client_phone ?? "[טלפון]"}

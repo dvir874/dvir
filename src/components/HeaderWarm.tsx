@@ -33,7 +33,7 @@ function Wordmark() {
       />
       <span className="flex flex-col items-start leading-none">
         <span className="font-display text-2xl font-black text-ink">רגע לפני</span>
-        <span className="font-body text-[11px] tracking-wide text-ink/50">ניהול חתונה</span>
+        <span className="font-body text-[12px] tracking-wide text-ink/50">ניהול חתונה</span>
       </span>
     </Link>
   );

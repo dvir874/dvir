@@ -18,7 +18,11 @@ export default function CTAWarm() {
       <div className="relative mx-auto max-w-2xl">
         <h2 className="font-display text-4xl lg:text-6xl font-black text-white">מוכנים להתחיל?</h2>
         <p className="mx-auto mt-5 max-w-xl font-body text-lg font-light text-white/80">
-          הצטרפו לעשרות זוגות שהחליטו לעזוב את האקסלים מאחור. ספרו לנו על האירוע — ונחזור תוך 24 שעות עם הצעה מותאמת.
+          {/* "הצטרפו לעשרות זוגות" was not true, and it is the one line on the
+              page that would collapse if anybody checked. Scarcity is both
+              honest here and the stronger claim: a couple choosing a person
+              rather than a platform wants to know he has time for them. */}
+          אני לוקח מספר מצומצם של אירועים בכל חודש, כדי שכל זוג יקבל ליווי אישי אמיתי. ספרו לי על האירוע — ואחזור אליכם תוך 24 שעות עם הצעה מותאמת.
         </p>
         <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-4">
           <a

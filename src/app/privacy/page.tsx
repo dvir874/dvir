@@ -64,7 +64,7 @@ const SECTIONS: { title: string; body: string[] }[] = [
     title: "7. יצירת קשר",
     body: [
       "דביר בן ברוך · רגע לפני",
-      "וואטסאפ: 053-3318177 · דוא״ל: dvir874@gmail.com",
+      "וואטסאפ: 053-331-8177 · דוא״ל: dvir874@gmail.com",
     ],
   },
 ];

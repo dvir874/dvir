@@ -12,7 +12,7 @@ const C = { ivory: "#FDFAF5", cream: "#F6F1E8", gold: "#C5A46D", goldT: "#8B6914
 
 const LINKS = [
   { emoji: "💬", label: "וואטסאפ — הכי מהיר", href: "https://wa.me/972533318177?text=" + encodeURIComponent("שלום דביר! קיבלתי את הכרטיס שלך 🙂") },
-  { emoji: "📞", label: "053-3318177", href: "tel:0533318177" },
+  { emoji: "📞", label: "053-331-8177", href: "tel:0533318177" },
   { emoji: "✨", label: "נסו את המערכת (דמו חי)", href: "/try" },
   { emoji: "🧮", label: "מחשבון מחיר", href: "/pricing" },
   { emoji: "🌐", label: "האתר המלא", href: "/" },

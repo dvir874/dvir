@@ -1,6 +1,14 @@
 export const WA_PHONE = "972533318177";
-export const PHONE_DISPLAY = "053-3318177";
+/* Grouped the way an Israeli reads a phone number. It was "053-3318177" here
+   while every other surface wrote "053-331-8177", and because most components
+   hardcode the digits rather than import this, the site shipped both. */
+export const PHONE_DISPLAY = "053-331-8177";
 export const PHONE_HREF = "tel:0533318177";
+/* TODO(dvir): a personal gmail address on a page that calls itself
+   "ניהול חתונה יוקרתי" undercuts the positioning more than any design choice
+   on the site. Needs dvir@regalifnei.co.il — a domain mailbox, which only you
+   can create. Everything reads this constant, so it is a one-line change once
+   the address exists. */
 export const EMAIL = "dvir874@gmail.com";
 
 function waUrl(source: string, message?: string) {

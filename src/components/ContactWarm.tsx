@@ -34,7 +34,7 @@ export default function ContactWarm() {
           <p className="mb-6 text-center font-body text-sm text-ink/50">ואחזור אליכם תוך 24 שעות</p>
           <div className="grid gap-4 sm:grid-cols-2">
             <input className={field} placeholder="השם שלכם" value={name} onChange={(e) => setName(e.target.value)} required />
-            <input className={field} placeholder="053-3318177" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+            <input className={field} placeholder="053-331-8177" value={phone} onChange={(e) => setPhone(e.target.value)} required />
             <select className={field} value={type} onChange={(e) => setType(e.target.value)} required>
               <option value="">בחרו סוג אירוע</option>
               {EVENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -58,8 +58,8 @@ export default function ContactWarm() {
 
           <div className="mt-7 space-y-3">
             {[
-              { Icon: MessageCircle, label: "וואטסאפ", val: "053-3318177", sub: "זמין 07:00–22:00", href: `https://wa.me/${WA_PHONE}`, tone: "bg-olive text-white" },
-              { Icon: Phone, label: "טלפון", val: "053-3318177", sub: "שיחה או SMS", href: "tel:0533318177", tone: "bg-gold text-white" },
+              { Icon: MessageCircle, label: "וואטסאפ", val: "053-331-8177", sub: "זמין 07:00–22:00", href: `https://wa.me/${WA_PHONE}`, tone: "bg-olive text-white" },
+              { Icon: Phone, label: "טלפון", val: "053-331-8177", sub: "שיחה או SMS", href: "tel:0533318177", tone: "bg-gold text-white" },
               { Icon: Mail, label: "אימייל", val: "dvir874@gmail.com", sub: "מענה תוך 24 שעות", href: "mailto:dvir874@gmail.com", tone: "bg-olive text-white" },
             ].map(({ Icon, label, val, sub, href, tone }) => (
               <a key={label} href={href} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-card bg-surface-raised p-4 shadow-card">
