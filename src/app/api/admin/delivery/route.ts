@@ -89,6 +89,22 @@ export async function GET(req: NextRequest) {
     if (m.guest_id && !latest.has(m.guest_id)) latest.set(m.guest_id, m);
   }
 
+  /* Anyone Meta ever confirmed delivering to, whatever happened afterwards.
+
+     "Latest row wins" is the right rule for what to try NEXT and the wrong one
+     for whether a guest HAS the invitation. Rina got two messages in the same
+     second on 11/8 — one delivered, one refused with 131049 because she had
+     just received the first. Both carry the same timestamp, so which one counts
+     as "latest" is decided by sort order, and the screen showed her as "נכשל —
+     האורח לא קיבל" beside a resend button. She was holding the invitation.
+
+     A failed retry is a failed retry. It cannot un-deliver a message that
+     WhatsApp already put on someone's phone. */
+  const everDelivered = new Set(
+    msgs.filter(m => m.guest_id && ["delivered", "read"].includes(m.status ?? ""))
+        .map(m => m.guest_id as string),
+  );
+
   const failed: unknown[] = [];
   const untracked: unknown[] = [];
   const unsent: unknown[] = [];
@@ -144,11 +160,12 @@ export async function GET(req: NextRequest) {
          The failure is real; it is simply no longer the story. A screen that
          describes what the system attempted rather than what actually happened
          is the failure this whole product spent a day removing. */
-      if (answered || byHand) {
+      if (answered || byHand || everDelivered.has(g.id)) {
         reachedNoLog.push({
           ...base,
           evidence: g.status !== "pending" ? "השיב למרות שהשליחה נכשלה"
                   : g.opened_at ? "פתח את הקישור למרות שהשליחה נכשלה"
+                  : everDelivered.has(g.id) ? "ההזמנה נמסרה — הכישלון הוא של ניסיון חוזר"
                   : "נשלח ידנית מהטלפון",
         });
         continue;
