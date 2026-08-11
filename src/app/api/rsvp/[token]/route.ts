@@ -57,15 +57,53 @@ export async function GET(_request: NextRequest, { params }: Params) {
     guest.guest_count = 1;
   }
 
-  // Record first open — only if not already opened
+  /* Record the first open.
+
+     This wrote the same fact to two places and protected neither, and a real
+     guest paid for it. Noya opened her invitation twice on 10/8: both
+     rsvp_opened events landed, guests.opened_at stayed null, and every screen
+     went on reporting that she had never looked. She told us the page "did not
+     work" and the data said she had not been there — so the one person who
+     could prove the bug looked, from the outside, like someone who had ignored
+     the invitation.
+
+     Three things were wrong, and all three are fixed here:
+
+     1. The update's error was never destructured, so a failed write was
+        indistinguishable from a successful one.
+     2. The event insert was fire-and-forget inside a request the browser
+        aborts after 15 seconds. An un-awaited promise in a serverless function
+        is not a background job — it is a promise that dies with the process,
+        whenever the process happens to die.
+     3. Nothing anywhere compared the two, so a disagreement could persist
+        forever with nobody able to notice.
+
+     Both writes are awaited now, and the event is written FIRST. If only one
+     survives it must be the event: the reconciler in /api/cron/wa-send heals
+     a missing opened_at from the events, and cannot heal a missing event from
+     anything. Ordering them this way turns the surviving write into the one
+     the system can recover from. */
   if (!guest.opened_at) {
-    await supabase
+    const { error: evErr } = await supabase
+      .from('guest_events')
+      .insert({ guest_id: guest.id, event_type: 'rsvp_opened' });
+
+    const { error: openErr } = await supabase
       .from('guests')
       .update({ opened_at: new Date().toISOString() })
       .eq('rsvp_token', token)
       .is('opened_at', null);
-    // Log activity (fire-and-forget)
-    supabase.from('guest_events').insert({ guest_id: guest.id, event_type: 'rsvp_opened' }).then(() => {});
+
+    /* Logged, never thrown. A guest looking at their invitation must not be
+       shown an error because our bookkeeping failed — but a write that fails
+       silently is how this cost us a guest in the first place. */
+    if (evErr || openErr) {
+      console.error('[rsvp] open not fully recorded', {
+        guest: guest.id,
+        event: evErr?.message ?? null,
+        opened_at: openErr?.message ?? null,
+      });
+    }
   }
 
   const { data: event } = await supabase

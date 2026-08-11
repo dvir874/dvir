@@ -37,6 +37,65 @@ const MAX_EVENTS_PER_RUN = 3;
 const HOUR_START_UTC = 6;
 const HOUR_END_UTC = 15;
 
+/* Heal guests whose open was recorded in one place and not the other.
+
+   Noya opened her invitation twice on 10/8. Both rsvp_opened events landed;
+   guests.opened_at stayed null. She told us the page "did not work", and the
+   data said she had never looked — so the one guest who could prove the bug
+   existed appeared, from every screen, to be someone who had ignored the
+   invitation. Nothing in the product could have surfaced that, because nothing
+   compared the two.
+
+   The write path is fixed, but "we fixed the write" is a promise about code
+   that has not been written yet — the next lost write will come from a dropped
+   connection, an aborted request, an RLS change, or something nobody has
+   thought of. This runs twice a day, for every couple, and repairs the
+   disagreement whichever way it was caused. That is the difference between a
+   bug that was fixed and a bug that cannot persist.
+
+   Deliberately one-directional: an event can restore a missing column, and a
+   column can never invent a missing event, so this only ever adds information
+   that a guest's own visit already proved. It never clears opened_at, and it
+   never touches status or an answer. */
+async function reconcileOpens(
+  sb: ReturnType<typeof createServerClient>,
+): Promise<number> {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: evs } = await sb.from("events").select("id").gte("date", today);
+  const eventIds = (evs ?? []).map(e => e.id as string);
+  if (!eventIds.length) return 0;
+
+  const { data: blind } = await sb.from("guests")
+    .select("id").in("event_id", eventIds).is("opened_at", null);
+  const ids = (blind ?? []).map(g => g.id as string);
+  if (!ids.length) return 0;
+
+  /* Earliest open per guest — the moment they actually first looked, not the
+     moment we noticed the column was empty. Backfilling with now() would put a
+     wrong timestamp on a real event and quietly corrupt every "how long from
+     delivery to open" figure we have. */
+  const earliest = new Map<string, string>();
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data } = await sb.from("guest_events")
+      .select("guest_id, created_at")
+      .eq("event_type", "rsvp_opened")
+      .in("guest_id", ids.slice(i, i + 100));
+    for (const e of data ?? []) {
+      const g = e.guest_id as string;
+      const at = e.created_at as string;
+      if (!earliest.has(g) || at < earliest.get(g)!) earliest.set(g, at);
+    }
+  }
+
+  let healed = 0;
+  for (const [guestId, at] of earliest) {
+    const { error } = await sb.from("guests")
+      .update({ opened_at: at }).eq("id", guestId).is("opened_at", null);
+    if (!error) healed++;
+  }
+  return healed;
+}
+
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
@@ -52,11 +111,16 @@ export async function GET(req: NextRequest) {
   const cfg = getWhatsAppConfig();
   if (!cfg) return NextResponse.json({ error: "whatsapp_not_configured" }, { status: 503 });
 
+  const sb = createServerClient();
+
+  /* Before any early return. Reconciliation is not part of sending, and a run
+     that goes home because it is 2am or because the window is full must still
+     leave the books straight. */
+  const healed = await reconcileOpens(sb);
+
   const hour = new Date().getUTCHours();
   if (hour < HOUR_START_UTC || hour > HOUR_END_UTC)
-    return NextResponse.json({ sent: 0, reason: "outside_sending_hours" });
-
-  const sb = createServerClient();
+    return NextResponse.json({ sent: 0, reason: "outside_sending_hours", healed });
 
   /* Ask Meta what it will allow today rather than trusting a constant written
      on the day the number was restricted. The old constants held us to 25 a
@@ -365,6 +429,7 @@ export async function GET(req: NextRequest) {
     /* Named, not just counted. These are the guests the automation has given
        up on, and somebody has to phone them. */
     unreachable: [...unreachable.values()].length,
+    healed,
     details: { sent, failed },
   });
 }
