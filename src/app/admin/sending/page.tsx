@@ -68,6 +68,7 @@ function outcome(r: Run): { label: string; tone: "ok" | "warn" | "idle" } {
     case "outside_sending_hours":  return { label: "מחוץ לשעות שליחה", tone: "idle" };
     case "nothing_due":            return { label: "אין למי לשלוח", tone: "idle" };
     case "no_sendable_event":      return { label: "אין אירוע פעיל", tone: "idle" };
+    case "run_too_soon":           return { label: "נחסמה — ריצה קודמת זה עתה", tone: "idle" };
     case "meta_blocked":           return { label: "מטא חוסמת", tone: "warn" };
     default:                       return { label: r.reason, tone: "idle" };
   }

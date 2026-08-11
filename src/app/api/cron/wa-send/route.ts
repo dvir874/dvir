@@ -54,6 +54,10 @@ const MAX_EVENTS_PER_RUN = 3;
 const HOUR_START_UTC = 6;
 const HOUR_END_UTC = 18;
 
+/* Two runs cannot land inside this window. The scheduled runs are nine hours
+   apart, so this only ever catches an overlap nobody intended. */
+const MIN_MINUTES_BETWEEN_RUNS = 10;
+
 /* Heal guests whose open was recorded in one place and not the other.
 
    Noya opened her invitation twice on 10/8. Both rsvp_opened events landed;
@@ -172,6 +176,33 @@ export async function GET(req: NextRequest) {
   const hour = new Date().getUTCHours();
   if (hour < HOUR_START_UTC || hour > HOUR_END_UTC)
     return record(sb, { sent: 0, reason: "outside_sending_hours", healed });
+
+  /* Refuse to start if a run that actually sent has just been here.
+
+     A run takes about a minute and prints nothing until it finishes, so it
+     looks frozen — and today it was started twice for exactly that reason.
+     Between them, 91 unique recipients went out in sixty seconds, against the
+     82 at which this number was restricted on 9/8.
+
+     The operator was not wrong to try again; a command that is silent for a
+     minute invites it. The defect was that nothing here objected. Two
+     schedulers firing at once, a retried request, an impatient second tab —
+     all produce the same overlap, and the rolling-window check cannot stop it
+     because both runs read the window before either has written to it.
+
+     Only runs that SENT count. One that stopped on window_full consumed
+     nothing and must not lock the door behind it — including the row this
+     branch is about to write. */
+  const { data: justRan } = await sb.from("wa_runs")
+    .select("created_at").gt("sent", 0)
+    .gte("created_at", new Date(Date.now() - MIN_MINUTES_BETWEEN_RUNS * 60_000).toISOString())
+    .limit(1);
+  if (justRan?.length) {
+    return record(sb, {
+      sent: 0, reason: "run_too_soon", healed,
+      lastRunAt: justRan[0].created_at,
+    });
+  }
 
   /* Ask Meta what it will allow today rather than trusting a constant written
      on the day the number was restricted. The old constants held us to 25 a
