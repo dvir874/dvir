@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { handleGuestReply } from "@/lib/wa-conversation";
 import { isRetryableFailure, nextRetryAt } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +42,7 @@ interface WaMessage {
   from?: string;
   type?: string;
   text?: { body?: string };
-  button?: { text?: string };
+  button?: { text?: string; payload?: string };
   interactive?: { button_reply?: { title?: string }; list_reply?: { title?: string } };
   /* Meta sends only an id; the file itself is fetched separately and expires.
      Storing "[video]" and dropping the id, as this used to, threw away the
@@ -187,6 +188,25 @@ export async function POST(req: NextRequest) {
           { onConflict: "wamid" },
         );
       }
+    }
+
+    /* ---- answering by tapping a button ----
+
+       The reminder template carries "מגיע" / "לא מגיע" quick replies, and a tap
+       arrives here as an ordinary inbound message. Without this it was stored
+       in the inbox and nothing else: the guest would believe they had answered
+       and the couple would never know — the exact failure that cost a whole day
+       when a page hung and a guest thought she had replied.
+
+       Recording happens after the message is stored, so a tap is never lost
+       even if the exchange below fails, and each guest is isolated so one
+       failure cannot swallow the rest of the batch. */
+    for (const m of messages) {
+      const g = byPhone.get(localise(m.from ?? ""));
+      if (!g?.id || !m.from) continue;
+      try {
+        await handleGuestReply(sb, g.id, m.from, bodyOf(m), m.button?.payload);
+      } catch { /* this guest's tap is unhandled; the next one need not be */ }
     }
   } catch {
     /* Swallow — never let a malformed payload disable the subscription */

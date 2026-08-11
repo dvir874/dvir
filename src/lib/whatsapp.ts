@@ -133,6 +133,19 @@ async function pace() {
   lastSendAt = Date.now();
 }
 
+/* Templates whose only buttons are quick replies.
+
+   A quick reply is fixed at approval time and carries nothing per message, so
+   these take no button component at all — sending the url component built for
+   the older templates is rejected outright, and every message in the run would
+   fail together. Listed explicitly rather than inferred from the name: an
+   unrecognised template falls back to the url shape, which is what every
+   template before these two used. */
+const QUICK_REPLY_TEMPLATES = new Set([
+  "wedding_reminder_buttons_v1",
+  "wedding_reminder_buttons_generic",
+]);
+
 /** Seconds one message costs, worst case — lets callers size a batch to fit
     inside a serverless invocation instead of being killed mid-run. */
 export const SECONDS_PER_MESSAGE = (MIN_GAP_MS + JITTER_MS) / 1000;
@@ -546,7 +559,17 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
     accessToken,
     templateName: process.env.WHATSAPP_TEMPLATE_NAME ?? "wedding_invitation_regalifnei",
     genericTemplateName: process.env.WHATSAPP_TEMPLATE_GENERIC ?? "wedding_invitation_v2",
-    reminderTemplateName: process.env.WHATSAPP_TEMPLATE_REMINDER ?? "wedding_reminder_regalifnei",
+    /* The approved template with "מגיע" / "לא מגיע" quick replies.
+
+       A tap answers the invitation without opening anything — which removes,
+       in one stroke, every failure this system spent a day on: the page that
+       hung, the submit with no timeout, the envelope nobody knew to tap. The
+       plain template was still in use while this one sat approved and unused.
+
+       Requires the webhook to record the taps. Sending buttons that nothing
+       listens to is worse than sending none: the guest believes they have
+       answered and we never know. */
+    reminderTemplateName: process.env.WHATSAPP_TEMPLATE_REMINDER ?? "wedding_reminder_buttons_v1",
     templateLang: process.env.WHATSAPP_TEMPLATE_LANG ?? "he",
     /* Kept only so existing callers still typecheck; nothing reads it as a
        fallback any more. The comment used to say there was deliberately no
@@ -627,14 +650,17 @@ async function sendOnce(
      without them we fall back to the fixed template built for Dvir's own
      wedding, whose names and date are baked into the approved text. */
   const useGeneric = !!details;
+  const templateName =
+    kind === "reminder" ? cfg.reminderTemplateName
+    : useGeneric        ? cfg.genericTemplateName
+    :                     cfg.templateName;
+
   const body = {
     messaging_product: "whatsapp",
     to,
     type: "template",
     template: {
-      name: kind === "reminder" ? cfg.reminderTemplateName
-          : useGeneric        ? cfg.genericTemplateName
-          :                     cfg.templateName,
+      name: templateName,
       language: { code: cfg.templateLang },
       components: [
         {
@@ -650,12 +676,18 @@ async function sendOnce(
             { type: "text", text: details.times },
           ],
         }] : []),
-        {
+        /* Quick-reply buttons take no parameters — they are fixed at approval
+           time and carry nothing per-message. Sending a url button component
+           for one of those templates is rejected outright, so every message in
+           the run would fail. The list above is explicit rather than inferred
+           from the name: an unrecognised template falls back to the url shape,
+           which is what every template before these two used. */
+        ...(QUICK_REPLY_TEMPLATES.has(templateName) ? [] : [{
           type: "button",
           sub_type: "url",
           index: "0",
           parameters: [{ type: "text", text: token }],
-        },
+        }]),
       ],
     },
   };
