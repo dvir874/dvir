@@ -226,6 +226,12 @@ export default function Footer() {
             <a href="/contact" className="hover:text-white/50 transition-colors" style={{ color: "inherit" }}>
               צור קשר
             </a>
+            {" · "}
+            {/* An about page is one of the things a verification reviewer looks
+                for, and a page nothing links to is a page nobody finds. */}
+            <a href="/about" className="hover:text-white/50 transition-colors" style={{ color: "inherit" }}>
+              אודות
+            </a>
           </p>
           <div
             className="flex items-center gap-2 text-white/25 text-xs"
