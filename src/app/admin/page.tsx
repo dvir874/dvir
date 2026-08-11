@@ -575,10 +575,30 @@ export default function AdminPage() {
   const [unreadInbox, setUnreadInbox] = useState(0);
   useEffect(() => {
     if (!selectedEventId) { setUnreadInbox(0); return; }
-    fetch(`/api/admin/inbox/unread?event_id=${selectedEventId}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => typeof d?.unread === "number" && setUnreadInbox(d.unread))
-      .catch(() => {});
+
+    const read = () =>
+      fetch(`/api/admin/inbox/unread?event_id=${selectedEventId}`, { cache: "no-store" })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => typeof d?.unread === "number" && setUnreadInbox(d.unread))
+        .catch(() => {});
+
+    read();
+
+    /* Re-read whenever this tab comes back to the front.
+       Fetching once on mount was enough only if the operator never left. They
+       do: they click the badge, read the thread — which marks it read on the
+       server — and come back. Next's client router serves this page from cache
+       without remounting, so the effect never re-ran and the badge kept
+       insisting on a message that had been read minutes earlier. A counter that
+       is wrong in the "there is something waiting" direction is worse than no
+       counter, because it teaches you to ignore it. */
+    const refresh = () => { if (document.visibilityState === "visible") read(); };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [selectedEventId]);
 
   const [deliveryMap, setDeliveryMap] = useState<Record<string,
@@ -1011,6 +1031,14 @@ export default function AdminPage() {
             style={{ background: "rgba(180,69,60,0.12)", color: "#B4453C" }}
           >
             📊 מצב מסירה
+          </a>
+          {/* A screen nobody can reach is not a delivered feature. */}
+          <a
+            href="/admin/sending"
+            className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all hover:opacity-80"
+            style={{ background: "rgba(197,164,109,0.16)", color: "#8B6914" }}
+          >
+            📤 מרכז השליחה
           </a>
           <a
             href="/admin/inbox"
