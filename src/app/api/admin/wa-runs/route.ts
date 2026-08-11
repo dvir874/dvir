@@ -1,0 +1,115 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@/lib/supabase-server";
+
+export const dynamic = "force-dynamic";
+
+/* GET /api/admin/wa-runs?event_id=X&limit=20
+   "Did the 15:00 run actually send anything, and to whom?"
+
+   Until now that question had no answer inside the product. The sender
+   reported everything — names sent, names failed with reasons, Meta's cap and
+   quality rating, how much of the rolling window was left — into an HTTP
+   response that went to Vercel's logs and aged out. Answering it meant querying
+   the database by hand, every time.
+
+   Two things are returned, because two different questions get asked:
+
+   `runs`   what each scheduled run did. Includes the ones that sent nothing:
+            a run that stopped on window_full is not the same as a run that did
+            not happen, and only this table can tell them apart.
+
+   `next`   what the next run is going to face — how much of the daily cap is
+            left, and how many guests are still waiting in each group. This is
+            the number that answers "why did it only send 24?" without anyone
+            having to reconstruct it.
+
+   A GAP between runs is the one failure the sender itself can never report:
+   a scheduler that does not fire writes nothing anywhere. `expectedRuns` makes
+   that visible instead of leaving it to be noticed. */
+
+const SCHEDULED_HOURS_UTC = [7, 12];   // vercel.json — 10:00 and 15:00 Israel
+
+export async function GET(req: NextRequest) {
+  const sb = createServerClient();
+  const limit = Math.min(Number(req.nextUrl.searchParams.get("limit") ?? 20), 100);
+  const eventId = req.nextUrl.searchParams.get("event_id");
+
+  const { data: runs, error } = await sb
+    .from("wa_runs")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  /* The table is new. Before its migration is applied every screen reading
+     this must still render, showing "no runs recorded yet" rather than an
+     error — a missing table is a missing feature, never a broken admin. */
+  if (error) {
+    return NextResponse.json({
+      runs: [], next: null, available: false,
+      note: "טבלת ההרצות עוד לא נוצרה — הריצו את המיגרציה",
+    });
+  }
+
+  /* How many scheduled runs should have happened since the first row we have.
+     Compared against the rows actually present, this is what turns "the
+     scheduler stopped firing" from something nobody notices into a number. */
+  let expectedRuns: number | null = null;
+  if (runs?.length) {
+    const first = new Date(runs[runs.length - 1].created_at as string);
+    const hours = (Date.now() - first.getTime()) / 3_600_000;
+    expectedRuns = Math.max(1, Math.round((hours / 24) * SCHEDULED_HOURS_UTC.length));
+  }
+
+  /* What the next run will be looking at. Deliberately computed the same way
+     the sender computes it, so this screen can never disagree with what
+     actually happens — five screens giving five answers to "who has been
+     reached" is a failure this product has already had. */
+  let next: Record<string, unknown> | null = null;
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: evs } = await sb.from("events")
+    .select("id, name, date").gte("date", today).order("date").limit(1);
+  const ev = eventId
+    ? { id: eventId, name: null }
+    : (evs ?? [])[0];
+
+  if (ev) {
+    const { data: pending } = await sb.from("guests")
+      .select("id, phone, rsvp_token, category, opened_at")
+      .eq("event_id", ev.id).eq("status", "pending");
+
+    const ids = (pending ?? [])
+      .filter(g => g.category !== "demo" && g.phone && g.rsvp_token)
+      .map(g => g.id as string);
+
+    const contacted = new Set<string>();
+    for (let i = 0; i < ids.length; i += 100) {
+      const slice = ids.slice(i, i + 100);
+      const { data: m } = await sb.from("wa_messages")
+        .select("guest_id, status").eq("direction", "out").in("guest_id", slice);
+      (m ?? []).forEach(x => {
+        if (["delivered", "read"].includes(x.status) && x.guest_id) contacted.add(x.guest_id);
+      });
+      const { data: man } = await sb.from("guest_events")
+        .select("guest_id").eq("event_type", "manual_sent").in("guest_id", slice);
+      (man ?? []).forEach(x => x.guest_id && contacted.add(x.guest_id));
+    }
+
+    const since = new Date(Date.now() - 86_400_000).toISOString();
+    const { data: win } = await sb.from("wa_messages")
+      .select("wa_phone").eq("direction", "out").gte("created_at", since);
+    const windowUsed = new Set((win ?? []).map(r => r.wa_phone).filter(Boolean)).size;
+
+    const lastCap = (runs ?? []).find(r => r.cap)?.cap as number | undefined;
+
+    next = {
+      event: ev.name,
+      firstContact: ids.filter(id => !contacted.has(id)).length,
+      reminders: ids.filter(id => contacted.has(id)).length,
+      windowUsed,
+      cap: lastCap ?? null,
+      remaining: lastCap ? Math.max(0, lastCap - windowUsed) : null,
+    };
+  }
+
+  return NextResponse.json({ runs: runs ?? [], next, expectedRuns, available: true });
+}

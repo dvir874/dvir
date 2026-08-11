@@ -96,6 +96,40 @@ async function reconcileOpens(
   return healed;
 }
 
+/* One row per run, whatever the outcome.
+
+   Everything worth knowing already existed — it went into the HTTP response,
+   which went to Vercel's logs, which nobody opens and which age out. So "did
+   the 15:00 run send anything?" could only be answered by querying the
+   database by hand, which is not a product; it is the same shape as every
+   other failure here, where something happened and the only record of it was
+   somewhere nobody looks.
+
+   Written on every exit path, including the ones that send nothing. A run that
+   stopped because the window was full is not a missing row, it is a row that
+   says window_full — and a GAP in this table means the scheduler never fired,
+   which is the one failure the sender itself can never report.
+
+   Fails soft and last: bookkeeping must never be able to break sending. */
+async function record(
+  sb: ReturnType<typeof createServerClient>,
+  payload: Record<string, unknown>,
+  extra: Record<string, unknown> = {},
+) {
+  try {
+    await sb.from("wa_runs").insert({
+      sent: (payload.sent as number) ?? 0,
+      failed: (payload.failed as number) ?? 0,
+      healed: (payload.healed as number) ?? 0,
+      reason: (payload.reason as string) ?? null,
+      stopped: (payload.stopped as string) ?? null,
+      details: (payload.details as object) ?? {},
+      ...extra,
+    });
+  } catch { /* a log that cannot be written must not stop a wedding invitation */ }
+  return NextResponse.json(payload);
+}
+
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
@@ -120,7 +154,7 @@ export async function GET(req: NextRequest) {
 
   const hour = new Date().getUTCHours();
   if (hour < HOUR_START_UTC || hour > HOUR_END_UTC)
-    return NextResponse.json({ sent: 0, reason: "outside_sending_hours", healed });
+    return record(sb, { sent: 0, reason: "outside_sending_hours", healed });
 
   /* Ask Meta what it will allow today rather than trusting a constant written
      on the day the number was restricted. The old constants held us to 25 a
@@ -133,10 +167,10 @@ export async function GET(req: NextRequest) {
   const cap = warmupCap(health, peak);
 
   if (!cap) {
-    return NextResponse.json({
-      sent: 0, reason: "meta_blocked",
+    return record(sb, {
+      sent: 0, reason: "meta_blocked", healed,
       quality: health.quality, posture: health.posture, reasons: health.reasons,
-    });
+    }, { cap: 0, tier: health.tier, quality: health.quality, posture: health.posture });
   }
 
   /* Meta counts unique recipients in a rolling 24h and refuses past the
@@ -144,10 +178,11 @@ export async function GET(req: NextRequest) {
      and reproducing the run that failed 90%. */
   const usage = await rollingWindowUsage(sb, cap);
   if (usage.blocked) {
-    return NextResponse.json({
-      sent: 0, reason: "window_full",
+    return record(sb, {
+      sent: 0, reason: "window_full", healed,
       recipients: usage.recipients, cap, quality: health.quality,
-    });
+    }, { cap, tier: health.tier, quality: health.quality, posture: health.posture,
+         window_used: usage.recipients });
   }
 
   /* Time is now the only per-run ceiling that matters. At six in flight and
@@ -156,7 +191,9 @@ export async function GET(req: NextRequest) {
      which is the whole point of the change. */
   const timeCap = Math.floor(((maxDuration - 12) / SECONDS_PER_MESSAGE) * SEND_CONCURRENCY);
   const budget = Math.max(0, Math.min(usage.remaining, timeCap));
-  if (!budget) return NextResponse.json({ sent: 0, reason: "budget_exhausted", cap });
+  if (!budget) return record(sb, { sent: 0, reason: "budget_exhausted", cap, healed },
+    { cap, tier: health.tier, quality: health.quality, posture: health.posture,
+      window_used: usage.recipients });
 
   /* An event with no card of its own is skipped, never sent with someone
      else's. Reported, so a missing image surfaces instead of looking like a
@@ -172,7 +209,8 @@ export async function GET(req: NextRequest) {
     .map(e => ({ event: e.name, reason: "אין תמונת הזמנה" }));
 
   if (!active.length)
-    return NextResponse.json({ sent: 0, reason: "no_sendable_event", skippedEvents });
+    return record(sb, { sent: 0, reason: "no_sendable_event", healed, skippedEvents },
+      { cap, tier: health.tier, quality: health.quality, posture: health.posture });
 
   /* One event per run, round-robin by date, so a large wedding cannot starve
      a smaller one that shares the same number-level quota. */
@@ -339,7 +377,9 @@ export async function GET(req: NextRequest) {
       .forEach(id => targets.push({ id, reminder: true }));
   }
 
-  if (!targets.length) return NextResponse.json({ sent: 0, reason: "nothing_due" });
+  if (!targets.length) return record(sb, { sent: 0, reason: "nothing_due", healed },
+    { event_id: ev.id, cap, tier: health.tier, quality: health.quality,
+      posture: health.posture, window_used: usage.recipients });
 
   const { data: guests } = await sb.from("guests")
     .select("id, name, phone, rsvp_token").in("id", targets.map(t => t.id));
@@ -414,7 +454,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({
+  return record(sb, {
     event: ev.name,
     sent: sent.length, failed: failed.length, stopped,
     windowRecipients: usage.recipients,
@@ -431,5 +471,8 @@ export async function GET(req: NextRequest) {
     unreachable: [...unreachable.values()].length,
     healed,
     details: { sent, failed },
+  }, {
+    event_id: ev.id, cap, tier: health.tier, quality: health.quality,
+    posture: health.posture, window_used: usage.recipients,
   });
 }
