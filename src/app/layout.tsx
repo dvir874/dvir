@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     description: 'אישורי הגעה, תזכורות אוטומטיות, הושבה ותקציב — הכל במקום אחד. מוכן תוך 48 שעות.',
     images: [
       {
-        url: '/og-image.png',
+        url: '/og.png',
         width: 1200,
         height: 630,
         alt: 'רגע לפני — ניהול אורחים לחתונה',
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'רגע לפני — ניהול אורחים חכם לחתונות',
     description: 'אישורי הגעה, תזכורות אוטומטיות, הושבה ותקציב — הכל במקום אחד.',
-    images: ['/og-image.png'],
+    images: ['/og.png'],
   },
   robots: {
     index: true,
