@@ -60,7 +60,15 @@ export default function HelperSendPage({ params }: { params: Promise<{ token: st
 
   const load = useCallback(async () => {
     try {
-      const r = await fetch(`/api/helper/${token}`, { signal: AbortSignal.timeout(15_000) });
+      /* ?h=noya narrows the queue to the guests assigned to this helper, so two
+         family members working at the same time never land on the same person.
+         Read from the URL rather than through useSearchParams to keep this a
+         plain client component with no Suspense boundary; the token in the path
+         is still the only thing that grants access, and h only chooses a slice
+         of what that token already allows. */
+      const who = new URLSearchParams(window.location.search).get("h") ?? "";
+      const qs = who ? `?h=${encodeURIComponent(who)}` : "";
+      const r = await fetch(`/api/helper/${token}${qs}`, { signal: AbortSignal.timeout(15_000) });
       if (!r.ok) { setError(r.status === 404 ? "הקישור אינו תקין" : "לא הצלחנו לטעון את הרשימה"); return; }
       setData(await r.json());
     } catch { setError("לא הצלחנו לטעון את הרשימה"); }

@@ -28,10 +28,46 @@ async function eventFor(token: string) {
   return { sb, event: data };
 }
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
+/* Guests handed to a named helper, and still hers.
+
+   Two helpers sharing one link both see the same "next in line" and both send
+   to them, and the automatic sender cannot see a message a cousin is *about*
+   to send. Assigning up front removes both races by construction rather than
+   by timing.
+
+   Expiry is what makes handing work out safe. An assignment older than 48
+   hours is ignored everywhere, so a helper who starts and does not finish
+   cannot strand a guest — they return to the automatic queue on their own.
+
+   Fails soft, on purpose: the columns are new, and a route that 400s because
+   one column has not been migrated yet is exactly how the automatic sender
+   silently reached nobody for two days. No column, no assignments, everything
+   behaves as it did before. */
+const ASSIGNMENT_TTL_MS = 48 * 60 * 60 * 1000;
+
+async function liveAssignments(
+  sb: ReturnType<typeof createServerClient>, eventId: string,
+): Promise<Map<string, string>> {
+  const since = new Date(Date.now() - ASSIGNMENT_TTL_MS).toISOString();
+  const { data, error } = await sb
+    .from("guests").select("id, assigned_helper")
+    .eq("event_id", eventId)
+    .not("assigned_helper", "is", null)
+    .gte("assigned_at", since);
+  if (error || !data) return new Map();
+  return new Map(data.map(g => [g.id as string, g.assigned_helper as string]));
+}
+
+export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const { sb, event } = await eventFor(token);
   if (!event) return NextResponse.json({ error: "not found" }, { status: 404 });
+
+  /* ?h=noya — the helper's own slice. Without it the link keeps behaving
+     exactly as it did yesterday, minus anyone currently assigned to someone
+     else, so the link already in Noya's hands does not break. */
+  const who = (req.nextUrl.searchParams.get("h") ?? "").trim().toLowerCase();
+  const assigned = await liveAssignments(sb, event.id);
 
   const { data: all } = await sb
     .from("guests")
@@ -40,7 +76,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
 
   const guests = (all ?? []).filter(
     g => g.category !== "demo" && String(g.phone ?? "").trim() && g.rsvp_token,
-  );
+  ).filter(g => {
+    const owner = assigned.get(g.id);
+    return who ? owner === who : !owner;
+  });
   const ids = guests.map(g => g.id);
 
   const reached = new Set<string>();

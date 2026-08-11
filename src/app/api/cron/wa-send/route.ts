@@ -170,8 +170,27 @@ export async function GET(req: NextRequest) {
     (manual ?? []).forEach(m => m.guest_id && contacted.add(m.guest_id));
   }
 
+  /* Guests currently handed to a helper are not this sender's to take.
+
+     A cousin who is *about to* message someone has produced no delivery
+     evidence yet, so `contacted` cannot see her — which is how a guest gets a
+     message from family at 14:50 and from the business number at 15:00.
+
+     Its own query, and one that fails soft. Adding these columns to the
+     eligibility select above would mean that the day someone forgets to run
+     the migration, PostgREST rejects the whole statement, `pending` comes back
+     null, and the run reports "nothing_due" while 195 people wait. That
+     already happened once, for two days. A missing column here costs the
+     feature; it must never again cost the sending. */
+  const assignedSince = new Date(Date.now() - 48 * 3_600_000).toISOString();
+  const { data: held } = await sb.from("guests")
+    .select("id").eq("event_id", ev.id)
+    .not("assigned_helper", "is", null)
+    .gte("assigned_at", assignedSince);
+  const reserved = new Set((held ?? []).map(h => h.id as string));
+
   /* ---- 1. no evidence the invitation ever arrived ---- */
-  ids.filter(id => !contacted.has(id))
+  ids.filter(id => !contacted.has(id) && !reserved.has(id))
     .slice(0, budget)
     .forEach(id => targets.push({ id }));
 
@@ -209,7 +228,7 @@ export async function GET(req: NextRequest) {
      that lost track of them. */
   if (targets.length < budget) {
     const already = new Set(targets.map(t => t.id));
-    ids.filter(id => contacted.has(id) && !already.has(id))
+    ids.filter(id => contacted.has(id) && !already.has(id) && !reserved.has(id))
       .slice(0, budget - targets.length)
       .forEach(id => targets.push({ id, reminder: true }));
   }
