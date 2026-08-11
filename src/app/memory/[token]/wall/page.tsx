@@ -24,6 +24,8 @@ interface MemoryItem {
   blessing_text?: string | null;
   mime_type?: string | null;
   uploaded_at: string;
+  /** When the shutter fired. Null for videos and anything with stripped EXIF. */
+  taken_at?: string | null;
 }
 
 interface EventInfo { name: string; date: string }
@@ -42,6 +44,7 @@ export default function MemoryWall({ params }: { params: Promise<{ token: string
   const [items,    setItems]    = useState<MemoryItem[]>([]);
   const [event,    setEvent]    = useState<EventInfo | null>(null);
   const [loading,  setLoading]  = useState(true);
+  const [denied,   setDenied]   = useState(false);
   const [lightbox, setLightbox] = useState<number | null>(null);
   const touchStartX = useRef<number | null>(null);
 
@@ -57,6 +60,12 @@ export default function MemoryWall({ params }: { params: Promise<{ token: string
     if (itemsRes.ok) {
       const d = await itemsRes.json();
       if (Array.isArray(d)) setItems(d);
+      setDenied(false);
+    } else {
+      /* A guest reached this with an upload link. Say so plainly — an empty
+         grid would read as "the album is broken" or "nobody uploaded
+         anything", and both are worse than the truth. */
+      setDenied(true);
     }
     setLoading(false);
   }, [token]);
@@ -99,6 +108,33 @@ export default function MemoryWall({ params }: { params: Promise<{ token: string
       <p role="status" aria-live="polite" style={{ color:T.muted, fontFamily:"'Heebo',sans-serif", fontSize:"14px", fontWeight:300 }}>
         טוענים את הזיכרונות...
       </p>
+    </div>
+  );
+
+  /* ──── Private ────
+     The upload link and the viewing link are not the same link. Guests are
+     asked to contribute; the album itself belongs to the couple, and it holds
+     other people's photos and blessings written for the couple by name. */
+  if (denied) return (
+    <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:"16px", padding:"32px", textAlign:"center" }}>
+      <style>{CSS}</style>
+      <svg width="64" height="64" viewBox="0 0 80 80" fill="none" aria-hidden="true">
+        <rect x="16" y="36" width="48" height="34" rx="8" fill={T.gold} fillOpacity=".15" stroke={T.gold} strokeWidth="2"/>
+        <path d="M27 36 V26 C27 18.3 52.8 18.3 52.8 26 V36" stroke={T.gold} strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+        <circle cx="40" cy="53" r="5" fill={T.gold}/>
+      </svg>
+      <h1 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"24px", fontWeight:700, color:T.dark, margin:0 }}>
+        האלבום פרטי
+      </h1>
+      <p style={{ fontFamily:"'Heebo',sans-serif", fontSize:"15px", fontWeight:300, lineHeight:1.6, color:T.muted, maxWidth:"320px", margin:0 }}>
+        הזיכרונות שנאספו כאן שמורים לזוג בלבד. הקישור שלכם נועד להוסיף אליהם.
+      </p>
+      <a
+        href={`/memory/${token}`}
+        style={{ marginTop:"8px", minHeight:"44px", display:"inline-flex", alignItems:"center", padding:"0 32px", borderRadius:"14px", background:T.gold, color:"#1C1008", fontFamily:"'Heebo',sans-serif", fontWeight:600, fontSize:"15px", textDecoration:"none", boxShadow:T.shadowCta }}
+      >
+        להוספת זיכרון
+      </a>
     </div>
   );
 

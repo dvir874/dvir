@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useRef } from "react";
-import { Upload, Loader2, Lock, X, Check } from "lucide-react";
+import { Upload, Loader2, Lock, X } from "lucide-react";
 
 const T = {
   ivory:    "#FDFAF5",
@@ -506,33 +506,71 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
       );
     }
 
-    // Photo/video/blessing done
+    /* ──── E2-S10 "אישור העלאה" — Stitch Direction A, Luxury Editorial ────
+       Approved 2026-08-12. Three beats in one view: it arrived, it mattered,
+       add another. The signature sits below all of it and below the fold,
+       because the guest came here to give something, not to be sold to. */
+    const isBlessing = uploadType === "blessing";
     return (
-      <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, fontFamily:"'Heebo',sans-serif", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"32px 24px", textAlign:"center" }}>
+      <div dir="rtl" style={{ minHeight:"100dvh", background:T.ivory, fontFamily:"'Heebo',sans-serif", display:"flex", flexDirection:"column" }}>
         <style>{CSS}</style>
-        <div style={{ width:"72px", height:"72px", borderRadius:"50%", background:"rgba(107,123,90,0.12)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 20px" }}>
-          <Check size={36} style={{ color:T.olive }}/>
-        </div>
-        <h2 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"26px", fontWeight:700, color:T.dark, marginBottom:"8px", animation:"fadeUp .4s ease both" }}>
-          תודה! 💛
-        </h2>
-        <p style={{ fontSize:"15px", fontWeight:300, color:T.muted, marginBottom:"32px", animation:"fadeUp .4s ease .08s both" }}>
-          הרגע שלכם נשמר בזיכרונות החתונה
-        </p>
-        <div style={{ display:"flex", flexDirection:"column", gap:"12px", width:"100%", maxWidth:"360px", animation:"fadeUp .4s ease .16s both" }}>
+
+        <main style={{ flex:"1 0 auto", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"48px 24px", textAlign:"center" }}>
+          {/* Printer's anchor rule */}
+          <div aria-hidden="true" style={{ width:"1px", height:"64px", background:"rgba(197,164,109,0.4)", marginBottom:"32px" }}/>
+
+          {/* 1 · Unmistakable confirmation. Announced, not conveyed by colour. */}
+          <h1
+            role="status"
+            style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"32px", fontWeight:900, lineHeight:1.2, color:T.dark, margin:0, animation:"fadeUp .5s ease both" }}
+          >
+            {isBlessing ? "הברכה הגיעה!" : "התמונה הגיעה!"}
+          </h1>
+
+          {/* 2 · Why it mattered — the heart of the screen */}
+          <p style={{ fontFamily:"'Heebo',sans-serif", fontSize:"18px", fontWeight:400, lineHeight:1.6, color:"#4D463A", maxWidth:"360px", margin:"32px 0 0", animation:"fadeUp .5s ease .1s both" }}>
+            {isBlessing
+              ? "ביום שכולם מדברים אליהם, מעט מאוד נשאר כתוב. מה שכתבתם יישאר."
+              : "הזוג לא ראה את רוב הערב של עצמו – הם היו עסוקים בלהתחתן. מה ששלחתם הוא רגע שהם פספסו."}
+          </p>
+
+          {/* 3 · The dominant action. Most guests have more than one. */}
           <button
             onClick={resetFlow}
-            style={{ padding:"16px", borderRadius:"14px", border:"none", background:`linear-gradient(135deg,${T.gold},#B8935A)`, color:"#fff", fontFamily:"'Heebo',sans-serif", fontWeight:700, fontSize:"15px", cursor:"pointer", boxShadow:T.shadowCta }}
+            style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", gap:"8px", minHeight:"56px", padding:"16px 32px", marginTop:"56px", borderRadius:"20px", border:"none", background:T.gold, color:"#1C1008", fontFamily:"'Heebo',sans-serif", fontWeight:600, fontSize:"15px", letterSpacing:"0.05em", cursor:"pointer", boxShadow:T.shadowCta, animation:"fadeUp .5s ease .2s both" }}
           >
-            שתפו עוד רגע
+            {isBlessing ? "כתיבת ברכה נוספת" : "העלאת תמונה נוספת"}
+            <Upload size={18} aria-hidden="true"/>
           </button>
-          <a
-            href={`/memory/${token}/wall`}
-            style={{ padding:"16px", borderRadius:"14px", border:`1.5px solid ${T.border}`, background:"transparent", color:T.goldText, fontFamily:"'Heebo',sans-serif", fontWeight:600, fontSize:"15px", textDecoration:"none", display:"block" }}
-          >
-            צפו בכל הזכרונות →
-          </a>
-        </div>
+        </main>
+
+        {/* 4 · The signature. Last, quietest, and fully separated from the thanks above. */}
+        <footer style={{ flex:"0 0 auto", borderTop:`1px solid rgba(127,118,105,0.2)`, padding:"48px 24px", textAlign:"center" }}>
+          <div aria-hidden="true" style={{ width:"4px", height:"4px", borderRadius:"50%", background:T.gold, margin:"0 auto 24px" }}/>
+          <p style={{ fontFamily:"'Heebo',sans-serif", fontSize:"14px", fontWeight:300, lineHeight:1.5, color:"#7F7669", letterSpacing:"0.02em", maxWidth:"420px", margin:"0 auto 16px" }}>
+            ההזמנות, אישורי ההגעה והגלריה של החתונה הזאת נוהלו ברגע לפני
+          </p>
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"4px", fontSize:"14px" }}>
+            <span style={{ fontWeight:500, color:T.dark }}>מתחתנים בקרוב?</span>
+            {/* Kept well clear of "add another" — a mis-tap that dials a
+                stranger is worse than one that does nothing. */}
+            <a
+              href="tel:0533318177"
+              dir="ltr"
+              style={{ minHeight:"44px", display:"inline-flex", alignItems:"center", padding:"0 12px", color:"#4D463A", textDecoration:"none" }}
+            >
+              053-331-8177
+            </a>
+            <a
+              href="https://regalifnei.co.il"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ minHeight:"44px", display:"inline-flex", alignItems:"center", padding:"0 12px", color:"#4D463A", textDecoration:"none" }}
+            >
+              regalifnei.co.il
+            </a>
+          </div>
+        </footer>
       </div>
     );
   }

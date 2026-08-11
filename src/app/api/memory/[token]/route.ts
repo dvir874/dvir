@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
 import { checkRateLimit, getClientIp, LIMITS } from '@/lib/rate-limit';
 import { validateUploadFile } from '@/lib/file-validation';
+import { exifTakenAt } from '@/lib/exif';
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -77,6 +78,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   let public_url: string | null   = null;
   let file_size: number | null    = null;
   let mime_type: string | null    = null;
+  let taken_at: string | null     = null;
 
   if (file) {
     const validation = validateUploadFile(file, { allowVideo: type === 'video' });
@@ -85,6 +87,11 @@ export async function POST(request: NextRequest, { params }: Params) {
     const ext  = validation.safeExt ?? 'bin';
     const path = `${vaultToken.event_id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     const bytes = await file.arrayBuffer();
+
+    /* When the shutter fired, so the couple can replay the evening in order
+       rather than in whatever order people got round to uploading. Absent for
+       videos and anything with stripped metadata — those sort by arrival. */
+    taken_at = exifTakenAt(bytes)?.toISOString() ?? null;
 
     const { error: uploadErr } = await supabase.storage
       .from(BUCKET)
@@ -119,6 +126,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       blessing_text,
       file_size,
       mime_type,
+      taken_at,
     })
     .select()
     .single();
