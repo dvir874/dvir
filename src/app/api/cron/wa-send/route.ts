@@ -352,6 +352,9 @@ export async function GET(req: NextRequest) {
     .map(g => g.id);
 
   const contacted = new Set<string>();
+  /* When each guest FIRST got the invitation into their hands — by message or
+     by a helper. Used to order reminders, below. */
+  const firstArrival = new Map<string, string>();
   /* Guests the number can never reach, and must stop trying.
 
      policyFor already classifies these — 131026 "the number cannot receive"
@@ -378,7 +381,12 @@ export async function GET(req: NextRequest) {
       .eq("direction", "out").in("guest_id", slice);
     (data ?? []).forEach(m => {
       if (!m.guest_id) return;
-      if (["delivered", "read"].includes(m.status)) contacted.add(m.guest_id);
+      if (["delivered", "read"].includes(m.status)) {
+        contacted.add(m.guest_id);
+        /* EARLIEST arrival, not latest. See the reminder ordering below. */
+        const prev = firstArrival.get(m.guest_id);
+        if (!prev || m.created_at < prev) firstArrival.set(m.guest_id, m.created_at);
+      }
       /* Every message, not only the failures. Recording failures alone would
          make a guest who failed at 10:00 and was delivered at 11:00 look
          permanently unreachable, because the failure would be the only row
@@ -394,9 +402,15 @@ export async function GET(req: NextRequest) {
     /* A send made by hand from a personal phone leaves no wa_messages row, so
        without this the couple messages someone at 11:00 and the business number
        messages them again at 13:00. */
-    const { data: manual } = await sb.from("guest_events").select("guest_id")
+    const { data: manual } = await sb.from("guest_events")
+      .select("guest_id, created_at")
       .eq("event_type", "manual_sent").in("guest_id", slice);
-    (manual ?? []).forEach(m => m.guest_id && contacted.add(m.guest_id));
+    (manual ?? []).forEach(m => {
+      if (!m.guest_id) return;
+      contacted.add(m.guest_id);
+      const prev = firstArrival.get(m.guest_id);
+      if (!prev || m.created_at < prev) firstArrival.set(m.guest_id, m.created_at);
+    });
   }
 
   /* Guests currently handed to a helper are not this sender's to take.
@@ -467,8 +481,21 @@ export async function GET(req: NextRequest) {
      that lost track of them. */
   if (targets.length < budget) {
     const already = new Set(targets.map(t => t.id));
+    /* Longest wait first.
+
+       Someone who has held the invitation since Saturday and still has not
+       answered is more overdue than someone who received it yesterday, and
+       until now the two were indistinguishable: the reminder group inherited
+       whatever order PostgREST happened to return, so on a capped day the
+       five-day silence could sit behind the one-day silence for another cycle.
+
+       Ordered by when the invitation FIRST reached them — the moment the wait
+       began — not by the most recent message, which for a guest already
+       reminded once would reset their place in the queue and starve the very
+       people this is for. */
     ids.filter(id => contacted.has(id) && !already.has(id) && !reserved.has(id)
                   && !unreachable.has(id))
+      .sort((a, b) => (firstArrival.get(a) ?? "9999").localeCompare(firstArrival.get(b) ?? "9999"))
       .slice(0, budget - targets.length)
       .forEach(id => targets.push({ id, reminder: true }));
   }
