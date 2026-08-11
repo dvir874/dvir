@@ -173,8 +173,24 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  /* Messages Meta accepted and then never reported on again.
+
+     A delivery report arrives within minutes or it does not arrive at all.
+     Anything still sitting at "accepted" an hour later means the webhook lost
+     it — and sixteen of those went unnoticed for two days, surfacing only
+     because someone asked about one guest by name.
+
+     A number nobody has to notice by accident. If this is not zero an hour
+     after a run, the delivery pipeline is dropping reports again. */
+  const staleCutoff = new Date(Date.now() - 60 * 60_000).toISOString();
+  const { count: stuck } = await sb.from("wa_messages")
+    .select("id", { count: "exact", head: true })
+    .eq("direction", "out").in("status", ["accepted", "sent"])
+    .lt("created_at", staleCutoff);
+
   return NextResponse.json({
     runs: runs ?? [], next, expectedRuns, needsHuman, available: true,
+    stuck: stuck ?? 0,
     /* Israel local, for the screen to render without knowing about UTC */
     schedule: SCHEDULED_HOURS_UTC.map(h => (h + 3) % 24),
   });

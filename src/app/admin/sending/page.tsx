@@ -52,7 +52,7 @@ interface Next {
 interface Human { id: string; name: string; phone: string | null; why: string }
 interface Data {
   runs: Run[]; next: Next | null; needsHuman: Human[];
-  available: boolean; note?: string; schedule?: number[];
+  available: boolean; note?: string; schedule?: number[]; stuck?: number;
 }
 
 /* A run's outcome, in the operator's language rather than the API's. A run
@@ -194,6 +194,14 @@ export default function SendingCentre() {
               <Stat
                 icon={<CheckCircle2 size={16} color={q.tone === "ok" ? C.green : C.red} />}
                 label="דירוג איכות Meta" value={q.he} tone={q.tone}
+              />
+            )}
+            {/* Zero unless the delivery pipeline is losing reports. Shown only
+                when it is not, so it reads as an alarm rather than a metric. */}
+            {!!data?.stuck && (
+              <Stat
+                icon={<AlertTriangle size={16} color={C.red} />}
+                label="דיווחי מסירה שאבדו" value={String(data.stuck)} tone="warn"
               />
             )}
           </div>
