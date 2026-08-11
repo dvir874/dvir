@@ -88,8 +88,19 @@ const API_VERSION = "v21.0";
 const MIN_GAP_MS = 2_500;
 const JITTER_MS  = 1_500;
 
-/** Sends allowed in flight at once — see the pacing note above. */
-export const SEND_CONCURRENCY = 4;
+/** Sends allowed in flight at once — see the pacing note above.
+
+    Six rather than four so that two scheduled runs can reach the daily cap.
+    At four a run held 48 and the day held 96, while Meta's cap had grown to
+    118 — the difference was simply never sent, and a third run is not
+    available: Vercel's Hobby plan grants two cron jobs.
+
+    This raises how fast the day's allowance is spent, never the allowance
+    itself. The cap, the rolling window and the warm-up ramp are unchanged and
+    still decide how many messages exist to send; this only stops the clock
+    from being the thing that limits them. A run still finishes in 48 seconds,
+    inside the same 60-second budget it always had. */
+export const SEND_CONCURRENCY = 6;
 
 /* What Meta actually counts, measured rather than assumed.
 
