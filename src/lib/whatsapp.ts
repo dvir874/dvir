@@ -464,11 +464,25 @@ export async function recentPeakRecipients(
     if (policyFor(r.error_code, r.error).action === "stop_run") burned.add(r.created_at.slice(0, 10));
   }
 
+  /* Today is excluded, and this is the whole safety of the ramp.
+
+     It was not, and the consequence showed up within the hour: two runs a
+     minute apart on 11/8: the first sent 48, that became the new peak, and the
+     second granted itself a cap of 114 on the strength of what it had just
+     done. 91 unique recipients went out in sixty seconds against a ceiling
+     that had been 90 a moment earlier — and 82 is where this number was
+     restricted on 9/8.
+
+     A ramp that learns from the day it is governing does not limit that day at
+     all; it ratifies it. Growth may only ever be justified by a day that
+     finished intact, which means yesterday at the earliest. */
+  const todayKey = new Date().toISOString().slice(0, 10);
+
   const byDay = new Map<string, Set<string>>();
   for (const r of data) {
     if (!r.wa_phone) continue;
     const d = r.created_at.slice(0, 10);
-    if (burned.has(d)) continue;
+    if (burned.has(d) || d === todayKey) continue;
     (byDay.get(d) ?? byDay.set(d, new Set()).get(d)!).add(r.wa_phone);
   }
   return Math.max(0, ...[...byDay.values()].map(s => s.size));
