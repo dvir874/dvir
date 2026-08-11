@@ -71,12 +71,25 @@ const API_VERSION = "v21.0";
 
    Spreading across the DAY is a scheduling problem, not a pacing one, and the
    answer is more runs rather than slower ones: this function cannot outlive its
-   60-second maxDuration no matter how patient the gap is. */
+   60-second maxDuration no matter how patient the gap is.
+
+   Four in flight rather than two, for a scheduling reason rather than a pacing
+   one. The daily cap is 90 and a run fits floor(48 / 4) * CONCURRENCY, so at
+   two the run holds 24 and the day needs four scheduled runs — but Vercel's
+   Hobby plan grants two. Every route to more runs cost something real: a third
+   service holding CRON_SECRET, or a scheduler that had never once fired. At
+   four the run holds 48, two runs cover 96, and the cap is reached with the one
+   scheduler that has actually delivered messages.
+
+   The cost is shape, not volume: two bursts a day instead of a trickle. That
+   is acceptable because rate is not what restricts a number — 131048 comes
+   from recipients reporting — and because the run re-checks between batches, so
+   a restriction is caught within four sends rather than at the end. */
 const MIN_GAP_MS = 2_500;
 const JITTER_MS  = 1_500;
 
 /** Sends allowed in flight at once — see the pacing note above. */
-export const SEND_CONCURRENCY = 2;
+export const SEND_CONCURRENCY = 4;
 
 /* What Meta actually counts, measured rather than assumed.
 
