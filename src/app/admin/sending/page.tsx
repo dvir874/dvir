@@ -30,8 +30,11 @@ const C = {
   red: "#B4453C", redBg: "rgba(180,69,60,0.09)", neutral: "#E7E2D9",
 };
 
-/* Israel local, matching vercel.json (0 7 and 0 12 UTC) */
-const SCHEDULED_HOURS = [10, 15];
+/* Supplied by the API, which reads it from the same constant the sender uses.
+   This was [10, 15] hardcoded and was wrong within the hour — the schedule
+   moved to the evening the same afternoon, and the empty state went on
+   promising a 10:00 run that no longer existed. */
+const FALLBACK_HOURS = [10, 19];
 const GRACE_MIN = 45;
 
 interface Run {
@@ -49,7 +52,7 @@ interface Next {
 interface Human { id: string; name: string; phone: string | null; why: string }
 interface Data {
   runs: Run[]; next: Next | null; needsHuman: Human[];
-  available: boolean; note?: string;
+  available: boolean; note?: string; schedule?: number[];
 }
 
 /* A run's outcome, in the operator's language rather than the API's. A run
@@ -76,6 +79,13 @@ const QUALITY: Record<string, { he: string; tone: "ok" | "warn" | "idle" }> = {
   RED:    { he: "נמוך",   tone: "warn" },
 };
 
+/* The next scheduled hour that has not passed today, else the first tomorrow. */
+function nextRunLabel(hours: number[]): string {
+  const h = new Date().getHours();
+  const up = [...hours].sort((a, b) => a - b).find(x => x > h);
+  return `${String(up ?? hours[0]).padStart(2, "0")}:00`;
+}
+
 const hhmm = (iso: string) =>
   new Date(iso).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
 const dayLabel = (iso: string) => {
@@ -90,10 +100,10 @@ const dayLabel = (iso: string) => {
 /* Which scheduled run should already have happened today and has not.
    Computed from the clock rather than from a flag, because the failure being
    detected is precisely that nothing wrote a flag. */
-function missedRun(runs: Run[]): string | null {
+function missedRun(runs: Run[], hours: number[]): string | null {
   const now = new Date();
   const todayRuns = runs.filter(r => new Date(r.created_at).toDateString() === now.toDateString());
-  for (const h of SCHEDULED_HOURS) {
+  for (const h of hours) {
     const due = new Date(now); due.setHours(h, GRACE_MIN, 0, 0);
     if (now < due) continue;
     const ran = todayRuns.some(r => {
@@ -131,7 +141,8 @@ export default function SendingCentre() {
   const runs = data?.runs ?? [];
   const latest = runs[0];
   const q = QUALITY[latest?.quality ?? ""] ?? null;
-  const missed = runs.length ? missedRun(runs) : null;
+  const hours = data?.schedule?.length ? data.schedule : FALLBACK_HOURS;
+  const missed = runs.length ? missedRun(runs, hours) : null;
   const nx = data?.next ?? null;
   const humans = data?.needsHuman ?? [];
 
@@ -238,7 +249,7 @@ export default function SendingCentre() {
                   עוד לא נרשמה אף הרצה
                 </p>
                 <p style={{ margin: 0, color: C.muted, fontSize: 13.5, lineHeight: 1.6 }}>
-                  הרישום פעיל. ההרצה הבאה מתוזמנת ל-10:00 ותופיע כאן אוטומטית.
+                  הרישום פעיל. {`ההרצה הבאה מתוזמנת ל-${nextRunLabel(hours)} ותופיע כאן אוטומטית.`}
                 </p>
               </div>
             )}

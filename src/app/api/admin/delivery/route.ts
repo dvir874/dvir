@@ -134,6 +134,26 @@ export async function GET(req: NextRequest) {
     }
 
     if (m.status === "failed") {
+      /* Answering outranks a failed send, exactly as it outranks a missing
+         delivery log above — and this branch was the one place that forgot it.
+         The check existed but only ran when there was NO message at all, so a
+         guest whose WhatsApp failed and who then received the invitation some
+         other way and CONFIRMED still appeared under "נכשלו — האורח לא קיבל".
+         Zohar Nachmias sat there while her status read confirmed.
+
+         The failure is real; it is simply no longer the story. A screen that
+         describes what the system attempted rather than what actually happened
+         is the failure this whole product spent a day removing. */
+      if (answered || byHand) {
+        reachedNoLog.push({
+          ...base,
+          evidence: g.status !== "pending" ? "השיב למרות שהשליחה נכשלה"
+                  : g.opened_at ? "פתח את הקישור למרות שהשליחה נכשלה"
+                  : "נשלח ידנית מהטלפון",
+        });
+        continue;
+      }
+
       /* A failure whose retries are spent still belongs on this screen —
          arguably more than one that will be tried again. It used to fall out of
          every timer-driven query and appear nowhere, so the guest simply

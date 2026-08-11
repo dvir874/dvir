@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
-import { policyFor } from "@/lib/whatsapp";
+import {
+  policyFor, getWhatsAppConfig, fetchAccountHealth, warmupCap, recentPeakRecipients,
+} from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +30,11 @@ export const dynamic = "force-dynamic";
    a scheduler that does not fire writes nothing anywhere. `expectedRuns` makes
    that visible instead of leaving it to be noticed. */
 
-const SCHEDULED_HOURS_UTC = [7, 12];   // vercel.json — 10:00 and 15:00 Israel
+/* Kept in step with vercel.json. Hardcoding "10:00" in the screen's empty
+   state meant the one place that tells an operator when to expect the next run
+   went stale the moment the schedule moved — and it moved the same afternoon
+   it was written. */
+const SCHEDULED_HOURS_UTC = [7, 16];   // vercel.json — 10:00 and 19:00 Israel
 
 export async function GET(req: NextRequest) {
   const sb = createServerClient();
@@ -100,15 +106,31 @@ export async function GET(req: NextRequest) {
       .select("wa_phone").eq("direction", "out").gte("created_at", since);
     const windowUsed = new Set((win ?? []).map(r => r.wa_phone).filter(Boolean)).size;
 
-    const lastCap = (runs ?? []).find(r => r.cap)?.cap as number | undefined;
+    /* The cap, from Meta rather than from history.
+       Reading it off the last recorded run left the screen showing "—" until a
+       run had happened, which is exactly when an operator most wants to know
+       what the ceiling is — the first thing they ask on opening this page is
+       "how much can go out today", and "we will tell you after we have already
+       sent" is not an answer. Falls back to the last run, then to nothing. */
+    let cap: number | null = null;
+    const cfg = getWhatsAppConfig();
+    if (cfg) {
+      try {
+        const [health, peak] = await Promise.all([
+          fetchAccountHealth(cfg), recentPeakRecipients(sb),
+        ]);
+        cap = warmupCap(health, peak);
+      } catch { /* Meta unreachable — fall through to history */ }
+    }
+    if (cap === null) cap = ((runs ?? []).find(r => r.cap)?.cap as number) ?? null;
 
     next = {
       event: ev.name,
       firstContact: ids.filter(id => !contacted.has(id)).length,
       reminders: ids.filter(id => contacted.has(id)).length,
       windowUsed,
-      cap: lastCap ?? null,
-      remaining: lastCap ? Math.max(0, lastCap - windowUsed) : null,
+      cap,
+      remaining: cap === null ? null : Math.max(0, cap - windowUsed),
     };
   }
 
@@ -153,5 +175,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     runs: runs ?? [], next, expectedRuns, needsHuman, available: true,
+    /* Israel local, for the screen to render without knowing about UTC */
+    schedule: SCHEDULED_HOURS_UTC.map(h => (h + 3) % 24),
   });
 }

@@ -41,11 +41,26 @@ function Delivery() {
   const [note, setNote] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const r = await fetch(`/api/admin/delivery?event_id=${eventId}`);
+    const r = await fetch(`/api/admin/delivery?event_id=${eventId}`, { cache: "no-store" });
     if (r.ok) setD(await r.json());
   }, [eventId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    /* Re-read whenever the tab comes back to the front.
+       Fetched once, this screen showed whatever was true at the moment it was
+       opened. Delivery reports arrive from Meta minutes after a send and runs
+       fire twice a day, so a tab left open through an afternoon reported a
+       morning that had already been overtaken — on the one screen whose entire
+       job is to answer "did every guest actually get it?". */
+    const refresh = () => { if (document.visibilityState === "visible") load(); };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [load]);
 
   /* Resend clears the "already sent" mark first, otherwise the send route
      would skip the guest by design. */
