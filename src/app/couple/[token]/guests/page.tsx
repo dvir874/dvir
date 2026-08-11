@@ -3,8 +3,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import HelpButton from "@/components/HelpButton";
-import CoupleBottomNav from "@/components/CoupleBottomNav";
-
 const C = {
   ivory: "#FDFAF5", cream: "#F6F1E8", gold: "#C5A46D", goldText: "#8B6914",
   olive: "#6B7B5A", dark: "#1C1008", muted: "#8C7B6E", border: "#E8E0D4",
@@ -244,7 +242,7 @@ export default function GuestCenterPage() {
                       {g.table_number ? ` · שולחן ${g.table_number}` : ""}
                     </p>
                   </div>
-                  <span style={{ padding:"3px 10px", borderRadius:8, fontSize:11, fontWeight:600, color:st.color, background:st.bg, flexShrink:0 }}>
+                  <span style={{ padding:"3px 10px", borderRadius:8, fontSize:12, fontWeight:600, color:st.color, background:st.bg, flexShrink:0 }}>
                     {st.label}
                   </span>
                 </button>
@@ -324,7 +322,6 @@ export default function GuestCenterPage() {
       )}
 
       <HelpButton token={token} />
-      <CoupleBottomNav token={token} />
     </div>
   );
 }

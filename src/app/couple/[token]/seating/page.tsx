@@ -238,12 +238,12 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
                     style={{ cursor: "pointer", background: "white", borderRadius: 12, padding: "0.85rem", border: `2px solid ${simExpanded === table.id ? GOLD : "rgba(197,164,109,0.2)"}`, transition: "all 0.15s" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.5rem" }}>
                       <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, fontSize: 14, color: DARK }}>{table.name}</p>
-                      <span style={{ fontSize: 10, fontWeight: 700, color, background: `${color}15`, border: `1px solid ${color}30`, borderRadius: 8, padding: "2px 7px" }}>{pct}%</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color, background: `${color}15`, border: `1px solid ${color}30`, borderRadius: 8, padding: "2px 7px" }}>{pct}%</span>
                     </div>
                     <div style={{ height: 5, background: "rgba(197,164,109,0.15)", borderRadius: 3, overflow: "hidden", marginBottom: "0.4rem" }}>
                       <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 3, transition: "width 0.4s" }} />
                     </div>
-                    <p style={{ fontSize: 11, color: "rgba(28,16,8,0.45)" }}>{assigned.length} / {table.capacity} מושבים</p>
+                    <p style={{ fontSize: 12, color: "rgba(28,16,8,0.45)" }}>{assigned.length} / {table.capacity} מושבים</p>
                     {simExpanded === table.id && guests.length > 0 && (
                       <ul style={{ marginTop: "0.65rem", paddingRight: "0.75rem", borderTop: "1px solid rgba(197,164,109,0.15)", paddingTop: "0.5rem" }}>
                         {guests.map(g => g && <li key={g.id} style={{ fontSize: 12, color: DARK, marginBottom: 2 }}>{g.name} ({g.guest_count})</li>)}
@@ -324,7 +324,7 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
                   style={{ width: "100%", padding: "0.5rem 2rem 0.5rem 0.75rem", borderRadius: 10, border: "1px solid rgba(197,164,109,0.25)", fontFamily: "Heebo, sans-serif", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
               </div>
 
-              <p style={{ fontSize: 11, color: "rgba(28,16,8,0.4)", marginBottom: "0.6rem" }}>גרור לשולחן או לחץ לבחירה</p>
+              <p style={{ fontSize: 12, color: "rgba(28,16,8,0.4)", marginBottom: "0.6rem" }}>גרור לשולחן או לחץ לבחירה</p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 480, overflowY: "auto" }}>
                 {unassigned.map(g => (
@@ -339,7 +339,7 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
                       background: selectedGuest === g.id ? "rgba(197,164,109,0.1)" : "transparent",
                       cursor: "grab", fontFamily: "Heebo, sans-serif", fontSize: 13, color: DARK, textAlign: "right",
                     }}>
-                    <span style={{ fontSize: 10, color: "rgba(28,16,8,0.25)" }}>⠿</span>
+                    <span style={{ fontSize: 12, color: "rgba(28,16,8,0.25)" }}>⠿</span>
                     <span>{g.name}</span>
                   </button>
                 ))}

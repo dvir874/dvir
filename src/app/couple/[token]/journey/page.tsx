@@ -256,7 +256,7 @@ export default function JourneyPage({ params }: { params: Promise<{ token: strin
               }}
             />
           </div>
-          <span style={{ fontSize: 11, color: C.olive, fontWeight: 600, flexShrink: 0 }}>
+          <span style={{ fontSize: 12, color: C.olive, fontWeight: 600, flexShrink: 0 }}>
             {doneCount}/{totalCount} שלבים
           </span>
         </div>
@@ -360,12 +360,12 @@ export default function JourneyPage({ params }: { params: Promise<{ token: strin
                         {step.title}
                       </p>
                       {step.status === "done" && (
-                        <span style={{ fontSize: 11, color: "#4A7C3F", fontWeight: 600, background: "rgba(74,124,63,0.08)", padding: "2px 8px", borderRadius: 20 }}>
+                        <span style={{ fontSize: 12, color: "#4A7C3F", fontWeight: 600, background: "rgba(74,124,63,0.08)", padding: "2px 8px", borderRadius: 20 }}>
                           ✓ הושלם
                         </span>
                       )}
                       {isActive && (
-                        <span style={{ fontSize: 11, color: C.gold, fontWeight: 600, background: "rgba(197,164,109,0.10)", padding: "2px 8px", borderRadius: 20 }}>
+                        <span style={{ fontSize: 12, color: C.gold, fontWeight: 600, background: "rgba(197,164,109,0.10)", padding: "2px 8px", borderRadius: 20 }}>
                           ◉ בתהליך
                         </span>
                       )}
@@ -378,7 +378,7 @@ export default function JourneyPage({ params }: { params: Promise<{ token: strin
 
                     {/* Tip */}
                     {step.tip && (
-                      <p style={{ fontSize: 11, color: C.gold, fontStyle: "italic", marginBottom: step.href ? "0.5rem" : 0 }}>
+                      <p style={{ fontSize: 12, color: C.gold, fontStyle: "italic", marginBottom: step.href ? "0.5rem" : 0 }}>
                         💡 {step.tip}
                       </p>
                     )}
@@ -398,7 +398,7 @@ export default function JourneyPage({ params }: { params: Promise<{ token: strin
                             borderRadius:   20,
                             background:     C.gold,
                             color:          "#FFFFFF",
-                            fontSize:       11,
+                            fontSize:       12,
                             fontWeight:     600,
                             fontFamily:     "Heebo, sans-serif",
                             textDecoration: "none",
@@ -417,7 +417,7 @@ export default function JourneyPage({ params }: { params: Promise<{ token: strin
                             borderRadius:   20,
                             background:     isActive ? C.gold : "rgba(197,164,109,0.12)",
                             color:          isActive ? "#FFFFFF" : C.gold,
-                            fontSize:       11,
+                            fontSize:       12,
                             fontWeight:     600,
                             fontFamily:     "Heebo, sans-serif",
                             textDecoration: "none",

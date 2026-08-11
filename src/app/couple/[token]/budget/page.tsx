@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { ArrowRight, Plus, Trash2 } from "lucide-react";
-import CoupleBottomNav from "@/components/CoupleBottomNav";
-
 const C = {
   ivory:  "#FDFAF5",
   cream:  "#F6F1E8",
@@ -206,7 +204,6 @@ export default function CoupleBudgetPage() {
         )}
       </div>
 
-      <CoupleBottomNav token={token} />
     </div>
   );
 }

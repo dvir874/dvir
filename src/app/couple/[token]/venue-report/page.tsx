@@ -118,7 +118,7 @@ export default function VenueReportPage() {
               דוח מנות והגעה — {eventName}
             </h1>
             {dateStr && <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>{dateStr}</p>}
-            <p style={{ fontSize: 11, color: C.muted, margin: "6px 0 0" }}>
+            <p style={{ fontSize: 12, color: C.muted, margin: "6px 0 0" }}>
               הופק {new Date().toLocaleDateString("he-IL")} · רגע לפני 💍
             </p>
           </div>
@@ -128,7 +128,7 @@ export default function VenueReportPage() {
             <div style={{ background: C.cream, borderRadius: 14, padding: "16px 8px" }}>
               <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 34, fontWeight: 900, color: C.green, margin: 0, lineHeight: 1 }}>{totalAttendees}</p>
               <p style={{ fontSize: 13, color: C.muted, margin: "6px 0 0" }}>סועדים (אישרו)</p>
-              {chuppahPeople > 0 && <p style={{ fontSize: 11, color: C.goldT, margin: "4px 0 0", fontWeight: 600 }}>+ {chuppahPeople} רק לחופה 💍</p>}
+              {chuppahPeople > 0 && <p style={{ fontSize: 12, color: C.goldT, margin: "4px 0 0", fontWeight: 600 }}>+ {chuppahPeople} רק לחופה 💍</p>}
             </div>
             <div style={{ background: C.cream, borderRadius: 14, padding: "16px 8px" }}>
               <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 34, fontWeight: 900, color: C.goldT, margin: 0, lineHeight: 1 }}>{confirmed.length}</p>
@@ -181,7 +181,7 @@ export default function VenueReportPage() {
             </>
           )}
 
-          <p style={{ fontSize: 11, color: C.muted, textAlign: "center", borderTop: `1px solid ${C.border}`, paddingTop: 12, margin: 0 }}>
+          <p style={{ fontSize: 12, color: C.muted, textAlign: "center", borderTop: `1px solid ${C.border}`, paddingTop: 12, margin: 0 }}>
             הנתונים מתעדכנים בזמן אמת במערכת — מומלץ להפיק דוח סופי 3-4 ימים לפני האירוע · regalifnei.vercel.app
           </p>
         </div>

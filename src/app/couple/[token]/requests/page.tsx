@@ -83,7 +83,7 @@ export default function RequestsPage() {
         <div style={{ maxWidth: 640, margin: "0 auto", display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <button onClick={() => router.back()} style={{ background: "none", border: "none", color: "rgba(197,164,109,0.7)", cursor: "pointer", fontSize: 20, padding: 0 }}>→</button>
           <div>
-            <p style={{ color: "rgba(197,164,109,0.6)", fontSize: 10, letterSpacing: "0.3em" }}>רגע לפני</p>
+            <p style={{ color: "rgba(197,164,109,0.6)", fontSize: 12, letterSpacing: "0.3em" }}>רגע לפני</p>
             <h1 style={{ color: "#FDFAF5", fontSize: 18, fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, margin: 0 }}>📬 מרכז הבקשות</h1>
           </div>
           <button
@@ -124,15 +124,15 @@ export default function RequestsPage() {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem", marginBottom: "0.35rem" }}>
                         <p style={{ fontWeight: 700, color: C.dark, fontSize: 15 }}>{req.title}</p>
-                        <span style={{ padding: "3px 10px", borderRadius: 8, fontSize: 10, fontWeight: 700, color: st.color, background: st.bg, whiteSpace: "nowrap" }}>{st.label}</span>
+                        <span style={{ padding: "3px 10px", borderRadius: 8, fontSize: 12, fontWeight: 700, color: st.color, background: st.bg, whiteSpace: "nowrap" }}>{st.label}</span>
                       </div>
-                      <p style={{ fontSize: 11, color: C.muted, marginBottom: req.description || req.admin_note ? "0.5rem" : 0 }}>
+                      <p style={{ fontSize: 12, color: C.muted, marginBottom: req.description || req.admin_note ? "0.5rem" : 0 }}>
                         {cat.label} · {new Date(req.created_at).toLocaleDateString("he-IL")}
                       </p>
                       {req.description && <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.55 }}>{req.description}</p>}
                       {req.admin_note && (
                         <div style={{ marginTop: "0.65rem", padding: "0.6rem 0.75rem", borderRadius: 8, background: "rgba(197,164,109,0.08)", border: `1px solid ${C.border}` }}>
-                          <p style={{ fontSize: 11, fontWeight: 700, color: C.gold, marginBottom: 2 }}>💬 תגובת הצוות</p>
+                          <p style={{ fontSize: 12, fontWeight: 700, color: C.gold, marginBottom: 2 }}>💬 תגובת הצוות</p>
                           <p style={{ fontSize: 13, color: C.dark, lineHeight: 1.55 }}>{req.admin_note}</p>
                         </div>
                       )}

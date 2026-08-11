@@ -274,7 +274,7 @@ export default function CoupleBottomNav({ token }: NavProps) {
                 </span>
                 <span
                   style={{
-                    fontSize:   10,
+                    fontSize:   12,
                     fontWeight: active || (sheetTab && sheetOpen) ? 700 : 400,
                     color:      active || (sheetTab && sheetOpen) ? C.gold : C.muted,
                     fontFamily: "Heebo, sans-serif",

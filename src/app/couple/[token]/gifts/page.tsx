@@ -129,7 +129,7 @@ export default function GiftCenterPage() {
         <div style={{ maxWidth: 640, margin: "0 auto", display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <button onClick={() => router.back()} style={{ background: "none", border: "none", color: "rgba(197,164,109,0.7)", cursor: "pointer", fontSize: 20, padding: 0 }}>→</button>
           <div>
-            <p style={{ color: "rgba(197,164,109,0.6)", fontSize: 10, letterSpacing: "0.3em" }}>רגע לפני</p>
+            <p style={{ color: "rgba(197,164,109,0.6)", fontSize: 12, letterSpacing: "0.3em" }}>רגע לפני</p>
             <h1 style={{ color: "#FDFAF5", fontSize: 18, fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, margin: 0 }}>🎁 Gift Center</h1>
           </div>
           <button onClick={() => setShowAdd(true)} style={{ marginRight: "auto", background: C.gold, color: "white", border: "none", borderRadius: 12, padding: "0.5rem 1rem", fontFamily: "Heebo, sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
@@ -161,7 +161,7 @@ export default function GiftCenterPage() {
                   <div key={card.label} style={{ background: C.card, borderRadius: 14, padding: "0.75rem", boxShadow: "0 2px 10px rgba(28,16,8,0.07)", border: `1px solid ${C.border}`, textAlign: "center" }}>
                     <p style={{ fontSize: 18 }}>{card.icon}</p>
                     <p style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>{card.value}</p>
-                    <p style={{ fontSize: 10, color: C.muted }}>{card.label}</p>
+                    <p style={{ fontSize: 12, color: C.muted }}>{card.label}</p>
                   </div>
                 ))}
               </div>
@@ -201,8 +201,8 @@ export default function GiftCenterPage() {
                       <span style={{ fontSize: 22, flexShrink: 0 }}>{type.icon}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontWeight: 700, color: C.dark, fontSize: 14 }}>{g.guest_name}</p>
-                        <p style={{ fontSize: 11, color: C.muted }}>{type.label} · {new Date(g.received_at).toLocaleDateString("he-IL")}</p>
-                        {g.notes && <p style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>📝 {g.notes}</p>}
+                        <p style={{ fontSize: 12, color: C.muted }}>{type.label} · {new Date(g.received_at).toLocaleDateString("he-IL")}</p>
+                        {g.notes && <p style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>📝 {g.notes}</p>}
                       </div>
                       <div style={{ textAlign: "left", flexShrink: 0 }}>
                         {g.amount ? (

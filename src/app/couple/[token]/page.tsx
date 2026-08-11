@@ -11,8 +11,6 @@ import type { WeddingScore, SmartAlert } from "@/lib/wedding-score";
 import ChatWidget from "@/components/ChatWidget";
 import HelpButton from "@/components/HelpButton";
 import WeddingHealthCard from "@/components/WeddingHealthCard";
-import CoupleBottomNav from "@/components/CoupleBottomNav";
-
 // F7 — 50 daily quotes, deterministic by day (not random)
 const INSPIRATION_QUOTES = [
   "האהבה אינה מסתכלת בשעון — היא פשוט נמצאת שם.",
@@ -260,7 +258,7 @@ function CountdownInline({ targetDate }: { targetDate: string }) {
               {String(value).padStart(2, "0")}
             </span>
           </div>
-          <span style={{ fontSize: 9, color: "rgba(197,164,109,0.5)", fontFamily: "Heebo, sans-serif", letterSpacing: "0.1em" }}>{label}</span>
+          <span style={{ fontSize: 12, color: "rgba(197,164,109,0.5)", fontFamily: "Heebo, sans-serif", letterSpacing: "0.1em" }}>{label}</span>
         </div>
       ))}
     </div>
@@ -276,7 +274,7 @@ function ScoreGauge({ score, color }: { score: number; color: string }) {
         strokeDasharray={`${(score / 100) * circ} ${circ}`} strokeLinecap="round"
         transform="rotate(-90 70 70)" style={{ transition: "stroke-dasharray 1s ease" }} />
       <text x="70" y="65" textAnchor="middle" style={{ fontSize: 32, fontWeight: 700, fill: color, fontFamily: "Frank Ruhl Libre, serif" }}>{score}</text>
-      <text x="70" y="85" textAnchor="middle" style={{ fontSize: 11, fill: "rgba(51,51,51,0.5)", fontFamily: "Heebo, sans-serif" }}>/ 100</text>
+      <text x="70" y="85" textAnchor="middle" style={{ fontSize: 12, fill: "rgba(51,51,51,0.5)", fontFamily: "Heebo, sans-serif" }}>/ 100</text>
     </svg>
   );
 }
@@ -315,7 +313,7 @@ function SplashScreen({ name }: { name: string }) {
           animationDelay: Math.random() * 2 + "s",
         }} />
       ))}
-      <p style={{ fontSize: 9, letterSpacing: "0.55em", color: "rgba(197,164,109,0.45)", fontFamily: "Heebo, sans-serif", fontWeight: 300, textAlign: "center" }}>
+      <p style={{ fontSize: 12, letterSpacing: "0.55em", color: "rgba(197,164,109,0.45)", fontFamily: "Heebo, sans-serif", fontWeight: 300, textAlign: "center" }}>
         ✦ &nbsp; ר ג ע &nbsp; ל פ נ י &nbsp; ✦
       </p>
       <div style={{ textAlign: "center" }}>
@@ -446,7 +444,7 @@ function UpdatesCenter({ briefing, stats, seating }: {
 
   return (
     <div style={{ background: C.card, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1rem 1.25rem", boxShadow: C.shadow, marginBottom: "1rem" }}>
-      <p style={{ fontSize: 11, fontWeight: 700, color: C.gold, letterSpacing: "0.1em", marginBottom: "0.75rem" }}>❤️ מה חדש?</p>
+      <p style={{ fontSize: 12, fontWeight: 700, color: C.gold, letterSpacing: "0.1em", marginBottom: "0.75rem" }}>❤️ מה חדש?</p>
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
         {updates.map((u, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.65rem 0.75rem", borderRadius: 10, background: COLOR[u.priority].bg, border: `1px solid ${COLOR[u.priority].border}30` }}>
@@ -599,12 +597,12 @@ function PostEventDashboard({ token, eventName, eventDate }: { token: string; ev
                style={{ flex: 1, textDecoration: "none", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, position: "relative" }}>
               {tab.active && <span style={{ position: "absolute", top: 4, left: "50%", transform: "translateX(-50%)", width: 20, height: 3, borderRadius: 2, background: C.gold }} />}
               <span style={{ fontSize: 20, lineHeight: 1, filter: tab.active ? "none" : "grayscale(0.6) opacity(0.6)" }}>{tab.emoji}</span>
-              <span style={{ fontFamily: "Heebo, sans-serif", fontSize: 10, fontWeight: tab.active ? 700 : 400, color: tab.active ? C.gold : C.muted }}>{tab.label}</span>
+              <span style={{ fontFamily: "Heebo, sans-serif", fontSize: 12, fontWeight: tab.active ? 700 : 400, color: tab.active ? C.gold : C.muted }}>{tab.label}</span>
             </a>
           ) : (
             <div key={tab.label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, cursor: "pointer" }}>
               <span style={{ fontSize: 20, lineHeight: 1, filter: "grayscale(0.6) opacity(0.6)" }}>{tab.emoji}</span>
-              <span style={{ fontFamily: "Heebo, sans-serif", fontSize: 10, fontWeight: 400, color: C.muted }}>{tab.label}</span>
+              <span style={{ fontFamily: "Heebo, sans-serif", fontSize: 12, fontWeight: 400, color: C.muted }}>{tab.label}</span>
             </div>
           )
         ))}
@@ -827,7 +825,7 @@ function WeddingDayScreen({ token, event, briefing }: {
                       }} />
                       <span style={{ fontFamily:"'Heebo',sans-serif", fontWeight:700, fontSize:12, color:C.gold, letterSpacing:"0.05em", display:"block", marginBottom: 2 }}>{item.time}</span>
                       <span style={{ fontFamily:"'Frank Ruhl Libre',serif", fontWeight:700, fontSize:18, color: state === "past" ? C.muted : C.dark, display:"block" }}>{item.title}</span>
-                      {state === "active" && <span style={{ display:"inline-block", marginTop: 4, fontSize:11, color:C.gold, fontWeight:700, background:"rgba(197,164,109,0.12)", borderRadius:8, padding:"2px 10px" }}>עכשיו</span>}
+                      {state === "active" && <span style={{ display:"inline-block", marginTop: 4, fontSize:12, color:C.gold, fontWeight:700, background:"rgba(197,164,109,0.12)", borderRadius:8, padding:"2px 10px" }}>עכשיו</span>}
                     </div>
                   );
                 })}
@@ -950,7 +948,7 @@ function QuickCard({ emoji, value, label, caption, href, rawValue }: {
         <span style={{ fontSize:"22px", alignSelf:"flex-end" }}>{emoji}</span>
         <p style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"28px", fontWeight:700, color:"#1C1008", margin:0, lineHeight:1 }}>{display}</p>
         <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"13px", fontWeight:300, color:"#8C7B6E", margin:0 }}>{label}</p>
-        <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"11px", fontWeight:600, color:"#C5A46D", margin:"4px 0 0", letterSpacing:".03em" }}>{caption} ←</p>
+        <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"12px", fontWeight:600, color:"#C5A46D", margin:"4px 0 0", letterSpacing:".03em" }}>{caption} ←</p>
       </div>
     </a>
   );
@@ -992,7 +990,7 @@ function SmartAlertStrip({ stats, seating, daysLeft, token, eventName }: { stats
   return (
     <a href={href} {...(external ? { target:"_blank", rel:"noopener noreferrer" } : {})} style={{ textDecoration:"none" }}>
       <div style={{ background:"rgba(197,164,109,0.08)", borderRadius:"12px", border:"1px solid rgba(197,164,109,0.25)", padding:"14px 16px", marginBottom:"12px" }}>
-        <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"11px", fontWeight:600, color:"#8B6914", letterSpacing:"0.06em", margin:"0 0 4px" }}>הצעד הבא שלכם</p>
+        <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"12px", fontWeight:600, color:"#8B6914", letterSpacing:"0.06em", margin:"0 0 4px" }}>הצעד הבא שלכם</p>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
           <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"14px", fontWeight:500, color:"#1C1008", margin:0 }}>{title}</p>
           <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"13px", fontWeight:700, color:"#C5A46D", margin:0, flexShrink:0, whiteSpace:"nowrap" }}>{cta}</p>
@@ -1076,7 +1074,7 @@ function ActivityFeed({ token }: { token: string }) {
 
   return (
     <div style={{ background:"#fff", borderRadius:16, border:"1px solid #E8E0D4", padding:"16px", marginBottom:12 }}>
-      <p style={{ fontFamily:"Heebo,sans-serif", fontSize:11, fontWeight:600, color:"#8B6914", letterSpacing:"0.06em", margin:"0 0 10px" }}>
+      <p style={{ fontFamily:"Heebo,sans-serif", fontSize:12, fontWeight:600, color:"#8B6914", letterSpacing:"0.06em", margin:"0 0 10px" }}>
         קורה עכשיו
       </p>
       <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
@@ -1088,7 +1086,7 @@ function ActivityFeed({ token }: { token: string }) {
                 <span style={{ flexShrink:0 }}>{meta.emoji}</span>
                 <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{meta.text(it)}</span>
               </p>
-              <span style={{ fontFamily:"Heebo,sans-serif", fontSize:11, color:"rgba(28,16,8,0.4)", flexShrink:0 }}>{timeAgo(it.at)}</span>
+              <span style={{ fontFamily:"Heebo,sans-serif", fontSize:12, color:"rgba(28,16,8,0.4)", flexShrink:0 }}>{timeAgo(it.at)}</span>
             </div>
           );
         })}
@@ -1385,21 +1383,23 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
       {/* ── E3-S6: Header bar ── */}
       <header style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", position:"sticky", top:0, background:"rgba(253,250,245,0.96)", zIndex:10, backdropFilter:"blur(8px)", borderBottom:"1px solid rgba(197,164,109,0.15)" }}>
         <p style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"18px", fontWeight:700, color:C.gold, margin:0, letterSpacing:".05em" }}>רגע לפני</p>
-        <button style={{ background:"none", border:"none", cursor:"pointer", padding:"8px", display:"flex", flexDirection:"column", gap:"5px" }} aria-label="תפריט">
-          <div style={{ width:20, height:1.5, background:C.dark, borderRadius:1 }}/>
-          <div style={{ width:14, height:1.5, background:C.dark, borderRadius:1 }}/>
-          <div style={{ width:20, height:1.5, background:C.dark, borderRadius:1 }}/>
-        </button>
+        {/* This was a <button aria-label="תפריט"> with no handler: it looked
+            tappable, announced itself as a menu, and did nothing. The bottom
+            nav already carries "עוד". Removed rather than wired to a second
+            menu the design does not have. */}
       </header>
 
       {/* ── Hero card — ספירה לאחור + מאושרים ── */}
       <section style={{ padding:"20px 16px 0", animation:"fadeUp .35s ease both" }}>
         <div style={{ background:C.cream, borderRadius:20, padding:"24px 20px", border:`1px solid ${C.border}` }}>
-          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:13, fontWeight:500, color:C.muted, margin:"0 0 16px", letterSpacing:"0.04em" }}>
+          {/* The page had no headings at all, so a screen reader had no way
+              through it and the document outline was flat. Their names are the
+              page. Styling is unchanged — globals only set the heading face. */}
+          <h1 style={{ fontFamily:"Heebo,sans-serif", fontSize:13, fontWeight:500, color:C.muted, margin:"0 0 16px", letterSpacing:"0.04em" }}>
             {briefing?.event?.bride_name && briefing?.event?.groom_name
               ? `${briefing.event.bride_name} & ${briefing.event.groom_name}`
               : event.name}
-          </p>
+          </h1>
           <div style={{ display:"flex", alignItems:"flex-end", justifyContent:"space-between" }}>
             {/* ימים */}
             <div>
@@ -1457,7 +1457,6 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
       {/* F9 — floating help button */}
       <HelpButton token={token} />
       {/* E3-S7: Bottom navigation */}
-      <CoupleBottomNav token={token} />
     </div>
   );
 }
@@ -1510,7 +1509,7 @@ function TimelineEditor({ token }: { token: string }) {
         <p style={{ fontSize: 12, color: C.muted, margin: 0, fontFamily: "Heebo, sans-serif", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>
           🗓 טיימליין יום החתונה
         </p>
-        <button onClick={() => setOpen(o => !o)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: C.gold, fontFamily: "Heebo, sans-serif" }}>
+        <button onClick={() => setOpen(o => !o)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: C.gold, fontFamily: "Heebo, sans-serif" }}>
           {open ? "סגור" : "+ הוסף"}
         </button>
       </div>
@@ -1540,10 +1539,10 @@ function TimelineEditor({ token }: { token: string }) {
                   )}
                 </div>
                 <div style={{ flex: 1, paddingBottom: i < items.length - 1 ? "0.875rem" : 0 }}>
-                  <span style={{ fontSize: 11, color: isActive ? C.gold : C.muted, fontFamily: "Heebo, sans-serif", fontWeight: isActive ? 700 : 400 }}>{item.time}</span>
+                  <span style={{ fontSize: 12, color: isActive ? C.gold : C.muted, fontFamily: "Heebo, sans-serif", fontWeight: isActive ? 700 : 400 }}>{item.time}</span>
                   <p style={{ fontSize: 13, color: isPast ? C.muted : C.dark, fontFamily: "Heebo, sans-serif", fontWeight: isActive ? 700 : 400, margin: 0, opacity: isPast ? 0.55 : 1 }}>
                     {item.label}
-                    {isActive && <span style={{ marginRight: 6, fontSize: 10, background: C.gold, color: "white", padding: "1px 6px", borderRadius: 8, verticalAlign: "middle" }}>עכשיו</span>}
+                    {isActive && <span style={{ marginRight: 6, fontSize: 12, background: C.gold, color: "white", padding: "1px 6px", borderRadius: 8, verticalAlign: "middle" }}>עכשיו</span>}
                   </p>
                 </div>
                 <button onClick={() => remove(i)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(0,0,0,0.18)", padding: "4px 2px", flexShrink: 0, marginTop: 2 }}>
@@ -1599,7 +1598,7 @@ function RsvpCounter({ stats }: { stats: { total: number; confirmed: number; dec
           <Users size={14} style={{ color: C.gold }} />
           <h3 style={{ fontSize: "0.85rem", fontWeight: 600, margin: 0 }}>אישורי הגעה</h3>
         </div>
-        <span style={{ fontSize: 11, color: C.muted }}>{stats.confirmed + stats.declined} מתוך {stats.total} ענו</span>
+        <span style={{ fontSize: 12, color: C.muted }}>{stats.confirmed + stats.declined} מתוך {stats.total} ענו</span>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>
@@ -1612,7 +1611,7 @@ function RsvpCounter({ stats }: { stats: { total: number; confirmed: number; dec
               transform="rotate(-90 55 55)" style={{ transition: "all 0.8s ease" }} />
           ))}
           <text x={55} y={50} textAnchor="middle" style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 20, fontWeight: 700, fill: C.dark }}>{confirmedPct}%</text>
-          <text x={55} y={65} textAnchor="middle" style={{ fontFamily: "Heebo, sans-serif", fontSize: 9, fill: C.muted }}>אישרו</text>
+          <text x={55} y={65} textAnchor="middle" style={{ fontFamily: "Heebo, sans-serif", fontSize: 12, fill: C.muted }}>אישרו</text>
         </svg>
 
         {/* Bars */}
@@ -1624,7 +1623,7 @@ function RsvpCounter({ stats }: { stats: { total: number; confirmed: number; dec
           ].map(({ label, count, pct, color }) => (
             <div key={label}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                <span style={{ fontSize: 11, color: C.muted }}>{label}</span>
+                <span style={{ fontSize: 12, color: C.muted }}>{label}</span>
                 <span style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 13, fontWeight: 700, color }}>{count}</span>
               </div>
               <div style={{ height: 5, borderRadius: 3, background: "rgba(197,164,109,0.10)", overflow: "hidden" }}>
@@ -1654,7 +1653,7 @@ function BudgetVisual({ budget }: { budget: { planned: number; actual: number; r
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: "1rem" }}>
         <Wallet size={14} style={{ color: C.gold }} />
         <h3 style={{ fontSize: "0.8rem", fontWeight: 600, margin: 0 }}>תקציב</h3>
-        {overBudget && <span style={{ marginRight: "auto", fontSize: 10, background: "rgba(192,57,43,0.12)", color: "#C0392B", padding: "2px 8px", borderRadius: 8, fontFamily: "Heebo, sans-serif" }}>חריגה!</span>}
+        {overBudget && <span style={{ marginRight: "auto", fontSize: 12, background: "rgba(192,57,43,0.12)", color: "#C0392B", padding: "2px 8px", borderRadius: 8, fontFamily: "Heebo, sans-serif" }}>חריגה!</span>}
       </div>
 
       {/* Donut-style */}
@@ -1677,8 +1676,8 @@ function BudgetVisual({ budget }: { budget: { planned: number; actual: number; r
         </div>
         <div style={{ flex: 1 }}>
           <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.3rem", fontWeight: 700, margin: 0 }}>₪{fmt(budget.actual)}</p>
-          <p style={{ fontSize: 11, color: C.muted, margin: "2px 0 6px" }}>מתוך ₪{fmt(budget.planned)} מתוכנן</p>
-          {!overBudget && <p style={{ fontSize: 11, color: C.olive, margin: 0 }}>₪{fmt(budget.remaining)} נותרו</p>}
+          <p style={{ fontSize: 12, color: C.muted, margin: "2px 0 6px" }}>מתוך ₪{fmt(budget.planned)} מתוכנן</p>
+          {!overBudget && <p style={{ fontSize: 12, color: C.olive, margin: 0 }}>₪{fmt(budget.remaining)} נותרו</p>}
         </div>
       </div>
     </div>
@@ -1709,14 +1708,14 @@ function BlessingCard({ name }: { name: string }) {
       overflow: "hidden",
     }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent, rgba(197,164,109,0.5), transparent)" }} />
-      <p style={{ fontSize: 11, letterSpacing: "0.25em", textTransform: "uppercase" as const, color: "rgba(197,164,109,0.6)", marginBottom: "0.75rem", fontFamily: "Heebo, sans-serif" }}>
+      <p style={{ fontSize: 12, letterSpacing: "0.25em", textTransform: "uppercase" as const, color: "rgba(197,164,109,0.6)", marginBottom: "0.75rem", fontFamily: "Heebo, sans-serif" }}>
         ✦ לכבוד {name}
       </p>
       <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1rem,3.5vw,1.2rem)", color: "white", lineHeight: 1.7, margin: 0, fontWeight: 400 }}>
         &ldquo;{blessing}&rdquo;
       </p>
       <div style={{ width: 32, height: 1, background: "rgba(197,164,109,0.4)", margin: "1rem auto 0" }} />
-      <p style={{ fontSize: 11, color: "rgba(197,164,109,0.55)", marginTop: "0.5rem", fontFamily: "Heebo, sans-serif" }}>
+      <p style={{ fontSize: 12, color: "rgba(197,164,109,0.55)", marginTop: "0.5rem", fontFamily: "Heebo, sans-serif" }}>
         דביר · רגע לפני
       </p>
     </div>
@@ -1811,7 +1810,7 @@ function BudgetTracker({ token }: { token: string }) {
                 strokeDasharray={`${s.dasharray} ${CIRC}`} strokeDashoffset={s.dashoffset}
                 transform="rotate(-90 58 58)" style={{ transition: "all 0.5s ease" }} />
             ))}
-            <text x="58" y="62" textAnchor="middle" style={{ fontSize: 11, fill: C.muted, fontFamily: "Heebo, sans-serif" }}>
+            <text x="58" y="62" textAnchor="middle" style={{ fontSize: 12, fill: C.muted, fontFamily: "Heebo, sans-serif" }}>
               סה״כ
             </text>
           </svg>
@@ -1823,8 +1822,8 @@ function BudgetTracker({ token }: { token: string }) {
               return (
                 <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <div style={{ width: 8, height: 8, borderRadius: "50%", background: cat?.color ?? C.gold, flexShrink: 0 }} />
-                  <span style={{ fontSize: 11, flex: 1, color: C.dark }}>{item.description}</span>
-                  <span style={{ fontSize: 11, color: C.muted }}>{pct}%</span>
+                  <span style={{ fontSize: 12, flex: 1, color: C.dark }}>{item.description}</span>
+                  <span style={{ fontSize: 12, color: C.muted }}>{pct}%</span>
                   <button onClick={() => remove(item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(0,0,0,0.2)", padding: 1 }}>
                     <Trash2 size={11} />
                   </button>
@@ -1985,7 +1984,7 @@ function GiftsTracker({ token }: { token: string }) {
           {gifts.map(g => (
             <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "0.4rem 0.5rem", borderRadius: 8, background: "rgba(107,123,90,0.05)" }}>
               <span style={{ flex: 1, fontSize: 13, color: C.dark }}>{g.guest_name}</span>
-              {g.notes && <span style={{ fontSize: 11, color: C.muted }}>{g.notes}</span>}
+              {g.notes && <span style={{ fontSize: 12, color: C.muted }}>{g.notes}</span>}
               <span style={{ fontSize: 13, fontWeight: 600, color: C.olive }}>₪{fmt(g.amount)}</span>
               <button onClick={() => remove(g.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(0,0,0,0.2)", padding: 1 }}>
                 <Trash2 size={11} />
@@ -2086,7 +2085,7 @@ function SmartRecommendations({
           <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1rem", fontWeight: 700, margin: 0, color: C.dark }}>
             כדאי לטפל עכשיו
           </h3>
-          <p style={{ fontSize: 11, color: C.muted, margin: 0, fontFamily: "Heebo, sans-serif" }}>
+          <p style={{ fontSize: 12, color: C.muted, margin: 0, fontFamily: "Heebo, sans-serif" }}>
             המלצות — לא חובה, אבל יעזור
           </p>
         </div>
@@ -2108,7 +2107,7 @@ function SmartRecommendations({
                 width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
                 background: i === 0 ? C.gold : "rgba(197,164,109,0.18)",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 11, fontWeight: 700, color: i === 0 ? "white" : C.muted,
+                fontSize: 12, fontWeight: 700, color: i === 0 ? "white" : C.muted,
               }}>
                 {i + 1}
               </div>
@@ -2120,7 +2119,7 @@ function SmartRecommendations({
 
               {/* Urgency badge */}
               <span style={{
-                fontSize: 10, color, fontFamily: "Heebo, sans-serif",
+                fontSize: 12, color, fontFamily: "Heebo, sans-serif",
                 padding: "0.15rem 0.5rem", borderRadius: 8,
                 background: `${color}12`, border: `1px solid ${color}30`,
                 whiteSpace: "nowrap",
@@ -2147,7 +2146,7 @@ function SmartRecommendations({
       </div>
 
       {pending.length > 4 && (
-        <p style={{ fontSize: 11, color: C.muted, textAlign: "center", marginTop: "0.75rem", fontFamily: "Heebo, sans-serif" }}>
+        <p style={{ fontSize: 12, color: C.muted, textAlign: "center", marginTop: "0.75rem", fontFamily: "Heebo, sans-serif" }}>
           ועוד {pending.length - 4} משימות ברשימה המלאה למטה
         </p>
       )}
@@ -2236,7 +2235,7 @@ function MoodBoard({ token, eventId }: { token: string; eventId: string }) {
             <p style={{ fontSize: 13, fontWeight: 600, color: "#FFF8EC", fontFamily: "Frank Ruhl Libre, serif", margin: 0 }}>
               לוח השראה
             </p>
-            <p style={{ fontSize: 11, color: "rgba(255,235,180,0.6)", fontFamily: "Heebo, sans-serif", margin: 0 }}>
+            <p style={{ fontSize: 12, color: "rgba(255,235,180,0.6)", fontFamily: "Heebo, sans-serif", margin: 0 }}>
               {palette ? `${selectedPalette?.label} · ${style ?? ""}` : "הוסיפו את חזון החתונה שלכם"}
             </p>
           </div>
@@ -2329,13 +2328,13 @@ function MiniCalendar({ tasks, eventDate }: { tasks: WeddingTask[]; eventDate: s
             border: `1px solid ${m.important ? "rgba(197,164,109,0.3)" : C.border}` }}>
             <div style={{ width: 36, textAlign: "center", flexShrink: 0 }}>
               <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 18, fontWeight: 700, color: m.color, margin: 0, lineHeight: 1 }}>{m.date.getDate()}</p>
-              <p style={{ fontSize: 10, color: C.muted, margin: 0 }}>{m.date.toLocaleDateString("he-IL", { month: "short" })}</p>
+              <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>{m.date.toLocaleDateString("he-IL", { month: "short" })}</p>
             </div>
             <div style={{ flex: 1 }}>
               <p style={{ fontSize: 13, fontWeight: m.important ? 700 : 500, color: C.dark, margin: 0, fontFamily: "Heebo, sans-serif" }}>{m.label}</p>
-              <p style={{ fontSize: 11, color: C.muted, margin: "1px 0 0", fontFamily: "Heebo, sans-serif" }}>{dateStr}</p>
+              <p style={{ fontSize: 12, color: C.muted, margin: "1px 0 0", fontFamily: "Heebo, sans-serif" }}>{dateStr}</p>
             </div>
-            <span style={{ fontSize: 11, color: diff <= 3 ? "#C0392B" : C.muted, fontFamily: "Heebo, sans-serif", fontWeight: diff <= 7 ? 600 : 400, flexShrink: 0 }}>
+            <span style={{ fontSize: 12, color: diff <= 3 ? "#C0392B" : C.muted, fontFamily: "Heebo, sans-serif", fontWeight: diff <= 7 ? 600 : 400, flexShrink: 0 }}>
               {diff === 0 ? "היום!" : diff === 1 ? "מחר" : `עוד ${diff} ימים`}
             </span>
           </div>
@@ -2400,7 +2399,7 @@ function VendorBook({ token }: { token: string }) {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 16 }}>📒</span>
           <h3 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "0.95rem", fontWeight: 700, margin: 0, color: C.dark }}>ספר ספקים</h3>
-          {contacts.length > 0 && <span style={{ fontSize: 11, background: "rgba(197,164,109,0.15)", color: C.gold, borderRadius: 10, padding: "1px 8px" }}>{contacts.length}</span>}
+          {contacts.length > 0 && <span style={{ fontSize: 12, background: "rgba(197,164,109,0.15)", color: C.gold, borderRadius: 10, padding: "1px 8px" }}>{contacts.length}</span>}
         </div>
         <ChevronDown size={15} style={{ color: C.muted, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
       </button>
@@ -2421,14 +2420,14 @@ function VendorBook({ token }: { token: string }) {
                   <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{catObj?.emoji ?? "✦"}</span>
                   <div style={{ flex: 1 }}>
                     <p style={{ fontWeight: 600, fontSize: 13, margin: 0, color: C.dark }}>{c.name}</p>
-                    <p style={{ fontSize: 11, color: C.muted, margin: "1px 0" }}>{catObj?.label}</p>
+                    <p style={{ fontSize: 12, color: C.muted, margin: "1px 0" }}>{catObj?.label}</p>
                     {c.phone && (
                       <a href={`https://wa.me/${c.phone.replace(/[^0-9]/g,"").replace(/^0/,"972")}`} target="_blank" rel="noopener noreferrer"
                         style={{ fontSize: 12, color: "#1A9B4E", textDecoration: "none", display: "flex", alignItems: "center", gap: 3, marginTop: 2 }}>
                         💬 {c.phone}
                       </a>
                     )}
-                    {c.notes && <p style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>{c.notes}</p>}
+                    {c.notes && <p style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>{c.notes}</p>}
                   </div>
                   <button onClick={() => remove(c.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(200,60,60,0.4)", padding: 2, flexShrink: 0 }}>
                     <Trash2 size={13} />

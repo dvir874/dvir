@@ -154,7 +154,7 @@ export default function VendorsPage() {
         <div style={{ maxWidth: 640, margin: "0 auto", display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <button onClick={() => router.back()} style={{ background: "none", border: "none", color: "rgba(197,164,109,0.7)", cursor: "pointer", fontSize: 20, padding: 0 }}>→</button>
           <div>
-            <p style={{ color: "rgba(197,164,109,0.6)", fontSize: 10, letterSpacing: "0.3em" }}>רגע לפני</p>
+            <p style={{ color: "rgba(197,164,109,0.6)", fontSize: 12, letterSpacing: "0.3em" }}>רגע לפני</p>
             <h1 style={{ color: "#FDFAF5", fontSize: 18, fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, margin: 0 }}>🤝 ספקי האירוע</h1>
           </div>
           <button onClick={openAdd} style={{ marginRight: "auto", background: C.gold, color: "white", border: "none", borderRadius: 12, padding: "0.5rem 1rem", fontFamily: "Heebo, sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
@@ -174,7 +174,7 @@ export default function VendorsPage() {
               { label: "נותר לתשלום", value: f(remaining), icon: "⏳" },
             ].map(card => (
               <div key={card.label} style={{ background: C.card, borderRadius: 16, padding: "0.85rem 1rem", boxShadow: "0 2px 12px rgba(28,16,8,0.07)", border: `1px solid ${C.border}` }}>
-                <p style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>{card.icon} {card.label}</p>
+                <p style={{ fontSize: 12, color: C.muted, marginBottom: 2 }}>{card.icon} {card.label}</p>
                 <p style={{ fontSize: 18, fontWeight: 700, color: C.dark }}>{card.value}</p>
               </div>
             ))}
@@ -208,10 +208,10 @@ export default function VendorsPage() {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontWeight: 700, color: C.dark, fontSize: 15, marginBottom: 1 }}>{v.vendor_name || cat.label}</p>
-                      <p style={{ fontSize: 11, color: C.muted }}>{cat.label}{v.contact_name ? ` · ${v.contact_name}` : ""}</p>
+                      <p style={{ fontSize: 12, color: C.muted }}>{cat.label}{v.contact_name ? ` · ${v.contact_name}` : ""}</p>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                      <span style={{ background: st.bg, color: st.text, borderRadius: 8, padding: "2px 8px", fontSize: 11, fontWeight: 600 }}>{st.label}</span>
+                      <span style={{ background: st.bg, color: st.text, borderRadius: 8, padding: "2px 8px", fontSize: 12, fontWeight: 600 }}>{st.label}</span>
                       {v.price_agreed && <span style={{ fontSize: 12, color: C.muted }}>{f(v.price_agreed)}</span>}
                     </div>
                   </div>
@@ -261,7 +261,7 @@ export default function VendorsPage() {
                       {/* Rating */}
                       {(v.rating_quality || v.rating_timing || v.rating_personal) && (
                         <div style={{ background: "rgba(197,164,109,0.07)", borderRadius: 12, padding: "0.6rem 0.8rem", marginBottom: "0.85rem" }}>
-                          <p style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>דירוג</p>
+                          <p style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>דירוג</p>
                           <div style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 12 }}>
                             {v.rating_quality && <span>איכות: {"★".repeat(v.rating_quality)}{"☆".repeat(5 - v.rating_quality)}</span>}
                             {v.rating_timing && <span>עמידה בזמנים: {"★".repeat(v.rating_timing)}{"☆".repeat(5 - v.rating_timing)}</span>}

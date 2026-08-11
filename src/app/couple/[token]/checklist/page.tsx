@@ -3,8 +3,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import HelpButton from "@/components/HelpButton";
-import CoupleBottomNav from "@/components/CoupleBottomNav";
-
 const C = {
   ivory: "#FDFAF5", cream: "#F6F1E8", gold: "#C5A46D", goldText: "#8B6914",
   olive: "#6B7B5A", dark: "#1C1008", muted: "#8C7B6E", border: "#E8E0D4",
@@ -165,7 +163,6 @@ export default function ChecklistPage() {
       </svg>
       <h1 style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"24px", fontWeight:700, color:C.dark }}>כל המשימות הושלמו! 🎉</h1>
       <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"16px", fontWeight:300, color:C.muted }}>אתם מוכנים לחתונה</p>
-      <CoupleBottomNav token={token} />
     </div>
   );
 
@@ -227,7 +224,7 @@ export default function ChecklistPage() {
                   style={{ width:"100%", background:"none", border:"none", padding:"8px 4px", display:"flex", alignItems:"center", gap:"6px", cursor:"pointer", textAlign:"right" }}>
                   <span style={{ fontSize:15 }}>{cat.icon}</span>
                   <span style={{ fontFamily:"Heebo,sans-serif", fontWeight:600, fontSize:14, color:C.olive, flex:1 }}>{cat.label}</span>
-                  <span style={{ fontFamily:"Heebo,sans-serif", fontSize:11, color:C.muted }}>{cat.tasks.filter(t=>t.completed).length}/{cat.tasks.length}</span>
+                  <span style={{ fontFamily:"Heebo,sans-serif", fontSize:12, color:C.muted }}>{cat.tasks.filter(t=>t.completed).length}/{cat.tasks.length}</span>
                   {cat.tasks.every(t=>t.completed) && <span style={{ width:6, height:6, borderRadius:"50%", background:C.olive, display:"inline-block" }}/>}
                   <span style={{ color:C.muted, fontSize:12 }}>{expanded.has(cat.value)?"▲":"▼"}</span>
                 </button>
@@ -300,7 +297,6 @@ export default function ChecklistPage() {
       )}
 
       <HelpButton token={token} />
-      <CoupleBottomNav token={token} />
     </div>
   );
 }

@@ -54,13 +54,13 @@ export default function ServiceCenterPage() {
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.6rem" }}>
             <button onClick={() => router.back()} style={{ background: "none", border: "none", color: "rgba(197,164,109,0.7)", cursor: "pointer", fontSize: 20, padding: 0 }}>→</button>
             <div>
-              <p style={{ color: "rgba(197,164,109,0.6)", fontSize: 10, letterSpacing: "0.3em" }}>רגע לפני</p>
+              <p style={{ color: "rgba(197,164,109,0.6)", fontSize: 12, letterSpacing: "0.3em" }}>רגע לפני</p>
               <h1 style={{ color: "#FDFAF5", fontSize: 18, fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, margin: 0 }}>🛎 מרכז שירות</h1>
             </div>
           </div>
           {!loading && total > 0 && (
             <>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(197,164,109,0.65)", marginBottom: 4 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "rgba(197,164,109,0.65)", marginBottom: 4 }}>
                 <span>{done} מתוך {total} שלבים הושלמו</span>
                 <span style={{ fontWeight: 700 }}>{pct}%</span>
               </div>
@@ -106,7 +106,7 @@ export default function ServiceCenterPage() {
                       <div style={{ flex: 1, background: C.card, borderRadius: 14, padding: "0.9rem 1rem", boxShadow: "0 2px 10px rgba(28,16,8,0.06)", border: `1px solid ${step.status === "done" ? "rgba(5,150,105,0.2)" : C.border}` }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem" }}>
                           <p style={{ fontWeight: 700, color: C.dark, fontSize: 15 }}>{step.title}</p>
-                          <span style={{ padding: "3px 10px", borderRadius: 8, fontSize: 10, fontWeight: 700, color: cfg.color, background: cfg.bg, whiteSpace: "nowrap" }}>
+                          <span style={{ padding: "3px 10px", borderRadius: 8, fontSize: 12, fontWeight: 700, color: cfg.color, background: cfg.bg, whiteSpace: "nowrap" }}>
                             {cfg.label}
                           </span>
                         </div>
