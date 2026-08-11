@@ -14,11 +14,34 @@ export async function GET(
   /* Only columns that actually exist on gallery_albums. Selecting event_name
      and status — which do not — made PostgREST error, so every gallery in
      production answered "not found" no matter how valid its token was. */
+  /* Either token opens this route, and which one matters.
+
+     is_public has existed all along, the API selected it, and nothing ever
+     checked it — the live album is marked private and served its photos to
+     anyone holding the token anyway. A flag that describes an intention nobody
+     enforces is worse than no flag: it reads as a protection that is not there.
+
+     Enforcing it alone would have locked the couple out as well, because there
+     was only one token. So the couple has their own, and it is the only link
+     that should ever be sent to them.
+
+     This matters more today than it did yesterday: guests are no longer sent
+     to the gallery at all — they get /memory, to upload — which makes the
+     viewing gallery the couple's private space rather than a shared one. */
   const { data: album } = await sb
     .from('gallery_albums')
-    .select('id, title, photo_count, event_id, is_public')
-    .eq('public_token', token)
-    .single();
+    .select('id, title, photo_count, event_id, is_public, owner_token, public_token')
+    .or(`public_token.eq.${token},owner_token.eq.${token}`)
+    .maybeSingle();
+
+  const isOwner = !!album && album.owner_token === token;
+
+  /* A private album opened with the guest link is refused — and refused as
+     "not found", not "forbidden". Confirming that a token is real but
+     restricted tells a stranger they have found something worth pursuing. */
+  if (album && !isOwner && album.is_public === false) {
+    return NextResponse.json({ error: 'not found' }, { status: 404 });
+  }
 
   /* The couple's names live on the event, not the album */
   let eventName: string | null = null;
