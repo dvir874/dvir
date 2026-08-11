@@ -3,7 +3,7 @@ import { createServerClient } from "@/lib/supabase-server";
 import {
   getWhatsAppConfig, sendInvitation, toE164, policyFor,
   rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY,
-  fetchAccountHealth, warmupCap, recentPeakRecipients,
+  fetchAccountHealth, warmupCap, recentPeakRecipients, sendGalleryReady,
 } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
@@ -162,6 +162,87 @@ async function applyOrphanStatuses(
     }
   }
   return applied;
+}
+
+/* Tell guests the gallery is ready — the one message that comes after.
+
+   The template was approved before the wedding and nothing has ever sent it.
+   An approved template is permission, not a mechanism; the couple would have
+   discovered that the week after their wedding, by hand, guest by guest.
+
+   Three gates, each because skipping it does real harm:
+
+     the date has passed  obvious, and not sufficient on its own
+     gallery_ready        the couple confirms the photos are actually up. No
+                          machine can know this, and "the gallery is ready"
+                          sent to an empty gallery is worse than silence
+     wants_photos         only guests who asked. That tick is what makes this
+                          a fulfilment of their own request rather than an
+                          unsolicited one — why Meta approved it as UTILITY,
+                          and why it escapes the recipient marketing cap that
+                          cost sixteen guests their invitation today
+
+   Already-sent guests are excluded by their own guest_events row rather than
+   by a flag on the event, so a run that dies halfway resumes exactly where it
+   stopped and nobody is messaged twice. */
+async function notifyGallery(
+  sb: ReturnType<typeof createServerClient>,
+  cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+  budget: number,
+): Promise<{ sent: number; event?: string }> {
+  if (budget <= 0) return { sent: 0 };
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { data: evs } = await sb.from("events")
+    .select("id, name, gallery_ready, gallery_notified_at")
+    .lt("date", today).eq("gallery_ready", true).is("gallery_notified_at", null)
+    .order("date", { ascending: false }).limit(1);
+  const ev = (evs ?? [])[0];
+  if (!ev) return { sent: 0 };
+
+  const { data: album } = await sb.from("gallery_albums")
+    .select("public_token").eq("event_id", ev.id).maybeSingle();
+  if (!album?.public_token) return { sent: 0 };
+
+  const { data: guests } = await sb.from("guests")
+    .select("id, phone, wants_photos, category")
+    .eq("event_id", ev.id).eq("wants_photos", true);
+  const targets = (guests ?? []).filter(g => g.category !== "demo" && g.phone);
+  if (!targets.length) return { sent: 0 };
+
+  const { data: done } = await sb.from("guest_events").select("guest_id")
+    .eq("event_type", "gallery_sent").in("guest_id", targets.map(g => g.id as string));
+  const already = new Set((done ?? []).map(r => r.guest_id as string));
+
+  const todo = targets.filter(g => !already.has(g.id as string)).slice(0, budget);
+  if (!todo.length) {
+    /* Everyone who asked has been told — close the event so later runs skip it */
+    await sb.from("events")
+      .update({ gallery_notified_at: new Date().toISOString() }).eq("id", ev.id);
+    return { sent: 0, event: ev.name as string };
+  }
+
+  let sent = 0;
+  for (let i = 0; i < todo.length; i += SEND_CONCURRENCY) {
+    const batch = await Promise.all(
+      todo.slice(i, i + SEND_CONCURRENCY).map(async g => ({
+        g, res: await sendGalleryReady(cfg, g.phone as string, album.public_token as string),
+      })),
+    );
+    for (const { g, res } of batch) {
+      if (!res.ok) continue;
+      sent++;
+      await sb.from("guest_events").insert({ guest_id: g.id, event_type: "gallery_sent" });
+      if (res.messageId) {
+        await sb.from("wa_messages").insert({
+          event_id: ev.id, guest_id: g.id, wa_phone: toE164(g.phone as string) ?? "",
+          direction: "out", body: "גלריית התמונות מוכנה",
+          wamid: res.messageId, status: "accepted",
+        });
+      }
+    }
+  }
+  return { sent, event: ev.name as string };
 }
 
 /* One row per run, whatever the outcome.
@@ -500,6 +581,18 @@ export async function GET(req: NextRequest) {
       .forEach(id => targets.push({ id, reminder: true }));
   }
 
+  /* Nobody left to invite or remind is exactly when the gallery announcement
+     should go out — same budget, same pacing, same caps. */
+  if (!targets.length) {
+    const gal = await notifyGallery(sb, cfg, budget);
+    if (gal.sent) {
+      return record(sb, {
+        sent: gal.sent, reason: "gallery_notified", healed, statusesApplied,
+        galleryEvent: gal.event,
+      }, { event_id: ev.id, cap, tier: health.tier, quality: health.quality,
+           posture: health.posture, window_used: usage.recipients });
+    }
+  }
   if (!targets.length) return record(sb, { sent: 0, reason: "nothing_due", healed },
     { event_id: ev.id, cap, tier: health.tier, quality: health.quality,
       posture: health.posture, window_used: usage.recipients });

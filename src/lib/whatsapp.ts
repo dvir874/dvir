@@ -180,6 +180,62 @@ function isTransient(err: string): boolean {
    "slow down", answering immediately is how a throttle becomes a block. */
 const BACKOFF_MS = [15000, 45000, 120000];
 
+
+/* "The gallery is ready" — the one message that comes after the wedding.
+
+   Its template carries no body variables (the couple's names are baked in at
+   approval time) and one url button that takes the album token. No image
+   header: the guests have seen the invitation art for weeks, and the point
+   here is the link.
+
+   Approved as UTILITY because the guest asked for it — wants_photos on their
+   own RSVP — which also exempts it from the recipient marketing cap that
+   silently cost sixteen guests their invitation today. */
+export async function sendGalleryReady(
+  cfg: WhatsAppConfig, phone: string, albumToken: string,
+): Promise<SendResult> {
+  const to = toE164(phone);
+  if (!to) return { ok: false, error: "מספר לא תקין" };
+
+  await pace();
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/${API_VERSION}/${cfg.phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${cfg.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(20_000),
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to,
+          type: "template",
+          template: {
+            name: cfg.galleryTemplateName,
+            language: { code: cfg.templateLang },
+            components: [{
+              type: "button", sub_type: "url", index: "0",
+              parameters: [{ type: "text", text: albumToken }],
+            }],
+          },
+        }),
+      },
+    );
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: json?.error?.error_user_msg ?? json?.error?.message ?? `HTTP ${res.status}`,
+      };
+    }
+    return { ok: true, messageId: json?.messages?.[0]?.id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "network error" };
+  }
+}
+
 /* ── Asynchronous failures ───────────────────────────────────────────────
    The retry loop above only ever sees errors Meta returns *from the send
    call*. The failures that actually cost us guests do not arrive that way:
@@ -550,6 +606,8 @@ export interface WhatsAppConfig {
      answered. Same shape as the invitation — image header, one token variable
      in the URL button — so it goes through the same send path. */
   reminderTemplateName: string;
+  /** Approved UTILITY template announcing the photo gallery */
+  galleryTemplateName: string;
 }
 
 /** The four body variables of the generic invitation template */
@@ -581,6 +639,7 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
        listens to is worse than sending none: the guest believes they have
        answered and we never know. */
     reminderTemplateName: process.env.WHATSAPP_TEMPLATE_REMINDER ?? "wedding_reminder_buttons_v1",
+    galleryTemplateName: process.env.WHATSAPP_TEMPLATE_GALLERY ?? "wedding_gallery_ready_regalifnei",
     templateLang: process.env.WHATSAPP_TEMPLATE_LANG ?? "he",
     /* Kept only so existing callers still typecheck; nothing reads it as a
        fallback any more. The comment used to say there was deliberately no
