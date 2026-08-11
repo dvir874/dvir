@@ -126,6 +126,12 @@ Body      Heebo 300–600
 The photographs are the colour on this screen. Everything the design adds
 should be ivory, gold hairlines and restraint.
 
+**Imagery — required.** Any woman appearing in a placeholder or generated
+photograph must be **modestly dressed**: shoulders covered, high neckline, back
+covered, nothing form-revealing. This applies above all to brides. Apply it
+even where no figure was asked for, since wedding screens attract them by
+default. A render that does not meet this is regenerated, not cropped.
+
 ## 9. Platform
 
 **Mobile First.** Nearly every view is a phone. Desktop is a widening of the

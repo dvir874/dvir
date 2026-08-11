@@ -74,7 +74,7 @@ Claude **אינו רשאי לאלתר עיצוב.**
 5.  כל הרכיבים הנדרשים
 6.  מידע עסקי רלוונטי
 7.  Design Constraints
-8.  Brand Guidelines (צבעים, פונטים, spacing)
+8.  Brand Guidelines (צבעים, פונטים, spacing) — **כולל דרישת צניעות, ראו למטה**
 9.  Mobile First / Desktop First
 10. RTL
 11. Accessibility
@@ -88,6 +88,24 @@ Claude **אינו רשאי לאלתר עיצוב.**
 19. רגשות שהמסך צריך להעביר
 20. הוראות להשתמש ב-Product Design Foundation
 ```
+
+### 🔴 סעיף 8 — צניעות בתמונות (חובה בכל פרומפט)
+
+**כל אישה שמופיעה בתמונה חייבת להיות לבושה בצניעות** — כתפיים מכוסות, מחשוף
+גבוה, גב מכוסה, שמלה לא צמודה. במיוחד כלות.
+
+נוסח מוכן להעתקה לתוך סעיף Brand:
+
+> **Imagery — required.** Any woman appearing in a placeholder or generated
+> photograph must be **modestly dressed**: shoulders covered, high neckline,
+> back covered, nothing form-revealing. This applies above all to brides. Apply
+> it even where no figure was asked for, since wedding screens attract them by
+> default. A render that does not meet this is regenerated, not cropped.
+
+**לכתוב את זה גם כשלא ביקשנו דמות** — Stitch מוסיף אנשים למסכי חתונה מיוזמתו,
+וזה בדיוק מה שקרה במסך Memory Wall ב-12/08/2026.
+
+**לא מתקנים אחרי ולא חותכים — מייצרים מחדש.** DEC-011.
 
 ---
 
