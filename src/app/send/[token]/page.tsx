@@ -87,7 +87,13 @@ export default function HelperSendPage({ params }: { params: Promise<{ token: st
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(SENT_KEY) ?? "[]");
-      if (Array.isArray(saved) && saved.length) setSentIds(new Set(saved));
+      /* Assign, never merge. mode is "" on the first render and becomes
+         "reminder" a tick later, so this effect runs twice with two different
+         keys: first the old round-one list, then the reminder's own. Guarding
+         on `saved.length` meant the second run — correctly finding nothing —
+         left round one's names in place, and the queue emptied itself again.
+         Scoping the key was only half the fix; this is the other half. */
+      setSentIds(new Set(Array.isArray(saved) ? saved : []));
     } catch { /* private mode — the in-session count still works */ }
   }, [SENT_KEY]);
 
