@@ -170,7 +170,7 @@ export default function GiftCenterPage() {
         </div>
         {/* Tabs */}
         <div style={{ maxWidth: 640, margin: "0.75rem auto 0", display: "flex", gap: "0.5rem" }}>
-          {[{ key: "gifts", label: "מתנות" }, { key: "methods", label: "אמצעי תשלום" }].map(t => (
+          {[{ key: "gifts", label: "מתנות" }].map(t => (
             <button key={t.key} onClick={() => setActiveTab(t.key as "gifts" | "methods")}
               style={{ padding: "0.35rem 0.9rem", borderRadius: 10, border: "none", background: activeTab === t.key ? "rgba(197,164,109,0.25)" : "transparent", color: activeTab === t.key ? C.gold : "rgba(197,164,109,0.5)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
               {t.label}
@@ -252,62 +252,11 @@ export default function GiftCenterPage() {
           </>
         )}
 
-        {activeTab === "methods" && (
-          <div>
-            <p style={{ color: C.muted, fontSize: 13, marginBottom: "1.25rem", lineHeight: 1.6 }}>
-              בחרו אילו אמצעי קבלת מתנות יוצגו לאורחים שלכם באתר האירוע.
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-              {PAYMENT_METHODS.map(m => (
-                <div key={m.value} style={{ background: C.card, borderRadius: 16, padding: "1rem", border: `1px solid ${C.border}`, boxShadow: "0 2px 8px rgba(28,16,8,0.06)" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.75rem" }}>
-                    <span style={{ fontSize: 24 }}>{m.icon}</span>
-                    <div>
-                      <p style={{ fontWeight: 700, color: C.dark, fontSize: 15 }}>{m.label}</p>
-                    </div>
-                  </div>
-                  <p style={{ fontSize: 12, color: C.muted, marginBottom: "0.5rem" }}>
-                    {m.value === "bit" ? "מספר טלפון עבור Bit" :
-                     m.value === "paybox" ? "קישור PayBox" :
-                     m.value === "easy2give" ? "קישור Easy2Give" :
-                     "קישור מותאם אישית"}
-                  </p>
-                  {/* Three faults lived in this one input.
 
-                      It had no value and no defaultValue, so it opened empty
-                      however many times it had been filled in. Dvir typed his
-                      Bit number, left the page and came back to a blank field,
-                      and concluded — reasonably — that nothing had been saved.
-
-                      It saved on blur alone. On a phone, tapping a bottom-nav
-                      link can navigate without the field ever blurring, so the
-                      value is simply lost.
-
-                      And the save ended in .catch(() => {}). A failed write to
-                      the couple's own gift details produced no error, no retry
-                      and no trace. The same shape as the webhook, the helper
-                      screen and the admin send station — the fourth today. */}
-                  <input
-                    key={`${m.value}-${event?.[fieldOf(m.value)] ?? ""}`}
-                    defaultValue={event?.[fieldOf(m.value)] ?? ""}
-                    placeholder={`הזינו ${m.value === "bit" ? "מספר טלפון" : "קישור"}...`}
-                    style={{ width: "100%", border: `1px solid ${methodState[m.value] === "error" ? "#B4453C" : C.border}`, borderRadius: 10, padding: "0.5rem 0.75rem", fontSize: 13, fontFamily: "Heebo, sans-serif", background: C.ivory, color: C.dark, outline: "none", boxSizing: "border-box" }}
-                    onBlur={e => saveMethod(m.value, e.target.value)}
-                  />
-                  {methodState[m.value] && (
-                    <p style={{ fontSize: 12, marginTop: 6, marginBottom: 0, fontWeight: 600,
-                                color: methodState[m.value] === "error" ? "#B4453C"
-                                     : methodState[m.value] === "saved" ? C.olive : C.muted }}>
-                      {methodState[m.value] === "saving" ? "שומר…"
-                        : methodState[m.value] === "saved" ? "✓ נשמר"
-                        : "❌ לא נשמר — בדקו חיבור ונסו שוב"}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* The payment-methods tab is out for now. Bit had no shareable link
+            and PayBox alone was judged not worth offering — see the note on the
+            RSVP page. The fields, the saver and the history all remain; only
+            this panel is unmounted. */}
       </div>
 
       {/* Add Gift Modal */}

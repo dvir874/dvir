@@ -764,24 +764,13 @@ export default function RsvpClient({
                 three steps, and a guest at a wedding does not take three steps.
                 PayBox was nested inside the Bit condition, so a couple who set
                 only a PayBox link saw nothing at all. That was its own bug. */}
-            {event?.paybox_link && (
-              <div style={{
-                margin: "0 0 16px", padding: "14px 18px", borderRadius: 14,
-                background: "rgba(0,169,224,0.05)", border: "1.5px solid rgba(0,169,224,0.18)",
-                textAlign: "center", animation: "fadeUp 0.35s ease 0.2s both",
-              }}>
-                <p style={{ fontSize: 14, fontWeight: 600, color: T.dark, margin: "0 0 4px" }}>
-                  🎁 רוצים לשמח את הזוג במתנה גם מרחוק?
-                </p>
-                <a
-                  href={event.paybox_link}
-                  target="_blank" rel="noopener noreferrer"
-                  style={{ display: "block", fontFamily: "'Heebo', sans-serif", fontSize: 15, fontWeight: 700, color: "#00A9E0", padding: 4, textDecoration: "none" }}
-                >
-                  שליחת מתנה ב-PayBox ←
-                </a>
-              </div>
-            )}
+            {/* No payment option on the guest page at all, for now.
+                Bit has no shareable link and was removed; PayBox was left, and
+                Dvir's call is that a half-covered gift flow is worse than none —
+                a guest offered one payment method they do not use concludes the
+                couple only take that one. bit_phone and paybox_link stay in the
+                database and in the Gift Center's history; only the guest-facing
+                offer is gone, so bringing it back is a render, not a migration. */}
 
             <button
               type="button"
@@ -1008,24 +997,6 @@ export default function RsvpClient({
             </a>
           )}
 
-          {event?.paybox_link && (
-            <div style={{
-              marginTop: 16, padding: "14px 18px", borderRadius: 14,
-              background: "rgba(0,169,224,0.05)", border: "1.5px solid rgba(0,169,224,0.18)",
-              textAlign: "center", animation: "fadeUp 0.5s ease 0.45s both",
-            }}>
-              <p style={{ fontSize: 14, fontWeight: 600, color: T.dark, margin: "0 0 4px" }}>
-                🎁 רוצים לשמח את הזוג במתנה?
-              </p>
-              <a
-                href={event.paybox_link}
-                target="_blank" rel="noopener noreferrer"
-                style={{ display: "block", fontFamily: "'Heebo', sans-serif", fontSize: 15, fontWeight: 700, color: "#00A9E0", padding: 4, textDecoration: "none" }}
-              >
-                שליחת מתנה ב-PayBox ←
-              </a>
-            </div>
-          )}
 
           <button
             type="button"
