@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { createServerClient } from "@/lib/supabase-server";
+import { toVisualOrder } from "@/lib/bidi";
 
 export const runtime = "nodejs";
 export const size = { width: 1200, height: 630 };
@@ -37,12 +38,14 @@ export default async function OgImage({ params }: { params: Promise<{ slug: stri
       >
         <div style={{ fontSize: 64, marginBottom: 20 }}>💍</div>
         <div style={{ fontSize: 84, fontWeight: 800, color: "#1C1008", marginBottom: 16, textAlign: "center", padding: "0 60px" }}>
-          {name}
+          {toVisualOrder(name)}
         </div>
         {dateStr && (
-          <div style={{ fontSize: 40, color: "#8B6914", marginBottom: 32 }}>{dateStr}</div>
+          <div style={{ fontSize: 40, color: "#8B6914", marginBottom: 32 }}>{toVisualOrder(dateStr)}</div>
         )}
-        <div style={{ fontSize: 26, color: "rgba(28,16,8,0.5)" }}>הוזמנתם לחגוג איתנו · רגע לפני</div>
+        <div style={{ fontSize: 26, color: "rgba(28,16,8,0.5)" }}>
+          {toVisualOrder("הוזמנתם לחגוג איתנו · רגע לפני")}
+        </div>
       </div>
     ),
     size

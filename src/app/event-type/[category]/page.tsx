@@ -124,7 +124,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: data.title,
       description: data.description,
       url: `${BASE}/ניהול-אירועים/${category}`,
-      images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+      images: [{ url: '/og.png', width: 1200, height: 630 }],
     },
     alternates: { canonical: `${BASE}/ניהול-אירועים/${category}` },
   };

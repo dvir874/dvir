@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title,
     description,
     keywords: [`ניהול אורחים לחתונה ב${data.he}`, `חתונה ב${data.he}`, `ניהול חתונה ${data.he}`, `אישורי הגעה ${data.he}`],
-    openGraph: { title, description, url: `${BASE}/ניהול-חתונה/${city}`, images: [{ url: '/og-image.png' }] },
+    openGraph: { title, description, url: `${BASE}/ניהול-חתונה/${city}`, images: [{ url: '/og.png' }] },
     alternates: { canonical: `${BASE}/ניהול-חתונה/${city}` },
   };
 }
