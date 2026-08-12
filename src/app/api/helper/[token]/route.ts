@@ -82,7 +82,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
   });
   const ids = guests.map(g => g.id);
 
+  /* ?mode=reminder — the second round.
+   *
+   * "Still needs contacting" below means the message never got there. That is
+   * the right question for a first round and the exact opposite of the one a
+   * reminder asks: the 143 guests who have not answered all had their
+   * invitation delivered, so every one of them counts as reached and the queue
+   * comes back empty. The page could already say the reminder wording; there
+   * was no way to ask the server who it was for.
+   *
+   * A reminder is for a guest the invitation reached and who has not answered.
+   * Opening the link without answering still counts — someone who looked and
+   * did not finish is more worth a nudge, not less. */
+  const isReminder = req.nextUrl.searchParams.get("mode") === "reminder";
+
   const reached = new Set<string>();
+  const delivered = new Set<string>();
   guests.forEach(g => { if (g.status !== "pending" || g.opened_at) reached.add(g.id); });
 
   for (let i = 0; i < ids.length; i += 100) {
@@ -99,12 +114,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
       .select("guest_id, status").eq("direction", "out").in("guest_id", slice);
     if (wErr) return NextResponse.json({ error: "lookup_failed" }, { status: 503 });
     (msgs ?? []).forEach(m => {
-      if (m.guest_id && ["delivered", "read"].includes(m.status)) reached.add(m.guest_id);
+      if (m.guest_id && ["delivered", "read"].includes(m.status)) {
+        reached.add(m.guest_id);
+        delivered.add(m.guest_id);
+      }
     });
   }
 
   const todo = guests
-    .filter(g => !reached.has(g.id))
+    .filter(g => isReminder
+      /* Reached, and still no answer. Anyone already confirmed or declined is
+         out by the status test, so a reminder can never land on someone who
+         has answered — the one mistake this round must not make. */
+      ? g.status === "pending" && delivered.has(g.id)
+      : !reached.has(g.id))
     .map(g => ({
       id: g.id, name: g.name, phone: g.phone,
       rsvp_token: g.rsvp_token, group: g.source_group,

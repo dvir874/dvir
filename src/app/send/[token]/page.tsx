@@ -93,12 +93,23 @@ export default function HelperSendPage({ params }: { params: Promise<{ token: st
          is still the only thing that grants access, and h only chooses a slice
          of what that token already allows. */
       const who = new URLSearchParams(window.location.search).get("h") ?? "";
-      const qs = who ? `?h=${encodeURIComponent(who)}` : "";
+      /* The mode has to reach the server too. The page alone only changes the
+         wording; who the wording is for is the server's question, and asking it
+         the first-round question while showing second-round text is how you get
+         an empty list and no idea why. */
+      const p = new URLSearchParams();
+      if (who) p.set("h", who);
+      if (mode) p.set("mode", mode);
+      const qs = p.toString() ? `?${p}` : "";
       const r = await fetch(`/api/helper/${token}${qs}`, { signal: AbortSignal.timeout(15_000) });
       if (!r.ok) { setError(r.status === 404 ? "הקישור אינו תקין" : "לא הצלחנו לטעון את הרשימה"); return; }
       setData(await r.json());
     } catch { setError("לא הצלחנו לטעון את הרשימה"); }
-  }, [token]);
+    /* mode belongs here. It is read from the URL in an effect, so it is "" on
+       the first render and only becomes "reminder" afterwards — without this
+       dependency the list is fetched once, with the first-round question, and
+       never asked again. */
+  }, [token, mode]);
 
   useEffect(() => { load(); }, [load]);
 
