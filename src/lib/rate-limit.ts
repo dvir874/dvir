@@ -17,14 +17,24 @@ interface RateLimitEntry {
 
 const store = new Map<string, RateLimitEntry>();
 
-// Clean up expired entries every 5 minutes to prevent memory leak
+/* Clean up expired entries every 5 minutes to prevent a memory leak.
+ *
+ * unref'd, which matters twice. It is why `node --test` hung: the test runner
+ * waits for the event loop to drain and a repeating interval never lets it, so
+ * the run neither passed nor failed — it simply never ended. And in a
+ * serverless function the same handle asks the runtime to stay alive for a
+ * timer whose only job is to tidy a Map that dies with the instance anyway.
+ *
+ * unref keeps the timer working while the process has other reasons to live,
+ * and stops it being one of those reasons. */
 if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
+  const sweep = setInterval(() => {
     const now = Date.now();
     for (const [key, entry] of store.entries()) {
       if (now > entry.resetAt) store.delete(key);
     }
   }, 5 * 60 * 1000);
+  sweep.unref?.();
 }
 
 export function checkRateLimit(
