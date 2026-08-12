@@ -188,6 +188,30 @@ export async function GET(req: NextRequest) {
     .eq("direction", "out").in("status", ["accepted", "sent"])
     .lt("created_at", staleCutoff);
 
+  /* Guests who tapped a button and then went quiet mid-exchange.
+     "מגיע" is now recorded on the tap itself, so the only state that can sit
+     here is a guest who tapped "לא מגיע" and never answered "רק לוודא" — which
+     is deliberately not recorded, because a mistaken tap would remove somebody
+     from a wedding they meant to attend. That safety costs visibility, so the
+     ones waiting are listed rather than left silent. Anything older than two
+     hours wants a human, not another message. */
+  const midChatCutoff = new Date(Date.now() - 2 * 60 * 60_000).toISOString();
+  const { data: midChat } = await sb.from("guests")
+    .select("id, name, phone, chat_state")
+    .not("chat_state", "is", null)
+    .lt("chat_state_at", midChatCutoff);
+
+  for (const g of midChat ?? []) {
+    needsHuman.push({
+      id: g.id as string,
+      name: g.name as string,
+      phone: g.phone as string | null,
+      why: g.chat_state === "awaiting_decline_confirm"
+        ? "לחץ ׳לא מגיע׳ ולא אישר — לא נרשם כלום"
+        : "התחיל לענות ולא סיים",
+    });
+  }
+
   return NextResponse.json({
     runs: runs ?? [], next, expectedRuns, needsHuman, available: true,
     stuck: stuck ?? 0,

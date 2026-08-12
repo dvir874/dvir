@@ -48,8 +48,13 @@ async function record(sb: Sb, g: Guest, status: "confirmed" | "declined", count?
     chat_state: null, chat_state_at: null,
   }).eq("id", g.id);
 
-  /* Same event the web form logs, so the timeline reads the same either way */
-  await sb.from("guest_events").insert({ guest_id: g.id, event_type: "rsvp_submitted" });
+  /* Same event the web form logs, so the timeline reads the same either way.
+     Only when the answer actually changed, though: an attendance is now
+     recorded on the first tap and again when the count arrives, and a timeline
+     that says a guest answered twice is a timeline nobody can read. */
+  if (g.status !== status) {
+    await sb.from("guest_events").insert({ guest_id: g.id, event_type: "rsvp_submitted" });
+  }
 }
 
 /** Returns true when the message was part of an RSVP exchange and handled. */
@@ -101,7 +106,20 @@ export async function handleGuestReply(
 
   /* ── first tap ───────────────────────────────────────────────── */
   if (/^rsvp_yes$/.test(said) || said === "מגיע") {
-    await setState(sb, guest.id, ASK_COUNT);
+    /* The attendance is recorded here, on the tap itself — not held until the
+       guest also says how many.
+
+       Holding it made "כמה אתם מגיעים?" a precondition for being counted, and
+       that question does not always arrive: Meta blocks our follow-ups with
+       "not delivered to maintain healthy ecosystem engagement", and a guest who
+       taps מגיע and is never asked anything else simply stops. Two guests sat
+       in awaiting_count on the morning of 12/08 having plainly said they were
+       coming, and the couple's number did not know it.
+
+       A guest who taps מגיע has told us they are coming. The headcount is a
+       refinement of an answer we already have, and it arrives below. */
+    await record(sb, guest, "confirmed", guest.guest_count ?? 1);
+    await setState(sb, guest.id, ASK_COUNT);   /* after record(), which clears it */
     await sendList(cfg, to, `${guest.name}, נהדר! כמה אתם מגיעים?`, "בחרו מספר",
       [1, 2, 3, 4, 5, 6, 7, 8].map(n => ({ id: `count_${n}`, title: String(n) })));
     return true;
