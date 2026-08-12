@@ -545,10 +545,33 @@ export async function GET(req: NextRequest) {
       .not("retry_after", "is", null).lte("retry_after", new Date().toISOString())
       .order("retry_after").limit(100);
 
+    /* Whether the guest still needs this at all.
+
+       The retry queue reads wa_messages and never looked at the guest. A failed
+       row keeps its due retry even after the guest answers by some other route
+       — most often opening an earlier, successful send and using the web form —
+       so on 12/08 both זוהר נחמיאס and שוהם דידי, who had answered on 10/08,
+       were retried again. Two blocked sends, two slots of a capped day, and two
+       more rejections against a number Meta is already throttling for exactly
+       this: messaging people who do not need it. */
+    const dueIds = [...new Set((dueRaw ?? []).map(d => d.guest_id).filter(Boolean))] as string[];
+    const answered = new Set<string>();
+    for (let i = 0; i < dueIds.length; i += 100) {
+      const { data } = await sb.from("guests")
+        .select("id").in("id", dueIds.slice(i, i + 100)).neq("status", "pending");
+      for (const g of data ?? []) answered.add(g.id as string);
+    }
+    /* Retire their queue entries too, or they come back every run for ever. */
+    if (answered.size) {
+      const rows = (dueRaw ?? []).filter(d => d.guest_id && answered.has(d.guest_id)).map(d => d.id);
+      if (rows.length) await sb.from("wa_messages").update({ retry_after: null }).in("id", rows);
+    }
+
     const seen = new Set(targets.map(t => t.id));
     for (const d of dueRaw ?? []) {
       if (targets.length >= budget) break;
       if (!d.guest_id || seen.has(d.guest_id)) continue;
+      if (answered.has(d.guest_id)) continue;
       if (policyFor(d.error_code, d.error).action !== "retry_later") continue;
       seen.add(d.guest_id);
       targets.push({ id: d.guest_id, row: d.id, count: (d.retry_count ?? 0) + 1 });
