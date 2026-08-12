@@ -91,7 +91,7 @@ export default function PricingCalculatorPage() {
             {included.map(label => (
               <p key={label} style={{ fontSize: 14, margin: 0, color: C.dark, display: "flex", alignItems: "baseline", gap: 8 }}>
                 <span style={{ color: C.olive, fontWeight: 700, flexShrink: 0 }}>✓</span>
-                <span>{label} <span style={{ fontSize: 11, fontWeight: 700, color: C.olive, background: "rgba(107,123,90,0.1)", borderRadius: 9999, padding: "2px 8px", marginRight: 4 }}>מתנה 🎁</span></span>
+                <span>{label} <span style={{ fontSize: 12, fontWeight: 700, color: C.olive, background: "rgba(107,123,90,0.1)", borderRadius: 9999, padding: "2px 8px", marginRight: 4 }}>מתנה 🎁</span></span>
               </p>
             ))}
           </div>
@@ -162,7 +162,7 @@ export default function PricingCalculatorPage() {
                 🎁 חבילה מלאה — חסכתם ₪{savings}
               </p>
             )}
-            <p style={{ fontSize: 11, color: C.muted, margin: "2px 0 0" }}>תשלום חד-פעמי · ללא מנוי</p>
+            <p style={{ fontSize: 12, color: C.muted, margin: "2px 0 0" }}>תשלום חד-פעמי · ללא מנוי</p>
           </div>
           <a
             href={`https://wa.me/${DVIR_PHONE}?text=${waMsg}`}

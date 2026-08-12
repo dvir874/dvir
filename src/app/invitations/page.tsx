@@ -83,7 +83,7 @@ function InvitationCard({ inv }: { inv: (typeof VISIBLE_INVITATIONS)[number] }) 
         {/* Style badge */}
         <div className="absolute top-3 right-3">
           <span
-            className="text-[10px] font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider"
+            className="text-[12px] font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider"
             style={{
               background: "rgba(255,255,255,0.90)",
               color:      C.gold,
@@ -135,7 +135,7 @@ function InvitationCard({ inv }: { inv: (typeof VISIBLE_INVITATIONS)[number] }) 
           {inv.tags.slice(0, 3).map((tag) => (
             <span
               key={tag}
-              className="text-[10px] px-2 py-0.5 rounded-full"
+              className="text-[12px] px-2 py-0.5 rounded-full"
               style={{
                 background: "rgba(197,164,109,0.10)",
                 color:      C.goldM,

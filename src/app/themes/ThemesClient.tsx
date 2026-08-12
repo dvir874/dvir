@@ -69,11 +69,11 @@ export default function ThemesClient({
                 <span className="text-base font-bold text-center leading-tight" style={{ color: t.heroNameColor, ...FRANK }}>
                   {coupleName}
                 </span>
-                <span className="text-[10px]" style={{ color: t.heroSubColor, ...HEEBO }}>
+                <span className="text-[12px]" style={{ color: t.heroSubColor, ...HEEBO }}>
                   מתחתנים!
                 </span>
                 <div className="w-8 h-px mt-0.5" style={{ background: t.heroAccent }} />
-                <span className="text-[9px]" style={{ color: t.heroMutedText, ...HEEBO }}>
+                <span className="text-[12px]" style={{ color: t.heroMutedText, ...HEEBO }}>
                   {coupleDate}
                 </span>
 

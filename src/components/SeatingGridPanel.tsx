@@ -118,7 +118,7 @@ export default function SeatingGridPanel({ tables, assignments, guests, onDropGu
             <p style={{
               fontFamily: "Heebo, sans-serif",
               fontWeight: 300,
-              fontSize: 11,
+              fontSize: 12,
               color: C.muted,
               margin: "3px 0 0",
               lineHeight: 1,

@@ -88,7 +88,7 @@ export default function Wave2Demo() {
 
       {/* Top nav */}
       <div style={{ background:"rgba(28,16,8,0.95)", borderBottom:"1px solid rgba(197,164,109,0.2)", padding:"12px 16px", position:"sticky", top:0, zIndex:100, backdropFilter:"blur(8px)" }}>
-        <p style={{ color:T.gold, fontSize:"11px", fontWeight:600, letterSpacing:".1em", textAlign:"center", marginBottom:"10px" }}>
+        <p style={{ color:T.gold, fontSize:"12px", fontWeight:600, letterSpacing:".1em", textAlign:"center", marginBottom:"10px" }}>
           WAVE 2 — CEO REVIEW DEMO
         </p>
         <div style={{ display:"flex", gap:"6px", overflowX:"auto", scrollbarWidth:"none", justifyContent:"center" }}>
@@ -227,7 +227,7 @@ export default function Wave2Demo() {
                 <p style={{ fontSize:"16px", fontWeight:600, color:T.dark, marginBottom:"10px" }}>מה הייתה הרגע הכי יפה?</p>
                 <div style={{ position:"relative" }}>
                   <textarea value={feedback} onChange={e => setFeedback(e.target.value.slice(0,500))} placeholder="ספרו לנו..." rows={4} style={{ width:"100%", padding:"14px 16px", borderRadius:"14px", border:`1.5px solid ${T.border}`, background:T.cream, color:T.dark, fontFamily:"'Heebo',sans-serif", fontSize:"15px", outline:"none", resize:"none", boxSizing:"border-box", lineHeight:1.6 }}/>
-                  <span style={{ position:"absolute", bottom:"10px", left:"14px", fontSize:"11px", fontWeight:300, color:T.muted }}>{feedback.length}/500</span>
+                  <span style={{ position:"absolute", bottom:"10px", left:"14px", fontSize:"12px", fontWeight:300, color:T.muted }}>{feedback.length}/500</span>
                 </div>
               </div>
 

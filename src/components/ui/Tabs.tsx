@@ -46,7 +46,7 @@ export function Tabs<T extends string>({ value, onChange, items, className }: Ta
           >
             {it.label}
             {!!it.badge && it.badge > 0 && (
-              <span style={{ fontSize: 10, fontWeight: fontWeight.bold, padding: "1px 6px", borderRadius: radius.pill, background: color.warningContainer, color: color.primaryHover }}>
+              <span style={{ fontSize: 12, fontWeight: fontWeight.bold, padding: "1px 6px", borderRadius: radius.pill, background: color.warningContainer, color: color.primaryHover }}>
                 {it.badge}
               </span>
             )}

@@ -91,7 +91,7 @@ export default function ChatWidget({ fetchUrl, postUrl, myRole, accentColor = "#
             position: "absolute", top: -4, right: -4,
             width: 18, height: 18, borderRadius: "50%",
             background: "rgb(220,38,38)", color: "white",
-            fontSize: 10, fontWeight: 700,
+            fontSize: 12, fontWeight: 700,
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>{unread}</span>
         )}
@@ -111,7 +111,7 @@ export default function ChatWidget({ fetchUrl, postUrl, myRole, accentColor = "#
             <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontWeight: 700, color: DARK, fontSize: 15 }}>
               💬 {label}
             </p>
-            <p style={{ fontSize: 11, color: "rgba(28,16,8,0.4)", fontFamily: "Heebo, sans-serif" }}>
+            <p style={{ fontSize: 12, color: "rgba(28,16,8,0.4)", fontFamily: "Heebo, sans-serif" }}>
               {myRole === "couple" ? "שלחו לנו הודעה ונחזור אליכם" : "צ׳אט עם הזוג"}
             </p>
           </div>
@@ -135,7 +135,7 @@ export default function ChatWidget({ fetchUrl, postUrl, myRole, accentColor = "#
                     border: isMe ? `1px solid ${accentColor}30` : "none",
                   }}>
                     {m.body}
-                    <div style={{ fontSize: 9, opacity: 0.5, marginTop: 2, textAlign: "left" }}>
+                    <div style={{ fontSize: 12, opacity: 0.5, marginTop: 2, textAlign: "left" }}>
                       {new Date(m.created_at).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
                     </div>
                   </div>

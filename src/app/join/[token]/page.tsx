@@ -130,7 +130,7 @@ function JoinInner({ params }: { params: Promise<{ token: string }> }) {
             {(attending === "yes" || attending === "chuppah") && (
               <div style={{ marginBottom: 24, animation: "fadeUp 0.25s ease both" }}>
                 <p style={{ fontSize: 13, fontWeight: 600, color: T.dark, textAlign: "center", margin: "0 0 4px" }}>כמה תגיעו?</p>
-                <p style={{ fontSize: 11, fontWeight: 300, color: T.muted, textAlign: "center", margin: "0 0 10px" }}>כולל אתכם</p>
+                <p style={{ fontSize: 12, fontWeight: 300, color: T.muted, textAlign: "center", margin: "0 0 10px" }}>כולל אתכם</p>
                 <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
                   {[1, 2, 3, 4, 5].map(n => (
                     <button key={n} type="button" onClick={() => setCount(n)}
@@ -149,7 +149,7 @@ function JoinInner({ params }: { params: Promise<{ token: string }> }) {
               {submitting ? "שולח..." : "שליחת תשובה 🎉"}
             </button>
 
-            <p style={{ textAlign: "center", fontSize: 11, color: T.muted, marginTop: 24, opacity: 0.7 }}>
+            <p style={{ textAlign: "center", fontSize: 12, color: T.muted, marginTop: 24, opacity: 0.7 }}>
               נבנה באהבה ע״י רגע לפני 💍
             </p>
           </div>

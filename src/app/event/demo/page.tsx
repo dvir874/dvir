@@ -184,11 +184,11 @@ export default function DemoRsvpPage() {
               {/* Event header */}
               <div className="text-center mb-6" style={{ animation: "rsvpFadeUp 0.4s ease both" }}>
                 <div className="flex justify-center gap-2 mb-3" style={{ color: T.accentColor, opacity: 0.55 }}>
-                  <span style={{ fontSize: 10 }}>✦</span>
-                  <span style={{ fontSize: 10 }}>✦</span>
-                  <span style={{ fontSize: 10 }}>✦</span>
+                  <span style={{ fontSize: 12 }}>✦</span>
+                  <span style={{ fontSize: 12 }}>✦</span>
+                  <span style={{ fontSize: 12 }}>✦</span>
                 </div>
-                <p className="text-[10px] tracking-[0.26em] uppercase mb-2" style={{ color: T.accentColor, ...HEEBO }}>
+                <p className="text-[12px] tracking-[0.26em] uppercase mb-2" style={{ color: T.accentColor, ...HEEBO }}>
                   אתם מוזמנים
                 </p>
                 <h1 className="text-3xl font-bold mb-1.5 leading-tight" style={{ color: T.headingColor, ...FRANK }}>

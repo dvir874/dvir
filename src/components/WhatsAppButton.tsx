@@ -61,7 +61,7 @@ export default function WhatsAppButton() {
         </svg>
         <span
           className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-white font-bold"
-          style={{ background: "#C5A46D", fontSize: "9px", fontFamily: "Heebo, sans-serif" }}
+          style={{ background: "#C5A46D", fontSize: "12px", fontFamily: "Heebo, sans-serif" }}
         >
           1
         </span>

@@ -91,13 +91,13 @@ export default function Testimonials() {
               <p style={{ fontFamily:"Frank Ruhl Libre, serif", fontSize:"clamp(2rem,5vw,2.6rem)", fontWeight:700, color:"#C5A46D", lineHeight:1 }}>
                 <AnimatedNumber target={s.value} suffix={s.suffix} />
               </p>
-              <p style={{ fontSize:11, color:"rgba(255,240,200,0.5)", fontFamily:"Heebo, sans-serif", marginTop:"0.3rem", letterSpacing:"0.05em" }}>{s.label}</p>
+              <p style={{ fontSize:12, color:"rgba(255,240,200,0.5)", fontFamily:"Heebo, sans-serif", marginTop:"0.3rem", letterSpacing:"0.05em" }}>{s.label}</p>
             </div>
           ))}
         </div>
 
         <FadeIn className="text-center mb-12">
-          <p style={{ fontSize:10, letterSpacing:"0.3em", textTransform:"uppercase", color:"rgba(197,164,109,0.6)", marginBottom:"0.75rem", fontFamily:"Heebo, sans-serif" }}>✦ מה הזוגות אומרים</p>
+          <p style={{ fontSize:12, letterSpacing:"0.3em", textTransform:"uppercase", color:"rgba(197,164,109,0.6)", marginBottom:"0.75rem", fontFamily:"Heebo, sans-serif" }}>✦ מה הזוגות אומרים</p>
           <h2 style={{ fontFamily:"Frank Ruhl Libre, serif", fontSize:"clamp(1.8rem,4vw,2.4rem)", fontWeight:700, color:"#FFF8EC", margin:0 }}>
             הם כבר עשו את הצעד
           </h2>
@@ -123,7 +123,7 @@ export default function Testimonials() {
             <MessageCircle size={18} />
             אני רוצה כזה לחתונה שלי
           </motion.a>
-          <p style={{ fontSize:11, color:"rgba(255,240,200,0.35)", marginTop:"0.75rem", fontFamily:"Heebo, sans-serif" }}>
+          <p style={{ fontSize:12, color:"rgba(255,240,200,0.35)", marginTop:"0.75rem", fontFamily:"Heebo, sans-serif" }}>
             053-331-8177 · מענה תוך 24 שעות · ללא התחייבות
           </p>
         </div>

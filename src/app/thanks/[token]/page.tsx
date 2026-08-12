@@ -200,7 +200,7 @@ export default function ThanksPage({ params }: { params: Promise<{ token: string
                       border: `2px solid ${on ? C.gold : "rgba(28,16,8,0.22)"}`,
                       background: on ? C.gold : "transparent",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      color: "#fff", fontSize: 11, fontWeight: 900,
+                      color: "#fff", fontSize: 12, fontWeight: 900,
                     }}>{on ? "✓" : ""}</span>
                     {m}
                   </button>

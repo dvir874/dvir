@@ -132,7 +132,7 @@ export default function SeatingFloorPlan({
       </svg>
 
       {/* Floor label */}
-      <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", fontSize: 11, color: "rgba(28,16,8,0.2)", fontFamily: "Heebo, sans-serif", letterSpacing: "0.15em", pointerEvents: "none" }}>
+      <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", fontSize: 12, color: "rgba(28,16,8,0.2)", fontFamily: "Heebo, sans-serif", letterSpacing: "0.15em", pointerEvents: "none" }}>
         ✦ גרור שולחנות לסידור האולם
       </div>
 
@@ -245,7 +245,7 @@ export default function SeatingFloorPlan({
             {/* Occupancy badge */}
             <div style={{
               position: "absolute", top: -8, right: -8,
-              fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 20,
+              fontSize: 12, fontWeight: 700, padding: "1px 6px", borderRadius: 20,
               background: over ? "rgba(220,38,38,0.1)" : "rgba(107,123,90,0.1)",
               color: over ? "rgb(220,38,38)" : OLIVE,
               border: `1px solid ${over ? "rgba(220,38,38,0.3)" : "rgba(107,123,90,0.25)"}`,
@@ -277,7 +277,7 @@ export default function SeatingFloorPlan({
                   position: "absolute", bottom: -22, left: "50%", transform: "translateX(-50%)",
                   whiteSpace: "nowrap", padding: "2px 10px", borderRadius: 12,
                   border: `1.5px dashed ${GOLD}`, background: "rgba(197,164,109,0.08)",
-                  color: GOLD, cursor: "pointer", fontSize: 10, fontFamily: "Heebo, sans-serif",
+                  color: GOLD, cursor: "pointer", fontSize: 12, fontFamily: "Heebo, sans-serif",
                 }}
               >
                 ✦ הצב כאן

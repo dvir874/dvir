@@ -149,11 +149,11 @@ function Dashboard() {
               <p className="text-sm font-semibold" style={{ color: G.dark, fontFamily: "Frank Ruhl Libre, serif" }}>
                 חתונת נועה ואורי
               </p>
-              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(197,164,109,0.12)", color: G.goldMuted, fontFamily: "Heebo, sans-serif" }}>
+              <span className="text-[12px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(197,164,109,0.12)", color: G.goldMuted, fontFamily: "Heebo, sans-serif" }}>
                 הדגמה
               </span>
             </div>
-            <p className="text-[10px] mt-0.5" style={{ color: G.oliveMuted, fontFamily: "Heebo, sans-serif" }}>
+            <p className="text-[12px] mt-0.5" style={{ color: G.oliveMuted, fontFamily: "Heebo, sans-serif" }}>
               16 אוקטובר 2026 · אולם המלכות
             </p>
           </div>
@@ -166,7 +166,7 @@ function Dashboard() {
                 className="w-1.5 h-1.5 rounded-full transition-colors duration-500"
                 style={{ background: liveDot ? G.olive : "transparent", border: `1px solid ${G.olive}` }}
               />
-              <span className="text-[9px] font-medium" style={{ color: G.oliveMuted, fontFamily: "Heebo, sans-serif" }}>פעיל</span>
+              <span className="text-[12px] font-medium" style={{ color: G.oliveMuted, fontFamily: "Heebo, sans-serif" }}>פעיל</span>
             </div>
           </div>
         </div>
@@ -180,7 +180,7 @@ function Dashboard() {
             { label: "אחוז מענה", val: `${pct}%`,        color: G.gold  },
           ].map((kpi) => (
             <div key={kpi.label} className="px-3 py-3" style={{ background: G.white }}>
-              <p className="text-[9px] uppercase tracking-widest mb-1" style={{ color: G.oliveMuted, fontFamily: "Heebo, sans-serif" }}>
+              <p className="text-[12px] uppercase tracking-widest mb-1" style={{ color: G.oliveMuted, fontFamily: "Heebo, sans-serif" }}>
                 {kpi.label}
               </p>
               <p className="text-base font-bold leading-none transition-all duration-700" style={{ color: kpi.color, fontFamily: "Frank Ruhl Libre, serif" }}>
@@ -195,7 +195,7 @@ function Dashboard() {
 
           {/* Guest list */}
           <div className="flex-1 p-3.5 border-l" style={{ borderColor: G.borderSoft }}>
-            <p className="text-[9px] uppercase tracking-widest mb-2.5" style={{ color: G.goldMuted, fontFamily: "Heebo, sans-serif" }}>
+            <p className="text-[12px] uppercase tracking-widest mb-2.5" style={{ color: G.goldMuted, fontFamily: "Heebo, sans-serif" }}>
               מוזמנים
             </p>
             {guests.map((g) => (
@@ -209,7 +209,7 @@ function Dashboard() {
               >
                 <div className="flex items-center gap-2">
                   <div
-                    className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0"
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[12px] font-bold flex-shrink-0"
                     style={{
                       background: g.status === "confirmed" ? "rgba(107,123,90,0.12)" : "rgba(197,164,109,0.12)",
                       color:      g.status === "confirmed" ? G.olive : G.goldMuted,
@@ -218,12 +218,12 @@ function Dashboard() {
                   >
                     {g.name[0]}
                   </div>
-                  <span className="text-[11px]" style={{ color: G.darkMuted, fontFamily: "Heebo, sans-serif" }}>
+                  <span className="text-[12px]" style={{ color: G.darkMuted, fontFamily: "Heebo, sans-serif" }}>
                     {g.name}
                   </span>
                 </div>
                 <span
-                  className="text-[9px] font-medium px-1.5 py-0.5 rounded-full"
+                  className="text-[12px] font-medium px-1.5 py-0.5 rounded-full"
                   style={{
                     background: g.status === "confirmed" ? "rgba(107,123,90,0.10)" : "rgba(197,164,109,0.10)",
                     color:      g.status === "confirmed" ? G.olive : G.goldMuted,
@@ -238,7 +238,7 @@ function Dashboard() {
 
           {/* Activity feed. real events only */}
           <div className="w-40 p-3.5 flex-shrink-0">
-            <p className="text-[9px] uppercase tracking-widest mb-2.5" style={{ color: G.goldMuted, fontFamily: "Heebo, sans-serif" }}>
+            <p className="text-[12px] uppercase tracking-widest mb-2.5" style={{ color: G.goldMuted, fontFamily: "Heebo, sans-serif" }}>
               פעילות
             </p>
             <div className="space-y-2.5 overflow-hidden">
@@ -246,10 +246,10 @@ function Dashboard() {
                 <div key={`${feedKey}-${i}`} className="flex items-start gap-2" style={{ opacity: 1 - i * 0.2 }}>
                   <div className="w-1.5 h-1.5 rounded-full mt-1 flex-shrink-0" style={{ background: item.color }} />
                   <div>
-                    <p className="text-[10px] leading-tight" style={{ color: G.darkMuted, fontFamily: "Heebo, sans-serif" }}>
+                    <p className="text-[12px] leading-tight" style={{ color: G.darkMuted, fontFamily: "Heebo, sans-serif" }}>
                       {item.text}
                     </p>
-                    <p className="text-[9px] mt-0.5" style={{ color: G.goldMuted, fontFamily: "Heebo, sans-serif" }}>
+                    <p className="text-[12px] mt-0.5" style={{ color: G.goldMuted, fontFamily: "Heebo, sans-serif" }}>
                       {item.sub}
                     </p>
                   </div>
@@ -263,11 +263,11 @@ function Dashboard() {
         <div className="flex items-center gap-4 px-4 py-2.5 border-t" style={{ background: "rgba(197,164,109,0.03)", borderColor: G.borderSoft }}>
           <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full" style={{ background: G.olive }} />
-            <span className="text-[10px]" style={{ color: G.oliveMuted, fontFamily: "Heebo, sans-serif" }}>דף אירוע פעיל</span>
+            <span className="text-[12px]" style={{ color: G.oliveMuted, fontFamily: "Heebo, sans-serif" }}>דף אירוע פעיל</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full" style={{ background: G.gold }} />
-            <span className="text-[10px]" style={{ color: G.oliveMuted, fontFamily: "Heebo, sans-serif" }}>17 תזכורות נשלחו</span>
+            <span className="text-[12px]" style={{ color: G.oliveMuted, fontFamily: "Heebo, sans-serif" }}>17 תזכורות נשלחו</span>
           </div>
           <div className="flex items-center gap-1.5 mr-auto">
             <div className="w-14 h-1 rounded-full overflow-hidden" style={{ background: "rgba(197,164,109,0.15)" }}>
@@ -276,7 +276,7 @@ function Dashboard() {
                 style={{ width: `${pct}%`, background: `linear-gradient(90deg,${G.gold},${G.goldLight})` }}
               />
             </div>
-            <span className="text-[9px]" style={{ color: G.goldMuted, fontFamily: "Heebo, sans-serif" }}>{pct}%</span>
+            <span className="text-[12px]" style={{ color: G.goldMuted, fontFamily: "Heebo, sans-serif" }}>{pct}%</span>
           </div>
         </div>
 
@@ -318,7 +318,7 @@ function HowItWorksModal({ onClose }: { onClose: () => void }) {
         >×</button>
 
         <div className="text-center mb-7">
-          <p style={{ fontSize: 10, letterSpacing: "0.22em", color: "#C5A46D", fontFamily: "Heebo, sans-serif", marginBottom: 8 }}>✦ תהליך פשוט ✦</p>
+          <p style={{ fontSize: 12, letterSpacing: "0.22em", color: "#C5A46D", fontFamily: "Heebo, sans-serif", marginBottom: 8 }}>✦ תהליך פשוט ✦</p>
           <h2 style={{ fontSize: 22, fontWeight: 700, color: "#1C1008", fontFamily: "Frank Ruhl Libre, serif" }}>
             איך זה עובד?
           </h2>

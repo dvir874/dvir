@@ -45,7 +45,7 @@ function QuickCard({ emoji, value, label, caption }: { emoji:string; value:strin
       <span style={{ fontSize:"22px", alignSelf:"flex-end" }}>{emoji}</span>
       <p style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"28px", fontWeight:700, color:T.dark, margin:0, lineHeight:1 }}>{value}</p>
       <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"13px", fontWeight:300, color:T.muted, margin:0 }}>{label}</p>
-      <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"11px", fontWeight:600, color:T.gold, margin:"4px 0 0", letterSpacing:".03em" }}>{caption} ←</p>
+      <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"12px", fontWeight:600, color:T.gold, margin:"4px 0 0", letterSpacing:".03em" }}>{caption} ←</p>
     </div>
   );
 }
@@ -134,7 +134,7 @@ export default function Wave3Demo() {
           <div key={t.label} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"3px", padding:"4px 12px" }}>
             {t.active && <div style={{ width:4, height:4, borderRadius:"50%", background:T.gold, marginBottom:"1px" }}/>}
             <span style={{ fontSize:"20px" }}>{t.emoji}</span>
-            <span style={{ fontFamily:"Heebo,sans-serif", fontSize:"10px", fontWeight: t.active ? 600 : 300, color: t.active ? T.gold : T.muted }}>{t.label}</span>
+            <span style={{ fontFamily:"Heebo,sans-serif", fontSize:"12px", fontWeight: t.active ? 600 : 300, color: t.active ? T.gold : T.muted }}>{t.label}</span>
           </div>
         ))}
       </div>

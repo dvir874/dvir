@@ -96,7 +96,7 @@ export default function Gallery() {
                 >
                   ✦ עיצובים נבחרים
                   <span
-                    className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
+                    className="text-[12px] px-1.5 py-0.5 rounded-full font-semibold"
                     style={{
                       background: active === "curated" ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.07)",
                       color: active === "curated" ? "white" : "rgba(0,0,0,0.40)",
@@ -125,7 +125,7 @@ export default function Gallery() {
                     >
                       {cat.labelHe}
                       <span
-                        className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
+                        className="text-[12px] px-1.5 py-0.5 rounded-full font-semibold"
                         style={{
                           background: isActive ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.07)",
                           color: isActive ? "white" : "rgba(0,0,0,0.40)",
@@ -247,7 +247,7 @@ function GalleryCard({
 
           <div className="absolute top-3 right-3 z-10">
             <span
-              className="text-[10px] font-semibold px-2.5 py-1 rounded-full tracking-wide"
+              className="text-[12px] font-semibold px-2.5 py-1 rounded-full tracking-wide"
               style={{
                 background: "linear-gradient(135deg,rgba(197,164,109,0.9),rgba(212,188,138,0.9))",
                 color: "white",
@@ -276,7 +276,7 @@ function GalleryCard({
             <motion.p
               variants={{ idle: { y: 8, opacity: 0 }, hovered: { y: 0, opacity: 1 } }}
               transition={{ duration: 0.28, delay: 0.04 }}
-              className="text-white/55 text-[11px]"
+              className="text-white/55 text-[12px]"
               style={{ fontFamily: "Heebo, sans-serif" }}
             >
               לחצו לתצוגה מלאה

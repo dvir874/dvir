@@ -383,7 +383,7 @@ export default function EventPageClient({
                       {String(v).padStart(2, "0")}
                     </span>
                   </div>
-                  <span className="text-[10px] tracking-widest uppercase"
+                  <span className="text-[12px] tracking-widest uppercase"
                     style={{ color: theme.heroMutedText, ...HEEBO }}>
                     {l}
                   </span>
@@ -425,7 +425,7 @@ export default function EventPageClient({
                   style={{ background: theme.cardIconBg }}>
                   <item.icon size={20} strokeWidth={1.5} style={{ color: theme.accentColor }} />
                 </div>
-                <p className="text-[10px] tracking-[0.18em] uppercase mb-2"
+                <p className="text-[12px] tracking-[0.18em] uppercase mb-2"
                   style={{ color: `${theme.accentColor}aa`, ...HEEBO }}>
                   {item.title}
                 </p>
@@ -494,9 +494,9 @@ export default function EventPageClient({
                 {event.greeting}
               </p>
               <div className="mt-4 flex justify-center gap-2" style={{ color: theme.accentColor, opacity: 0.5 }}>
-                <span style={{ fontSize: 9 }}>✦</span>
-                <span style={{ fontSize: 9 }}>✦</span>
-                <span style={{ fontSize: 9 }}>✦</span>
+                <span style={{ fontSize: 12 }}>✦</span>
+                <span style={{ fontSize: 12 }}>✦</span>
+                <span style={{ fontSize: 12 }}>✦</span>
               </div>
             </div>
           </div>
@@ -521,7 +521,7 @@ export default function EventPageClient({
                     style={{ background: theme.cardIconBg }}>
                     <span style={{ fontSize: 20 }}>👔</span>
                   </div>
-                  <p className="text-[10px] tracking-[0.18em] uppercase mb-2"
+                  <p className="text-[12px] tracking-[0.18em] uppercase mb-2"
                     style={{ color: `${theme.accentColor}aa`, ...HEEBO }}>
                     קוד לבוש
                   </p>
@@ -539,7 +539,7 @@ export default function EventPageClient({
                     style={{ background: theme.cardIconBg }}>
                     <span style={{ fontSize: 20 }}>🅿️</span>
                   </div>
-                  <p className="text-[10px] tracking-[0.18em] uppercase mb-2"
+                  <p className="text-[12px] tracking-[0.18em] uppercase mb-2"
                     style={{ color: `${theme.accentColor}aa`, ...HEEBO }}>
                     חניה
                   </p>
@@ -664,7 +664,7 @@ export default function EventPageClient({
         >
           רגע לפני <ExternalLink size={13} />
         </Link>
-        <p className="text-[10px] mt-3" style={{ color: `${theme.footerTextMuted}88`, ...HEEBO }}>
+        <p className="text-[12px] mt-3" style={{ color: `${theme.footerTextMuted}88`, ...HEEBO }}>
           © {new Date().getFullYear()} רגע לפני · כל הזכויות שמורות
         </p>
         <div style={{
@@ -676,7 +676,7 @@ export default function EventPageClient({
             href="https://regalifnei.vercel.app"
             target="_blank"
             rel="noopener noreferrer"
-            style={{ fontSize: 11, color: "rgba(197,164,109,0.6)", textDecoration: "none", fontFamily: "Heebo, sans-serif", letterSpacing: "0.05em" }}
+            style={{ fontSize: 12, color: "rgba(197,164,109,0.6)", textDecoration: "none", fontFamily: "Heebo, sans-serif", letterSpacing: "0.05em" }}
           >
             ✦ נוצר ע״י רגע לפני · הזמנות דיגיטליות לחתונה
           </a>

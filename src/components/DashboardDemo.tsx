@@ -220,7 +220,7 @@ function EventPageSection() {
                 <div className="w-2.5 h-2.5 rounded-full" style={{ background: "rgba(197,164,109,0.12)" }} />
               </div>
               <div
-                className="flex-1 mx-3 rounded-md px-3 py-1 text-[10px] text-center"
+                className="flex-1 mx-3 rounded-md px-3 py-1 text-[12px] text-center"
                 style={{ background: G.white, border: `1px solid ${G.borderSoft}`, color: G.darkMuted, fontFamily: "Heebo, sans-serif" }}
               >
                 raga-lifnei.co.il/noaanduri2026
@@ -241,7 +241,7 @@ function EventPageSection() {
                       >
                         {c.n}
                       </div>
-                      <p className="text-[9px]" style={{ color: G.oliveMuted, fontFamily: "Heebo, sans-serif" }}>{c.l}</p>
+                      <p className="text-[12px]" style={{ color: G.oliveMuted, fontFamily: "Heebo, sans-serif" }}>{c.l}</p>
                     </div>
                   ))}
                 </div>
@@ -353,7 +353,7 @@ function RsvpSection() {
               >
                 <span style={{ color: s.color }}>{s.icon}</span>
                 <p className="text-xl font-bold mt-1.5" style={{ color: s.color, fontFamily: "Frank Ruhl Libre, serif" }}>{s.value}</p>
-                <p className="text-[10px] mt-0.5" style={{ color: G.darkMuted, fontFamily: "Heebo, sans-serif" }}>{s.label}</p>
+                <p className="text-[12px] mt-0.5" style={{ color: G.darkMuted, fontFamily: "Heebo, sans-serif" }}>{s.label}</p>
               </div>
             ))}
           </div>
@@ -382,7 +382,7 @@ function RsvpSection() {
             style={{ border: `1px solid ${G.border}`, boxShadow: "0 4px 20px rgba(197,164,109,0.08)" }}
           >
             <div
-              className="grid grid-cols-3 px-5 py-3 text-[10px] font-semibold uppercase tracking-wider"
+              className="grid grid-cols-3 px-5 py-3 text-[12px] font-semibold uppercase tracking-wider"
               style={{ background: "rgba(197,164,109,0.06)", color: G.goldMuted, fontFamily: "Heebo, sans-serif" }}
             >
               <span>שם / משפחה</span>
@@ -401,7 +401,7 @@ function RsvpSection() {
                   <span className="text-sm text-center" style={{ color: G.darkMuted, fontFamily: "Heebo, sans-serif" }}>{g.guests}</span>
                   <span>
                     <span
-                      className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
+                      className="inline-block px-2.5 py-0.5 rounded-full text-[12px] font-semibold"
                       style={{ background: sc.bg, color: sc.color, fontFamily: "Heebo, sans-serif" }}
                     >
                       {sc.label}
@@ -482,10 +482,10 @@ function RemindersSection() {
                     {i + 1}
                   </div>
                   <div className="text-center">
-                    <p className="text-[11px] font-semibold" style={{ color: active === i ? G.dark : G.darkMuted, fontFamily: "Heebo, sans-serif" }}>
+                    <p className="text-[12px] font-semibold" style={{ color: active === i ? G.dark : G.darkMuted, fontFamily: "Heebo, sans-serif" }}>
                       {rem.label}
                     </p>
-                    <p className="text-[10px]" style={{ color: G.goldMuted, fontFamily: "Heebo, sans-serif" }}>
+                    <p className="text-[12px]" style={{ color: G.goldMuted, fontFamily: "Heebo, sans-serif" }}>
                       {rem.timing}
                     </p>
                   </div>
@@ -511,10 +511,10 @@ function RemindersSection() {
               </div>
               <div>
                 <p className="text-xs font-semibold" style={{ color: G.dark, fontFamily: "Heebo, sans-serif" }}>רגע לפני. הזמנות</p>
-                <p className="text-[10px]" style={{ color: G.oliveMuted, fontFamily: "Heebo, sans-serif" }}>מקוון</p>
+                <p className="text-[12px]" style={{ color: G.oliveMuted, fontFamily: "Heebo, sans-serif" }}>מקוון</p>
               </div>
               <span
-                className="mr-auto text-[9px] font-semibold px-2 py-0.5 rounded-full"
+                className="mr-auto text-[12px] font-semibold px-2 py-0.5 rounded-full"
                 style={{ background: "rgba(197,164,109,0.12)", color: G.goldMuted, fontFamily: "Heebo, sans-serif" }}
               >
                 {r.label}
@@ -530,13 +530,13 @@ function RemindersSection() {
                 <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "#1A1A1A", fontFamily: "Heebo, sans-serif" }}>
                   {r.msg}
                 </p>
-                <p className="text-[10px] text-left mt-2" style={{ color: "rgba(0,0,0,0.35)", fontFamily: "Heebo, sans-serif" }}>
+                <p className="text-[12px] text-left mt-2" style={{ color: "rgba(0,0,0,0.35)", fontFamily: "Heebo, sans-serif" }}>
                   12:34 ✓✓
                 </p>
               </div>
             </div>
 
-            <p className="text-center text-[10px] mt-4" style={{ color: G.goldMuted, fontFamily: "Heebo, sans-serif" }}>
+            <p className="text-center text-[12px] mt-4" style={{ color: G.goldMuted, fontFamily: "Heebo, sans-serif" }}>
               נשלח ל: {r.sent}
             </p>
           </div>

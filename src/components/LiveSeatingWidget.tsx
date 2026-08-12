@@ -71,7 +71,7 @@ export default function LiveSeatingWidget() {
 
         {/* Header */}
         <div className="text-center" style={{ marginBottom:"2.5rem" }}>
-          <p style={{ fontSize:10, letterSpacing:"0.3em", textTransform:"uppercase" as const, color:"rgba(197,164,109,0.75)", marginBottom:"0.6rem", fontFamily:"Heebo, sans-serif" }}>
+          <p style={{ fontSize:12, letterSpacing:"0.3em", textTransform:"uppercase" as const, color:"rgba(197,164,109,0.75)", marginBottom:"0.6rem", fontFamily:"Heebo, sans-serif" }}>
             ✦ נסה בעצמך
           </p>
           <h2 style={{ fontFamily:"Frank Ruhl Libre, serif", fontSize:"clamp(1.8rem,4vw,2.4rem)", fontWeight:700, color:"#1C1008", margin:0 }}>
@@ -205,7 +205,7 @@ export default function LiveSeatingWidget() {
                     {table.name === "VIP" ? "⭐" : table.type === "round" ? "⭕" : "🟥"}
                   </div>
 
-                  <p style={{ fontFamily:"Frank Ruhl Libre, serif", fontSize:9, fontWeight:700, color:"#1C1008", margin:"0 0 4px" }}>
+                  <p style={{ fontFamily:"Frank Ruhl Libre, serif", fontSize:12, fontWeight:700, color:"#1C1008", margin:"0 0 4px" }}>
                     {table.name}
                   </p>
 

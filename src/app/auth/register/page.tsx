@@ -56,7 +56,7 @@ function FloatingLabelInput({
           outline: "none", transition: "border-color 0.2s",
         }}
       />
-      {error && <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 11, color: "#B03030", margin: "4px 0 12px 4px" }}>{error}</p>}
+      {error && <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 12, color: "#B03030", margin: "4px 0 12px 4px" }}>{error}</p>}
     </div>
   );
 }

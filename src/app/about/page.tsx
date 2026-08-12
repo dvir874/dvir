@@ -166,7 +166,7 @@ export default function AboutPage() {
               {/* Labelled a preview because it is one. Numbers that look like a
                   real couple's, on a page about trust, must say what they are. */}
               <p style={{
-                margin: "0 0 10px", fontSize: 11.5,
+                margin: "0 0 10px", fontSize: 12.5,
                 color: "rgba(255,255,255,0.42)", letterSpacing: ".04em",
               }}>
                 תצוגה מתוך המערכת
@@ -183,7 +183,7 @@ export default function AboutPage() {
                   {[["47", "ימים"], ["08", "שעות"], ["23", "דק׳"]].map(([n, l]) => (
                     <div key={l} style={{ textAlign: "center" }}>
                       <p style={{ margin: 0, fontFamily: serif, fontWeight: 800, fontSize: 26, color: "#fff" }}>{n}</p>
-                      <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.48)" }}>{l}</p>
+                      <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.48)" }}>{l}</p>
                     </div>
                   ))}
                 </div>
@@ -194,7 +194,7 @@ export default function AboutPage() {
                   <div key={l} style={{
                     background: "rgba(255,255,255,0.06)", borderRadius: 12, padding: "12px 14px",
                   }}>
-                    <p style={{ margin: 0, fontSize: 11.5, color: "rgba(255,255,255,0.55)" }}>{l}</p>
+                    <p style={{ margin: 0, fontSize: 12.5, color: "rgba(255,255,255,0.55)" }}>{l}</p>
                     <p style={{
                       margin: 0, fontFamily: serif, fontWeight: 800, fontSize: 21,
                       color: C.gold, direction: "ltr", textAlign: "right",

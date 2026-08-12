@@ -109,7 +109,7 @@ function DonutChart() {
         <text x={cx} y={cy - 8} textAnchor="middle" style={{ ...FRANK, fontSize: 15, fill: GOLD, fontWeight: 700 }}>
           ₪{TOTAL_BUDGET.toLocaleString()}
         </text>
-        <text x={cx} y={cy + 12} textAnchor="middle" style={{ ...HEEBO, fontSize: 10, fill: "rgba(197,164,109,0.6)" }}>
+        <text x={cx} y={cy + 12} textAnchor="middle" style={{ ...HEEBO, fontSize: 12, fill: "rgba(197,164,109,0.6)" }}>
           תקציב כולל
         </text>
       </svg>
@@ -118,7 +118,7 @@ function DonutChart() {
           <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ width: 10, height: 10, borderRadius: 3, background: b.color }} />
             <span style={{ ...HEEBO, fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{b.description}</span>
-            <span style={{ ...HEEBO, fontSize: 11, color: GOLD }}>₪{b.planned_amount.toLocaleString()}</span>
+            <span style={{ ...HEEBO, fontSize: 12, color: GOLD }}>₪{b.planned_amount.toLocaleString()}</span>
           </div>
         ))}
       </div>
@@ -407,7 +407,7 @@ export default function DemoPage() {
       <section style={{ padding: "64px 20px", background: "#0f0700" }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           <p style={{
-            textAlign: "center", ...HEEBO, fontSize: 11, letterSpacing: "0.22em",
+            textAlign: "center", ...HEEBO, fontSize: 12, letterSpacing: "0.22em",
             color: GOLD, textTransform: "uppercase", marginBottom: 8,
           }}>
             ✦ מה תקבלו
@@ -428,8 +428,8 @@ export default function DemoPage() {
                 border: "1px solid rgba(197,164,109,0.2)", padding: 16, textAlign: "center",
               }}>
                 <div style={{ ...FRANK, fontSize: 18, color: GOLD, marginBottom: 4 }}>נועה ויוני 💛</div>
-                <div style={{ ...HEEBO, fontSize: 10, color: "rgba(255,255,255,0.5)" }}>15.9.2025 · 19:00</div>
-                <div style={{ ...HEEBO, fontSize: 10, color: GOLD, marginTop: 6 }}>✦ אולם האירועים</div>
+                <div style={{ ...HEEBO, fontSize: 12, color: "rgba(255,255,255,0.5)" }}>15.9.2025 · 19:00</div>
+                <div style={{ ...HEEBO, fontSize: 12, color: GOLD, marginTop: 6 }}>✦ אולם האירועים</div>
               </div>
             </FeatureCard>
 
@@ -440,8 +440,8 @@ export default function DemoPage() {
                 {rsvpBars.map(bar => (
                   <div key={bar.label}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                      <span style={{ ...HEEBO, fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{bar.label}</span>
-                      <span style={{ ...HEEBO, fontSize: 11, fontWeight: 700, color: bar.color }}>{bar.value}</span>
+                      <span style={{ ...HEEBO, fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{bar.label}</span>
+                      <span style={{ ...HEEBO, fontSize: 12, fontWeight: 700, color: bar.color }}>{bar.value}</span>
                     </div>
                     <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.08)" }}>
                       <div style={{
@@ -472,7 +472,7 @@ export default function DemoPage() {
                       border: `1px solid ${task.done ? OLIVE : "rgba(255,255,255,0.15)"}`,
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>
-                      {task.done && <span style={{ fontSize: 10 }}>✓</span>}
+                      {task.done && <span style={{ fontSize: 12 }}>✓</span>}
                     </div>
                     <span style={{
                       ...HEEBO, fontSize: 12,
@@ -491,7 +491,7 @@ export default function DemoPage() {
       <section id="dashboard" style={{ padding: "64px 20px", background: "#150900" }}>
         <div style={{ maxWidth: 700, margin: "0 auto" }}>
           <p style={{
-            textAlign: "center", ...HEEBO, fontSize: 11, letterSpacing: "0.22em",
+            textAlign: "center", ...HEEBO, fontSize: 12, letterSpacing: "0.22em",
             color: GOLD, textTransform: "uppercase", marginBottom: 8,
           }}>
             ✦ לוח בקרה חי
@@ -520,7 +520,7 @@ export default function DemoPage() {
                       {String(v).padStart(2, "0")}
                     </span>
                   </div>
-                  <span style={{ ...HEEBO, fontSize: 10, color: "rgba(197,164,109,0.6)", letterSpacing: "0.1em" }}>{l}</span>
+                  <span style={{ ...HEEBO, fontSize: 12, color: "rgba(197,164,109,0.6)", letterSpacing: "0.1em" }}>{l}</span>
                 </div>
               ))}
             </div>
@@ -606,7 +606,7 @@ function DashWidget({ title, delay, children }: { title: string; delay: number; 
       transition: `opacity 0.7s ${delay}ms, transform 0.7s ${delay}ms`,
     }}>
       <p style={{
-        ...HEEBO, fontSize: 11, color: GOLD,
+        ...HEEBO, fontSize: 12, color: GOLD,
         letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 16,
       }}>
         ✦ {title}

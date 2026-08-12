@@ -158,7 +158,7 @@ export default function EventCategories() {
                         {meta.labelHe}
                       </h3>
                       <span
-                        className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5"
+                        className="text-[12px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5"
                         style={{
                           background: meta.accentLight,
                           color: meta.accent,

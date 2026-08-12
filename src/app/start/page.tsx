@@ -577,7 +577,7 @@ export default function StartPage() {
                         </div>
                       ))}
                       {validation.issues.length > 5 && (
-                        <p className="text-[11px] mt-1" style={{ color: C.muted, ...HEEBO }}>
+                        <p className="text-[12px] mt-1" style={{ color: C.muted, ...HEEBO }}>
                           +{validation.issues.length - 5} בעיות נוספות
                         </p>
                       )}
@@ -688,7 +688,7 @@ export default function StartPage() {
                           }}
                         >
                           <div
-                            className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold"
+                            className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[12px] font-bold"
                             style={{ background: hasIssue ? "rgba(200,60,60,0.10)" : "rgba(107,123,90,0.12)", color: hasIssue ? "rgb(180,60,60)" : C.olive }}
                           >
                             {i + 1}
@@ -800,7 +800,7 @@ export default function StartPage() {
                 ].map((step, i) => (
                   <div key={i} className="flex items-start gap-2.5 text-sm" style={{ ...HEEBO }}>
                     <div
-                      className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 mt-0.5"
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-[12px] font-bold text-white flex-shrink-0 mt-0.5"
                       style={{ background: C.olive }}
                     >
                       {i + 1}

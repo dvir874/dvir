@@ -147,7 +147,7 @@ export default function About() {
               }}
             >
               <p
-                className="text-gold text-[10px] tracking-[0.2em] uppercase mb-4"
+                className="text-gold text-[12px] tracking-[0.2em] uppercase mb-4"
                 style={{ fontFamily: "Heebo, sans-serif" }}
               >
                 מה מקבלים איתנו
@@ -445,7 +445,7 @@ function CoupleVisual() {
           <p className="text-white text-xs font-semibold" style={{ fontFamily: "Heebo, sans-serif" }}>
             עדכון בזמן אמת
           </p>
-          <p className="text-white/55 text-[10px]" style={{ fontFamily: "Heebo, sans-serif" }}>
+          <p className="text-white/55 text-[12px]" style={{ fontFamily: "Heebo, sans-serif" }}>
             לשני בני הזוג
           </p>
         </div>
@@ -464,7 +464,7 @@ function CoupleVisual() {
         }}
       >
         <Heart size={12} color="white" fill="white" />
-        <p className="text-white text-[11px] font-semibold" style={{ fontFamily: "Heebo, sans-serif" }}>
+        <p className="text-white text-[12px] font-semibold" style={{ fontFamily: "Heebo, sans-serif" }}>
           ליווי אישי תמיד
         </p>
       </motion.div>

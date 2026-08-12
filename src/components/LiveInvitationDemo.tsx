@@ -99,7 +99,7 @@ export default function LiveInvitationDemo() {
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
         <FadeIn className="text-center" >
           <div style={{ marginBottom: "3rem" }}>
-          <p style={{ fontSize:10, letterSpacing:"0.3em", textTransform:"uppercase" as const, color:"rgba(197,164,109,0.75)", marginBottom:"0.6rem", fontFamily:"Heebo, sans-serif" }}>
+          <p style={{ fontSize:12, letterSpacing:"0.3em", textTransform:"uppercase" as const, color:"rgba(197,164,109,0.75)", marginBottom:"0.6rem", fontFamily:"Heebo, sans-serif" }}>
             ✦ נסה עכשיו · בחינם
           </p>
           <h2 style={{ fontFamily:"Frank Ruhl Libre, serif", fontSize:"clamp(1.8rem,4vw,2.5rem)", fontWeight:700, color:"#1C1008", margin:0, lineHeight:1.2 }}>
@@ -373,7 +373,7 @@ export default function LiveInvitationDemo() {
                       >
                         <p style={{
                           fontFamily:"Frank Ruhl Libre, serif",
-                          fontSize:11, color:"rgba(197,164,109,0.9)",
+                          fontSize:12, color:"rgba(197,164,109,0.9)",
                           margin:"0 0 3px", fontWeight:600,
                         }}>
                           {dateDisplay || "תאריך החתונה"}
@@ -409,7 +409,7 @@ export default function LiveInvitationDemo() {
                             style={{
                               padding:"7px 22px", borderRadius:20, border:"none", cursor:"pointer",
                               background:"linear-gradient(135deg, #C5A46D 0%, #9B6E2C 100%)",
-                              color:"white", fontFamily:"Heebo, sans-serif", fontSize:9, fontWeight:700,
+                              color:"white", fontFamily:"Heebo, sans-serif", fontSize:12, fontWeight:700,
                               boxShadow:"0 4px 16px rgba(197,164,109,0.5)",
                               letterSpacing:"0.05em",
                             }}
@@ -429,7 +429,7 @@ export default function LiveInvitationDemo() {
             <div style={{
               position:"absolute", top:12, right:-8,
               background:"#ef4444", color:"white",
-              fontFamily:"Heebo, sans-serif", fontSize:9, fontWeight:700,
+              fontFamily:"Heebo, sans-serif", fontSize:12, fontWeight:700,
               padding:"3px 8px", borderRadius:12,
               display:"flex", alignItems:"center", gap:4,
               boxShadow:"0 2px 8px rgba(239,68,68,0.4)",

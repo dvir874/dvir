@@ -109,7 +109,7 @@ export default function GalleryLightbox({
                       {img.label}
                     </p>
                     <p
-                      className="text-white/38 text-[10px]"
+                      className="text-white/38 text-[12px]"
                       style={{ fontFamily: "Heebo, sans-serif" }}
                     >
                       ✦ עבודה אמיתית · רגע לפני

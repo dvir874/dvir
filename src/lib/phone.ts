@@ -1,3 +1,5 @@
+import { PHONE_DISPLAY } from '@/lib/constants';
+
 export function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
   if (digits.startsWith('972')) return digits;
@@ -35,7 +37,11 @@ export function whatsappThankYouLink(
   if (galleryUrl) {
     message += `\n\nצילמתם תמונות? נשמח שתשתפו אותן באלבום המשותף 📸\n${galleryUrl}`;
   }
-  message += `\n\n💍 מכירים זוג שמתחתן? האירוע הזה נוהל עם "רגע לפני" — אישורי הגעה, הושבה והכל במקום אחד. שלחו להם: 053-3318177`;
+  /* This line goes out on real messages to real guests, so the number here is
+     the one that must be right. It was hardcoded and unhyphenated while every
+     screen showed 053-331-8177; reading the constant means it cannot drift
+     again. */
+  message += `\n\n💍 מכירים זוג שמתחתן? האירוע הזה נוהל עם "רגע לפני" — אישורי הגעה, הושבה והכל במקום אחד. שלחו להם: ${PHONE_DISPLAY}`;
   return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
 }
 

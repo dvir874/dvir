@@ -192,7 +192,7 @@ function GalleryCard({
         {/* "Real work" badge */}
         <div className="absolute top-3 right-3 z-10">
           <span
-            className="text-[10px] font-semibold px-2.5 py-1 rounded-full tracking-wide"
+            className="text-[12px] font-semibold px-2.5 py-1 rounded-full tracking-wide"
             style={{
               background: "linear-gradient(135deg,rgba(197,164,109,0.92),rgba(212,188,138,0.92))",
               color: "white",
@@ -226,7 +226,7 @@ function GalleryCard({
           <motion.p
             variants={{ idle: { y: 8, opacity: 0 }, hovered: { y: 0, opacity: 1 } }}
             transition={{ duration: 0.3, delay: 0.04, ease: [0.22, 1, 0.36, 1] }}
-            className="text-white/55 text-[11px]"
+            className="text-white/55 text-[12px]"
             style={{ fontFamily: "Heebo, sans-serif" }}
           >
             לחצו לתצוגה מלאה
@@ -320,7 +320,7 @@ function Lightbox({
                 {img.label}
               </p>
               <p
-                className="text-white/38 text-[10px] mt-0.5"
+                className="text-white/38 text-[12px] mt-0.5"
                 style={{ fontFamily: "Heebo, sans-serif" }}
               >
                 ✦ עבודה אמיתית · רגע לפני

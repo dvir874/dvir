@@ -358,7 +358,7 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
           rows={6}
           style={{ width:"100%", padding:"14px 16px", borderRadius:"14px", border:`1.5px solid ${T.border}`, background:T.cream, color:T.dark, fontFamily:"'Heebo',sans-serif", fontSize:"15px", outline:"none", resize:"none", boxSizing:"border-box", marginBottom:"6px", lineHeight:1.6 }}
         />
-        <p style={{ fontSize:"11px", color:T.muted, textAlign:"left", marginBottom:"20px" }}>
+        <p style={{ fontSize:"12px", color:T.muted, textAlign:"left", marginBottom:"20px" }}>
           {blessing.length}/500
         </p>
 
@@ -401,7 +401,7 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
             <button
               key={ct.value}
               onClick={() => setCapsuleType(ct.value)}
-              style={{ flex:1, padding:"8px 4px", borderRadius:"10px", border:`1.5px solid ${capsuleType === ct.value ? T.gold : T.border}`, background:capsuleType === ct.value ? "rgba(197,164,109,0.1)" : "transparent", fontSize:"11px", cursor:"pointer", fontFamily:"'Heebo',sans-serif", color:T.dark, display:"flex", flexDirection:"column", alignItems:"center", gap:"2px" }}
+              style={{ flex:1, padding:"8px 4px", borderRadius:"10px", border:`1.5px solid ${capsuleType === ct.value ? T.gold : T.border}`, background:capsuleType === ct.value ? "rgba(197,164,109,0.1)" : "transparent", fontSize:"12px", cursor:"pointer", fontFamily:"'Heebo',sans-serif", color:T.dark, display:"flex", flexDirection:"column", alignItems:"center", gap:"2px" }}
             >
               <span>{ct.emoji}</span>
               <span>{ct.label}</span>

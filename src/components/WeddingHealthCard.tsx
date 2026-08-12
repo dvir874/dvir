@@ -118,7 +118,7 @@ export default function WeddingHealthCard({ score, readiness, token, daysLeft }:
             >
               {pct}
             </span>
-            <span style={{ fontSize: 9, color: C.muted, fontFamily: "Heebo, sans-serif" }}>%</span>
+            <span style={{ fontSize: 12, color: C.muted, fontFamily: "Heebo, sans-serif" }}>%</span>
           </div>
         </div>
 
@@ -150,7 +150,7 @@ export default function WeddingHealthCard({ score, readiness, token, daysLeft }:
             style={{
               display:      "inline-block",
               marginTop:    4,
-              fontSize:     10,
+              fontSize:     12,
               fontWeight:   600,
               padding:      "2px 8px",
               borderRadius: 20,
@@ -198,7 +198,7 @@ export default function WeddingHealthCard({ score, readiness, token, daysLeft }:
                         {comp.label}
                       </span>
                     </div>
-                    <span style={{ fontSize: 11, color: barColor, fontWeight: 700, fontFamily: "Heebo, sans-serif" }}>
+                    <span style={{ fontSize: 12, color: barColor, fontWeight: 700, fontFamily: "Heebo, sans-serif" }}>
                       {comp.pct}%
                     </span>
                   </div>
@@ -214,7 +214,7 @@ export default function WeddingHealthCard({ score, readiness, token, daysLeft }:
                     />
                   </div>
                   {comp.explanation && (
-                    <p style={{ fontSize: 10, color: C.muted, fontFamily: "Heebo, sans-serif", marginTop: 2 }}>
+                    <p style={{ fontSize: 12, color: C.muted, fontFamily: "Heebo, sans-serif", marginTop: 2 }}>
                       {comp.explanation}
                     </p>
                   )}
@@ -235,7 +235,7 @@ export default function WeddingHealthCard({ score, readiness, token, daysLeft }:
             >
               <p
                 style={{
-                  fontSize:   11,
+                  fontSize:   12,
                   fontWeight: 600,
                   color:      C.gold,
                   fontFamily: "Heebo, sans-serif",

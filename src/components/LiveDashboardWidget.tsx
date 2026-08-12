@@ -111,7 +111,7 @@ export default function LiveDashboardWidget() {
 
         {/* Heading */}
         <div className="text-center" style={{ marginBottom:"3rem" }}>
-          <p style={{ fontSize:10, letterSpacing:"0.3em", textTransform:"uppercase" as const, color:"rgba(197,164,109,0.6)", marginBottom:"0.6rem", fontFamily:"Heebo, sans-serif" }}>
+          <p style={{ fontSize:12, letterSpacing:"0.3em", textTransform:"uppercase" as const, color:"rgba(197,164,109,0.6)", marginBottom:"0.6rem", fontFamily:"Heebo, sans-serif" }}>
             ✦ לוח הבקרה שלכם
           </p>
           <h2 style={{ fontFamily:"Frank Ruhl Libre, serif", fontSize:"clamp(1.8rem,4vw,2.4rem)", fontWeight:700, color:"#FFF8EC", margin:0 }}>
@@ -167,7 +167,7 @@ export default function LiveDashboardWidget() {
                         flex:1, padding:"5px 4px", borderRadius:8, border:"none", cursor:"pointer",
                         background: tab === id ? "rgba(197,164,109,0.2)" : "rgba(255,255,255,0.04)",
                         color: tab === id ? "#C5A46D" : "rgba(255,255,255,0.35)",
-                        fontFamily:"Heebo, sans-serif", fontSize:9, fontWeight: tab === id ? 700 : 400,
+                        fontFamily:"Heebo, sans-serif", fontSize:12, fontWeight: tab === id ? 700 : 400,
                         borderBottom: tab === id ? "1.5px solid #C5A46D" : "1.5px solid transparent",
                         transition:"all .2s",
                       }}
@@ -216,7 +216,7 @@ export default function LiveDashboardWidget() {
                         <div style={{ position:"relative" }}>
                           <DonutChart slices={BUDGET} />
                           <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
-                            <p style={{ fontFamily:"Frank Ruhl Libre, serif", fontSize:11, fontWeight:700, color:"#C5A46D", margin:0 }}>₪{(TOTAL_BUDGET/1000).toFixed(0)}K</p>
+                            <p style={{ fontFamily:"Frank Ruhl Libre, serif", fontSize:12, fontWeight:700, color:"#C5A46D", margin:0 }}>₪{(TOTAL_BUDGET/1000).toFixed(0)}K</p>
                             <p style={{ fontFamily:"Heebo, sans-serif", fontSize:6.5, color:"rgba(255,255,255,0.3)", margin:0 }}>סה״כ</p>
                           </div>
                         </div>
@@ -257,7 +257,7 @@ export default function LiveDashboardWidget() {
                           }}>
                             {t.done && <span style={{ color:"white", fontSize:8, fontWeight:700 }}>✓</span>}
                           </div>
-                          <span style={{ fontFamily:"Heebo, sans-serif", fontSize:9, color: t.done ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.75)", textDecoration: t.done ? "line-through" : "none", transition:"all .2s" }}>
+                          <span style={{ fontFamily:"Heebo, sans-serif", fontSize:12, color: t.done ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.75)", textDecoration: t.done ? "line-through" : "none", transition:"all .2s" }}>
                             {t.label}
                           </span>
                           <span style={{ marginRight:"auto", fontFamily:"Heebo, sans-serif", fontSize:7, color:"rgba(197,164,109,0.4)", background:"rgba(197,164,109,0.08)", padding:"1px 5px", borderRadius:8 }}>

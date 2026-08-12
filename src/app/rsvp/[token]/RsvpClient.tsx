@@ -831,7 +831,7 @@ export default function RsvpClient({
           </div>
 
           {/* Footer */}
-          <p style={{ textAlign: "center", fontSize: "11px", letterSpacing: "0.04em", padding: "12px 0 20px", background: "#d4c4b0", margin: 0 }}>
+          <p style={{ textAlign: "center", fontSize: "12px", letterSpacing: "0.04em", padding: "12px 0 20px", background: "#d4c4b0", margin: 0 }}>
             <a href="/" target="_blank" rel="noopener noreferrer" style={{ color: T.muted, opacity: 0.7, textDecoration: "none" }}>
               נבנה באהבה ע״י רגע לפני 💍
             </a>
@@ -916,7 +916,7 @@ export default function RsvpClient({
           {/* Bento summary cards — meal card hidden for dvir_list (no meal choice in their flow) */}
           <div style={{ display: "grid", gridTemplateColumns: isDvir ? "1fr" : "1fr 1fr", gap: "12px", marginBottom: "16px", animation: "fadeUp 0.5s ease 0.2s both" }}>
             <WarmCard style={{ textAlign: "right", padding: "16px" }}>
-              <p style={{ fontSize: "11px", fontWeight: 700, color: T.muted, letterSpacing: "0.08em", marginBottom: "6px", textTransform: "uppercase" }}>כמות אורחים</p>
+              <p style={{ fontSize: "12px", fontWeight: 700, color: T.muted, letterSpacing: "0.08em", marginBottom: "6px", textTransform: "uppercase" }}>כמות אורחים</p>
               <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "22px", fontWeight: 700, color: T.dark }}>
                 {guest?.guest_count ?? 1} {(guest?.guest_count ?? 1) === 1 ? "אורח" : "אורחים"}
               </p>
@@ -1065,7 +1065,7 @@ export default function RsvpClient({
                 `היי, יש לי בעיה עם ההזמנה של ${event?.name ?? "החתונה"} — `,
               )}`}
               target="_blank" rel="noopener noreferrer"
-              style={{ color: T.goldText, textDecoration: "none", fontWeight: 600 }}
+              style={{ color: T.goldText, textDecoration: "none", fontWeight: 600, display: "inline-block", padding: "12px 8px" }}
             >
               משהו לא עובד? הקישור לא נפתח? כתבו לנו ונטפל בזה 💬
             </a>
@@ -1075,9 +1075,9 @@ export default function RsvpClient({
               old line was spending half the width on something nobody was
               looking for; "an invitation like this" points at the invitation
               sitting directly above, which is the whole argument.
-              Stays at 11px and half opacity — this is a paying couple's page,
+              Stays quiet at 12px and half opacity — this is a paying couple's page,
               and what is above it must always win. */}
-          <p style={{ textAlign: "center", fontSize: "11px", letterSpacing: "0.04em", padding: "16px 0 24px", margin: 0 }}>
+          <p style={{ textAlign: "center", fontSize: "12px", letterSpacing: "0.04em", padding: "16px 0 24px", margin: 0 }}>
             <a
               href="https://wa.me/972533318177?text=%D7%94%D7%99%D7%99%2C%20%D7%A8%D7%90%D7%99%D7%AA%D7%99%20%D7%94%D7%96%D7%9E%D7%A0%D7%94%20%D7%A9%D7%9C%20%D7%A8%D7%92%D7%A2%20%D7%9C%D7%A4%D7%A0%D7%99%20%D7%95%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A9%D7%9E%D7%95%D7%A2%20%D7%A4%D7%A8%D7%98%D7%99%D7%9D%20%F0%9F%A4%8D"
               target="_blank" rel="noopener noreferrer"
@@ -1085,7 +1085,7 @@ export default function RsvpClient({
                 navigator.sendBeacon?.("/api/lead-from-rsvp",
                   new Blob([JSON.stringify({ token })], { type: "application/json" }));
               }}
-              style={{ color: T.muted, opacity: 0.6, textDecoration: "none" }}
+              style={{ color: T.muted, opacity: 0.6, textDecoration: "none", display: "inline-block", padding: "12px 8px" }}
             >
               מתחתנים בקרוב? הזמנה כזאת מחכה גם לכם 💍
             </a>
@@ -1204,8 +1204,8 @@ export default function RsvpClient({
               <div className={introDone ? undefined : "inv-hold"} style={{ marginBottom: "24px", position: "relative" }}>
                 {/* Floating gold sparkles around the invitation */}
                 <span className="inv-spark" aria-hidden="true" style={{ top: "18%", right: "-4px", animationDelay: "1.6s" }}>✦</span>
-                <span className="inv-spark" aria-hidden="true" style={{ top: "34%", left: "-2px", fontSize: "10px", animationDelay: "2.4s" }}>✦</span>
-                <span className="inv-spark" aria-hidden="true" style={{ bottom: "26%", right: "6px", fontSize: "11px", animationDelay: "3.1s" }}>✦</span>
+                <span className="inv-spark" aria-hidden="true" style={{ top: "34%", left: "-2px", fontSize: "12px", animationDelay: "2.4s" }}>✦</span>
+                <span className="inv-spark" aria-hidden="true" style={{ bottom: "26%", right: "6px", fontSize: "12px", animationDelay: "3.1s" }}>✦</span>
 
                 <p className="inv-greet" style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "20px", fontWeight: 700, color: T.dark, textAlign: "center", margin: "0 0 4px" }}>
                   משפחה וחברים יקרים 🤍
@@ -1736,7 +1736,7 @@ function LiveCountdown({ date }: { date: string }) {
       <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 30, fontWeight: 900, margin: 0, lineHeight: 1.1, background: "linear-gradient(180deg,#F3E6C8,#D9BC85 55%,#A9822F)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", fontVariantNumeric: "tabular-nums" }}>
         {String(value).padStart(2, "0")}
       </p>
-      <p style={{ fontSize: 11, color: "rgba(243,230,200,0.6)", margin: "2px 0 0", letterSpacing: "0.06em" }}>{label}</p>
+      <p style={{ fontSize: 12, color: "rgba(243,230,200,0.6)", margin: "2px 0 0", letterSpacing: "0.06em" }}>{label}</p>
     </div>
   );
 
@@ -2080,11 +2080,11 @@ function WeddingIntro({ onDone }: { onDone: () => void }) {
 
       {/* Gold dust */}
       <span className="wi-dust" style={{ top: "16%", right: "18%", fontSize: 12, animationDelay: "0.4s" }}>✦</span>
-      <span className="wi-dust" style={{ top: "28%", left: "14%", fontSize: 9,  animationDelay: "1.1s" }}>✦</span>
-      <span className="wi-dust" style={{ top: "62%", right: "12%", fontSize: 10, animationDelay: "1.7s" }}>✦</span>
+      <span className="wi-dust" style={{ top: "28%", left: "14%", fontSize: 12,  animationDelay: "1.1s" }}>✦</span>
+      <span className="wi-dust" style={{ top: "62%", right: "12%", fontSize: 12, animationDelay: "1.7s" }}>✦</span>
       <span className="wi-dust" style={{ bottom: "20%", left: "20%", fontSize: 12, animationDelay: "2.2s" }}>✦</span>
       <span className="wi-dust" style={{ top: "12%", left: "44%", fontSize: 8,  animationDelay: "2.6s" }}>✦</span>
-      <span className="wi-dust" style={{ bottom: "34%", right: "38%", fontSize: 9, animationDelay: "0.8s" }}>✦</span>
+      <span className="wi-dust" style={{ bottom: "34%", right: "38%", fontSize: 12, animationDelay: "0.8s" }}>✦</span>
 
       {/* Act 1 — בס"ד, like on the printed invitation */}
       <p className="wi-bsd" style={{ position: "absolute", top: "max(28px, env(safe-area-inset-top))", left: 0, right: 0, textAlign: "center", color: "rgba(243,230,200,0.55)", fontSize: 14, letterSpacing: "0.14em", margin: 0, fontFamily: "'Frank Ruhl Libre', serif" }}>

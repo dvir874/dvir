@@ -49,7 +49,7 @@ export default function DvirCardPage() {
           )}
         </div>
 
-        <p style={{ fontSize: 11, color: C.muted, marginTop: 22 }}>
+        <p style={{ fontSize: 12, color: C.muted, marginTop: 22 }}>
           שמרו את הדף — או שתפו עם זוג שמתחתן 🤍
         </p>
       </div>
