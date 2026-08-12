@@ -686,6 +686,33 @@ export async function GET(req: NextRequest) {
               ? new Date(Date.now() + (pol.delayH ?? 24) * 3_600_000).toISOString()
               : null,
           }).eq("id", t.row);
+        } else {
+          /* A first contact that Meta rejected outright left no trace at all.
+             Every failed row in the table has a wamid, meaning it was accepted
+             and only later reported failed by the webhook — the immediate
+             rejections were written nowhere.
+
+             What that costs: the guest looks untouched on the next run, so they
+             are picked as a first contact again, twice a day, for ever. The
+             "never retry" policies cannot fire on them because policyFor reads
+             wa_messages. They cannot appear in unreachable or in needsHuman. A
+             number that can never work would quietly consume two slots of a
+             capped day until the wedding — and nothing would ever say so.
+
+             Writing the failure makes it a fact the rest of the system can act
+             on. No wamid, because Meta never issued one. */
+          await sb.from("wa_messages").insert({
+            event_id: ev.id, guest_id: g.id,
+            wa_phone: toE164(g.phone) ?? "",
+            direction: "out",
+            body: t.reminder ? "תזכורת אישור הגעה" : "הזמנה לחתונה (תבנית)",
+            status: "failed",
+            error: res.error ?? "unknown",
+            retry_count: 0,
+            retry_after: pol.action === "retry_later"
+              ? new Date(Date.now() + (pol.delayH ?? 24) * 3_600_000).toISOString()
+              : null,
+          });
         }
 
         if (pol.action === "stop_run") stopped = "המספר מוגבל — עצירת ההרצה";
