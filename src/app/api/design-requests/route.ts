@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { checkRateLimit, getClientIp, LIMITS } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  /* Same shape as onboarding: public, unauthenticated, writes rows. */
+  const rl = checkRateLimit(getClientIp(request), 'design_request',
+                            LIMITS.design_request.max, LIMITS.design_request.windowMs);
+  if (!rl.ok) {
+    return NextResponse.json({ error: "יותר מדי בקשות. נסו שוב בעוד דקה." }, { status: 429 });
+  }
+
   try {
     const body = await request.json() as {
       invitation_slug: string;

@@ -66,5 +66,15 @@ export const LIMITS = {
   gallery_upload:{ max: 30,  windowMs: 60_000 },   // 30/min per IP
   memory_upload: { max: 20,  windowMs: 60_000 },   // 20/min per IP
   login:         { max: 10,  windowMs: 60_000 },   // 10/min per IP
+  /* Public, unauthenticated, and writes with the service role — the two
+     endpoints that can create rows without anyone signing in.
+     Sized from what actually happens rather than a guess: three events have
+     ever been created, never more than two in a day, and design_requests has
+     never had a single row. Five a minute is roughly a hundred times real peak
+     and still stops a script, which is the balance ChatGPT asked for — a limit
+     low enough to matter and high enough that a couple retrying a form never
+     meets it. Matches `leads`, the closest analogue. */
+  onboarding:    { max: 5,   windowMs: 60_000 },   // 5/min per IP
+  design_request:{ max: 5,   windowMs: 60_000 },   // 5/min per IP
   couple:        { max: 120, windowMs: 60_000 },   // 120/min per IP (dashboard polling)
 } as const;
