@@ -1415,7 +1415,7 @@ export default function AdminPage() {
                       const confirmed = guests.filter(g => g.status === "confirmed").length;
                       const pending   = guests.filter(g => g.status === "pending").length;
                       const declined  = guests.filter(g => g.status === "declined").length;
-                      const msg = encodeURIComponent(`💍 עדכון שבועי מרגע לפני 📊\n\n✅ אישרו הגעה: ${confirmed}\n⏳ ממתינים: ${pending}\n❌ לא מגיעים: ${declined}\n📋 סה״כ מוזמנים: ${guests.length}\n\nלצפייה בכל הפרטים:\n${dashUrl}`);
+                      const msg = encodeURIComponent(`💍 עדכון שבועי מרגע לפני 📊\n\n✅ אישרו הגעה: ${confirmed}\n⏳ ממתינים: ${pending}\n❌ לא מגיעים: ${declined}\n📋 סה״כ אורחים: ${guests.reduce((a, g) => a + (g.guest_count ?? 1), 0)} (${guests.length} רשומות)\n\nלצפייה בכל הפרטים:\n${dashUrl}`);
                       return (
                         <a href={`https://wa.me/${phone}?text=${msg}`} target="_blank" rel="noopener noreferrer" onClick={() => setShowToolsMenu(false)}
                           className="flex items-center gap-2 px-4 py-3 text-xs hover:bg-green-50 transition-colors"
@@ -3212,7 +3212,7 @@ export default function AdminPage() {
                   {[
                     { icon: <CalendarDays size={22} />, iconBg: "rgba(197,164,109,0.14)", iconColor: C.gold,  label: "אירועים פעילים",      value: overview.filter((e) => e.daysUntilEvent > 0).length },
                     { icon: <CheckCircle size={22} />,  iconBg: "rgba(107,123,90,0.10)",  iconColor: C.olive, label: "אישורי הגעה השבוע",    value: overview.reduce((s, e) => s + (e.recentActivity ?? 0), 0) },
-                    { icon: <Users size={22} />,        iconBg: "rgba(197,164,109,0.18)", iconColor: C.gold,  label: "סה״כ מוזמנים",         value: overview.reduce((s, e) => s + e.total, 0).toLocaleString("he-IL") },
+                    { icon: <Users size={22} />,        iconBg: "rgba(197,164,109,0.18)", iconColor: C.gold,  label: "סה״כ רשומות",          value: overview.reduce((s, e) => s + e.total, 0).toLocaleString("he-IL") },
                     { icon: <CalendarDays size={22} />, iconBg: "rgba(107,123,90,0.14)", iconColor: C.olive, label: "אירועים השבוע הקרוב",  value: overview.filter((e) => e.daysUntilEvent >= 0 && e.daysUntilEvent <= 7).length },
                   ].map((k, i) => (
                     <div key={i} className="p-5 transition-all duration-300 hover:-translate-y-1"
@@ -3709,7 +3709,7 @@ function EventCard({ ev, approvalStatus, onSelect }: { ev: EventSummary; approva
             {ev.daysUntilEvent > 0 ? ` · עוד ${ev.daysUntilEvent} ימים` : ev.daysUntilEvent === 0 ? " · היום!" : " · עבר"}
           </p>
           <div className="flex gap-4 text-xs flex-wrap" style={{ color: C.muted }}>
-            <span>{ev.total} מוזמנים</span>
+            <span>{ev.total} רשומות</span>
             <span style={{ color: C.olive }}>{ev.confirmed} אישרו</span>
             <span style={{ color: "#A07840" }}>{ev.pending} ממתינים</span>
             <span>{ev.responseRate}% מענה</span>
