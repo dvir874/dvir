@@ -11,7 +11,6 @@ const C = {
 };
 
 const GIFT_TYPES = [
-  { value: "bit",       label: "Bit",       icon: "📱" },
   { value: "paybox",    label: "PayBox",    icon: "💳" },
   { value: "easy2give", label: "Easy2Give", icon: "💚" },
   { value: "cash",      label: "מזומן",     icon: "💵" },
@@ -20,7 +19,6 @@ const GIFT_TYPES = [
 ];
 
 const PAYMENT_METHODS = [
-  { value: "bit",    label: "Bit",    icon: "📱", color: "#0066FF" },
   { value: "paybox", label: "PayBox", icon: "💜", color: "#6B46C1" },
   { value: "easy2give", label: "Easy2Give", icon: "💚", color: "#059669" },
   { value: "custom", label: "קישור מותאם", icon: "🔗", color: "#C5A46D" },

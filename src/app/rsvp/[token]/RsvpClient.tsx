@@ -756,31 +756,30 @@ export default function RsvpClient({
               </div>
             )}
 
-            {event?.bit_phone && (
+            {/* Bit removed, and PayBox lifted out of it.
+                Bit has no shareable payment link — not through the app's own
+                share button, not through its QR, which iOS routes straight to
+                the app without ever exposing a URL. Dvir tested both. Copying a
+                phone number and asking the guest to open Bit and paste it is
+                three steps, and a guest at a wedding does not take three steps.
+                PayBox was nested inside the Bit condition, so a couple who set
+                only a PayBox link saw nothing at all. That was its own bug. */}
+            {event?.paybox_link && (
               <div style={{
                 margin: "0 0 16px", padding: "14px 18px", borderRadius: 14,
-                background: "rgba(0,102,255,0.05)", border: "1.5px solid rgba(0,102,255,0.18)",
+                background: "rgba(0,169,224,0.05)", border: "1.5px solid rgba(0,169,224,0.18)",
                 textAlign: "center", animation: "fadeUp 0.35s ease 0.2s both",
               }}>
                 <p style={{ fontSize: 14, fontWeight: 600, color: T.dark, margin: "0 0 4px" }}>
                   🎁 רוצים לשמח את הזוג במתנה גם מרחוק?
                 </p>
-                <button
-                  type="button"
-                  onClick={() => { navigator.clipboard?.writeText(event.bit_phone!); }}
-                  style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "'Heebo', sans-serif", fontSize: 15, fontWeight: 700, color: "#0066FF", padding: 4 }}
+                <a
+                  href={event.paybox_link}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{ display: "block", fontFamily: "'Heebo', sans-serif", fontSize: 15, fontWeight: 700, color: "#00A9E0", padding: 4, textDecoration: "none" }}
                 >
-                  ביט למספר {event.bit_phone} 📋 (לחצו להעתקה)
-                </button>
-                {event.paybox_link && (
-                  <a
-                    href={event.paybox_link}
-                    target="_blank" rel="noopener noreferrer"
-                    style={{ display: "block", fontFamily: "'Heebo', sans-serif", fontSize: 14, fontWeight: 700, color: "#00A9E0", padding: 4, textDecoration: "none" }}
-                  >
-                    או דרך PayBox ←
-                  </a>
-                )}
+                  שליחת מתנה ב-PayBox ←
+                </a>
               </div>
             )}
 
@@ -1009,31 +1008,22 @@ export default function RsvpClient({
             </a>
           )}
 
-          {event?.bit_phone && (
+          {event?.paybox_link && (
             <div style={{
               marginTop: 16, padding: "14px 18px", borderRadius: 14,
-              background: "rgba(0,102,255,0.05)", border: "1.5px solid rgba(0,102,255,0.18)",
+              background: "rgba(0,169,224,0.05)", border: "1.5px solid rgba(0,169,224,0.18)",
               textAlign: "center", animation: "fadeUp 0.5s ease 0.45s both",
             }}>
               <p style={{ fontSize: 14, fontWeight: 600, color: T.dark, margin: "0 0 4px" }}>
                 🎁 רוצים לשמח את הזוג במתנה?
               </p>
-              <button
-                type="button"
-                onClick={() => { navigator.clipboard?.writeText(event.bit_phone!); }}
-                style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "'Heebo', sans-serif", fontSize: 15, fontWeight: 700, color: "#0066FF", padding: 4 }}
+              <a
+                href={event.paybox_link}
+                target="_blank" rel="noopener noreferrer"
+                style={{ display: "block", fontFamily: "'Heebo', sans-serif", fontSize: 15, fontWeight: 700, color: "#00A9E0", padding: 4, textDecoration: "none" }}
               >
-                ביט למספר {event.bit_phone} 📋 (לחצו להעתקה)
-              </button>
-              {event.paybox_link && (
-                <a
-                  href={event.paybox_link}
-                  target="_blank" rel="noopener noreferrer"
-                  style={{ display: "block", fontFamily: "'Heebo', sans-serif", fontSize: 14, fontWeight: 700, color: "#00A9E0", padding: 4, textDecoration: "none" }}
-                >
-                  או דרך PayBox ←
-                </a>
-              )}
+                שליחת מתנה ב-PayBox ←
+              </a>
             </div>
           )}
 
