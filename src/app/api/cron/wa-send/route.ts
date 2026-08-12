@@ -441,9 +441,29 @@ async function runSend(req: NextRequest) {
     return record(sb, { sent: 0, reason: "no_sendable_event", healed, skippedEvents },
       { cap, tier: health.tier, quality: health.quality, posture: health.posture });
 
-  /* One event per run, round-robin by date, so a large wedding cannot starve
-     a smaller one that shares the same number-level quota. */
-  const ev = active[0];
+  /* One event per run, nearest wedding first — but the nearest wedding that
+     still has somebody to reach.
+   *
+   * This was `active[0]` unconditionally, which is fine while the closest
+   * wedding has work and silently fatal the moment it does not. Dvir's own
+   * wedding is on 24/08 with 146 people still pending; those finish in about
+   * two runs. Every run after that would have selected his event, found nothing
+   * to do, and returned "nothing_due" — twice a day, until 24/08 — while a
+   * paying client's 550 guests sat untouched behind him. The constant is called
+   * MAX_EVENTS_PER_RUN = 3 and only one was ever considered.
+   *
+   * Picking the first event with pending guests costs one small query per event
+   * and removes a failure whose symptom is silence. Sharing a single run's
+   * budget across several weddings is a different and larger change; with two
+   * runs a day and this ordering, a second couple is served as soon as the
+   * first has nobody left, which is the case that actually arrives. */
+  let ev = active[0];
+  for (const cand of active) {
+    const { count } = await sb.from("guests")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", cand.id).eq("status", "pending");
+    if ((count ?? 0) > 0) { ev = cand; break; }
+  }
   const image = ev.wa_header_image_url as string;
 
   const sent: string[] = [];
