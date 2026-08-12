@@ -40,6 +40,12 @@ interface ApiSendResult {
   sent?: number;
   failed?: number;
   skipped?: number;
+  /* The server explains a zero — "24 recipients already in the window", "no
+     invitation image", "already received". Neither field was declared here, so
+     both were dropped on arrival and every refusal rendered as a cheerful
+     ✅ נשלחו 0. The reason existed the whole time; nothing displayed it. */
+  hint?: string;
+  deferred?: number;
   details?: {
     sent?: string[];
     failed?: { name: string; error: string }[];
@@ -440,11 +446,18 @@ function SendStation() {
                       <p style={{ color: "#B4453C", margin: 0 }}>❌ {apiResult.error}</p>
                     ) : (
                       <>
-                        <p style={{ margin: 0, color: C.green, fontWeight: 700 }}>
-                          ✅ נשלחו {apiResult.sent ?? 0}
+                        {/* Zero is not a success. It was painted green with a tick
+                            beside it, which is how a refusal reads as a send. */}
+                        <p style={{ margin: 0, fontWeight: 700,
+                                    color: (apiResult.sent ?? 0) > 0 ? C.green : "#B4453C" }}>
+                          {(apiResult.sent ?? 0) > 0 ? "✅" : "⚠️"} נשלחו {apiResult.sent ?? 0}
                           {(apiResult.failed ?? 0) > 0 && ` · נכשלו ${apiResult.failed}`}
                           {(apiResult.skipped ?? 0) > 0 && ` · דולגו ${apiResult.skipped}`}
+                          {(apiResult.deferred ?? 0) > 0 && ` · נדחו למועד אחר ${apiResult.deferred}`}
                         </p>
+                        {apiResult.hint && (
+                          <p style={{ margin: "6px 0 0", color: C.dark }}>{apiResult.hint}</p>
+                        )}
                         {(apiResult.details?.failed ?? []).slice(0, 8).map((f, i) => (
                           <p key={i} style={{ margin: "3px 0 0", color: "#B4453C" }}>
                             {f.name} — {f.error}
@@ -474,6 +487,26 @@ function SendStation() {
                       style={{ width: "100%", padding: "16px", background: apiBusy ? C.border : C.gold, color: "#fff", border: "none", borderRadius: 14, fontSize: 17, fontWeight: 700, cursor: apiBusy ? "wait" : "pointer", fontFamily: "Heebo, sans-serif" }}>
                       {apiBusy ? "שולח…" : `שלח ל${current.name} מ״רגע לפני״ ←`}
                     </button>
+
+                    {/* The answer, beside the button that asked the question.
+                        It rendered only inside the bulk-send card ~400px above,
+                        so pressing this button looked like it did nothing at all
+                        — Dvir pressed it, watched this screen, and had to ask
+                        whether his sister had been messaged. The server had
+                        already replied "0, the 24-hour window is full". */}
+                    {apiResult && !apiBusy && (
+                      <p style={{
+                        margin: "10px 0 0", fontSize: 13, lineHeight: 1.6,
+                        color: apiResult.error || (apiResult.sent ?? 0) === 0 ? "#B4453C" : C.green,
+                        fontWeight: 600,
+                      }}>
+                        {apiResult.error
+                          ? `❌ ${apiResult.error}`
+                          : (apiResult.sent ?? 0) > 0
+                            ? "✅ נשלח"
+                            : `⚠️ לא נשלח${apiResult.hint ? " — " + apiResult.hint : ""}`}
+                      </p>
+                    )}
                     <button onClick={sendCurrent}
                       style={{ width: "100%", marginTop: 8, padding: "12px", background: "#fff", color: C.muted, border: `1.5px solid ${C.border}`, borderRadius: 12, fontSize: 13.5, fontWeight: 600, cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
                       💬 או מהוואטסאפ האישי שלי
