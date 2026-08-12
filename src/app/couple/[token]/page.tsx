@@ -286,8 +286,11 @@ function SplashScreen({ name }: { name: string }) {
     if (sessionStorage.getItem("raga_splash_shown")) return;
     sessionStorage.setItem("raga_splash_shown", "1");
     setPhase("show");
-    const t1 = setTimeout(() => setPhase("fade"), 2400);
-    const t2 = setTimeout(() => setPhase("hidden"), 3300);
+    /* 2.4s of holding still felt stuck, and this runs on every single visit —
+       a couple checking their numbers four times a day waits thirteen seconds
+       a day for an animation they have already seen. */
+    const t1 = setTimeout(() => setPhase("fade"), 1200);
+    const t2 = setTimeout(() => setPhase("hidden"), 1900);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
   if (phase === "hidden") return null;

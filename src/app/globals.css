@@ -335,3 +335,34 @@ body.modal-open {
 :focus:not(:focus-visible) {
   outline: none;
 }
+
+/* The couple's own names, on the welcome screen of their own dashboard.
+ *
+ * The class was applied and never defined. With no colour rule the text
+ * inherited the default against a #080402 background and came out almost
+ * black on black — Dvir opened his dashboard and could barely read
+ * "מירב ודביר". The shimmer keyframe it was named after already existed and
+ * was being used on the progress bar underneath it.
+ *
+ * background-clip needs a colour fallback, not just a gradient: if the
+ * gradient fails to paint — an old browser, a blocked paint, a print — the
+ * text must still be visible rather than transparent. Falling back to
+ * invisible is how this looked in the first place. */
+.gold-shimmer-text {
+  color: #C5A46D;
+  background: linear-gradient(90deg, #8C6F42 0%, #C5A46D 35%, #F0DFB8 50%, #C5A46D 65%, #8C6F42 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: goldShimmerText 3.5s linear infinite;
+}
+
+@keyframes goldShimmerText {
+  to { background-position: 200% center; }
+}
+
+/* Anyone who prefers less motion gets the gold, still. */
+@media (prefers-reduced-motion: reduce) {
+  .gold-shimmer-text { animation: none; }
+}
