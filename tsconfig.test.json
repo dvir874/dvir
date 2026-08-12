@@ -1,0 +1,10 @@
+{
+  "//": "Test files are excluded from the build's tsconfig because Node's test runner needs an explicit .ts extension on relative imports, which the build config forbids. Excluding them entirely meant `tsc clean` said nothing at all about the tests — a review caught that. This config type-checks exactly those files, with the one option that makes the extension legal.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  },
+  "include": ["src/**/*.test.ts", "src/**/*.test.tsx"],
+  "exclude": ["node_modules"]
+}

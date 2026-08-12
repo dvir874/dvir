@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
+import { checkRateLimit, getClientIp, LIMITS } from '@/lib/rate-limit';
 import { DEFAULT_THEME_ID } from '@/lib/themes';
 import type { ParsedGuest } from '@/lib/guest-parser';
 
@@ -21,6 +22,14 @@ interface OnboardingBody {
 }
 
 export async function POST(request: NextRequest) {
+  /* Public, unauthenticated, and creating events and guests with the service
+     role. Nothing stood between a script and an unbounded number of rows. */
+  const rl = checkRateLimit(getClientIp(request), 'onboarding',
+                            LIMITS.onboarding.max, LIMITS.onboarding.windowMs);
+  if (!rl.ok) {
+    return NextResponse.json({ error: 'יותר מדי בקשות. נסו שוב בעוד דקה.' }, { status: 429 });
+  }
+
   const body = (await request.json()) as OnboardingBody;
 
   const {
