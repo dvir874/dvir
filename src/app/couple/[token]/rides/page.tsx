@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { ArrowRight } from "lucide-react";
+import { buildRideBoard, introMessage } from "@/lib/rides";
 const C = {
   ivory:  "#FDFAF5",
   cream:  "#F6F1E8",
@@ -41,20 +42,20 @@ export default function RidesPage() {
 
   const riders = useMemo(() => guests.filter(g => g.ride_role && g.ride_from), [guests]);
 
-  /* Group by city (normalized) */
-  const byCity = useMemo(() => {
-    const map = new Map<string, { offers: Guest[]; seekers: Guest[] }>();
-    for (const g of riders) {
-      const city = g.ride_from!.trim();
-      if (!map.has(city)) map.set(city, { offers: [], seekers: [] });
-      const entry = map.get(city)!;
-      if (g.ride_role === "offer") entry.offers.push(g);
-      else entry.seekers.push(g);
-    }
-    return [...map.entries()].sort((a, b) => (b[1].offers.length + b[1].seekers.length) - (a[1].offers.length + a[1].seekers.length));
-  }, [riders]);
+  /* Grouping used to be by the raw text people typed, which put "חדרה" and
+     "חדרה /אולגה" in different places and hid an organised coach inside the
+     carpool: eleven of sixteen "seeking" rows were the Tiberias shuttle, so the
+     board claimed three times more demand than exists and matching could never
+     work. buildRideBoard canonicalises the area, reads "בני ברק , רמת גן" as
+     one person naming two, and keeps the coach out of the pool entirely. */
+  const board = useMemo(() => buildRideBoard(riders), [riders]);
 
-  const matches = byCity.filter(([, v]) => v.offers.length > 0 && v.seekers.length > 0);
+  const byCity: [string, { offers: Guest[]; seekers: Guest[] }][] = useMemo(
+    () => board.areas
+      .map(a => [a.area, { offers: a.drivers as Guest[], seekers: a.seekers as Guest[] }] as [string, { offers: Guest[]; seekers: Guest[] }])
+      .sort((a, b) => (b[1].offers.length + b[1].seekers.length) - (a[1].offers.length + a[1].seekers.length)),
+    [board],
+  );
 
   return (
     <div dir="rtl" style={{ minHeight: "100dvh", background: C.ivory, fontFamily: "'Heebo', sans-serif", paddingBottom: 120 }}>
@@ -85,10 +86,70 @@ export default function RidesPage() {
           </div>
         ) : (
           <>
-            {matches.length > 0 && (
-              <div style={{ background: "rgba(74,124,89,0.08)", border: "1.5px solid rgba(74,124,89,0.25)", borderRadius: 14, padding: "12px 16px", marginBottom: 18 }}>
-                <p style={{ fontSize: 14, fontWeight: 700, color: C.green, margin: 0 }}>
-                  ✨ יש {matches.length} {matches.length === 1 ? "עיר עם התאמה" : "ערים עם התאמות"} — חברו ביניהם!
+            {/* An organised coach is not a carpool. Kept out of the matching
+                and shown with a seat count, because the eleven people on it
+                made the board look three times busier than it is. */}
+            {board.shuttle.map(s => (
+              <div key={s.area} style={{ background: "#fff", border: `1.5px solid ${C.gold}`, borderRadius: 16, padding: "16px", marginBottom: 18 }}>
+                <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 17, fontWeight: 700, color: C.dark, margin: "0 0 4px" }}>
+                  🚌 {s.area}
+                </p>
+                <p style={{ fontSize: 13, color: C.muted, margin: "0 0 12px" }}>
+                  {s.guests.length} רשומות · {s.guests.reduce((n, g) => n + ((g as Guest & { guest_count?: number }).guest_count ?? 1), 0)} מקומות
+                </p>
+                {s.guests.map(g => (
+                  <div key={g.id ?? g.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 10px", background: C.cream, borderRadius: 10, marginBottom: 5, fontSize: 14 }}>
+                    <span style={{ color: C.dark, fontWeight: 500 }}>{g.name}</span>
+                    <span style={{ fontSize: 12, color: C.muted }}>
+                      {(g as Guest & { guest_count?: number }).guest_count ?? 1} מקום
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
+
+            {/* The introduction is sent BY the couple, who already hold both
+                numbers, and names the other guest without carrying their phone
+                number into a message. Whether the two then exchange numbers is
+                theirs to decide — the part that should never be automatic. */}
+            {board.matches.length > 0 ? (
+              <div style={{ background: "rgba(74,124,89,0.08)", border: "1.5px solid rgba(74,124,89,0.25)", borderRadius: 14, padding: "14px 16px", marginBottom: 18 }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: C.green, margin: "0 0 10px" }}>
+                  ✨ {board.matches.length} {board.matches.length === 1 ? "התאמה" : "התאמות"} — לחצו לחבר ביניהם
+                </p>
+                {board.matches.map((m, i) => (
+                  <div key={i} style={{ background: "#fff", borderRadius: 12, padding: "10px 12px", marginBottom: 8 }}>
+                    <p style={{ fontSize: 14, color: C.dark, margin: "0 0 8px", fontWeight: 500 }}>
+                      📍 {m.area} — <strong>{m.seeker.name}</strong> מחפש/ת, ל<strong>{m.driver.name}</strong> יש מקום
+                    </p>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <a href={`https://wa.me/${waPhone(m.seeker.phone)}?text=${encodeURIComponent(introMessage(m, "seeker"))}`}
+                        target="_blank" rel="noopener noreferrer"
+                        style={{ minHeight: 44, display: "inline-flex", alignItems: "center", padding: "0 14px", borderRadius: 10, background: C.cream, color: C.goldT, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                        💬 עדכנו את {m.seeker.name}
+                      </a>
+                      <a href={`https://wa.me/${waPhone(m.driver.phone)}?text=${encodeURIComponent(introMessage(m, "driver"))}`}
+                        target="_blank" rel="noopener noreferrer"
+                        style={{ minHeight: 44, display: "inline-flex", alignItems: "center", padding: "0 14px", borderRadius: 10, background: C.cream, color: C.green, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                        💬 עדכנו את {m.driver.name}
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* Silence here used to look like a broken feature. It is not: it
+                 says which side of the pool is empty, which is the only thing
+                 that can be acted on. */
+              <div style={{ background: C.cream, border: `1px solid ${C.border}`, borderRadius: 14, padding: "14px 16px", marginBottom: 18 }}>
+                <p style={{ fontSize: 14, fontWeight: 600, color: C.dark, margin: "0 0 4px" }}>
+                  אין עדיין התאמה
+                </p>
+                <p style={{ fontSize: 13, color: C.muted, margin: 0, lineHeight: 1.7 }}>
+                  {board.counts.seekers} מחפשים טרמפ ו-{board.counts.drivers} מציעים מקום — אבל לא באותם יישובים.
+                  {board.counts.drivers < board.counts.seekers
+                    ? " שווה לשאול את האורחים מי נוסע ויש לו מקום."
+                    : " שווה לשאול מי צריך טרמפ ומאיפה."}
                 </p>
               </div>
             )}
