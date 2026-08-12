@@ -45,6 +45,16 @@ interface EventInfo {
 
 const EMPTY_GIFT = { guest_name: "", amount: "", gift_type: "cash", notes: "", received_at: "" };
 
+/* One mapping, used by both the read and the write. They were written
+   separately and only the write existed, which is why the field could save and
+   still open empty. */
+function fieldOf(method: string): keyof EventInfo {
+  return method === "bit" ? "bit_phone"
+    : method === "paybox" ? "paybox_link"
+    : method === "easy2give" ? "easy2give_link"
+    : "custom_gift_link";
+}
+
 function getGiftTypeInfo(v: string | null) {
   return GIFT_TYPES.find(t => t.value === v) ?? { icon: "🎁", label: v ?? "אחר" };
 }
@@ -61,6 +71,30 @@ export default function GiftCenterPage() {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [activeTab, setActiveTab] = useState<"gifts" | "methods">("gifts");
+  /* Per-field save state. The couple typed a phone number into a field that
+     gave no sign it had been kept, and on coming back the field was empty —
+     so the only reasonable conclusion was that it had not saved. */
+  const [methodState, setMethodState] = useState<Record<string, "saving" | "saved" | "error">>({});
+
+  const saveMethod = useCallback(async (method: string, raw: string) => {
+    const key = fieldOf(method);
+    const val = raw.trim() || null;
+    if ((event?.[key] ?? null) === val) return;   /* nothing changed */
+    setMethodState(s => ({ ...s, [method]: "saving" }));
+    try {
+      const r = await fetch(`/api/couple/${token}/briefing`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: val }),
+      });
+      if (!r.ok) throw new Error(String(r.status));
+      /* Keep local state in step so the field still shows the value after a
+         re-render, and so leaving and returning shows what is actually stored. */
+      setEvent(e => (e ? { ...e, [key]: val } : e));
+      setMethodState(s => ({ ...s, [method]: "saved" }));
+    } catch {
+      setMethodState(s => ({ ...s, [method]: "error" }));
+    }
+  }, [token, event]);
 
   const load = useCallback(async () => {
     const [giftsRes, eventRes] = await Promise.all([
@@ -240,14 +274,37 @@ export default function GiftCenterPage() {
                      m.value === "easy2give" ? "קישור Easy2Give" :
                      "קישור מותאם אישית"}
                   </p>
-                  <input placeholder={`הזינו ${m.value === "bit" ? "מספר טלפון" : "קישור"}...`}
-                    style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 10, padding: "0.5rem 0.75rem", fontSize: 13, fontFamily: "Heebo, sans-serif", background: C.ivory, color: C.dark, outline: "none", boxSizing: "border-box" }}
-                    onBlur={async e => {
-                      const val = e.target.value.trim();
-                      const key = m.value === "bit" ? "bit_phone" : m.value === "paybox" ? "paybox_link" : m.value === "easy2give" ? "easy2give_link" : "custom_gift_link";
-                      await fetch(`/api/couple/${token}/briefing`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [key]: val || null }) }).catch(() => {});
-                    }}
+                  {/* Three faults lived in this one input.
+
+                      It had no value and no defaultValue, so it opened empty
+                      however many times it had been filled in. Dvir typed his
+                      Bit number, left the page and came back to a blank field,
+                      and concluded — reasonably — that nothing had been saved.
+
+                      It saved on blur alone. On a phone, tapping a bottom-nav
+                      link can navigate without the field ever blurring, so the
+                      value is simply lost.
+
+                      And the save ended in .catch(() => {}). A failed write to
+                      the couple's own gift details produced no error, no retry
+                      and no trace. The same shape as the webhook, the helper
+                      screen and the admin send station — the fourth today. */}
+                  <input
+                    key={`${m.value}-${event?.[fieldOf(m.value)] ?? ""}`}
+                    defaultValue={event?.[fieldOf(m.value)] ?? ""}
+                    placeholder={`הזינו ${m.value === "bit" ? "מספר טלפון" : "קישור"}...`}
+                    style={{ width: "100%", border: `1px solid ${methodState[m.value] === "error" ? "#B4453C" : C.border}`, borderRadius: 10, padding: "0.5rem 0.75rem", fontSize: 13, fontFamily: "Heebo, sans-serif", background: C.ivory, color: C.dark, outline: "none", boxSizing: "border-box" }}
+                    onBlur={e => saveMethod(m.value, e.target.value)}
                   />
+                  {methodState[m.value] && (
+                    <p style={{ fontSize: 12, marginTop: 6, marginBottom: 0, fontWeight: 600,
+                                color: methodState[m.value] === "error" ? "#B4453C"
+                                     : methodState[m.value] === "saved" ? C.olive : C.muted }}>
+                      {methodState[m.value] === "saving" ? "שומר…"
+                        : methodState[m.value] === "saved" ? "✓ נשמר"
+                        : "❌ לא נשמר — בדקו חיבור ונסו שוב"}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
