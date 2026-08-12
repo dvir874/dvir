@@ -76,12 +76,19 @@ export async function GET(req: NextRequest) {
   {
     const ids = guests.map(x => x.id as string);
     if (ids.length) {
-      const { data: sentEvents } = await sb
-        .from("guest_events")
-        .select("guest_id")
-        .eq("event_type", "invite_sent")
-        .in("guest_id", ids);
-      invitesSent = new Set((sentEvents ?? []).map(e => e.guest_id)).size;
+      /* Chunked: PostgREST truncates .in() past roughly 390 ids, so at 550
+         guests this figure would quietly read low and the ops screen would
+         report fewer invitations sent than actually went out. */
+      const seen = new Set<string>();
+      for (let i = 0; i < ids.length; i += 100) {
+        const { data: sentEvents } = await sb
+          .from("guest_events")
+          .select("guest_id")
+          .eq("event_type", "invite_sent")
+          .in("guest_id", ids.slice(i, i + 100));
+        for (const e of sentEvents ?? []) seen.add(e.guest_id as string);
+      }
+      invitesSent = seen.size;
     }
   }
 

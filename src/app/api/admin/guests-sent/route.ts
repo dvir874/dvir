@@ -89,10 +89,19 @@ export async function POST(req: NextRequest) {
      leaves them alone. */
   const marked: Record<string, number> = {};
   for (const type of [EVENT_TYPE, MANUAL_TYPE]) {
-    const { data: existing } = await sb
-      .from("guest_events").select("guest_id")
-      .eq("event_type", type).in("guest_id", ids);
-    const already = new Set((existing ?? []).map(e => e.guest_id));
+    /* Chunked like every other .in() here. Unchunked it truncates past ~390
+       ids, and this one does not merely under-report: `fresh` is computed by
+       subtracting `already` from ids, so a truncated read makes guests look
+       unmarked and writes them a SECOND guest_events row. At 550 selected
+       guests that is hundreds of duplicate "already contacted" records, and
+       those records are what the sender consults to leave somebody alone. */
+    const already = new Set<string>();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data: existing } = await sb
+        .from("guest_events").select("guest_id")
+        .eq("event_type", type).in("guest_id", ids.slice(i, i + 100));
+      for (const e of existing ?? []) already.add(e.guest_id as string);
+    }
     const fresh = ids.filter(id => !already.has(id));
     if (fresh.length) {
       const { error } = await sb.from("guest_events")
