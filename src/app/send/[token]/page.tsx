@@ -35,7 +35,14 @@ export default function HelperSendPage({ params }: { params: Promise<{ token: st
      a Suspense boundary this page deliberately does not have — see the note by
      the fetch below. Read once, in an effect, so the server and the first
      client render agree and hydration does not mismatch. */
-  const [mode, setMode] = useState("");
+  /* null = not read yet. The distinction matters: mode used to start as "" and
+     that is a real value, so the first render fired a fetch with no mode at all
+     — the FIRST-round question — and a second one followed a tick later with
+     mode=reminder. Two requests in flight, and whichever answered last won.
+     Oriya's screen kept the empty first-round answer over the eleven guests the
+     reminder query was returning at the same moment.
+     Nothing loads until this is resolved, so exactly one request is ever sent. */
+  const [mode, setMode] = useState<string | null>(null);
   useEffect(() => {
     setMode(new URLSearchParams(window.location.search).get("mode") ?? "");
   }, []);
@@ -85,6 +92,7 @@ export default function HelperSendPage({ params }: { params: Promise<{ token: st
      hidden by a browser, on a screen that said the work was done. */
   const SENT_KEY = `helper_sent_${token}${mode ? "_" + mode : ""}`;
   useEffect(() => {
+    if (mode === null) return;   /* would read round one's key and its names */
     try {
       const saved = JSON.parse(localStorage.getItem(SENT_KEY) ?? "[]");
       /* Assign, never merge. mode is "" on the first render and becomes
@@ -95,9 +103,10 @@ export default function HelperSendPage({ params }: { params: Promise<{ token: st
          Scoping the key was only half the fix; this is the other half. */
       setSentIds(new Set(Array.isArray(saved) ? saved : []));
     } catch { /* private mode — the in-session count still works */ }
-  }, [SENT_KEY]);
+  }, [SENT_KEY, mode]);
 
   const load = useCallback(async () => {
+    if (mode === null) return;   /* see above — one request, with the right mode */
     try {
       /* ?h=noya narrows the queue to the guests assigned to this helper, so two
          family members working at the same time never land on the same person.
