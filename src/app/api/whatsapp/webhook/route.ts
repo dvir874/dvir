@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { handleGuestReply } from "@/lib/wa-conversation";
 import { isRetryableFailure, nextRetryAt } from "@/lib/whatsapp";
+import { failureWriter, newRunId, recordFailure } from "@/lib/failures";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +91,9 @@ export async function POST(req: NextRequest) {
     if (!statuses.length && !messages.length) return NextResponse.json({ ok: true });
 
     const sb = createServerClient();
+    /* One id for this delivery. Meta batches, so a single POST can fail for
+       several guests at once — that is one incident, not several. */
+    const runId = newRunId("hook");
 
     /* Resolve phone numbers to guests in one query */
     const phones = [...statuses.map(s => s.recipient_id), ...messages.map(m => m.from)]
@@ -217,9 +221,11 @@ export async function POST(req: NextRequest) {
      *
      * Answers are not something we can afford to drop quietly. If handling
      * throws we retry once, and whatever happens we leave a row saying so. */
-    const note = (reason: string) =>
-      sb.from("wa_runs").insert({ sent: 0, failed: 1, reason: reason.slice(0, 300) })
-        .then(() => {}, () => {});
+    /* Last night this wrote into wa_runs with sent:0 and a reply_* reason,
+       because there was nowhere else. wa_runs is the cron's run log, and every
+       future reader of "did the send run?" would have had to know to filter
+       rows that are not runs. wa_failures is that debt paid back. */
+    const w = failureWriter(sb);
 
     for (const m of messages) {
       const g = byPhone.get(localise(m.from ?? ""));
@@ -228,7 +234,11 @@ export async function POST(req: NextRequest) {
         /* Answered from a number that is not on the list. Previously a silent
            `continue`: the reply sat in the inbox under the sender's WhatsApp
            profile name, indistinguishable from a guest who had been counted. */
-        await note(`reply_unmatched:${m.from}:${bodyOf(m).slice(0, 60)}`);
+        await recordFailure(w, {
+          scope: "webhook.unmatched", runId, ref: m.from,
+          error: "reply from a number that is not on any guest list",
+          context: { body: bodyOf(m).slice(0, 120) },
+        });
         continue;
       }
       try {
@@ -240,9 +250,15 @@ export async function POST(req: NextRequest) {
            does not repeat a second later. */
         try {
           await handleGuestReply(sb, g.id, m.from, bodyOf(m), m.button?.payload);
-          await note(`reply_recovered:${g.id}:${String((e1 as Error)?.message ?? e1)}`);
+          await recordFailure(w, {
+            scope: "webhook.reply", runId, guestId: g.id, eventId: g.event_id, error: e1,
+            context: { recovered: true },
+          });
         } catch (e2) {
-          await note(`reply_failed:${g.id}:${String((e2 as Error)?.message ?? e2)}`);
+          await recordFailure(w, {
+            scope: "webhook.reply", runId, guestId: g.id, eventId: g.event_id, error: e2,
+            context: { recovered: false, attempts: 2 },
+          });
         }
       }
     }
