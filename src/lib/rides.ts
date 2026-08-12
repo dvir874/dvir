@@ -153,3 +153,51 @@ export function introMessage(m: RideMatch, to: "seeker" | "driver"): string {
     ? `היי ${m.seeker.name}! ראינו שאתם מחפשים טרמפ מ${m.area} לחתונה — ${m.driver.name} נוסע/ת משם ויש מקום ברכב. רוצים שנחבר ביניכם?`
     : `היי ${m.driver.name}! ראינו שיש לכם מקום ברכב מ${m.area} — ${m.seeker.name} מחפש/ת טרמפ משם. רוצים שנחבר ביניכם?`;
 }
+
+/* ── Reading a lift out of an ordinary message ────────────────────────────
+ *
+ * Guests answer in prose. "אני נוסע מחדרה ויש לי מקום לשניים" is an offer, and
+ * until now it landed in the inbox and nowhere else — the board only ever knew
+ * what someone typed into the RSVP form.
+ *
+ * Deliberately conservative. A place name alone is never enough: people mention
+ * towns for every reason, and silently marking a guest as a driver because they
+ * said "אנחנו מירושלים" would put a stranger's name in front of them. Both an
+ * intent AND a place must be present, and when only one is, this returns null
+ * and the message stays a message.
+ */
+
+const OFFER_WORDS = /(יש לי מקום|מקום ברכב|מקום באוטו|יכול לאסוף|אפשר לאסוף|אני מסיע|נוסע ואפשר|מפנה מקום)/;
+const SEEK_WORDS  = /(צריך טרמפ|צריכה טרמפ|צריכים טרמפ|מחפש טרמפ|מחפשת טרמפ|מחפשים טרמפ|אשמח לטרמפ|אין לי רכב|אין לנו רכב|זקוק לטרמפ|זקוקה לטרמפ)/;
+
+/** Towns that actually appear in Israeli guest lists, plus the venue's own. */
+const TOWNS = [
+  "ירושלים", "תל אביב", "חיפה", "באר שבע", "ראשון לציון", "פתח תקווה", "אשדוד",
+  "נתניה", "בני ברק", "חולון", "רמת גן", "אשקלון", "רחובות", "בת ים", "כפר סבא",
+  "הרצליה", "חדרה", "מודיעין", "רעננה", "רמלה", "לוד", "רהט", "נהריה", "קריית גת",
+  "גבעתיים", "טבריה", "נצרת", "עפולה", "אילת", "עכו", "אלעד", "רמת השרון", "כרמיאל",
+  "צפת", "דימונה", "ירוחם", "נס ציונה", "קריית שמונה", "אור יהודה", "יבנה", "גדרה",
+  "קדימה צורן", "פדואל", "אולגה", "זכרון יעקב", "פרדס חנה", "בנימינה", "קיסריה",
+  "אריאל", "בית שמש", "מעלה אדומים", "אשקלון", "שוהם", "יהוד", "גני תקווה",
+];
+
+export interface RideIntent { role: RideRole; area: string }
+
+/** What an ordinary message says about a lift, or null when it says nothing. */
+export function detectRideIntent(text?: string | null): RideIntent | null {
+  const t = String(text ?? "").replace(/\s+/g, " ").trim();
+  if (!t) return null;
+
+  const role: RideRole | null =
+    OFFER_WORDS.test(t) ? "offer" : SEEK_WORDS.test(t) ? "seek" : null;
+  if (!role) return null;
+
+  /* Longest first, so "קריית גת" is not read as "גת" and "בני ברק" wins over
+     any shorter fragment inside it. The מ/ב prefix is optional because both
+     "מחדרה" and "בחדרה" name the same place. */
+  for (const town of [...TOWNS].sort((a, b) => b.length - a.length)) {
+    const re = new RegExp(`(^|[\\s,.!?])[מב]?${town.replace(/ /g, "\\s+")}(\\b|[\\s,.!?]|$)`);
+    if (re.test(t)) return { role, area: ALIASES[town] ?? town };
+  }
+  return null;
+}

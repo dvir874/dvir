@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getWhatsAppConfig } from "@/lib/whatsapp";
 import { sendButtons, sendList, sendText, parseGuestCount } from "@/lib/wa-interactive";
+import { detectRideIntent } from "@/lib/rides";
 
 /* Answering an invitation without leaving WhatsApp.
  *
@@ -187,6 +188,23 @@ export async function handleGuestReply(
         `רשמנו ${n} 🤍 מחכים לראותכם!\nאם התכוונתם למשהו אחר — כתבו לנו כאן ונתקן.`);
       return true;
     }
+  }
+
+  /* A lift mentioned in ordinary words.
+     "אני נוסע מחדרה ויש לי מקום" is an offer, and it used to reach the inbox
+     and nowhere else — the rides board only ever knew what somebody typed into
+     the RSVP form, which 7% of guests did. Both an intent and a town must be
+     present, so a guest who merely mentions where they live is not silently
+     listed as a driver. */
+  const ride = detectRideIntent(said);
+  if (ride) {
+    await sb.from("guests")
+      .update({ ride_from: ride.area, ride_role: ride.role })
+      .eq("id", guest.id);
+    await sendText(cfg, to, ride.role === "offer"
+      ? `רשמנו שיש לכם מקום ברכב מ${ride.area} 🚗\nאם מישהו משם מחפש טרמפ — נחבר ביניכם.`
+      : `רשמנו שאתם מחפשים טרמפ מ${ride.area} 🚗\nאם מישהו משם נוסע — נחבר ביניכם.`);
+    return true;
   }
 
   return false;

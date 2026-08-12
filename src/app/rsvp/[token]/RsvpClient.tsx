@@ -1583,11 +1583,16 @@ export default function RsvpClient({
             {/* Ride sharing (optional, shown when attending) */}
             {attending && (
               <div style={{ marginBottom: "24px", animation: "fadeUp 0.3s ease 0.08s both" }}>
-                <p style={{ fontSize: "14px", fontWeight: 600, color: T.dark, marginBottom: "4px", textAlign: "center" }}>
-                  🚗 מגיעים ברכב?
+                {/* "לא חובה" is the reason 7% answered this. The question was
+                    also asked as though it were about the guest's own car,
+                    when what the board needs is where they set off from — and
+                    a guest living in the venue's own town without a car is
+                    exactly who a local driver can help. */}
+                <p style={{ fontSize: "15px", fontWeight: 600, color: T.dark, marginBottom: "4px", textAlign: "center" }}>
+                  🚗 צריכים טרמפ, או שיש לכם מקום ברכב?
                 </p>
-                <p style={{ fontSize: "12px", fontWeight: 300, color: T.muted, marginBottom: "12px", textAlign: "center" }}>
-                  לא חובה — עוזר לתאם טרמפים בין האורחים
+                <p style={{ fontSize: "13px", fontWeight: 300, color: T.muted, marginBottom: "12px", textAlign: "center", lineHeight: 1.6 }}>
+                  כתבו מאיפה אתם יוצאים — ונחבר בין מי שיש לו מקום למי שצריך
                 </p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: rideRole ? "12px" : 0 }}>
                   {([["offer", "🚙 יש לי מקום ברכב"], ["seek", "🙋 מחפש/ת טרמפ"]] as const).map(([role, label]) => (
