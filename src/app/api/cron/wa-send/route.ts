@@ -279,7 +279,29 @@ async function record(
   return NextResponse.json(payload);
 }
 
+/* A crash must leave the same trace as any other outcome.
+ *
+ * There was no handler around the run. Anything thrown after the first send —
+ * a dropped connection, a null where a guest was expected — returned a 500 and
+ * wrote no wa_runs row at all. Messages already sent stayed sent, and the
+ * books said the run never happened, which is indistinguishable on
+ * /admin/sending from a cron that never fired. The one failure you cannot see
+ * is the one that looks like silence.
+ */
 export async function GET(req: NextRequest) {
+  try {
+    return await runSend(req);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.error("[wa-send:crash]", message);
+    try {
+      await record(createServerClient(), { sent: 0, reason: "crashed", error: message });
+    } catch { /* if even this fails there is nothing left to try */ }
+    return NextResponse.json({ error: "crashed", message }, { status: 500 });
+  }
+}
+
+async function runSend(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
     return NextResponse.json(

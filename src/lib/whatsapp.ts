@@ -137,6 +137,21 @@ let lastSendAt = 0;
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
+/* Spaces BATCHES, not individual messages — worth stating plainly, because the
+   name suggests otherwise.
+ *
+ * The six sends of a batch call this at the same moment, read the same
+ * lastSendAt, sleep the same amount and therefore leave together. What the gap
+ * actually produces is six messages, a pause, six more: about 2.4 a second
+ * averaged out.
+ *
+ * Deliberately left that way. Reserving a slot per message would make the gap
+ * literal, and at 2.5–4 seconds each a 48-second run would carry fourteen
+ * messages instead of forty-eight — a sixth of the daily reach, twelve days
+ * before a wedding with 151 people still unanswered. The restriction on this
+ * number came from recipients blocking and reporting, not from cadence at this
+ * volume, so the throughput is worth more than the smoothness.
+ */
 async function pace() {
   const gap = MIN_GAP_MS + Math.floor(Math.random() * JITTER_MS);
   const wait = lastSendAt + gap - Date.now();
