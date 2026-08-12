@@ -143,6 +143,19 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
     setScreen("choose");
   }
 
+  /* The event's own day counts as "after" — guests upload from the dance floor,
+     not the morning after. Unknown date falls back to showing everything, which
+     is what the screen did before and is the safer of the two wrong answers:
+     a guest who cannot find "upload photo" after the wedding has lost the
+     evening, while one offered it early is merely confused. */
+  const weddingHasHappened = (() => {
+    if (!event?.date) return true;
+    const d = new Date(event.date);
+    if (Number.isNaN(d.getTime())) return true;
+    d.setHours(23, 59, 59, 999);
+    return Date.now() >= d.getTime();
+  })();
+
   const formattedDate = event?.date
     ? new Date(event.date).toLocaleDateString("he-IL", { day:"numeric", month:"long", year:"numeric" })
     : "";
@@ -192,10 +205,12 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
         </svg>
 
         <h1 style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"24px", fontWeight:700, color:T.dark, marginBottom:"8px" }}>
-          מה תרצו לשתף?
+          {weddingHasHappened ? "מה תרצו לשתף?" : "כתבו ברכה לזוג"}
         </h1>
         <p style={{ fontSize:"14px", fontWeight:300, color:T.muted, marginBottom:"32px" }}>
-          תרומתכם תהפוך לחלק מזכרונות החתונה
+          {weddingHasHappened
+            ? "תרומתכם תהפוך לחלק מזכרונות החתונה"
+            : "כמה מילים מכם — הזוג יקרא אותן לפני החתונה"}
         </p>
         {event?.name && (
           <p style={{ fontSize:"13px", fontWeight:600, color:T.goldText, marginBottom:"24px", letterSpacing:".03em" }}>
@@ -204,13 +219,22 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
         )}
       </div>
 
-      {/* 2×2 type grid */}
+      {/* Before the wedding there is nothing to photograph.
+       *
+       * This screen is reached two ways. From the RSVP page a guest taps
+       * "כתבו ברכה לזוג" weeks ahead — and was offered "תמונה שצילמתם מהאירוע"
+       * and "סרטון קצר" from an event that has not happened. After the wedding
+       * the same link is what the couple send out to collect the evening.
+       *
+       * One screen, two moments, and only the date can tell them apart. Asking
+       * a guest for a photo of a wedding they have not attended reads as a
+       * broken product, and it buries the one thing they did come to do. */}
       <div style={{ padding:"0 20px 48px", display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", maxWidth:"400px", margin:"0 auto", animation:"fadeUp .4s ease .08s both" }}>
         {[
-          { type:"photo"   as UploadType, emoji:"📸", label:"תמונה",            sub:"תמונה שצילמתם מהאירוע" },
-          { type:"video"   as UploadType, emoji:"🎥", label:"סרטון",            sub:"סרטון קצר עד 2 דקות" },
-          { type:"blessing"as UploadType, emoji:"💌", label:"ברכה",             sub:"כתבו ברכה אישית" },
-        ].map(({ type, emoji, label, sub }) => (
+          { type:"photo"   as UploadType, emoji:"📸", label:"תמונה",            sub:"תמונה שצילמתם מהאירוע", afterOnly:true },
+          { type:"video"   as UploadType, emoji:"🎥", label:"סרטון",            sub:"סרטון קצר עד 2 דקות",   afterOnly:true },
+          { type:"blessing"as UploadType, emoji:"💌", label:"ברכה",             sub:"כתבו ברכה אישית",       afterOnly:false },
+        ].filter(o => !o.afterOnly || weddingHasHappened).map(({ type, emoji, label, sub }) => (
           <button
             key={type}
             className="type-card"
