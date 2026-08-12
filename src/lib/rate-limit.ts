@@ -1,9 +1,17 @@
 /**
- * In-memory sliding window rate limiter.
+ * In-memory FIXED-window rate limiter.
  *
- * Limitations: per-process memory — resets on cold start. Acceptable for a
- * small SaaS with limited traffic. Upgrade to Upstash Redis when concurrent
- * function instances become a concern.
+ * Named "sliding window" until a review read the implementation: the first
+ * request of a key sets resetAt = now + windowMs, and every request until that
+ * moment counts against the same window. A true sliding window would age each
+ * request out individually. Fixed is sufficient here — the cost is that a
+ * caller can send `max` at the end of one window and `max` again at the start
+ * of the next — and the name is now what the code does.
+ *
+ * Limitations: per-process memory — resets on cold start, and NOT global on
+ * serverless, where concurrent instances each hold their own counter.
+ * Acceptable for a small SaaS with limited traffic. Upgrade to Upstash Redis
+ * when concurrent function instances become a concern.
  *
  * Usage:
  *   const result = checkRateLimit(ip, 'rsvp', 10, 60_000);
