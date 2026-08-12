@@ -47,6 +47,17 @@ function generateInsights(
   const pending    = guests.filter((g) => g.status === "pending").length;
   const declined   = guests.filter((g) => g.status === "declined").length;
   const attendees  = guests.filter((g) => g.status === "confirmed").reduce((s, g) => s + g.guest_count, 0);
+  /* People, not rows.
+   *
+   * "סה״כ מוזמנים 327" was the number of RECORDS. One record is one household —
+   * "לינה ומנש שגיא", one phone, two chairs and two meals. For אורי ✧ שחר that
+   * is 327 rows and 557 people, and a couple who orders 327 meals off this
+   * screen is 230 short on the night.
+   *
+   * Both numbers are needed and they answer different questions: rows are how
+   * many messages go out, people are what the venue is billed for. Neither may
+   * be shown without the other. */
+  const invitedPeople = guests.reduce((s, g) => s + (g.guest_count ?? 1), 0);
   const responders = confirmed + declined;
   const rate       = Math.round((responders / total) * 100);
   const opened     = guests.filter((g) => g.opened_at).length;
@@ -557,6 +568,10 @@ export default function AdminPage() {
   const confirmed  = guests.filter((g) => g.status === "confirmed").length;
   const pending    = guests.filter((g) => g.status === "pending").length;
   const declined   = guests.filter((g) => g.status === "declined").length;
+  /* People, not rows. "סה״כ מוזמנים 327" counted RECORDS — one household,
+     one phone, but two chairs and two meals. 327 rows is 557 people for
+     אורי ✧ שחר, and ordering 327 meals off this screen is 230 short. */
+  const invitedPeople = guests.reduce((s, g) => s + (g.guest_count ?? 1), 0);
   const attendees    = guests
     .filter((g) => g.status === "confirmed")
     .reduce((s, g) => s + g.guest_count, 0);
@@ -2385,13 +2400,14 @@ export default function AdminPage() {
         {/* ── KPI Cards ──────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
           {[
-            { label: "סה״כ מוזמנים",    value: total,              icon: Users,        color: C.gold    },
+            { label: "סה״כ אורחים",     value: invitedPeople,      icon: Users,        color: C.gold,
+              sub: `${total} רשומות · הודעה אחת לכל אחת` },
             { label: "אישרו הגעה",       value: confirmed,          icon: CheckCircle,  color: C.olive   },
             { label: "ממתינים",           value: pending,            icon: Clock,        color: "#A07840" },
             { label: "לא מגיעים",        value: declined,           icon: XCircle,      color: C.muted   },
             { label: "מגיעים בפועל",     value: attendees,          icon: Users,        color: C.olive   },
             { label: "אחוז מענה",        value: `${responseRate}%`, icon: Percent,      color: C.gold    },
-          ].map(({ label, value, icon: Icon, color }) => (
+          ].map(({ label, value, icon: Icon, color, sub }: { label: string; value: string | number; icon: typeof Users; color: string; sub?: string }) => (
             <div
               key={label}
               className="rounded-2xl p-4 flex flex-col gap-1.5"
@@ -2404,6 +2420,7 @@ export default function AdminPage() {
               <p className="text-3xl font-bold" style={{ color: C.dark, fontFamily: "Frank Ruhl Libre, serif" }}>
                 {value}
               </p>
+              {sub && <p className="text-[11px] leading-tight" style={{ color: C.muted }}>{sub}</p>}
             </div>
           ))}
         </div>
