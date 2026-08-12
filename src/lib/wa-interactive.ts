@@ -27,6 +27,13 @@ async function post(cfg: WhatsAppConfig, body: unknown): Promise<WaSendResult> {
       method: "POST",
       headers: { Authorization: `Bearer ${cfg.accessToken}`, "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      /* Every one of these runs inside the webhook handler, which Meta gives a
+         short deadline and RETRIES when it is missed. sendInvitation has had a
+         timeout since it was written; this file had none, so one slow call to
+         Graph would hold the handler open until Vercel killed it, Meta would
+         resend the same tap, and the reply would be processed a second time —
+         a second confirmation message, and a second guest_events row. */
+      signal: AbortSignal.timeout(15_000),
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {

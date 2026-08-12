@@ -58,6 +58,12 @@ const HOUR_END_UTC = 18;
    apart, so this only ever catches an overlap nobody intended. */
 const MIN_MINUTES_BETWEEN_RUNS = 10;
 
+/* A run stakes this the moment it decides to send, and clears the way for the
+   next scheduled run a few minutes later. Shorter than the gap between the two
+   daily crons by a wide margin, so a crashed run never blocks a real one. */
+const RUN_CLAIM = "run_started";
+const CLAIM_TTL_MINUTES = 4;
+
 /* Heal guests whose open was recorded in one place and not the other.
 
    Noya opened her invitation twice on 10/8. Both rsvp_opened events landed;
@@ -354,6 +360,30 @@ async function runSend(req: NextRequest) {
       lastRunAt: justRan[0].created_at,
     });
   }
+
+  /* The check above reads rows that are only written when a run FINISHES, so it
+     cannot see a run that is still going. Two invocations starting in the same
+     minute both find an empty table and both send.
+     That is not hypothetical: on 11/08 a run at 13:00 sent 48 and a run at
+     13:01 sent 43 — 91 unique recipients in two minutes, against the 82 at
+     which this number was restricted on 9/8. The 16:04 run then found the
+     window full. The lock was added after the first time this happened and
+     never actually closed the door.
+     So the claim is staked here, before a single message goes out, and the gate
+     below refuses to start if another run staked one in the last few minutes.
+     Claims expire quickly — a run takes about a minute — so a crash cannot lock
+     out the next scheduled run. */
+  const claimCutoff = new Date(Date.now() - CLAIM_TTL_MINUTES * 60_000).toISOString();
+  const { data: inFlight } = await sb.from("wa_runs")
+    .select("created_at").eq("reason", RUN_CLAIM)
+    .gte("created_at", claimCutoff).limit(1);
+  if (inFlight?.length) {
+    return record(sb, {
+      sent: 0, reason: "run_in_flight", healed,
+      startedAt: inFlight[0].created_at,
+    });
+  }
+  await sb.from("wa_runs").insert({ sent: 0, failed: 0, reason: RUN_CLAIM }).then(() => {}, () => {});
 
   /* Ask Meta what it will allow today rather than trusting a constant written
      on the day the number was restricted. The old constants held us to 25 a

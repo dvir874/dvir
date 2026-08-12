@@ -83,10 +83,17 @@ export async function handleGuestReply(
        attending. A button is never an answer to "how many". */
     if (/^rsvp_no$/.test(said) || said === "לא מגיע") {
       await setState(sb, guest.id, ASK_DECLINE);
-      await sendButtons(cfg, to, "רק לוודא — לא תוכלו להגיע?", [
+      /* The one send whose failure has to be handled.
+         The state above says "waiting for them to confirm the decline", and it
+         is only true if the question actually left. If it did not, the guest is
+         parked forever waiting to answer something they never received, and
+         their next tap of "לא מגיע" is read as an answer to a missing question.
+         Roll the state back so the next thing they say starts cleanly. */
+      const asked = await sendButtons(cfg, to, "רק לוודא — לא תוכלו להגיע?", [
         { id: "yes_decline", title: "כן, לא נוכל" },
         { id: "no_mistake",  title: "רגע, טעיתי" },
       ]);
+      if (!asked.ok) await setState(sb, guest.id, null);
       return true;
     }
     if (/^rsvp_yes$/.test(said) || said === "מגיע") {

@@ -368,12 +368,26 @@ export async function rollingWindowUsage(
 ): Promise<WindowUsage> {
   const since = new Date(Date.now() - 86_400_000).toISOString();
   const { data, error } = await sb
-    .from("wa_messages").select("wa_phone")
+    .from("wa_messages").select("wa_phone, wamid")
     .eq("direction", "out").gte("created_at", since)
-    .returns<{ wa_phone: string }[]>();
+    .returns<{ wa_phone: string; wamid: string | null }[]>();
   if (error || !data) return { recipients: cap, remaining: 0, blocked: true };
 
-  const recipients = new Set(data.map(r => r.wa_phone).filter(Boolean)).size;
+  /* Only what Meta actually took.
+     A send Meta rejected outright never opened a conversation and cannot count
+     against a limit on conversations — and those rejections have only existed
+     as rows since today, when they started being recorded so a dead number
+     could stop being retried for ever. Counting them would quietly hand back
+     part of each day's reach: today's three blocked recipients would have cost
+     three slots tomorrow, for messages nobody received. A wamid is the receipt
+     that Meta accepted it.
+
+     Filtered here rather than in the query because this client carries `never`
+     for its Database generic, and chaining .not() past .gte() collapses the
+     row type to never. */
+  const recipients = new Set(
+    data.filter(r => r.wamid).map(r => r.wa_phone).filter(Boolean),
+  ).size;
   const remaining = Math.max(0, cap - recipients);
   return { recipients, remaining, blocked: remaining === 0 };
 }
