@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { createServerClient } from "@/lib/supabase-server";
 import { handleGuestReply } from "@/lib/wa-conversation";
 import { isRetryableFailure, nextRetryAt } from "@/lib/whatsapp";
@@ -67,10 +68,48 @@ function bodyOf(m: WaMessage): string {
     ?? `[${m.type ?? "הודעה"}]`;
 }
 
+/* Meta signs every delivery with HMAC-SHA256 of the RAW body.
+ *
+ * Without this check the endpoint accepted anything: a forged messages[]
+ * payload carrying "מגיע" moved a real guest from pending to confirmed and
+ * wrote an rsvp_submitted event, indistinguishable from a genuine reply. Guest
+ * phone numbers are not secret — they are on the invitations — so anyone could
+ * have rewritten the caterer's headcount.
+ *
+ * The comparison is constant-time. A === on a hex digest leaks, one byte at a
+ * time, how much of a guess was right.
+ */
+function verifyMetaSignature(raw: string, header: string | null): boolean {
+  const secret = process.env.META_APP_SECRET;
+  if (!secret || !header?.startsWith("sha256=")) return false;
+
+  const expected = createHmac("sha256", secret).update(raw, "utf8").digest();
+  let received: Buffer;
+  try {
+    received = Buffer.from(header.slice(7), "hex");
+  } catch { return false; }
+
+  /* timingSafeEqual throws on a length mismatch, which would itself be a
+     timing signal — so the lengths are compared first and equally. */
+  if (received.length !== expected.length) return false;
+  return timingSafeEqual(received, expected);
+}
+
 export async function POST(req: NextRequest) {
   /* Always 200 — a non-200 makes Meta retry and eventually disable the hook */
   try {
-    const body = await req.json();
+    /* The raw text, before anything parses it. HMAC over a re-serialised
+       object would compare a different byte sequence and never match. */
+    const raw = await req.text();
+
+    if (!verifyMetaSignature(raw, req.headers.get("x-hub-signature-256"))) {
+      /* Still 200: a 4xx here teaches Meta the endpoint is broken and it
+         eventually stops delivering. Refused, logged, and nothing is written. */
+      console.warn("[wa:webhook] rejected — signature missing or invalid");
+      return NextResponse.json({ ok: true });
+    }
+
+    const body = JSON.parse(raw);
 
     /* EVERY entry and EVERY change, not just the first of each.
        Meta batches: one POST can carry several entries, each with several
@@ -178,6 +217,24 @@ export async function POST(req: NextRequest) {
       };
     }).filter(r => r.wa_phone);
 
+    /* Which of these we have never seen before.
+     *
+     * Meta redelivers on timeout, and until today this file had no fetch
+     * timeout at all — so redelivery was likely, and handleGuestReply ran again
+     * on each one: a second confirmation message to the guest and a duplicate
+     * guest_events row. wa_messages was already idempotent; the business logic
+     * was not.
+     *
+     * The database decides, not a local Set: two retries can arrive at two
+     * instances at the same moment and both would pass an in-memory check.
+     * A plain insert either wins the unique index on wamid or conflicts. */
+    const firstSeen = new Set<string>();
+    for (const row of inbound) {
+      if (!row.wamid) continue;
+      const { error: dupErr } = await sb.from("wa_messages").insert(row).select("id");
+      if (!dupErr) firstSeen.add(row.wamid);
+    }
+
     if (inbound.length) {
       const { error } = await sb.from("wa_messages").upsert(inbound, { onConflict: "wamid" });
       /* The media columns arrive by migration. Until it has run, keeping the
@@ -204,6 +261,9 @@ export async function POST(req: NextRequest) {
     for (const m of messages) {
       const g = byPhone.get(localise(m.from ?? ""));
       if (!g?.id || !m.from) continue;
+      /* A redelivery of a tap already acted on. Storing it again is harmless;
+         answering it again is not. */
+      if (m.id && !firstSeen.has(m.id)) continue;
       try {
         await handleGuestReply(sb, g.id, m.from, bodyOf(m), m.button?.payload);
       } catch { /* this guest's tap is unhandled; the next one need not be */ }
