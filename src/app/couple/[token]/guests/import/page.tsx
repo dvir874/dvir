@@ -24,6 +24,17 @@ function newRow(): Row {
   return { id: Math.random().toString(36).slice(2), firstName: "", lastName: "", phone: "" };
 }
 
+/* "540 נוספו" alone leaves the client wondering what happened to the other ten
+   rows in her file. Naming the skipped duplicates is the difference between a
+   number she trusts and one she re-runs the import to check. */
+function importSummary(d: { imported?: number; duplicates?: number }): string {
+  const added = d.imported ?? 0;
+  const dup = d.duplicates ?? 0;
+  if (added === 0 && dup > 0) return `כל ${dup} השורות כבר קיימות ברשימה — לא נוסף אף אחד`;
+  if (dup > 0) return `${added} אורחים נוספו · ${dup} דולגו כי הם כבר ברשימה`;
+  return `${added} אורחים נוספו בהצלחה`;
+}
+
 export default function GuestImportPage() {
   const { token } = useParams<{ token: string }>();
   const router = useRouter();
@@ -86,7 +97,7 @@ export default function GuestImportPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "שגיאה");
       localStorage.removeItem(LS_KEY(token));
-      setMessage(`${data.imported} אורחים נוספו בהצלחה`);
+      setMessage(importSummary(data));
       setStatus("success");
     } catch (e: unknown) {
       setMessage(e instanceof Error ? e.message : "שגיאה בשמירה");
@@ -104,7 +115,7 @@ export default function GuestImportPage() {
       const res = await fetch(`/api/couple/${token}/guests/import`, { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "שגיאה");
-      setMessage(`${data.imported} אורחים יובאו בהצלחה`);
+      setMessage(importSummary(data));
       setStatus("success");
     } catch (e: unknown) {
       setMessage(e instanceof Error ? e.message : "שגיאה בייבוא");

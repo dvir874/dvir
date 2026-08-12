@@ -50,11 +50,64 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     return NextResponse.json({ error: "לא נמצאו שורות תקינות לאחר בדיקה" }, { status: 422 });
 
   const sb = createServerClient();
-  const { data, error } = await sb
-    .from("guests")
-    .insert(sanitized.map((g) => ({ ...g, event_id: eventId, status: "pending" })))
-    .select("id");
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ imported: data?.length ?? 0 });
+  /* ── Not importing the same person twice ──────────────────────────────
+   *
+   * This was one insert of every row with no duplicate check at all. A request
+   * that times out on a 550-row list — which is exactly the size arriving next
+   * — leaves the client no way to tell whether it worked, so she presses import
+   * again and the wedding has 1,100 guests. Every one of them then gets
+   * invited twice, which spends the daily cap twice over and produces precisely
+   * the reports that got this number restricted.
+   *
+   * Deliberately NOT a unique constraint on (event_id, phone). On the live list
+   * עידן אבידרור and שרה שחר share one number, as couples do; a database rule
+   * would reject the second of them for ever. The identity that matters is the
+   * PERSON — name and phone together — which catches a re-imported file exactly
+   * and lets two people share a handset. */
+  const key = (g: { name: string; phone: string }) =>
+    `${g.name.trim().replace(/\s+/g, " ")}|${g.phone}`;
+
+  const { data: existingRows } = await sb.from("guests")
+    .select("name, phone").eq("event_id", eventId);
+  const known = new Set((existingRows ?? []).map(r =>
+    key({ name: String(r.name ?? ""), phone: String(r.phone ?? "") })));
+
+  const fresh: typeof sanitized = [];
+  let duplicates = 0;
+  for (const g of sanitized) {
+    const k = key(g);
+    if (known.has(k)) { duplicates++; continue; }   /* already on the list, or repeated inside the file */
+    known.add(k);
+    fresh.push(g);
+  }
+
+  if (fresh.length === 0) {
+    return NextResponse.json({ imported: 0, duplicates, message: "כל השורות כבר קיימות ברשימה" });
+  }
+
+  /* In batches. One statement carrying 550 rows is a single point of failure at
+     precisely the size where failure is most likely, and a partial success used
+     to be indistinguishable from none. */
+  const CHUNK = 200;
+  let imported = 0;
+  for (let i = 0; i < fresh.length; i += CHUNK) {
+    const { data, error } = await sb
+      .from("guests")
+      .insert(fresh.slice(i, i + CHUNK).map(g => ({ ...g, event_id: eventId, status: "pending" })))
+      .select("id");
+    if (error) {
+      /* Say what did land. Rows already written stay written, and the
+         duplicate check above means running the import again picks up exactly
+         the remainder rather than starting over. */
+      return NextResponse.json(
+        { error: error.message, imported, duplicates,
+          message: `נוספו ${imported} אורחים ואז הייתה תקלה. הריצו את הייבוא שוב — מי שכבר נוסף לא ייכפל.` },
+        { status: 500 },
+      );
+    }
+    imported += data?.length ?? 0;
+  }
+
+  return NextResponse.json({ imported, duplicates });
 }
