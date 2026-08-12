@@ -139,7 +139,10 @@ export default function RootLayout({
               "url": process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app",
               "telephone": "+972533318177",
               "priceRange": "$$",
-              "image": `${process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app"}/og-image.png`,
+              /* The third reference to the share card, missed when the other two were
+                 moved off the deleted Satori route. og-image.png returns 404 in
+                 production; Google reads this field. */
+              "image": `${process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app"}/og.png`,
               "areaServed": { "@type": "Country", "name": "Israel" },
               "availableLanguage": { "@type": "Language", "name": "Hebrew" },
               "serviceType": ["ניהול אורחים", "ניהול חתונה", "אישורי הגעה", "תזכורות אוטומטיות"],
