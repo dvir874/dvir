@@ -1458,7 +1458,7 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
       )}
 
       {/* ── E3-S6: Header bar ── */}
-      <header style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", position:"sticky", top:0, background:"rgba(253,250,245,0.96)", zIndex:10, backdropFilter:"blur(8px)", borderBottom:"1px solid rgba(197,164,109,0.15)" }}>
+      <header style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", maxWidth:520, margin:"0 auto", position:"sticky", top:0, background:"rgba(253,250,245,0.96)", zIndex:10, backdropFilter:"blur(8px)", borderBottom:"1px solid rgba(197,164,109,0.15)" }}>
         <p style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"18px", fontWeight:700, color:C.gold, margin:0, letterSpacing:".05em" }}>רגע לפני</p>
         {/* This was a <button aria-label="תפריט"> with no handler: it looked
             tappable, announced itself as a menu, and did nothing. The bottom
@@ -1474,7 +1474,11 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
          first and left the couple to do the prioritising the product was bought
          to do — while the alerts the API had been returning all along were
          displayed nowhere. */}
-      <section style={{ padding:"20px 16px 0", animation:"fadeUp .35s ease both" }}>
+      /* Stitch designed this screen at 390px and it is opened on a phone by
+             almost every couple. Without a ceiling a desktop browser stretched the
+             two-card grid across the full window and left half of each card empty —
+             the same design, five times too wide. */
+      <section style={{ padding:"20px 16px 0", maxWidth:520, margin:"0 auto", animation:"fadeUp .35s ease both" }}>
         <h1 style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"24px", fontWeight:700, color:C.dark, margin:"0 0 4px", lineHeight:1.25 }}>
           {briefing?.greeting ? `${briefing.greeting} ` : ""}
           {briefing?.event?.bride_name && briefing?.event?.groom_name
@@ -1518,7 +1522,7 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         </div>
       </section>
 
-      <section style={{ padding:"0 16px", animation:"fadeUp .4s ease .1s both" }}>
+      <section style={{ padding:"0 16px", maxWidth:520, margin:"0 auto", animation:"fadeUp .4s ease .1s both" }}>
         <AlertRow alerts={briefing?.alerts} />
 
         {/* The one thing worth doing now, and it looks like it. */}

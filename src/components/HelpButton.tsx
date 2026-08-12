@@ -45,7 +45,9 @@ export default function HelpButton({ token }: { token: string }) {
         onClick={() => setOpen(true)}
         aria-label="צריכים עזרה?"
         style={{
-          position: "fixed", bottom: 80, right: 16, zIndex: 200,
+          /* Clear of the bottom nav AND of the content above it — at bottom:80 it
+             sat on top of the last stat card on every screen size. */
+          position: "fixed", bottom: "calc(96px + env(safe-area-inset-bottom))", right: 16, zIndex: 200,
           background: C.dark, color: "#fff", border: "none",
           borderRadius: 999, padding: "0.65rem 1.1rem",
           fontFamily: "'Heebo',sans-serif", fontWeight: 700, fontSize: 13,
