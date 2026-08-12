@@ -1,0 +1,34 @@
+name: Claude Connectivity Test
+
+on:
+  issue_comment:
+    types: [created]
+
+# Connectivity proof only. No checkout, no code changes, no production access.
+# Only trusted repository collaborators/owners may trigger it.
+jobs:
+  claude-connectivity:
+    if: >-
+      contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'),
+      github.event.comment.author_association) &&
+      contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+
+    steps:
+      - name: Claude connectivity test
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            This is a connectivity-only test.
+            Do not inspect repository files.
+            Do not execute shell commands.
+            Do not modify, commit, push, or create files.
+            Do not use any production credentials or external services.
+            Reply to the triggering GitHub issue with exactly:
+            BRIDGE_TEST_OK
