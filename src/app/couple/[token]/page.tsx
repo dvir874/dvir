@@ -987,16 +987,93 @@ function SmartAlertStrip({ stats, seating, daysLeft, token, eventName }: { stats
     return null;
   }
 
+  /* Stitch Direction B, approved 2026-08-12: this is the centre of gravity of
+     the screen, not a strip under four equally-sized tiles. The logic above is
+     unchanged — what changes is that the one thing worth doing now looks like
+     the one thing worth doing now. */
   return (
-    <a href={href} {...(external ? { target:"_blank", rel:"noopener noreferrer" } : {})} style={{ textDecoration:"none" }}>
-      <div style={{ background:"rgba(197,164,109,0.08)", borderRadius:"12px", border:"1px solid rgba(197,164,109,0.25)", padding:"14px 16px", marginBottom:"12px" }}>
-        <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"12px", fontWeight:600, color:"#8B6914", letterSpacing:"0.06em", margin:"0 0 4px" }}>הצעד הבא שלכם</p>
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
-          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"14px", fontWeight:500, color:"#1C1008", margin:0 }}>{title}</p>
-          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"13px", fontWeight:700, color:"#C5A46D", margin:0, flexShrink:0, whiteSpace:"nowrap" }}>{cta}</p>
+    <a href={href} {...(external ? { target:"_blank", rel:"noopener noreferrer" } : {})} style={{ textDecoration:"none", display:"block", marginBottom:"20px" }}>
+      <div style={{ background:C.gold, borderRadius:"20px", padding:"20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:"12px", boxShadow:"0 8px 16px rgba(197,164,109,0.25)" }}>
+        <div style={{ minWidth:0 }}>
+          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"12px", fontWeight:600, color:"rgba(28,16,8,0.65)", letterSpacing:"0.08em", margin:"0 0 6px" }}>
+            הדבר הבא
+          </p>
+          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"16px", fontWeight:700, color:"#1C1008", margin:0, lineHeight:1.35 }}>
+            {title}
+          </p>
+          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"13px", fontWeight:500, color:"rgba(28,16,8,0.7)", margin:"6px 0 0" }}>
+            {cta}
+          </p>
         </div>
+        <span aria-hidden="true" style={{ flexShrink:0, width:"40px", height:"40px", borderRadius:"50%", background:"rgba(255,255,255,0.35)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"20px", color:"#1C1008" }}>
+          ←
+        </span>
       </div>
     </a>
+  );
+}
+
+/* A percentage says how much; this says whether that is good. Two people
+   glancing at their phone should not have to decide what 28% means. */
+function readinessWord(pct: number): string {
+  if (pct >= 85) return "מצוין";
+  if (pct >= 65) return "בקצב טוב";
+  if (pct >= 40) return "יש עוד עבודה";
+  return "בתחילת הדרך";
+}
+
+/* One figure, and the number it is out of wherever that exists — "245" answers
+   nothing on its own, "245 מתוך 300" answers the question the couple actually
+   had. Quieter than the action above it on purpose. */
+function StatCard({ icon, label, value, of, href }: {
+  icon: string; label: string; value: number | string; of?: number; href: string;
+}) {
+  return (
+    <a href={href} style={{ textDecoration:"none", display:"block", background:"#fff", borderRadius:"16px", padding:"16px", border:`1px solid ${C.border}`, boxShadow:"0 4px 20px rgba(28,16,8,0.04)" }}>
+      <span aria-hidden="true" style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", width:"32px", height:"32px", borderRadius:"50%", background:"rgba(107,123,90,0.12)", fontSize:"15px", marginBottom:"12px" }}>
+        {icon}
+      </span>
+      <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"12px", fontWeight:500, color:C.muted, margin:"0 0 4px" }}>{label}</p>
+      <p style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"24px", fontWeight:700, color:C.dark, margin:0, lineHeight:1.2 }}>
+        {value}
+        {of !== undefined && (
+          <span style={{ fontFamily:"Heebo,sans-serif", fontSize:"13px", fontWeight:400, color:C.muted }}> /{of}</span>
+        )}
+      </p>
+    </a>
+  );
+}
+
+/* The alerts the briefing API has always returned and no screen has ever shown.
+   Today they read: seating untouched, 47% unanswered, 63 tasks open — while the
+   dashboard displayed four numbers of identical weight and said nothing was
+   wrong. Urgent is red, everything else is the brand amber, and when there is
+   nothing to say this renders nothing at all: a permanent empty alert bar
+   teaches people to stop looking at the place alerts appear. */
+function AlertRow({ alerts }: { alerts?: { severity?: string; title?: string; body?: string }[] }) {
+  const list = (alerts ?? []).slice(0, 2);
+  if (!list.length) return null;
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:"8px", marginBottom:"20px" }}>
+      {list.map((a, i) => {
+        const urgent = a.severity === "urgent";
+        return (
+          <div
+            key={`${a.title}-${i}`}
+            role="status"
+            style={{ display:"flex", alignItems:"flex-start", gap:"10px", padding:"12px 14px", borderRadius:"16px",
+                     background: urgent ? "rgba(178,76,76,0.08)" : "rgba(197,164,109,0.12)",
+                     border: `1px solid ${urgent ? "rgba(178,76,76,0.25)" : "rgba(197,164,109,0.3)"}` }}
+          >
+            <span aria-hidden="true" style={{ fontSize:"14px", lineHeight:"20px" }}>{urgent ? "🔴" : "🟠"}</span>
+            <p style={{ margin:0, fontFamily:"Heebo,sans-serif", fontSize:"13px", lineHeight:1.5, color:"#1C1008" }}>
+              <span style={{ fontWeight:600 }}>{a.title}</span>
+              {a.body ? <span style={{ color:"#8C7B6E" }}> · {a.body}</span> : null}
+            </p>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1389,51 +1466,72 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
             menu the design does not have. */}
       </header>
 
-      {/* ── Hero card — ספירה לאחור + מאושרים ── */}
+      {/* ── E3-S6 — Stitch Direction B (Modern Minimal), approved 2026-08-12 ──
+
+         The order carries the argument: who you are, how long is left and
+         whether that is comfortable, what is wrong, the one thing to do, and
+         only then the numbers. What it replaces put four equally-weighted tiles
+         first and left the couple to do the prioritising the product was bought
+         to do — while the alerts the API had been returning all along were
+         displayed nowhere. */}
       <section style={{ padding:"20px 16px 0", animation:"fadeUp .35s ease both" }}>
-        <div style={{ background:C.cream, borderRadius:20, padding:"24px 20px", border:`1px solid ${C.border}` }}>
-          {/* The page had no headings at all, so a screen reader had no way
-              through it and the document outline was flat. Their names are the
-              page. Styling is unchanged — globals only set the heading face. */}
-          <h1 style={{ fontFamily:"Heebo,sans-serif", fontSize:13, fontWeight:500, color:C.muted, margin:"0 0 16px", letterSpacing:"0.04em" }}>
-            {briefing?.event?.bride_name && briefing?.event?.groom_name
-              ? `${briefing.event.bride_name} & ${briefing.event.groom_name}`
-              : event.name}
-          </h1>
-          <div style={{ display:"flex", alignItems:"flex-end", justifyContent:"space-between" }}>
-            {/* ימים */}
-            <div>
-              <p role="timer" aria-label={`${daysLeft} ימים עד ליום החתונה`}
-                style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"72px", fontWeight:900, color:"#8B6914", lineHeight:1, margin:0 }}>
-                {animatedDays}
-              </p>
-              <p style={{ fontFamily:"Heebo,sans-serif", fontSize:16, fontWeight:300, color:C.muted, margin:"4px 0 0" }}>ימים לחתונה 💍</p>
+        <h1 style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"24px", fontWeight:700, color:C.dark, margin:"0 0 4px", lineHeight:1.25 }}>
+          {briefing?.greeting ? `${briefing.greeting} ` : ""}
+          {briefing?.event?.bride_name && briefing?.event?.groom_name
+            ? `${briefing.event.bride_name} ו${briefing.event.groom_name}`
+            : event.name}
+        </h1>
+        {briefing?.phaseMessage && (
+          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"14px", fontWeight:300, color:C.muted, margin:"0 0 24px", lineHeight:1.5 }}>
+            {briefing.phaseMessage}
+          </p>
+        )}
+
+        {/* Countdown + readiness, together: a number alone never says whether
+            it is comfortable. */}
+        <div style={{ textAlign:"center", marginBottom:"28px" }}>
+          <p role="timer" aria-label={`${daysLeft} ימים עד ליום החתונה`}
+            style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"64px", fontWeight:900, color:"#8B6914", lineHeight:1, margin:0 }}>
+            {animatedDays}
+          </p>
+          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"13px", fontWeight:600, letterSpacing:"0.14em", color:C.muted, margin:"6px 0 0" }}>
+            ימים נותרו
+          </p>
+
+          <div style={{ maxWidth:"320px", margin:"24px auto 0" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:"8px" }}>
+              <span style={{ fontFamily:"Heebo,sans-serif", fontSize:"13px", fontWeight:600, color:C.dark }}>
+                {briefing?.readinessPct ?? 0}% מוכנות לחתונה
+              </span>
+              <span style={{ fontFamily:"Heebo,sans-serif", fontSize:"13px", fontWeight:300, color:C.muted }}>
+                {readinessWord(briefing?.readinessPct ?? 0)}
+              </span>
             </div>
-            {/* מאושרים */}
-            <div style={{ textAlign:"center", background:"#fff", borderRadius:14, padding:"14px 20px", border:`1px solid ${C.border}`, minWidth:90 }}>
-              <p style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"40px", fontWeight:900, color:"#4A7C59", lineHeight:1, margin:0 }}>
-                {stats.confirmed}
-              </p>
-              <p style={{ fontFamily:"Heebo,sans-serif", fontSize:12, fontWeight:500, color:C.muted, margin:"4px 0 0" }}>מאושרים ✓</p>
+            <div
+              role="progressbar" aria-valuenow={briefing?.readinessPct ?? 0} aria-valuemin={0} aria-valuemax={100}
+              aria-label="מוכנות לחתונה"
+              style={{ width:"100%", height:"12px", background:C.cream, borderRadius:"999px", overflow:"hidden" }}
+            >
+              <div style={{ height:"100%", width:`${Math.min(100, Math.max(0, briefing?.readinessPct ?? 0))}%`, background:C.olive, borderRadius:"999px", transition:"width .6s ease" }} />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── E3-S6: Circular Progress Arc — readiness meter ── */}
-      <CircularProgressArc value={briefing?.readinessPct ?? 0} label="מוכנות" />
-
-      {/* ── E3-S7: 2×2 Quick Action Grid ── */}
       <section style={{ padding:"0 16px", animation:"fadeUp .4s ease .1s both" }}>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"16px" }}>
-          <QuickCard emoji="👥" value={stats.confirmed} label="מגיעים"       caption="אורחים" href={`/couple/${token}/guests`} />
-          <QuickCard emoji="🪑" value={seating.assignedSeats} label="שובצו" caption="הושבה"  href={`/couple/${token}/seating`} />
-          <QuickCard emoji="📋" value={tasks.filter(t => !t.completed).length} label="משימות נותרו" caption="צ׳קליסט" href={`/couple/${token}/checklist`} />
-          <QuickCard emoji="💰" value={budget.remaining > 0 ? `₪${Math.round(budget.remaining / 1000)}K` : "₪0"} label="נותרו" caption="תקציב" href={`/couple/${token}/budget`} rawValue />
-        </div>
+        <AlertRow alerts={briefing?.alerts} />
 
-        {/* Smart Alert — max 1, highest urgency */}
+        {/* The one thing worth doing now, and it looks like it. */}
         <SmartAlertStrip stats={stats} seating={seating} daysLeft={daysLeft} token={token} eventName={event.name} />
+
+        {/* The numbers, quieter — a ratio where there is one, because "245"
+            answers nothing without "of 300". */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"16px" }}>
+          <StatCard icon="👥" label="אישרו הגעה" value={stats.confirmed} of={stats.total} href={`/couple/${token}/guests`} />
+          <StatCard icon="🪑" label="הושבו"      value={seating.assignedSeats} of={stats.attendees} href={`/couple/${token}/seating`} />
+          <StatCard icon="💰" label="נותר בתקציב" value={`₪${(budget.remaining > 0 ? budget.remaining : 0).toLocaleString("he-IL")}`} href={`/couple/${token}/budget`} />
+          <StatCard icon="📋" label="משימות פתוחות" value={tasks.filter(t => !t.completed).length} href={`/couple/${token}/checklist`} />
+        </div>
 
         {/* Benchmark badge (only shows when above median) */}
         <BenchmarkBadge token={token} />
