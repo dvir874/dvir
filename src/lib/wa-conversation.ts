@@ -75,6 +75,27 @@ export async function handleGuestReply(
 
   /* ── mid-exchange ────────────────────────────────────────────── */
   if (guest.chat_state === ASK_COUNT) {
+    /* Changing their mind while the headcount question is open.
+       דור ענף tapped מגיע and לא מגיע in the same second on 12/08. The second
+       tap arrived here, was handed to the number parser, and came back as
+       "לא הצלחנו להבין את המספר" — so a guest saying he was not coming was
+       answered with a complaint about arithmetic, and stayed recorded as
+       attending. A button is never an answer to "how many". */
+    if (/^rsvp_no$/.test(said) || said === "לא מגיע") {
+      await setState(sb, guest.id, ASK_DECLINE);
+      await sendButtons(cfg, to, "רק לוודא — לא תוכלו להגיע?", [
+        { id: "yes_decline", title: "כן, לא נוכל" },
+        { id: "no_mistake",  title: "רגע, טעיתי" },
+      ]);
+      return true;
+    }
+    if (/^rsvp_yes$/.test(said) || said === "מגיע") {
+      /* Already recorded as attending; just ask the count again. */
+      await sendList(cfg, to, `${guest.name}, כמה אתם מגיעים?`, "בחרו מספר",
+        [1, 2, 3, 4, 5, 6, 7, 8].map(n => ({ id: `count_${n}`, title: String(n) })));
+      return true;
+    }
+
     const n = parseGuestCount(said);
     if (n === null) {
       await sendText(cfg, to,
