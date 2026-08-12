@@ -30,6 +30,15 @@ interface Data {
 
 export default function HelperSendPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
+
+  /* Read straight off the URL rather than through useSearchParams, which needs
+     a Suspense boundary this page deliberately does not have — see the note by
+     the fetch below. Read once, in an effect, so the server and the first
+     client render agree and hydration does not mismatch. */
+  const [mode, setMode] = useState("");
+  useEffect(() => {
+    setMode(new URLSearchParams(window.location.search).get("mode") ?? "");
+  }, []);
   const [data, setData]   = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
@@ -100,12 +109,47 @@ export default function HelperSendPage({ params }: { params: Promise<{ token: st
      the next helper session shows them as still needing an invitation. */
   const current = (awaiting ? queue.find(g => g.id === awaiting) : null) ?? queue[0] ?? null;
 
+  /* ?mode=reminder sends the second-round text instead of the invitation.
+   *
+   * A guest who has already had the invitation does not need to be introduced
+   * to the wedding again — they need one short line and the same link. Sending
+   * the full invitation twice reads as a mistake and teaches people that our
+   * messages repeat, which is how a reminder stops being read at all.
+   *
+   * A query parameter rather than a second page or a toggle: the link a helper
+   * receives already decides what she is doing that afternoon, and the plain
+   * /send/<token> link keeps behaving exactly as it does today, so nothing
+   * anyone is already holding changes. */
+  const reminder = mode === "reminder";
+
   function message(g: Guest) {
     const ev = data!.event;
     const when = ev.date
       ? new Date(ev.date).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
       : "";
     const where = [ev.venue_name, ev.address].filter(Boolean).join(", ");
+
+    if (reminder) {
+      /* Opens with the same line every template in the system opens with —
+         see DEC-007. The couple's names come after it, never before. */
+      return `💍 משפחה וחברים יקרים!
+
+רק תזכורת קטנה 🤍
+*${ev.name}* מתחתנים ב-${when}, ועדיין לא קיבלנו מכם תשובה.
+
+זה לוקח שנייה, ועוזר להם מאוד לסגור מספרים מול האולם:
+
+👇 לחצו כאן לאישור הגעה 👇
+${location.origin}/rsvp/${g.rsvp_token}
+
+🗓 ${when}
+📍 ${where}
+🥂 קבלת פנים 19:00 | חופה וקידושין 20:00
+
+תודה רבה! מחכים לחגוג איתכם 🤍
+
+_(הודעה זו נשלחה באמצעות שירות רגע לפני)_`;
+    }
     /* Sent in the service's voice, not the couple's and not the helper's.
        A guest reading "אנחנו שמחים להזמין" from a number that is neither bride
        nor groom is being told something that is not true of the sender; the
