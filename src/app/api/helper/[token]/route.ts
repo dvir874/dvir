@@ -97,7 +97,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
   const isReminder = req.nextUrl.searchParams.get("mode") === "reminder";
 
   const reached = new Set<string>();
-  const delivered = new Set<string>();
   guests.forEach(g => { if (g.status !== "pending" || g.opened_at) reached.add(g.id); });
 
   for (let i = 0; i < ids.length; i += 100) {
@@ -116,17 +115,25 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
     (msgs ?? []).forEach(m => {
       if (m.guest_id && ["delivered", "read"].includes(m.status)) {
         reached.add(m.guest_id);
-        delivered.add(m.guest_id);
       }
     });
   }
 
   const todo = guests
     .filter(g => isReminder
-      /* Reached, and still no answer. Anyone already confirmed or declined is
-         out by the status test, so a reminder can never land on someone who
-         has answered — the one mistake this round must not make. */
-      ? g.status === "pending" && delivered.has(g.id)
+      /* Reached by ANY route, and still no answer.
+       *
+       * This asked for a delivery receipt, which quietly excluded everyone a
+       * helper had already messaged by hand: WhatsApp Web leaves no receipt in
+       * our system, so a guest Oriya sent to yesterday counts as manually sent
+       * — which keeps them out of the first round — and has no delivered row,
+       * which kept them out of this one. Ten of her eighteen were in neither
+       * list, and the screen said "סיימת" over them.
+       *
+       * A reminder is for anyone we believe we contacted who has not answered,
+       * however the message got there. `reached` already means exactly that,
+       * and `status === pending` is what keeps it off anyone who has answered. */
+      ? g.status === "pending" && reached.has(g.id)
       : !reached.has(g.id))
     .map(g => ({
       id: g.id, name: g.name, phone: g.phone,

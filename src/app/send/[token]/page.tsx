@@ -76,7 +76,14 @@ export default function HelperSendPage({ params }: { params: Promise<{ token: st
      how a helper concludes she has more to do, or that the tool is losing her
      work. The server was right the whole time; only the number she could see
      was wrong, and that is the version of this bug that erodes trust fastest. */
-  const SENT_KEY = `helper_sent_${token}`;
+  /* Scoped by mode as well as token.
+     
+     It was keyed on the token alone, so the guests marked sent in the first
+     round were still in localStorage and were filtered straight out of the
+     reminder queue. Oriya opened her link, the server had someone waiting for
+     her, and the page showed 🎉 "סיימת! תודה רבה" over an empty list — a guest
+     hidden by a browser, on a screen that said the work was done. */
+  const SENT_KEY = `helper_sent_${token}${mode ? "_" + mode : ""}`;
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(SENT_KEY) ?? "[]");
