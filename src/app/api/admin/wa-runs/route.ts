@@ -212,6 +212,43 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  /* A guest who wrote to us and is still waiting.
+     נוי told us her link hung, was asked in plain words how many were coming,
+     answered "תודה רבה\n1" — and was sent a reminder to confirm three hours
+     later. The bare number is understood now, but anything the handler cannot
+     read still lands in the inbox and nowhere else. If someone took the trouble
+     to reply and is still pending, that is a person waiting for a person. */
+  const { data: wrote } = await sb.from("wa_messages")
+    .select("guest_id, body, created_at")
+    .eq("direction", "in").not("guest_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(300);
+
+  const wroteIds = [...new Set((wrote ?? []).map(m => m.guest_id as string))];
+  const stillPending = new Map<string, { name: string; phone: string | null }>();
+  for (let i = 0; i < wroteIds.length; i += 100) {
+    const { data } = await sb.from("guests")
+      .select("id, name, phone")
+      .in("id", wroteIds.slice(i, i + 100))
+      .eq("status", "pending");
+    for (const g of data ?? []) {
+      stillPending.set(g.id as string, { name: g.name as string, phone: g.phone as string | null });
+    }
+  }
+
+  const seenGuest = new Set(needsHuman.map(h => h.id));
+  for (const msg of wrote ?? []) {
+    const id = msg.guest_id as string;
+    if (seenGuest.has(id)) continue;
+    const g = stillPending.get(id);
+    if (!g) continue;
+    seenGuest.add(id);
+    needsHuman.push({
+      id, name: g.name, phone: g.phone,
+      why: `הגיב/ה ולא נרשם: "${String(msg.body ?? "").slice(0, 40)}"`,
+    });
+  }
+
   return NextResponse.json({
     runs: runs ?? [], next, expectedRuns, needsHuman, available: true,
     stuck: stuck ?? 0,

@@ -143,5 +143,23 @@ export async function handleGuestReply(
     return true;
   }
 
+  /* A bare number from someone who has not answered yet.
+     נוי's RSVP link hung on the loading screen — she tried it from her
+     husband's phone and from a computer — so she was asked in plain words how
+     many were coming and replied "תודה רבה\n1". That is an answer. It was
+     dropped because she had no chat_state, and three hours later the system
+     sent her a reminder to confirm attendance she had already given.
+     Only for guests still pending, and the reply below is worded so a
+     misreading is easy to correct. */
+  if (guest.status === "pending") {
+    const n = parseGuestCount(said);
+    if (n !== null) {
+      await record(sb, guest, "confirmed", n);
+      await sendText(cfg, to,
+        `רשמנו ${n} 🤍 מחכים לראותכם!\nאם התכוונתם למשהו אחר — כתבו לנו כאן ונתקן.`);
+      return true;
+    }
+  }
+
   return false;
 }
