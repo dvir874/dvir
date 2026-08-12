@@ -141,8 +141,12 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
     </div>
   );
 
-  const totalSeated = data.assignments.length;
-  const totalGuests = data.guests.length;
+  /* Chairs, not rows. An assignment seats a household — two people sit down and
+     the old count called it one. "40 מתוך 326 אורחים מוצבים" compared rows to
+     rows while the room is filled with people. */
+  const seatsById = new Map(data.guests.map(g => [g.id, g.guest_count ?? 1]));
+  const totalSeated = data.assignments.reduce((n, a) => n + (seatsById.get(a.guest_id) ?? 1), 0);
+  const totalGuests = data.guests.reduce((n, g) => n + (g.guest_count ?? 1), 0);
 
   /* Assigned guests with a phone — eligible for "your table" message */
   const tableByGuestId = new Map(data.assignments.map(a => [a.guest_id, data.tables.find(t => t.id === a.table_id)?.name ?? ""]));
@@ -176,7 +180,7 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
             <div>
               <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.8rem", fontWeight: 700, color: "#FFF8EC", margin: 0 }}>🪑 סידורי הושבה</h1>
               <p style={{ fontSize: 13, color: "rgba(255,240,200,0.65)", marginTop: "0.35rem" }}>
-                {totalSeated} מתוך {totalGuests} אורחים מוצבים · {data.tables.length} שולחנות
+                {totalSeated} מתוך {totalGuests} אורחים מוצבים · {data.guests.length} רשומות · {data.tables.length} שולחנות
               </p>
             </div>
             <div style={{ display: "flex", gap: "0.5rem" }}>

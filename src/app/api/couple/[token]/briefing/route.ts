@@ -144,8 +144,11 @@ export async function GET(_req: NextRequest, { params }: Params) {
       event_timeline:     (event as Record<string, unknown>).event_timeline ?? [],
     },
     keyFacts: [
+      /* Rows are how many messages go out; people are what the venue bills for.
+         guests.length is households — "לינה ומנש שגיא" is one row, one phone,
+         two chairs and two meals. */
       guests.length > 0
-        ? `${guests.filter(g => g.status === 'confirmed').length + declined} מתוך ${guests.length} ענו`
+        ? `${confirmed.length + declined} מתוך ${guests.length} רשומות ענו · ${confirmedAttendees} אורחים מאושרים`
         : 'עדיין אין אורחים',
       tasks.length > 0
         ? `${tasks.filter(t => t.completed).length} מתוך ${tasks.length} משימות הושלמו`

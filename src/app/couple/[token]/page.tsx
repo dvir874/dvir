@@ -1534,7 +1534,10 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         {/* The numbers, quieter — a ratio where there is one, because "245"
             answers nothing without "of 300". */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"16px" }}>
-          <StatCard icon="👥" label="אישרו הגעה" value={stats.confirmed} of={stats.total} href={`/couple/${token}/guests`} />
+          {/* People. stats.confirmed is households — the number a couple orders meals
+              from, and it is roughly half the room. stats.attendees is already the
+              sum of guest_count for everyone confirmed. */}
+          <StatCard icon="👥" label="אורחים שאישרו" value={stats.attendees} of={stats.total} href={`/couple/${token}/guests`} />
           <StatCard icon="🪑" label="הושבו"      value={seating.assignedSeats} of={stats.attendees} href={`/couple/${token}/seating`} />
           <StatCard icon="💰" label="נותר בתקציב" value={`₪${(budget.remaining > 0 ? budget.remaining : 0).toLocaleString("he-IL")}`} href={`/couple/${token}/budget`} />
           <StatCard icon="📋" label="משימות פתוחות" value={tasks.filter(t => !t.completed).length} href={`/couple/${token}/checklist`} />
@@ -1703,7 +1706,7 @@ function RsvpCounter({ stats }: { stats: { total: number; confirmed: number; dec
           <Users size={14} style={{ color: C.gold }} />
           <h3 style={{ fontSize: "0.85rem", fontWeight: 600, margin: 0 }}>אישורי הגעה</h3>
         </div>
-        <span style={{ fontSize: 12, color: C.muted }}>{stats.confirmed + stats.declined} מתוך {stats.total} ענו</span>
+        <span style={{ fontSize: 12, color: C.muted }}>{stats.confirmed + stats.declined} מתוך {stats.total} רשומות ענו · {stats.attendees} אורחים מאושרים</span>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>

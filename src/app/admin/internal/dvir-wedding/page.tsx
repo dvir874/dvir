@@ -124,7 +124,7 @@ export default function DvirWeddingOpsPage() {
 
             {/* Core stats */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-              <Stat value={ops.stats.total} label="סה״כ מוזמנים" />
+              <Stat value={ops.stats.total} label="סה״כ רשומות" />
               <Stat value={ops.stats.confirmed} label="אישרו ✓" color={C.green} />
               <Stat value={ops.stats.pending} label="ממתינים" color={C.goldT} />
               <Stat value={ops.stats.declined} label="לא מגיעים" color={C.muted} />
