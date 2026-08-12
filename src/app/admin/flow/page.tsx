@@ -208,7 +208,7 @@ function Flow() {
                   background: on ? C.gold : "#fff", color: on ? "#fff" : C.dark,
                   fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 7 }}>
                 <span>{ev.name}</span>
-                <span style={{ fontSize: 11.5, opacity: .8 }}>
+                <span style={{ fontSize: 12.5, opacity: .8 }}>
                   {ev.total ? `${ev.confirmed}/${ev.total}` : "ריק"}
                   {soon ? ` · ${ev.daysToEvent}י׳` : ""}
                 </span>
@@ -258,7 +258,7 @@ function Flow() {
                 <span style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 17,
                   fontWeight: 700, color: C.dark }}>{s.title}</span>
                 {s.state === "now" && (
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: C.gold,
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", background: C.gold,
                     padding: "2px 9px", borderRadius: 999 }}>עכשיו</span>
                 )}
               </div>

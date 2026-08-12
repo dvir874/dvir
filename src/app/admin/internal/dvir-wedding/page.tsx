@@ -253,7 +253,7 @@ export default function DvirWeddingOpsPage() {
                               style={{ fontSize: 12, color: "#1A9B4E", fontWeight: 600, textDecoration: "none", flexShrink: 0 }}>
                               💬 תזכורת
                             </a>
-                          ) : <span style={{ fontSize: 11, color: C.red, flexShrink: 0 }}>אין טלפון</span>}
+                          ) : <span style={{ fontSize: 12, color: C.red, flexShrink: 0 }}>אין טלפון</span>}
                         </div>
                       );
                     })}

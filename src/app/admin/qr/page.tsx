@@ -75,7 +75,7 @@ function QrCards() {
             <p style={{ fontSize: 12, fontWeight: 500, color: "#1C1008", margin: "4mm 0 0", lineHeight: 1.5 }}>
               סרקו והעלו את התמונות שלכם<br />ישר לאלבום של הזוג 🤍
             </p>
-            <p style={{ fontSize: 9, color: "rgba(28,16,8,0.4)", margin: "3mm 0 0" }}>
+            <p style={{ fontSize: 12, color: "rgba(28,16,8,0.4)", margin: "3mm 0 0" }}>
               רגע לפני 💍
             </p>
           </div>

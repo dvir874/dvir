@@ -375,7 +375,7 @@ function SendStation() {
               </div>
               <textarea value={template} onChange={e => setTemplate(e.target.value)} rows={5}
                 style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", border: `1.5px solid ${C.border}`, borderRadius: 12, fontSize: 14, fontFamily: "Heebo, sans-serif", resize: "vertical", background: "#fff", color: C.dark, lineHeight: 1.6 }} />
-              <p style={{ fontSize: 11, color: C.muted, margin: "6px 0 0" }}>
+              <p style={{ fontSize: 12, color: C.muted, margin: "6px 0 0" }}>
                 תגיות: <b>[שם]</b> · <b>[אירוע]</b> · <b>[קישור]</b> (קישור RSVP אישי)
               </p>
             </div>

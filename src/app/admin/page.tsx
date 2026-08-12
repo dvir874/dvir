@@ -991,7 +991,11 @@ export default function AdminPage() {
       >
         <div>
           <p className="text-xs uppercase tracking-widest" style={{ color: C.gold }}>רגע לפני</p>
-          <p className="text-sm font-bold" style={{ color: C.dark, fontFamily: "Frank Ruhl Libre, serif" }}>
+          {/* The admin had no h1/h2/h3 on a screen with 148 interactive
+              elements, so nothing announced which of the thirteen tabs was
+              open. This is the one element that always names the current
+              screen, so it is the heading. Styling unchanged. */}
+          <h1 className="text-sm font-bold" style={{ color: C.dark, fontFamily: "Frank Ruhl Libre, serif" }}>
             {({
               "command-center":  "מרכז בקרה",
               "guests":          "ניהול אורחים",
@@ -1007,7 +1011,7 @@ export default function AdminPage() {
               "messages":        "WhatsApp Pro",
               "design-requests": "בקשות עיצוב",
             } as Record<Tab, string>)[activeTab]}
-          </p>
+          </h1>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap mr-auto">
@@ -1053,7 +1057,7 @@ export default function AdminPage() {
                   background: "#B4453C", color: "white", borderRadius: 99,
                   minWidth: 18, height: 18, display: "inline-flex",
                   alignItems: "center", justifyContent: "center",
-                  fontSize: 11, fontWeight: 700, padding: "0 5px",
+                  fontSize: 12, fontWeight: 700, padding: "0 5px",
                 }}
               >
                 {unreadInbox}
@@ -1111,7 +1115,7 @@ export default function AdminPage() {
             >
               💬 הודעות
               {inboxItems.length > 0 && (
-                <span style={{ background: "#C0392B", color: "white", borderRadius: "50%", width: 17, height: 17, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", position: "absolute", top: -6, left: -6 }}>
+                <span style={{ background: "#C0392B", color: "white", borderRadius: "50%", width: 17, height: 17, fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", position: "absolute", top: -6, left: -6 }}>
                   {inboxItems.reduce((s, i) => s + i.unreadCount, 0)}
                 </span>
               )}
@@ -1134,9 +1138,9 @@ export default function AdminPage() {
                       >
                         <div style={{ textAlign: "right" }}>
                           <p style={{ fontSize: 13, fontWeight: 600, color: C.dark, fontFamily: "Heebo, sans-serif" }}>{item.eventName}</p>
-                          {item.clientName && <p style={{ fontSize: 11, color: "rgba(28,16,8,0.45)", fontFamily: "Heebo, sans-serif" }}>{item.clientName}</p>}
+                          {item.clientName && <p style={{ fontSize: 12, color: "rgba(28,16,8,0.45)", fontFamily: "Heebo, sans-serif" }}>{item.clientName}</p>}
                         </div>
-                        <span style={{ background: "#C5A46D", color: "white", borderRadius: 10, padding: "2px 8px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                        <span style={{ background: "#C5A46D", color: "white", borderRadius: 10, padding: "2px 8px", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
                           {item.unreadCount} חדשות
                         </span>
                       </button>
@@ -1158,7 +1162,7 @@ export default function AdminPage() {
                 <span className="truncate max-w-[140px]">
                   {events.find((e) => e.id === selectedEventId)?.name ?? "בחר אירוע"}
                 </span>
-                <span style={{ opacity: 0.4, fontSize: 10, marginRight: "auto" }}>▾</span>
+                <span style={{ opacity: 0.4, fontSize: 12, marginRight: "auto" }}>▾</span>
               </button>
               {showEventDropdown && (
                 <div
@@ -1718,8 +1722,8 @@ export default function AdminPage() {
                   className="rounded-xl p-3 text-center transition-all"
                   style={{ border: `1.5px solid ${payAmount === String(p.price) ? C.gold : C.border}`, background: payAmount === String(p.price) ? `rgba(197,164,109,0.10)` : "white", cursor: "pointer" }}>
                   <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 16, fontWeight: 700, color: C.gold, margin: 0 }}>₪{p.price}</p>
-                  <p style={{ fontSize: 10, color: C.dark, margin: "2px 0 0", fontFamily: "Heebo, sans-serif" }}>{p.label}</p>
-                  <p style={{ fontSize: 9, color: C.muted, fontFamily: "Heebo, sans-serif" }}>{p.desc}</p>
+                  <p style={{ fontSize: 12, color: C.dark, margin: "2px 0 0", fontFamily: "Heebo, sans-serif" }}>{p.label}</p>
+                  <p style={{ fontSize: 12, color: C.muted, fontFamily: "Heebo, sans-serif" }}>{p.desc}</p>
                 </button>
               ))}
             </div>
@@ -2230,7 +2234,7 @@ export default function AdminPage() {
                 >
                   {ins.priority === "high" && (
                     <span
-                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 mt-0.5"
+                      className="text-[12px] font-bold px-1.5 py-0.5 rounded-md shrink-0 mt-0.5"
                       style={{
                         background: ins.type === "warning" ? "rgba(200,80,80,0.12)" : "rgba(107,123,90,0.12)",
                         color: ins.type === "warning" ? "rgb(180,60,60)" : C.olive,
@@ -2282,25 +2286,25 @@ export default function AdminPage() {
                         <p className="text-lg font-bold" style={{ color: "rgba(51,51,51,0.45)", fontFamily: "Frank Ruhl Libre, serif" }}>
                           {forecast.conservative}
                         </p>
-                        <p className="text-[10px]" style={{ color: C.muted }}>שמרני</p>
+                        <p className="text-[12px]" style={{ color: C.muted }}>שמרני</p>
                       </div>
                       <div className="text-center flex-1">
                         <p className="text-2xl font-bold" style={{ color: C.olive, fontFamily: "Frank Ruhl Libre, serif" }}>
                           {forecast.expected}
                         </p>
-                        <p className="text-[10px]" style={{ color: C.olive }}>צפוי</p>
+                        <p className="text-[12px]" style={{ color: C.olive }}>צפוי</p>
                       </div>
                       <div className="text-center">
                         <p className="text-lg font-bold" style={{ color: C.gold, fontFamily: "Frank Ruhl Libre, serif" }}>
                           {forecast.optimistic}
                         </p>
-                        <p className="text-[10px]" style={{ color: C.muted }}>אופטימי</p>
+                        <p className="text-[12px]" style={{ color: C.muted }}>אופטימי</p>
                       </div>
                     </div>
                   </div>
                 )}
 
-                <p className="text-[11px]" style={{ color: "rgba(51,51,51,0.35)" }}>
+                <p className="text-[12px]" style={{ color: "rgba(51,51,51,0.35)" }}>
                   {forecast.hasEnoughData
                     ? `מבוסס על ${forecast.confirmRate}% שיעור אישור בקרב הנענים · אחוז מענה כללי: ${forecast.responseRate}%`
                     : `נדרשים לפחות 5 נענים לתחזית מדויקת · כרגע: אחוז מענה ${forecast.responseRate}%`}
@@ -2483,7 +2487,7 @@ export default function AdminPage() {
                 {label}
                 {id === "reminders" && pending > 0 && (
                   <span
-                    className="mr-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+                    className="mr-1.5 text-[12px] px-1.5 py-0.5 rounded-full font-bold"
                     style={{ background: "rgba(197,164,109,0.25)", color: "#A07840" }}
                   >
                     {pending}
@@ -2491,7 +2495,7 @@ export default function AdminPage() {
                 )}
                 {id === "recommendations" && generateReminderRecommendations(overview).length > 0 && (
                   <span
-                    className="mr-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+                    className="mr-1.5 text-[12px] px-1.5 py-0.5 rounded-full font-bold"
                     style={{ background: "rgba(200,80,60,0.15)", color: "rgb(180,60,60)" }}
                   >
                     {generateReminderRecommendations(overview).length}
@@ -2627,7 +2631,7 @@ export default function AdminPage() {
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderRadius: 12, background: "white", border: `1px solid ${C.border}` }}>
                       <div>
                         <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, color: C.dark, margin: "0 0 2px" }}>כמה אנשים?</p>
-                        <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 11, color: C.muted, margin: 0 }}>כולל האורח הזה</p>
+                        <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 12, color: C.muted, margin: 0 }}>כולל האורח הזה</p>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         <button onClick={() => setAddCount((c) => Math.max(1, c - 1))}
@@ -3225,7 +3229,7 @@ export default function AdminPage() {
                           >
                             <div className="flex items-start gap-3">
                               <span
-                                className="text-[10px] font-bold px-2 py-1 rounded-lg shrink-0 mt-0.5"
+                                className="text-[12px] font-bold px-2 py-1 rounded-lg shrink-0 mt-0.5"
                                 style={{
                                   background: isUrgent ? "rgba(200,60,60,0.10)" : isHigh ? "rgba(197,164,109,0.15)" : "rgba(107,123,90,0.08)",
                                   color: isUrgent ? "rgb(180,60,60)" : isHigh ? "#A07840" : C.olive,
@@ -3239,7 +3243,7 @@ export default function AdminPage() {
                                 <p className="text-xs" style={{ color: C.muted }}>{task.description}</p>
                               </div>
                               <div className="text-left shrink-0">
-                                <p className="text-[10px]" style={{ color: C.muted }}>{task.dueContext}</p>
+                                <p className="text-[12px]" style={{ color: C.muted }}>{task.dueContext}</p>
                                 <button
                                   onClick={() => { setSelectedEventId(task.eventId); setActiveTab(task.actionType === "send_reminders" || task.actionType === "send_invitations" ? "reminders" : "guests"); }}
                                   className="text-xs mt-1 px-2.5 py-1 rounded-lg font-medium"
@@ -3578,7 +3582,7 @@ function AdminSidebar({
       <nav className="flex-1 px-3 py-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
         {groups.map((g) => (
           <div key={g.title} className="mb-6">
-            <p className="px-4 mb-2" style={{ color: SC.textFaint, fontSize: 11, fontWeight: 700, letterSpacing: "0.12em" }}>{g.title}</p>
+            <p className="px-4 mb-2" style={{ color: SC.textFaint, fontSize: 12, fontWeight: 700, letterSpacing: "0.12em" }}>{g.title}</p>
             <div className="flex flex-col gap-0.5">
               {g.items.map((it) => {
                 const active = activeTab === it.id;
@@ -3596,7 +3600,7 @@ function AdminSidebar({
                     <span style={{ color: active ? SC.gold : "inherit", display: "flex" }}>{it.icon}</span>
                     <span style={{ fontFamily: "Heebo, sans-serif", fontSize: 14, fontWeight: 500 }}>{it.label}</span>
                     {!!it.badge && it.badge > 0 && (
-                      <span className="mr-auto text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+                      <span className="mr-auto text-[12px] px-1.5 py-0.5 rounded-full font-bold"
                         style={{ background: SC.gold, color: SC.bg }}>{it.badge}</span>
                     )}
                   </button>
@@ -3607,7 +3611,7 @@ function AdminSidebar({
         ))}
 
         <div className="mb-6">
-          <p className="px-4 mb-2" style={{ color: SC.textFaint, fontSize: 11, fontWeight: 700, letterSpacing: "0.12em" }}>כלים</p>
+          <p className="px-4 mb-2" style={{ color: SC.textFaint, fontSize: 12, fontWeight: 700, letterSpacing: "0.12em" }}>כלים</p>
           <div className="flex flex-col gap-0.5">
             {links.map((l) => (
               <a key={l.href} href={l.href}
@@ -3664,24 +3668,24 @@ function EventCard({ ev, approvalStatus, onSelect }: { ev: EventSummary; approva
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-semibold text-sm" style={{ color: C.dark }}>{ev.name}</p>
             {ev.needsAttention && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold" style={{ background: "rgba(200,60,60,0.10)", color: "rgb(180,60,60)" }}>
+              <span className="text-[12px] px-1.5 py-0.5 rounded-md font-bold" style={{ background: "rgba(200,60,60,0.10)", color: "rgb(180,60,60)" }}>
                 דחוף
               </span>
             )}
             {statusLabel && (
               <span
-                className="text-[10px] px-2 py-0.5 rounded-full font-semibold text-white"
+                className="text-[12px] px-2 py-0.5 rounded-full font-semibold text-white"
                 style={{ background: statusColor }}
               >
                 {statusLabel}
               </span>
             )}
-            {approvalStatus === "pending"           && <span className="text-[10px]">🟡</span>}
-            {approvalStatus === "approved"          && <span className="text-[10px]">🟢</span>}
-            {approvalStatus === "changes_requested" && <span className="text-[10px]">🔴</span>}
+            {approvalStatus === "pending"           && <span className="text-[12px]">🟡</span>}
+            {approvalStatus === "approved"          && <span className="text-[12px]">🟢</span>}
+            {approvalStatus === "changes_requested" && <span className="text-[12px]">🔴</span>}
           </div>
           {ev.client_name && (
-            <p className="text-[11px] mb-1" style={{ color: C.gold }}>לקוח: {ev.client_name}</p>
+            <p className="text-[12px] mb-1" style={{ color: C.gold }}>לקוח: {ev.client_name}</p>
           )}
           <p className="text-xs mb-2" style={{ color: C.muted }}>
             {new Date(ev.date).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}
@@ -3788,7 +3792,7 @@ function AdminCalendar({ events, onSelectEvent, selectedEventId }: {
                       {evs.map(ev => (
                         <button key={ev.id} onClick={() => onSelectEvent(ev.id)}
                           title={ev.name}
-                          className="w-full text-right text-[10px] px-1.5 py-0.5 rounded-md mb-0.5 truncate"
+                          className="w-full text-right text-[12px] px-1.5 py-0.5 rounded-md mb-0.5 truncate"
                           style={{
                             background: ev.id === selectedEventId ? C2.gold : "rgba(197,164,109,0.15)",
                             color: ev.id === selectedEventId ? "white" : C2.dark,
@@ -3901,7 +3905,7 @@ function AdminHistory({ eventId }: { eventId: string }) {
                   </p>
                 )}
               </div>
-              <p className="text-[11px] shrink-0" style={{ color: C2.muted }}>
+              <p className="text-[12px] shrink-0" style={{ color: C2.muted }}>
                 {isToday ? "היום" : date.toLocaleDateString("he-IL", { day:"numeric", month:"short" })}
                 {" "}
                 {date.toLocaleTimeString("he-IL", { hour:"2-digit", minute:"2-digit" })}
@@ -4137,13 +4141,13 @@ function ThankYouSection({ guests, eventName, eventId }: { guests: Guest[]; even
             style={{ background: i % 2 === 0 ? C2.ivory : "white", borderBottom: "1px solid rgba(197,164,109,0.08)" }}>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium truncate" style={{ color: C2.dark }}>{g.name}</p>
-              <p className="text-[10px]" style={{ color: C2.muted }}>{g.phone}</p>
+              <p className="text-[12px]" style={{ color: C2.muted }}>{g.phone}</p>
             </div>
             <a
               href={whatsappThankYouLink(g.phone, g.name, eventName, galleryUrl || null)}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-[11px] px-2.5 py-1.5 rounded-lg shrink-0"
+              className="flex items-center gap-1 text-[12px] px-2.5 py-1.5 rounded-lg shrink-0"
               style={{ background: "rgba(37,211,102,0.10)", color: "#1A9B4E" }}
             >
               <MessageCircle size={10} /> שלח
@@ -4227,7 +4231,7 @@ function ReminderCenter({
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span
-                        className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                        className="text-[12px] font-bold px-2 py-0.5 rounded-full"
                         style={{ background: style.border, color: style.color }}
                       >
                         {style.label}
@@ -4247,7 +4251,7 @@ function ReminderCenter({
                     <p className="text-2xl font-bold" style={{ color: style.color, fontFamily: "Frank Ruhl Libre, serif" }}>
                       {rec.affectedCount}
                     </p>
-                    <p className="text-[10px]" style={{ color: C.muted }}>
+                    <p className="text-[12px]" style={{ color: C.muted }}>
                       {rec.action === "send_reminders" || rec.action === "send_followup" ? "אורחים" : "אירועים"}
                     </p>
                   </div>
@@ -4389,10 +4393,10 @@ function AdminAgenda({ events, onSelect }: { events: Event[]; onSelect: (id: str
                   className="flex-shrink-0 rounded-xl p-3 text-right transition-all hover:scale-105"
                   style={{ background: "#FDFAF5", border: "1px solid rgba(197,164,109,0.25)", minWidth: 160, cursor: "pointer" }}>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: badgeBg, color: badgeColor }}>{label}</span>
+                    <span className="text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: badgeBg, color: badgeColor }}>{label}</span>
                   </div>
                   <p className="text-xs font-semibold truncate" style={{ color: "#1C1008", fontFamily: "Frank Ruhl Libre, serif", maxWidth: 140 }}>{ev.name}</p>
-                  <p className="text-[10px] mt-0.5" style={{ color: "rgba(28,16,8,0.45)", fontFamily: "Heebo, sans-serif" }}>
+                  <p className="text-[12px] mt-0.5" style={{ color: "rgba(28,16,8,0.45)", fontFamily: "Heebo, sans-serif" }}>
                     {new Date(ev.date + "T00:00:00").toLocaleDateString("he-IL", { day: "numeric", month: "short" })}
                   </p>
                 </button>
@@ -4463,9 +4467,9 @@ function AdminAnalytics({ guests, events, selectedEventId }: { guests: Guest[]; 
 
   const StatCard = ({ label, value, sub, color = GOLD }: { label: string; value: string; sub?: string; color?: string }) => (
     <div style={{ ...CARD, textAlign: "center" }}>
-      <p style={{ fontSize: 11, color: "rgba(28,16,8,0.45)", marginBottom: 6, ...HEEBO }}>{label}</p>
+      <p style={{ fontSize: 12, color: "rgba(28,16,8,0.45)", marginBottom: 6, ...HEEBO }}>{label}</p>
       <p style={{ fontSize: 28, fontWeight: 700, color, ...FRANK }}>{value}</p>
-      {sub && <p style={{ fontSize: 11, color: "rgba(28,16,8,0.4)", marginTop: 4, ...HEEBO }}>{sub}</p>}
+      {sub && <p style={{ fontSize: 12, color: "rgba(28,16,8,0.4)", marginTop: 4, ...HEEBO }}>{sub}</p>}
     </div>
   );
 
@@ -4482,7 +4486,7 @@ function AdminAnalytics({ guests, events, selectedEventId }: { guests: Guest[]; 
       {/* Opening hours chart */}
       <div style={CARD}>
         <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, color: DARK, ...HEEBO }}>שעות פתיחת הזמנה</p>
-        <p style={{ fontSize: 11, color: "rgba(28,16,8,0.4)", marginBottom: 16, ...HEEBO }}>
+        <p style={{ fontSize: 12, color: "rgba(28,16,8,0.4)", marginBottom: 16, ...HEEBO }}>
           שיא פתיחות: {String(peakHour).padStart(2, "0")}:00 ({hourBuckets[peakHour]} פתיחות)
         </p>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 80 }}>
@@ -4506,11 +4510,11 @@ function AdminAnalytics({ guests, events, selectedEventId }: { guests: Guest[]; 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {dayLabels.map((label, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 11, minWidth: 48, color: "rgba(28,16,8,0.55)", ...HEEBO }}>{label}</span>
+              <span style={{ fontSize: 12, minWidth: 48, color: "rgba(28,16,8,0.55)", ...HEEBO }}>{label}</span>
               <div style={{ flex: 1, height: 16, background: "rgba(197,164,109,0.1)", borderRadius: 8, overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${(dayBuckets[i] / maxDayCount) * 100}%`, background: `linear-gradient(90deg,${GOLD},${GOLD}88)`, borderRadius: 8, transition: "width 0.4s ease" }} />
               </div>
-              <span style={{ fontSize: 11, minWidth: 20, color: "rgba(28,16,8,0.4)", textAlign: "left", ...HEEBO }}>{dayBuckets[i]}</span>
+              <span style={{ fontSize: 12, minWidth: 20, color: "rgba(28,16,8,0.4)", textAlign: "left", ...HEEBO }}>{dayBuckets[i]}</span>
             </div>
           ))}
         </div>
@@ -4520,7 +4524,7 @@ function AdminAnalytics({ guests, events, selectedEventId }: { guests: Guest[]; 
       {responseTimes.length > 0 && (
         <div style={CARD}>
           <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, color: DARK, ...HEEBO }}>התפלגות זמני תגובה</p>
-          <p style={{ fontSize: 11, color: "rgba(28,16,8,0.4)", marginBottom: 16, ...HEEBO }}>
+          <p style={{ fontSize: 12, color: "rgba(28,16,8,0.4)", marginBottom: 16, ...HEEBO }}>
             {responseTimes.filter(t => t <= 2).length} ענו תוך שעתיים · {responseTimes.filter(t => t > 2 && t <= 24).length} ענו תוך יום · {responseTimes.filter(t => t > 24).length} ענו אחרי יום+
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
@@ -4531,7 +4535,7 @@ function AdminAnalytics({ guests, events, selectedEventId }: { guests: Guest[]; 
             ].map(({ label, count, color }) => (
               <div key={label} style={{ textAlign: "center", padding: "0.75rem", background: `${color}0d`, borderRadius: 12, border: `1px solid ${color}33` }}>
                 <p style={{ fontSize: 20, fontWeight: 700, color, ...FRANK }}>{count}</p>
-                <p style={{ fontSize: 10, color, marginTop: 4, ...HEEBO }}>{label}</p>
+                <p style={{ fontSize: 12, color, marginTop: 4, ...HEEBO }}>{label}</p>
               </div>
             ))}
           </div>
@@ -4737,14 +4741,14 @@ function DesignRequestsTab() {
                   </p>
                   <p style={{ fontSize: 12, color: Cd.muted, marginTop: 2 }}>{String(req.name ?? "—")} · {String(req.phone ?? "")}</p>
                 </div>
-                <span style={{ fontSize: 10, background: "rgba(197,164,109,0.12)", color: Cd.gold, padding: "2px 8px", borderRadius: 20, fontWeight: 600 }}>
+                <span style={{ fontSize: 12, background: "rgba(197,164,109,0.12)", color: Cd.gold, padding: "2px 8px", borderRadius: 20, fontWeight: 600 }}>
                   {String(req.status ?? "new")}
                 </span>
               </div>
               {req.message != null && (
                 <p style={{ fontSize: 12, color: Cd.muted, fontStyle: "italic", lineHeight: 1.6 }}>{String(req.message)}</p>
               )}
-              <p style={{ fontSize: 10, color: "rgba(28,16,8,0.30)", marginTop: 6 }}>
+              <p style={{ fontSize: 12, color: "rgba(28,16,8,0.30)", marginTop: 6 }}>
                 {new Date(String(req.created_at ?? "")).toLocaleDateString("he-IL")}
               </p>
             </div>
@@ -4870,7 +4874,7 @@ function AdminMessagesTab({ selectedEventId, events }: { selectedEventId: string
                     : <span style={{ color: isActive ? "#fff" : C.muted, fontSize: 12, fontWeight: 700 }}>{i + 1}</span>
                   }
                 </div>
-                <span style={{ fontSize: 11, color: isActive ? C.gold : isCompleted ? OLIVE : C.muted, whiteSpace: "nowrap", fontWeight: isActive ? 700 : 400 }}>
+                <span style={{ fontSize: 12, color: isActive ? C.gold : isCompleted ? OLIVE : C.muted, whiteSpace: "nowrap", fontWeight: isActive ? 700 : 400 }}>
                   {s.label.replace(/^\d+ · /, "")}
                 </span>
               </button>
@@ -4903,7 +4907,7 @@ function AdminMessagesTab({ selectedEventId, events }: { selectedEventId: string
                          background: selectedTemplate.key === t.key ? "rgba(197,164,109,0.08)" : C.card,
                          fontFamily: "inherit" }}>
                 <div style={{ fontWeight: 700, color: C.dark, fontSize: 14 }}>{t.label}</div>
-                <div style={{ fontSize: 11, color: C.muted, marginTop: "0.25rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: "0.25rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {t.text.slice(0, 50)}...
                 </div>
               </button>
@@ -4919,7 +4923,7 @@ function AdminMessagesTab({ selectedEventId, events }: { selectedEventId: string
             <div style={{ background: "#E5DDD5", borderRadius: 24, minHeight: 360, padding: "1rem", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
               <div style={{ background: "#DCF8C6", borderRadius: "12px 12px 0 12px", padding: "0.75rem 0.85rem", maxWidth: "85%", alignSelf: "flex-end", boxShadow: "0 1px 2px rgba(0,0,0,0.12)" }}>
                 <p style={{ margin: 0, fontSize: 13, whiteSpace: "pre-wrap", lineHeight: 1.5, color: "#111", fontFamily: "Heebo, sans-serif" }}>{customText}</p>
-                <p style={{ margin: "0.35rem 0 0", fontSize: 10, color: "#888", textAlign: "right" }}>עכשיו ✓✓</p>
+                <p style={{ margin: "0.35rem 0 0", fontSize: 12, color: "#888", textAlign: "right" }}>עכשיו ✓✓</p>
               </div>
             </div>
           </div>

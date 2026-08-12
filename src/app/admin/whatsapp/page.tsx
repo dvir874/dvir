@@ -127,7 +127,7 @@ export default function WhatsAppCampaignPage() {
             ))}
           </div>
 
-          <p style={{ fontSize: 11, color: C.muted, marginBottom: "0.5rem" }}>
+          <p style={{ fontSize: 12, color: C.muted, marginBottom: "0.5rem" }}>
             {"{שם}"} = שם האורח &nbsp;·&nbsp; {"{קישור}"} = הקישור שנבחר
           </p>
           <textarea
@@ -203,7 +203,7 @@ export default function WhatsAppCampaignPage() {
                     <span style={{ fontSize: 14 }}>{STATUS_EMOJI[guest.status] ?? "❓"}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: 13, fontWeight: 600, color: C.dark, margin: 0 }}>{guest.name}</p>
-                      <p style={{ fontSize: 11, color: C.muted, margin: 0 }}>{guest.phone}</p>
+                      <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>{guest.phone}</p>
                     </div>
                     {guest.phone ? (
                       <a
@@ -222,7 +222,7 @@ export default function WhatsAppCampaignPage() {
                         💬 שלח
                       </a>
                     ) : (
-                      <span style={{ fontSize: 11, color: C.muted, flexShrink: 0 }}>אין טלפון</span>
+                      <span style={{ fontSize: 12, color: C.muted, flexShrink: 0 }}>אין טלפון</span>
                     )}
                   </div>
                 );

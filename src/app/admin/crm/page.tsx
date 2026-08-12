@@ -158,7 +158,7 @@ export default function CrmPage() {
               >
                 🌐 פניות מהאתר
                 {stats.websiteNew > 0 && (
-                  <span style={{ background: "#EF4444", color: "white", borderRadius: "50%", fontSize: 9, width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>
+                  <span style={{ background: "#EF4444", color: "white", borderRadius: "50%", fontSize: 12, width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>
                     {stats.websiteNew}
                   </span>
                 )}
@@ -188,7 +188,7 @@ export default function CrmPage() {
             ].map((s) => (
               <div key={s.label} style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
                 <span style={{ fontSize: 18, fontWeight: 800, color: s.color ?? DARK, fontFamily: "Frank Ruhl Libre, serif" }}>{s.value}</span>
-                <span style={{ fontSize: 11, color: "rgba(51,51,51,0.5)" }}>{s.label}</span>
+                <span style={{ fontSize: 12, color: "rgba(51,51,51,0.5)" }}>{s.label}</span>
               </div>
             ))}
           </div>
@@ -286,7 +286,7 @@ function WebsiteLeadsView({ leads, onStatusChange, onSelect, onDelete }: {
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.75rem" }}>
           <div style={{ width: 3, height: 18, borderRadius: 2, background: accent ?? GOLD }} />
           <span style={{ fontSize: 13, fontWeight: 700, color: accent ?? DARK }}>{title}</span>
-          <span style={{ fontSize: 11, color: "rgba(51,51,51,0.4)", background: "rgba(197,164,109,0.1)", padding: "1px 8px", borderRadius: 10 }}>{items.length}</span>
+          <span style={{ fontSize: 12, color: "rgba(51,51,51,0.4)", background: "rgba(197,164,109,0.1)", padding: "1px 8px", borderRadius: 10 }}>{items.length}</span>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {items.map((lead) => (
@@ -310,9 +310,9 @@ function WebsiteLeadsView({ leads, onStatusChange, onSelect, onDelete }: {
   return (
     <div>
       <div style={{ padding: "0.75rem 1rem", borderRadius: 12, background: "rgba(197,164,109,0.08)", border: "1px solid rgba(197,164,109,0.2)", marginBottom: "1.5rem", display: "flex", gap: 20, flexWrap: "wrap" }}>
-        <div><span style={{ fontSize: 20, fontWeight: 800, fontFamily: "Frank Ruhl Libre, serif", color: GOLD }}>{leads.length}</span><span style={{ fontSize: 11, color: "rgba(51,51,51,0.5)", marginRight: 5 }}>סה"כ פניות</span></div>
-        <div><span style={{ fontSize: 20, fontWeight: 800, fontFamily: "Frank Ruhl Libre, serif", color: "#EF4444" }}>{newLeads.length}</span><span style={{ fontSize: 11, color: "rgba(51,51,51,0.5)", marginRight: 5 }}>חדשות (לא טופלו)</span></div>
-        <div><span style={{ fontSize: 20, fontWeight: 800, fontFamily: "Frank Ruhl Libre, serif", color: OLIVE }}>{closedLeads.filter(l=>l.status==="won").length}</span><span style={{ fontSize: 11, color: "rgba(51,51,51,0.5)", marginRight: 5 }}>נסגרו</span></div>
+        <div><span style={{ fontSize: 20, fontWeight: 800, fontFamily: "Frank Ruhl Libre, serif", color: GOLD }}>{leads.length}</span><span style={{ fontSize: 12, color: "rgba(51,51,51,0.5)", marginRight: 5 }}>סה"כ פניות</span></div>
+        <div><span style={{ fontSize: 20, fontWeight: 800, fontFamily: "Frank Ruhl Libre, serif", color: "#EF4444" }}>{newLeads.length}</span><span style={{ fontSize: 12, color: "rgba(51,51,51,0.5)", marginRight: 5 }}>חדשות (לא טופלו)</span></div>
+        <div><span style={{ fontSize: 20, fontWeight: 800, fontFamily: "Frank Ruhl Libre, serif", color: OLIVE }}>{closedLeads.filter(l=>l.status==="won").length}</span><span style={{ fontSize: 12, color: "rgba(51,51,51,0.5)", marginRight: 5 }}>נסגרו</span></div>
       </div>
       <Section title="חדשות — טרם טופלו" items={newLeads} accent="#EF4444" />
       <Section title="בתהליך" items={activeLeads} accent="#3B82F6" />
@@ -358,10 +358,10 @@ function WebsiteLeadRow({ lead, onStatusChange, onSelect, onDelete }: {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
           <span style={{ fontWeight: 700, fontSize: 14, color: DARK }}>{lead.name}</span>
-          <span style={{ fontSize: 10, color: "rgba(51,51,51,0.4)" }}>·</span>
-          <span style={{ fontSize: 11, color: GOLD }}>{SOURCE_LABEL[lead.source] ?? lead.source}</span>
+          <span style={{ fontSize: 12, color: "rgba(51,51,51,0.4)" }}>·</span>
+          <span style={{ fontSize: 12, color: GOLD }}>{SOURCE_LABEL[lead.source] ?? lead.source}</span>
         </div>
-        <div style={{ fontSize: 11, color: "rgba(51,51,51,0.5)", display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 12, color: "rgba(51,51,51,0.5)", display: "flex", gap: 10, flexWrap: "wrap" }}>
           <span>📱 {lead.phone}</span>
           {days !== null && <span>💍 {days > 0 ? `בעוד ${days} ימים` : "עבר"}</span>}
           <span style={{ color: "rgba(51,51,51,0.35)" }}>{agoLabel}</span>
@@ -406,7 +406,7 @@ function KanbanView({ leads, onStatusChange, onSelect, onDelete }: {
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: "0.5rem" }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: stage.color, display: "inline-block" }} />
               <span style={{ fontSize: 12, fontWeight: 700, color: stage.color }}>{stage.label}</span>
-              <span style={{ fontSize: 11, color: "rgba(51,51,51,0.4)", marginRight: "auto" }}>{stagLeads.length}</span>
+              <span style={{ fontSize: 12, color: "rgba(51,51,51,0.4)", marginRight: "auto" }}>{stagLeads.length}</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, minHeight: 60 }}>
               {stagLeads.map((lead) => (
@@ -481,18 +481,18 @@ function LeadCard({ lead, onStatusChange, onSelect, onDelete, compact }: {
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
           <span style={{ fontWeight: 700, fontSize: 13, color: DARK }}>{lead.name}</span>
           {isWebsiteLead(lead.source) && (
-            <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 6, background: "rgba(197,164,109,0.18)", color: GOLD }}>🌐 אתר</span>
+            <span style={{ fontSize: 12, fontWeight: 700, padding: "1px 5px", borderRadius: 6, background: "rgba(197,164,109,0.18)", color: GOLD }}>🌐 אתר</span>
           )}
           {lead.ai_score >= 70 && (
-            <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 6, background: "rgba(245,158,11,0.15)", color: "#D97706" }}>🔥 חם</span>
+            <span style={{ fontSize: 12, fontWeight: 700, padding: "1px 5px", borderRadius: 6, background: "rgba(245,158,11,0.15)", color: "#D97706" }}>🔥 חם</span>
           )}
           {overdueTasks > 0 && (
-            <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 6, background: "rgba(239,68,68,0.12)", color: "#EF4444", display: "flex", alignItems: "center", gap: 2 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, padding: "1px 5px", borderRadius: 6, background: "rgba(239,68,68,0.12)", color: "#EF4444", display: "flex", alignItems: "center", gap: 2 }}>
               <AlertTriangle size={9} /> {overdueTasks}
             </span>
           )}
         </div>
-        <div style={{ fontSize: 11, color: "rgba(51,51,51,0.5)", display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 12, color: "rgba(51,51,51,0.5)", display: "flex", gap: 8, flexWrap: "wrap" }}>
           {lead.event_type && <span>{lead.event_type}</span>}
           {days !== null && (
             <span style={{ color: days < 30 && days > 0 ? "#EF4444" : "inherit" }}>
@@ -507,7 +507,7 @@ function LeadCard({ lead, onStatusChange, onSelect, onDelete, compact }: {
       {!compact && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           {openTasks > 0 && (
-            <span style={{ fontSize: 11, color: "rgba(51,51,51,0.45)", display: "flex", alignItems: "center", gap: 3 }}>
+            <span style={{ fontSize: 12, color: "rgba(51,51,51,0.45)", display: "flex", alignItems: "center", gap: 3 }}>
               <Clock size={11} /> {openTasks}
             </span>
           )}
@@ -705,7 +705,7 @@ function LeadPanel({ lead, onClose, onStatusChange, onRefresh }: {
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
               <StageSelect value={detail.status} onChange={(s) => { onStatusChange(s); setDetail((d) => ({ ...d, status: s })); }} />
               {detail.ai_score >= 70 && (
-                <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: "rgba(245,158,11,0.12)", color: "#D97706", display: "flex", alignItems: "center", gap: 3 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: "rgba(245,158,11,0.12)", color: "#D97706", display: "flex", alignItems: "center", gap: 3 }}>
                   <Star size={10} fill="#D97706" stroke="#D97706" /> ליד חם
                 </span>
               )}
@@ -757,7 +757,7 @@ function LeadPanel({ lead, onClose, onStatusChange, onRefresh }: {
             { label: "המלצה מ", value: detail.ref_code ?? "—" },
           ].map((item) => (
             <div key={item.label}>
-              <p style={{ fontSize: 10, color: "rgba(51,51,51,0.45)", marginBottom: 1 }}>{item.label}</p>
+              <p style={{ fontSize: 12, color: "rgba(51,51,51,0.45)", marginBottom: 1 }}>{item.label}</p>
               <p style={{ fontSize: 13, fontWeight: 600, color: item.alert ? "#EF4444" : DARK }}>{item.value}</p>
             </div>
           ))}
@@ -802,12 +802,12 @@ function LeadPanel({ lead, onClose, onStatusChange, onRefresh }: {
                 <div key={task.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "0.5rem 0.65rem", borderRadius: 8, background: overdue ? "rgba(239,68,68,0.05)" : "rgba(197,164,109,0.05)", border: `1px solid ${overdue ? "rgba(239,68,68,0.2)" : "rgba(197,164,109,0.15)"}` }}>
                   <button onClick={() => toggleTask(task.id, true)} style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${overdue ? "#EF4444" : "rgba(197,164,109,0.4)"}`, background: "none", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }} />
                   <span style={{ flex: 1, fontSize: 13, color: overdue ? "#EF4444" : DARK }}>{task.title}</span>
-                  {task.due_date && <span style={{ fontSize: 10, color: overdue ? "#EF4444" : "rgba(51,51,51,0.4)" }}>{new Date(task.due_date).toLocaleDateString("he-IL")}</span>}
+                  {task.due_date && <span style={{ fontSize: 12, color: overdue ? "#EF4444" : "rgba(51,51,51,0.4)" }}>{new Date(task.due_date).toLocaleDateString("he-IL")}</span>}
                 </div>
               );
             })}
             {doneTasks.length > 0 && (
-              <p style={{ fontSize: 11, color: "rgba(51,51,51,0.35)", marginTop: 4 }}>{doneTasks.length} משימות הושלמו</p>
+              <p style={{ fontSize: 12, color: "rgba(51,51,51,0.35)", marginTop: 4 }}>{doneTasks.length} משימות הושלמו</p>
             )}
           </div>
         </div>
@@ -837,7 +837,7 @@ function LeadPanel({ lead, onClose, onStatusChange, onRefresh }: {
                   <div style={{ width: 6, height: 6, borderRadius: "50%", background: GOLD, flexShrink: 0, marginTop: 5 }} />
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: 12, color: DARK }}>{a.content}</p>
-                    <p style={{ fontSize: 10, color: "rgba(51,51,51,0.4)" }}>
+                    <p style={{ fontSize: 12, color: "rgba(51,51,51,0.4)" }}>
                       {new Date(a.created_at).toLocaleString("he-IL", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>
@@ -851,7 +851,7 @@ function LeadPanel({ lead, onClose, onStatusChange, onRefresh }: {
         {detail.status === "won" && (
           <div style={{ padding: "0.9rem", borderRadius: 12, background: "rgba(107,123,90,0.07)", border: "1px solid rgba(107,123,90,0.2)", marginBottom: "1rem" }}>
             <p style={{ fontSize: 12, fontWeight: 700, color: OLIVE, marginBottom: 6 }}>📋 סקר שביעות רצון</p>
-            <p style={{ fontSize: 11, color: "rgba(51,51,51,0.55)", marginBottom: 10 }}>שלח לאחר האירוע כדי לקבל ביקורת וקישור הפניה.</p>
+            <p style={{ fontSize: 12, color: "rgba(51,51,51,0.55)", marginBottom: 10 }}>שלח לאחר האירוע כדי לקבל ביקורת וקישור הפניה.</p>
             {!surveyToken ? (
               <button onClick={generateSurvey} style={{ padding: "0.5rem 1rem", borderRadius: 8, border: "none", background: OLIVE, color: "white", cursor: "pointer", fontSize: 12, fontFamily: "Heebo, sans-serif" }}>
                 צור קישור סקר

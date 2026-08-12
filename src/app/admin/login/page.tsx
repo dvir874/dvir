@@ -61,7 +61,7 @@ function LoginForm() {
         }}
       >
         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-          <p style={{ fontSize: 11, letterSpacing: "0.2em", color: "#C5A46D", textTransform: "uppercase", marginBottom: 8 }}>
+          <p style={{ fontSize: 12, letterSpacing: "0.2em", color: "#C5A46D", textTransform: "uppercase", marginBottom: 8 }}>
             רגע לפני
           </p>
           <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.6rem", fontWeight: 700, color: "#333" }}>

@@ -277,7 +277,7 @@ export default function SeatingPage() {
               >
                 <Icon size={13} />{label}
                 {key === "ai" && aiResult && (
-                  <span style={{ background: aiResult.score >= 75 ? OLIVE : GOLD, color: "white", borderRadius: 20, padding: "0 6px", fontSize: 11 }}>
+                  <span style={{ background: aiResult.score >= 75 ? OLIVE : GOLD, color: "white", borderRadius: 20, padding: "0 6px", fontSize: 12 }}>
                     {aiResult.score}
                   </span>
                 )}
@@ -300,7 +300,7 @@ export default function SeatingPage() {
           ].map((s) => (
             <div key={s.label} style={{ ...CARD, padding: "0.65rem 1rem" }}>
               <span style={{ fontSize: 18, fontWeight: 700, color: GOLD, display: "block" }}>{s.value}</span>
-              <span style={{ fontSize: 11, color: "rgba(51,51,51,0.55)" }}>{s.label}</span>
+              <span style={{ fontSize: 12, color: "rgba(51,51,51,0.55)" }}>{s.label}</span>
             </div>
           ))}
         </div>
@@ -378,19 +378,19 @@ export default function SeatingPage() {
                 {guestCategories.length > 0 && (
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: "0.5rem" }}>
                     <button onClick={() => setCatFilter(null)}
-                      style={{ padding: "2px 10px", borderRadius: 14, fontSize: 11, border: `1.5px solid ${!catFilter ? GOLD : "rgba(197,164,109,0.25)"}`, background: !catFilter ? "rgba(197,164,109,0.12)" : "transparent", color: !catFilter ? GOLD : DARK, cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
+                      style={{ padding: "2px 10px", borderRadius: 14, fontSize: 12, border: `1.5px solid ${!catFilter ? GOLD : "rgba(197,164,109,0.25)"}`, background: !catFilter ? "rgba(197,164,109,0.12)" : "transparent", color: !catFilter ? GOLD : DARK, cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
                       הכל
                     </button>
                     {guestCategories.map(cat => (
                       <button key={cat} onClick={() => setCatFilter(catFilter === cat ? null : cat)}
-                        style={{ padding: "2px 10px", borderRadius: 14, fontSize: 11, border: `1.5px solid ${catFilter === cat ? GOLD : "rgba(197,164,109,0.25)"}`, background: catFilter === cat ? "rgba(197,164,109,0.12)" : "transparent", color: catFilter === cat ? GOLD : DARK, cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
+                        style={{ padding: "2px 10px", borderRadius: 14, fontSize: 12, border: `1.5px solid ${catFilter === cat ? GOLD : "rgba(197,164,109,0.25)"}`, background: catFilter === cat ? "rgba(197,164,109,0.12)" : "transparent", color: catFilter === cat ? GOLD : DARK, cursor: "pointer", fontFamily: "Heebo, sans-serif" }}>
                         {cat}
                       </button>
                     ))}
                   </div>
                 )}
 
-                <p style={{ fontSize: 11, color: "rgba(51,51,51,0.4)", marginBottom: "0.5rem" }}>גרור אורח לשולחן, או לחץ לבחירה ואז &quot;הצב כאן&quot;</p>
+                <p style={{ fontSize: 12, color: "rgba(51,51,51,0.4)", marginBottom: "0.5rem" }}>גרור אורח לשולחן, או לחץ לבחירה ואז &quot;הצב כאן&quot;</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 500, overflowY: "auto" }}>
                   {unassignedGuests.map((g) => {
                     const gTags = tagMap[g.id] ?? [];
@@ -439,7 +439,7 @@ export default function SeatingPage() {
                             onClick={() => toggleTag(g.id, pt.value)}
                             disabled={saving}
                             style={{
-                              padding: "3px 8px", borderRadius: 20, fontSize: 11,
+                              padding: "3px 8px", borderRadius: 20, fontSize: 12,
                               border: `1px solid ${active ? OLIVE : "rgba(197,164,109,0.3)"}`,
                               background: active ? "rgba(107,123,90,0.12)" : "transparent",
                               color: active ? OLIVE : "rgba(51,51,51,0.55)",
@@ -503,7 +503,7 @@ export default function SeatingPage() {
                     <span style={{ fontSize: 18 }}>{rt?.emoji}</span>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 13, fontWeight: 600 }}>{nameA} ↔ {nameB}</p>
-                      <p style={{ fontSize: 11, color: "rgba(51,51,51,0.5)" }}>{rt?.label}</p>
+                      <p style={{ fontSize: 12, color: "rgba(51,51,51,0.5)" }}>{rt?.label}</p>
                     </div>
                     <button onClick={() => deleteRelationship(rel.id)}
                       style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(51,51,51,0.3)" }}>
@@ -561,7 +561,7 @@ export default function SeatingPage() {
                       <span style={{ fontSize: 26, fontWeight: 700, fontFamily: "Frank Ruhl Libre, serif", color: aiResult.score >= 80 ? OLIVE : aiResult.score >= 50 ? "#A07840" : "rgb(180,50,50)", lineHeight: 1 }}>
                         {aiResult.score}
                       </span>
-                      <span style={{ fontSize: 10, color: "rgba(51,51,51,0.55)" }}>/ 100</span>
+                      <span style={{ fontSize: 12, color: "rgba(51,51,51,0.55)" }}>/ 100</span>
                     </div>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.1rem", fontWeight: 700, marginBottom: "0.75rem" }}>
@@ -627,7 +627,7 @@ function Stat({ label, value, color }: { label: string; value: number | string; 
   return (
     <div>
       <p style={{ fontSize: 18, fontWeight: 700, color: color ?? DARK, fontFamily: "Frank Ruhl Libre, serif", lineHeight: 1.2 }}>{value}</p>
-      <p style={{ fontSize: 11, color: "rgba(51,51,51,0.5)" }}>{label}</p>
+      <p style={{ fontSize: 12, color: "rgba(51,51,51,0.5)" }}>{label}</p>
     </div>
   );
 }
@@ -689,7 +689,7 @@ function VisualTable({ table, assigned, selectedGuest, onDrop, onAssign, onDelet
       {/* Occupancy badge */}
       <span style={{
         position: "absolute", top: 0, right: 0, zIndex: 10,
-        fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 20,
+        fontSize: 12, fontWeight: 700, padding: "1px 6px", borderRadius: 20,
         background: over ? "rgba(220,38,38,0.1)" : "rgba(107,123,90,0.1)",
         color: over ? "rgb(220,38,38)" : OLIVE,
         border: `1px solid ${over ? "rgba(220,38,38,0.3)" : "rgba(107,123,90,0.25)"}`,
@@ -712,7 +712,7 @@ function VisualTable({ table, assigned, selectedGuest, onDrop, onAssign, onDelet
           style={{
             padding: "0.35rem 0.75rem", borderRadius: 8, border: `2px dashed ${GOLD}`,
             background: "rgba(197,164,109,0.06)", color: GOLD, cursor: "pointer",
-            fontSize: 11, fontFamily: "Heebo, sans-serif", width: "100%",
+            fontSize: 12, fontFamily: "Heebo, sans-serif", width: "100%",
           }}
         >
           ✦ הצב — {selectedGuestName}
@@ -752,13 +752,13 @@ function TableNoteInput({ table }: { table: SeatingTable }) {
         placeholder="הערה לשולחן (VIP, דיאטה...)"
         maxLength={80}
         style={{
-          width: "100%", fontSize: 10, padding: "3px 8px", borderRadius: 8,
+          width: "100%", fontSize: 12, padding: "3px 8px", borderRadius: 8,
           border: "1px solid rgba(197,164,109,0.25)", background: note ? "rgba(197,164,109,0.06)" : "transparent",
           color: "#1C1008", fontFamily: "Heebo, sans-serif", outline: "none",
           boxSizing: "border-box",
         }}
       />
-      {saving && <span style={{ position: "absolute", left: 4, top: 3, fontSize: 9, color: "rgba(0,0,0,0.3)" }}>שומר…</span>}
+      {saving && <span style={{ position: "absolute", left: 4, top: 3, fontSize: 12, color: "rgba(0,0,0,0.3)" }}>שומר…</span>}
     </div>
   );
 }

@@ -189,7 +189,7 @@ export default function WizardPage() {
                     >
                       {done ? <Check size={12} /> : n}
                     </div>
-                    <span className="text-[10px] hidden sm:block whitespace-nowrap" style={{ color: cur ? C.dark : C.muted, ...HEEBO }}>
+                    <span className="text-[12px] hidden sm:block whitespace-nowrap" style={{ color: cur ? C.dark : C.muted, ...HEEBO }}>
                       {label}
                     </span>
                   </div>
@@ -721,7 +721,7 @@ function StatMini({ label, value, good, warn }: { label: string; value: number; 
       }}
     >
       <span className="text-base font-bold" style={{ color: warn ? "rgb(180,60,60)" : good ? C.olive : C.dark }}>{value}</span>
-      <span className="text-[10px]" style={{ color: C.muted }}>{label}</span>
+      <span className="text-[12px]" style={{ color: C.muted }}>{label}</span>
     </div>
   );
 }

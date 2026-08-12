@@ -182,7 +182,7 @@ function Inbox() {
                   </span>
                   {t.unread > 0 && (
                     <span style={{ background: C.green, color: "#fff", borderRadius: 999,
-                      fontSize: 11, padding: "1px 7px", fontWeight: 700 }}>{t.unread}</span>
+                      fontSize: 12, padding: "1px 7px", fontWeight: 700 }}>{t.unread}</span>
                   )}
                 </div>
                 <p style={{ fontSize: 12.5, color: C.muted, margin: "3px 0 0",
@@ -216,7 +216,7 @@ function Inbox() {
                         whiteSpace: "pre-wrap" }}>
                         {m.body}
                       </div>
-                      <p style={{ fontSize: 10.5, color: C.muted, margin: "3px 6px 0",
+                      <p style={{ fontSize: 12.5, color: C.muted, margin: "3px 6px 0",
                         textAlign: m.direction === "in" ? "right" : "left" }}>
                         {time(m.at)}
                         {m.direction === "out" && m.status ? ` · ${STATUS_HE[m.status] ?? m.status}` : ""}

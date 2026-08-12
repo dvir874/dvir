@@ -107,7 +107,7 @@ function CheckinStation() {
           <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 22, fontWeight: 900, color: C.green, margin: 0, lineHeight: 1 }}>
             {arrivedPeople}<span style={{ fontSize: 13, fontWeight: 400, color: C.muted }}> / {expectedPeople}</span>
           </p>
-          <p style={{ fontSize: 10, color: C.muted, margin: "2px 0 0" }}>הגיעו</p>
+          <p style={{ fontSize: 12, color: C.muted, margin: "2px 0 0" }}>הגיעו</p>
         </div>
       </div>
 
@@ -159,7 +159,7 @@ function CheckinStation() {
                       {table ? (
                         <>
                           <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 22, fontWeight: 900, color: C.goldT, margin: 0, lineHeight: 1 }}>{table}</p>
-                          <p style={{ fontSize: 10, color: C.muted, margin: "2px 0 0" }}>שולחן</p>
+                          <p style={{ fontSize: 12, color: C.muted, margin: "2px 0 0" }}>שולחן</p>
                         </>
                       ) : (
                         <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>לא שובץ</p>

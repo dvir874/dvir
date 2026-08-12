@@ -430,7 +430,7 @@ function Box({ label, value, accent }: { label: string; value: number | string; 
       background: accent ? C.cream : C.page, border: `1px solid ${C.border}`,
       borderRadius: 12, padding: "10px 20px", textAlign: "center", minWidth: 104,
     }}>
-      <p style={{ margin: 0, fontSize: 11.5, color: C.muted }}>{label}</p>
+      <p style={{ margin: 0, fontSize: 12.5, color: C.muted }}>{label}</p>
       <p style={{
         margin: 0, fontFamily: "'Frank Ruhl Libre', serif", fontWeight: 800,
         fontSize: 24, color: accent ? C.gold : C.dark, direction: "ltr",

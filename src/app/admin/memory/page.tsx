@@ -87,7 +87,7 @@ function VaultCard({ event }: { event: Event }) {
                     <Icon size={12} style={{ color }} />
                     <span style={{ fontSize: 16, fontWeight: 700, color: DARK, fontFamily: "Frank Ruhl Libre, serif" }}>{count}</span>
                   </div>
-                  <p style={{ fontSize: 10, color: "rgba(51,51,51,0.45)" }}>{label}</p>
+                  <p style={{ fontSize: 12, color: "rgba(51,51,51,0.45)" }}>{label}</p>
                 </div>
               ))}
             </div>
@@ -125,7 +125,7 @@ function VaultCard({ event }: { event: Event }) {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={qrUrl} alt="QR Code" width={200} height={200} style={{ display: "block", borderRadius: 6 }} />
                 </div>
-                <p style={{ fontSize: 11, color: "rgba(51,51,51,0.5)", marginTop: 6 }}>סרקו להעלאת זכרונות</p>
+                <p style={{ fontSize: 12, color: "rgba(51,51,51,0.5)", marginTop: 6 }}>סרקו להעלאת זכרונות</p>
               </div>
             )}
 
@@ -159,7 +159,7 @@ function VaultCard({ event }: { event: Event }) {
             <div style={{ marginTop: "1.25rem" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
                 <p style={{ fontSize: 12, fontWeight: 600, color: DARK }}>{vault.items.length} פריטים נשמרו</p>
-                <button onClick={() => setExpanded(!expanded)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: GOLD, fontFamily: "Heebo, sans-serif" }}>
+                <button onClick={() => setExpanded(!expanded)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: GOLD, fontFamily: "Heebo, sans-serif" }}>
                   {expanded ? "הסתר" : "הצג הכל"}
                 </button>
               </div>
@@ -182,7 +182,7 @@ function VaultCard({ event }: { event: Event }) {
                   {blessings.map((b) => (
                     <div key={b.id} style={{ padding: "0.65rem 0.85rem", borderRadius: 10, background: "rgba(124,58,237,0.05)", border: "1px solid rgba(124,58,237,0.12)" }}>
                       <p style={{ fontSize: 12, color: DARK, marginBottom: 2 }}>&ldquo;{b.blessing_text}&rdquo;</p>
-                      <p style={{ fontSize: 10, color: "rgba(51,51,51,0.45)" }}>— {b.guest_name}</p>
+                      <p style={{ fontSize: 12, color: "rgba(51,51,51,0.45)" }}>— {b.guest_name}</p>
                     </div>
                   ))}
                 </div>
@@ -198,9 +198,9 @@ function VaultCard({ event }: { event: Event }) {
 function LinkRow({ label, url, copied, onCopy }: { label: string; url: string; copied: boolean; onCopy: () => void }) {
   return (
     <div style={{ background: "rgba(197,164,109,0.06)", borderRadius: 10, padding: "0.5rem 0.75rem", border: "1px solid rgba(197,164,109,0.15)" }}>
-      <p style={{ fontSize: 10, color: "rgba(51,51,51,0.5)", marginBottom: 2 }}>{label}</p>
+      <p style={{ fontSize: 12, color: "rgba(51,51,51,0.5)", marginBottom: 2 }}>{label}</p>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <p style={{ fontSize: 11, color: DARK, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", direction: "ltr" }}>{url}</p>
+        <p style={{ fontSize: 12, color: DARK, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", direction: "ltr" }}>{url}</p>
         <button
           onClick={onCopy}
           title="העתק"

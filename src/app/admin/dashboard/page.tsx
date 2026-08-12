@@ -159,7 +159,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div style={{ background: `linear-gradient(135deg, #2C3E2D, #1A2A1B)`, padding: "1.5rem 1.5rem 1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <p style={{ fontSize: 11, letterSpacing: "0.25em", color: "rgba(197,164,109,0.7)", marginBottom: 4 }}>RAGA LIFNEI</p>
+          <p style={{ fontSize: 12, letterSpacing: "0.25em", color: "rgba(197,164,109,0.7)", marginBottom: 4 }}>RAGA LIFNEI</p>
           <h1 style={{ ...FRANK, fontSize: "1.5rem", fontWeight: 700, color: "white", margin: 0 }}>לוח בקרה</h1>
         </div>
         <a href="/admin" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "rgba(255,255,255,0.6)", textDecoration: "none", padding: "0.5rem 1rem", borderRadius: 12, background: "rgba(255,255,255,0.08)" }}>
@@ -182,9 +182,9 @@ export default function DashboardPage() {
                 <Icon size={18} style={{ color }} />
               </div>
               <div>
-                <p style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>{label}</p>
+                <p style={{ fontSize: 12, color: C.muted, marginBottom: 2 }}>{label}</p>
                 <p style={{ ...FRANK, fontSize: "1.35rem", fontWeight: 700, color: C.dark, margin: 0, lineHeight: 1 }}>{value}</p>
-                <p style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>{sub}</p>
+                <p style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>{sub}</p>
               </div>
             </div>
           ))}
@@ -196,7 +196,7 @@ export default function DashboardPage() {
             <p style={{ ...FRANK, fontSize: "1rem", fontWeight: 700, color: C.dark, marginBottom: "1rem" }}>💰 הכנסות לפי חודש</p>
             <BarChart data={months.map(m => ({ label: m.label, value: m.revenue, color: C.gold }))} />
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: "0.75rem" }}>
-              <span style={{ fontSize: 11, color: C.muted }}>6 חודשים אחרונים</span>
+              <span style={{ fontSize: 12, color: C.muted }}>6 חודשים אחרונים</span>
               <span style={{ fontSize: 12, fontWeight: 700, color: C.olive }}>סה״כ: ₪{fmt(totalRevenue)}</span>
             </div>
           </div>
@@ -211,7 +211,7 @@ export default function DashboardPage() {
               {[["ירוק = מעל 75%", C.olive], ["צהוב = 40-75%", C.gold], ["אדום = מתחת 40%", "#EF4444"]].map(([l, c]) => (
                 <div key={l} style={{ display: "flex", alignItems: "center", gap: 5 }}>
                   <div style={{ width: 8, height: 8, borderRadius: "50%", background: c }} />
-                  <span style={{ fontSize: 10, color: C.muted }}>{l}</span>
+                  <span style={{ fontSize: 12, color: C.muted }}>{l}</span>
                 </div>
               ))}
             </div>
@@ -231,7 +231,7 @@ export default function DashboardPage() {
                   <div style={{ width: 44, height: 44, borderRadius: 12, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0,
                     background: e.daysUntilEvent <= 7 ? "rgba(239,68,68,0.1)" : "rgba(197,164,109,0.1)" }}>
                     <span style={{ fontSize: 16, fontWeight: 700, ...FRANK, color: e.daysUntilEvent <= 7 ? "#EF4444" : C.gold, lineHeight: 1 }}>{e.daysUntilEvent}</span>
-                    <span style={{ fontSize: 9, color: C.muted }}>ימים</span>
+                    <span style={{ fontSize: 12, color: C.muted }}>ימים</span>
                   </div>
                   {/* Info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -240,7 +240,7 @@ export default function DashboardPage() {
                       <p style={{ fontSize: 13, fontWeight: 700, color: C.dark, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.name}</p>
                     </div>
                     <RsvpBar ev={e} />
-                    <p style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>
+                    <p style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>
                       {new Date(e.date).toLocaleDateString("he-IL", { day: "numeric", month: "long" })} · {e.confirmed}/{e.total} ענו
                     </p>
                   </div>
@@ -256,7 +256,7 @@ export default function DashboardPage() {
         <div style={{ background: C.ivory, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
             <p style={{ ...FRANK, fontSize: "1rem", fontWeight: 700, color: C.dark, margin: 0 }}>כל האירועים ({events.length})</p>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 11, color: C.muted }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12, color: C.muted }}>
               <span style={{ display: "flex", alignItems: "center", gap: 4 }}><CheckCircle size={12} style={{ color: C.olive }} /> מגיעים</span>
               <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Clock size={12} style={{ color: C.gold }} /> ממתינים</span>
               <span style={{ display: "flex", alignItems: "center", gap: 4 }}><XCircle size={12} style={{ color: "#EF4444" }} /> לא מגיעים</span>
@@ -271,7 +271,7 @@ export default function DashboardPage() {
                 <Dot tier={e.healthTier} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: 13, fontWeight: 600, color: C.dark, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.name}</p>
-                  <p style={{ fontSize: 11, color: C.muted, margin: "1px 0 4px" }}>
+                  <p style={{ fontSize: 12, color: C.muted, margin: "1px 0 4px" }}>
                     {new Date(e.date).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}
                     {e.client_name ? ` · ${e.client_name}` : ""}
                   </p>
@@ -279,10 +279,10 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ textAlign: "left", flexShrink: 0, minWidth: 60 }}>
                   <p style={{ fontSize: 12, fontWeight: 700, color: C.dark, margin: 0, textAlign: "center" }}>{e.responseRate}%</p>
-                  <p style={{ fontSize: 10, color: C.muted, margin: "1px 0 0", textAlign: "center" }}>{e.confirmed}/{e.total}</p>
+                  <p style={{ fontSize: 12, color: C.muted, margin: "1px 0 0", textAlign: "center" }}>{e.confirmed}/{e.total}</p>
                   {e.payment_status === "paid"
-                    ? <p style={{ fontSize: 10, color: C.olive, textAlign: "center", marginTop: 2 }}>₪{fmt(e.payment_amount ?? 0)}</p>
-                    : <p style={{ fontSize: 10, color: "rgba(239,68,68,0.6)", textAlign: "center", marginTop: 2 }}>טרם שולם</p>}
+                    ? <p style={{ fontSize: 12, color: C.olive, textAlign: "center", marginTop: 2 }}>₪{fmt(e.payment_amount ?? 0)}</p>
+                    : <p style={{ fontSize: 12, color: "rgba(239,68,68,0.6)", textAlign: "center", marginTop: 2 }}>טרם שולם</p>}
                 </div>
               </a>
             ))}
@@ -301,7 +301,7 @@ export default function DashboardPage() {
                   <p style={{ fontSize: 13, color: C.dark, margin: 0 }}>{e.name}</p>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     {e.payment_amount && <span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>₪{fmt(e.payment_amount)}</span>}
-                    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10,
+                    <span style={{ fontSize: 12, padding: "2px 8px", borderRadius: 10,
                       background: e.payment_status === "paid" ? "rgba(107,123,90,0.12)" : "rgba(239,68,68,0.10)",
                       color: e.payment_status === "paid" ? C.olive : "#EF4444" }}>
                       {e.payment_status === "paid" ? "שולם ✓" : "טרם שולם"}

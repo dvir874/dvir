@@ -176,7 +176,7 @@ export default function GiftsPage() {
             <div key={s.label} style={{ ...CARD, padding: "1.25rem", textAlign: "center" }}>
               <div style={{ fontSize: 26, fontWeight: 700, color: GOLD, fontFamily: "Frank Ruhl Libre, serif" }}>{s.value}</div>
               <div style={{ fontSize: 13, color: "rgba(51,51,51,0.55)", marginTop: 4 }}>{s.label}</div>
-              {s.sub && <div style={{ fontSize: 11, color: "rgba(51,51,51,0.35)" }}>{s.sub}</div>}
+              {s.sub && <div style={{ fontSize: 12, color: "rgba(51,51,51,0.35)" }}>{s.sub}</div>}
             </div>
           ))}
         </div>

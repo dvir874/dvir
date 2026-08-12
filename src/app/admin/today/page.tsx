@@ -146,13 +146,13 @@ export default function AdminTodayPage() {
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 6 }}>
                           {(e.notOpened ?? 0) > 0 ? (
-                            <span style={{ fontSize: 11, color: C.red, fontWeight: 600 }}>
+                            <span style={{ fontSize: 12, color: C.red, fontWeight: 600 }}>
                               👀 {e.notOpened} לא פתחו את ההזמנה כלל — ייתכן מספר שגוי
                             </span>
                           ) : <span />}
                           <span
                             onClick={(ev) => { ev.preventDefault(); window.open(`/api/admin/backup?event_id=${e.id}`, "_blank"); }}
-                            style={{ fontSize: 11, color: C.muted, cursor: "pointer", textDecoration: "underline", flexShrink: 0 }}>
+                            style={{ fontSize: 12, color: C.muted, cursor: "pointer", textDecoration: "underline", flexShrink: 0 }}>
                             📦 גיבוי
                           </span>
                         </div>

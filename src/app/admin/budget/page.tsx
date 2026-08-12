@@ -276,7 +276,7 @@ export default function BudgetPage() {
                   return (
                     <tr key={item.id} style={{ borderBottom: "1px solid rgba(197,164,109,0.1)" }}>
                       <td style={{ padding: "0.7rem 1rem" }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "2px 8px", borderRadius: 20, background: `${CATEGORY_COLORS[item.category] ?? GOLD}18`, color: CATEGORY_COLORS[item.category] ?? GOLD, fontWeight: 600, fontSize: 11 }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "2px 8px", borderRadius: 20, background: `${CATEGORY_COLORS[item.category] ?? GOLD}18`, color: CATEGORY_COLORS[item.category] ?? GOLD, fontWeight: 600, fontSize: 12 }}>
                           {item.category}
                         </span>
                       </td>
