@@ -1474,10 +1474,10 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
          first and left the couple to do the prioritising the product was bought
          to do — while the alerts the API had been returning all along were
          displayed nowhere. */}
-      /* Stitch designed this screen at 390px and it is opened on a phone by
-             almost every couple. Without a ceiling a desktop browser stretched the
-             two-card grid across the full window and left half of each card empty —
-             the same design, five times too wide. */
+      {/* Stitch designed this screen at 390px and it is opened on a phone by
+          almost every couple. Without a ceiling a desktop browser stretched the
+          two-card grid across the full window and left half of each card empty —
+          the same design, five times too wide. */}
       <section style={{ padding:"20px 16px 0", maxWidth:520, margin:"0 auto", animation:"fadeUp .35s ease both" }}>
         <h1 style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"24px", fontWeight:700, color:C.dark, margin:"0 0 4px", lineHeight:1.25 }}>
           {briefing?.greeting ? `${briefing.greeting} ` : ""}

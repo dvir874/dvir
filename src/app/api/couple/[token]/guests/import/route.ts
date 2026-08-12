@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { toLocalPhone } from "@/lib/phone";
 import { parseGuestsFromXlsx } from "@/lib/xlsx-utils";
+import { parseBlockedGuests, type ParsedGuest } from "@/lib/xlsx-blocks";
 
 export const dynamic = "force-dynamic";
 
@@ -24,12 +25,35 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   const file = formData.get("file") as File | null;
   if (!file) return NextResponse.json({ error: "file required" }, { status: 400 });
 
+  /* Look at the file before deciding what to do with it.
+   *
+   * dry_run parses, deduplicates and reports — and writes nothing. A 550-row
+   * list from a client is not something to find out about after it is in the
+   * database; the four-family sheet that arrived for אורי ✧ שחר would have put
+   * sixty-five phone numbers in the headcount column under the old reader, and
+   * nothing about the response would have said so. */
+  const dryRun = formData.get("dry_run") === "1";
+
   const buffer = await file.arrayBuffer();
-  let parsed: { name: string; phone: string; guest_count: number }[];
+
+  /* The blocked reader first, because real lists arrive as several tables side
+     by side — one per family, each with its own column order. It falls back to
+     the flat reader when the sheet genuinely is one tidy table, so files that
+     imported before still import the same way. */
+  let parsed: ParsedGuest[] = [];
+  let blocks: unknown[] = [];
+  let problems: unknown[] = [];
   try {
-    parsed = parseGuestsFromXlsx(buffer);
-  } catch {
-    return NextResponse.json({ error: "לא ניתן לקרוא את הקובץ. בדקו שהוא קובץ Excel תקין." }, { status: 422 });
+    const r = parseBlockedGuests(buffer);
+    if (r.guests.length) { parsed = r.guests; blocks = r.blocks; problems = r.problems; }
+  } catch { /* fall through to the flat reader */ }
+
+  if (!parsed.length) {
+    try {
+      parsed = parseGuestsFromXlsx(buffer).map(g => ({ ...g, source_group: "" }));
+    } catch {
+      return NextResponse.json({ error: "לא ניתן לקרוא את הקובץ. בדקו שהוא קובץ Excel תקין." }, { status: 422 });
+    }
   }
 
   if (parsed.length === 0)
@@ -43,6 +67,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
          can never be matched to their own WhatsApp reply. */
       phone: toLocalPhone(g.phone).slice(0, 20),
       guest_count: Math.max(1, Math.min(20, Math.floor(Number(g.guest_count) || 1))),
+      source_group: String(g.source_group ?? "").slice(0, 120) || null,
     }))
     .filter((g) => g.name.length > 0);
 
@@ -82,8 +107,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     fresh.push(g);
   }
 
+  if (dryRun) {
+    /* Everything the real run would do, and nothing it would write. */
+    return NextResponse.json({
+      dry_run: true, blocks, problems,
+      would_import: fresh.length, duplicates,
+      total_guests: fresh.reduce((a, g) => a + g.guest_count, 0),
+      sample: fresh.slice(0, 10),
+      message: `${fresh.length} אורחים ייובאו · ${duplicates} כפילויות ידולגו · ${(problems as unknown[]).length} שורות דורשות תיקון`,
+    });
+  }
+
   if (fresh.length === 0) {
-    return NextResponse.json({ imported: 0, duplicates, message: "כל השורות כבר קיימות ברשימה" });
+    return NextResponse.json({ imported: 0, duplicates, blocks, problems, message: "כל השורות כבר קיימות ברשימה" });
   }
 
   /* In batches. One statement carrying 550 rows is a single point of failure at
@@ -109,5 +145,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     imported += data?.length ?? 0;
   }
 
-  return NextResponse.json({ imported, duplicates });
+  return NextResponse.json({ imported, duplicates, blocks, problems });
 }
