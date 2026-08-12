@@ -14,16 +14,32 @@ export function parseGuestsFromXlsx(
       const lastName  = String(row['שם משפחה'] ?? row['last_name'] ?? '').trim();
       const fullFromCols = [firstName, lastName].filter(Boolean).join(' ');
       const name = (fullFromCols || String(
-        row['שם'] ?? row['name'] ?? row['Name'] ?? row['שם מלא'] ?? ''
+        row['שם'] ?? row['name'] ?? row['Name'] ?? row['שם מלא'] ??
+        row['שם האורח'] ?? row['אורח'] ?? row['משפחה'] ?? ''
       )).trim();
       const phone = String(
-        row['טלפון'] ?? row['phone'] ?? row['Phone'] ?? row['מספר טלפון'] ?? ''
+        row['טלפון'] ?? row['phone'] ?? row['Phone'] ?? row['מספר טלפון'] ??
+        row['נייד'] ?? row['טלפון נייד'] ?? row['סלולרי'] ?? row['mobile'] ?? ''
       ).trim();
+      /* "כמות" is the commonest Hebrew heading of all and was not among these,
+         so a list using it silently gave every household one seat — a caterer's
+         number wrong for the entire wedding, with nothing anywhere to say so.
+         A guest list is somebody else's spreadsheet; the reader has to meet it
+         where it is. */
       const guest_count =
         Number(
-          row['מספר מוזמנים'] ??
+          row['כמות'] ??
+            row['כמות מוזמנים'] ??
+            row['כמות אנשים'] ??
+            row['מספר מוזמנים'] ??
+            row['מספר אנשים'] ??
+            row['מגיעים'] ??
+            row['מספר מגיעים'] ??
+            row['נפשות'] ??
             row['guests'] ??
             row['guest_count'] ??
+            row['count'] ??
+            row['qty'] ??
             row['מספר'] ??
             1
         ) || 1;
