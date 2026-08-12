@@ -201,12 +201,50 @@ export async function POST(req: NextRequest) {
        Recording happens after the message is stored, so a tap is never lost
        even if the exchange below fails, and each guest is isolated so one
        failure cannot swallow the rest of the batch. */
+    /* Every outcome is written down, including the ones that go wrong.
+     *
+     * This loop used to end in `catch {}` with a comment explaining that one
+     * guest's failure must not swallow the batch. That part was right. What it
+     * left out is that the failure was not recorded anywhere either — and the
+     * message row is written above, so the tap appears in the inbox looking
+     * perfectly handled while the guest stays pending for ever.
+     *
+     * On 12/08 that cost eight guests. עומר tapped לא מגיע and was recorded in
+     * one second; עדיאל sent the identical two messages six hours later and
+     * nothing happened at all. Same input, opposite outcome, no trace of the
+     * difference — so there was nothing to debug, and Dvir marked them by hand
+     * in two batches of five and three without knowing why he had to.
+     *
+     * Answers are not something we can afford to drop quietly. If handling
+     * throws we retry once, and whatever happens we leave a row saying so. */
+    const note = (reason: string) =>
+      sb.from("wa_runs").insert({ sent: 0, failed: 1, reason: reason.slice(0, 300) })
+        .then(() => {}, () => {});
+
     for (const m of messages) {
       const g = byPhone.get(localise(m.from ?? ""));
-      if (!g?.id || !m.from) continue;
+      if (!m.from) continue;
+      if (!g?.id) {
+        /* Answered from a number that is not on the list. Previously a silent
+           `continue`: the reply sat in the inbox under the sender's WhatsApp
+           profile name, indistinguishable from a guest who had been counted. */
+        await note(`reply_unmatched:${m.from}:${bodyOf(m).slice(0, 60)}`);
+        continue;
+      }
       try {
         await handleGuestReply(sb, g.id, m.from, bodyOf(m), m.button?.payload);
-      } catch { /* this guest's tap is unhandled; the next one need not be */ }
+      } catch (e1) {
+        /* One retry. The most likely cause is a slow or throttled Graph call
+           inside the exchange — the evening batch failed in the minutes right
+           after the cron pushed 72 messages — and that kind of failure usually
+           does not repeat a second later. */
+        try {
+          await handleGuestReply(sb, g.id, m.from, bodyOf(m), m.button?.payload);
+          await note(`reply_recovered:${g.id}:${String((e1 as Error)?.message ?? e1)}`);
+        } catch (e2) {
+          await note(`reply_failed:${g.id}:${String((e2 as Error)?.message ?? e2)}`);
+        }
+      }
     }
   } catch {
     /* Swallow — never let a malformed payload disable the subscription */
