@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { toLocalPhone } from "@/lib/phone";
 import { parseGuestsFromXlsx } from "@/lib/xlsx-utils";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   const sanitized = parsed
     .map((g) => ({
       name: String(g.name ?? "").trim().slice(0, 255),
-      phone: String(g.phone ?? "").replace(/\D/g, "").slice(0, 20),
+      /* Stored in one shape, always — see toLocalPhone. Stripping non-digits
+         alone left 972-prefixed numbers as typed, and a guest stored that way
+         can never be matched to their own WhatsApp reply. */
+      phone: toLocalPhone(g.phone).slice(0, 20),
       guest_count: Math.max(1, Math.min(20, Math.floor(Number(g.guest_count) || 1))),
     }))
     .filter((g) => g.name.length > 0);

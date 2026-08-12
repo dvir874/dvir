@@ -129,3 +129,25 @@ export function whatsappTestimonialLink(
     `ואם מכירים זוג שמתחתן — אשמח שתעבירו את המספר שלי 🙏\n\nתודה, דביר`;
   return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
 }
+
+/**
+ * One canonical shape for a stored Israeli number: 05XXXXXXXX.
+ *
+ * Nothing normalised on write. The importer stripped non-digits and stopped
+ * there, so a spreadsheet with 972-prefixed numbers stored them exactly as
+ * typed — eight guests on Dvir's own list, one of whom (שרוליק) never received
+ * anything. The webhook localises an incoming 9725… to 05… before looking a
+ * guest up, so a guest stored AS 9725… could never be matched to their own
+ * reply, and every delivery report about them landed nowhere.
+ *
+ * normalizePhone() above converts the other way, for wa.me links. This is the
+ * storage form, and it belongs on every path that writes a guest.
+ */
+export function toLocalPhone(raw: string | null | undefined): string {
+  const digits = String(raw ?? "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("972")) return "0" + digits.slice(3);
+  if (digits.startsWith("0"))   return digits;
+  /* Ten digits with no prefix is a mobile missing its leading zero. */
+  return digits.length === 9 ? "0" + digits : digits;
+}
