@@ -324,6 +324,19 @@ async function runSend(req: NextRequest) {
   if (!cfg) return NextResponse.json({ error: "whatsapp_not_configured" }, { status: 503 });
 
   const sb = createServerClient();
+  /* The clock the run is actually bounded by.
+   *
+   * timeCap below estimates from pacing constants alone and got it wrong: on
+   * 13/08 it allowed 72, the run sent 66, and the function was killed before it
+   * could write its own completion row. The estimate does not include the two
+   * database writes per message, the health fetch, or reconciliation — and
+   * Vercel does not extend the invocation to be fair.
+   *
+   * A real deadline needs no arithmetic and cannot drift when the constants or
+   * the database latency change. The loop checks it and stops early with what
+   * it has, which is always better than being killed holding it. */
+  const startedAt = Date.now();
+  const DEADLINE_MS = (maxDuration - 15) * 1000;
 
   /* Before any early return. Reconciliation is not part of sending, and a run
      that goes home because it is 2am or because the window is full must still
@@ -714,7 +727,15 @@ async function runSend(req: NextRequest) {
      batch boundary is also where the one failure worth reacting to mid-run is
      caught: 131048 describes the NUMBER, so the next guest fails too and
      sending the rest of the list is pure damage. */
+  let ranOutOfTime = 0;
   for (let i = 0; i < targets.length && !stopped; i += SEND_CONCURRENCY) {
+    /* Stop while there is still time to record what happened. A run that is
+       killed mid-flight leaves messages delivered and no trace that it ran —
+       which is how 66 went out on 13/08 under a row that says sent: 0. */
+    if (Date.now() - startedAt > DEADLINE_MS) {
+      ranOutOfTime = targets.length - i;
+      break;
+    }
     const batch = targets.slice(i, i + SEND_CONCURRENCY);
 
     const results = await Promise.all(batch.map(async t => {
@@ -805,6 +826,10 @@ async function runSend(req: NextRequest) {
   return record(sb, {
     event: ev.name,
     sent: sent.length, failed: failed.length, stopped,
+    /* Guests the run had time for but not budget. Reported rather than dropped:
+       they are picked up by the next run, and a run that ends early must say so
+       rather than looking like a quiet day. */
+    ...(ranOutOfTime ? { deferredForTime: ranOutOfTime } : {}),
     windowRecipients: usage.recipients,
     /* Reported on every run so a quiet day can be told apart from a throttled
        one without opening Meta's dashboard. "sent: 0" meant both for weeks. */
