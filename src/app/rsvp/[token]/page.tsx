@@ -30,6 +30,30 @@ export default async function RsvpPage({
   const { token } = await params;
   const res = await loadRsvp(token);
   return (
+    <>
+      {/* The way out when scripts do not run.
+       *
+       * On 13/08 שיר opened her invitation, screenshotted it, and told Mirav
+       * nothing was clickable. Her opened_at is null: the page reached her
+       * screen and no call reached the server. Whatever the cause — WhatsApp's
+       * in-app browser, a content blocker, a phone too old for the bundle — the
+       * page looks perfect and every tap does nothing, and the couple learns
+       * about it only if a guest happens to mention it.
+       *
+       * <noscript> is rendered as HTML and needs nothing to work. A guest whose
+       * browser runs scripts never sees this line; one whose browser does not
+       * sees the only link on the page that can still help them. */}
+      <noscript>
+        <div dir="rtl" style={{
+          background: "#FDFAF5", borderBottom: "1px solid #E8E0D4",
+          padding: "16px 18px", textAlign: "center",
+          fontFamily: "Heebo, system-ui, sans-serif", fontSize: 16, color: "#1C1008",
+        }}>
+          <a href={`/rsvp/${token}/simple`} style={{ color: "#6B7B5A", fontWeight: 700 }}>
+            👈 לאישור הגעה — לחצו כאן
+          </a>
+        </div>
+      </noscript>
     <RsvpClient
       token={token}
       initialData={res.kind === "ok" ? res.data : null}
@@ -38,5 +62,6 @@ export default async function RsvpPage({
          browser asks a question that has already been answered. */
       notFound={res.kind === "not_found"}
     />
+    </>
   );
 }
