@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { shabbatBlock } from "@/lib/shabbat";
 import {
   getWhatsAppConfig, sendInvitation, toE164, policyFor,
   rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY,
@@ -329,6 +330,15 @@ async function runSend(req: NextRequest) {
      leave the books straight. */
   const healed = await reconcileOpens(sb);
   const statusesApplied = await applyOrphanStatuses(sb);
+
+  /* Shabbat, before the hour check and before anything is claimed.
+   *
+   * Placed after reconciliation on purpose — the books are still balanced on a
+   * Saturday, nothing is sent. See src/lib/shabbat.ts for why the window is
+   * wider than Shabbat itself. */
+  const shabbat = shabbatBlock();
+  if (shabbat.blocked)
+    return record(sb, { sent: 0, reason: shabbat.reason, healed, statusesApplied });
 
   const hour = new Date().getUTCHours();
   if (hour < HOUR_START_UTC || hour > HOUR_END_UTC)
