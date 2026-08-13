@@ -556,6 +556,25 @@ export const WARMUP_MAX_DAILY_STEP = 25;
 
 export function warmupCap(health: AccountHealth, recentPeak: number): number {
   if (health.cap === 0) return 0;
+
+  /* A deliberate, dated, one-off override.
+   *
+   * The ramp is the reason this number recovered from the 9/8 restriction and
+   * it is not being loosened. But it is OUR brake, not Meta's: on 13/08 the
+   * account sits at tier 250 with quality GREEN and the ramp allows 118, so
+   * fewer than half the recipients Meta permits are being used, while 129
+   * guests have not answered eleven days before the wedding.
+   *
+   * WA_CAP_OVERRIDE raises the ramp for one run and nothing else. It is an
+   * environment variable rather than a constant so it can be removed without a
+   * deploy, and it is still floored by health.cap below — Meta's own number
+   * always wins, so this can never push past what the account is allowed.
+   *
+   * Set it, use it, remove it. A brake left off is not a brake. */
+  const override = Number(process.env.WA_CAP_OVERRIDE);
+  if (Number.isFinite(override) && override > 0) {
+    return Math.min(health.cap, Math.floor(override));
+  }
   const ramp = Math.max(
     WARMUP_COLD_START,
     Math.min(
