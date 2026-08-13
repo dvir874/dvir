@@ -34,7 +34,13 @@ export const dynamic = "force-dynamic";
    state meant the one place that tells an operator when to expect the next run
    went stale the moment the schedule moved — and it moved the same afternoon
    it was written. */
-const SCHEDULED_HOURS_UTC = [7, 16];   // vercel.json — 10:00 and 19:00 Israel
+/* Mirrors vercel.json. The file above it warns that this "went stale the moment
+   the schedule moved" — and it went stale again the same way on 13/08, when the
+   crons were shifted to 08:15 and 16:30 UTC to clear the rolling window and this
+   constant was left at [7, 16]. It is only used for expectedRuns and the
+   schedule display, so being wrong here does not stop a send; it stops us
+   noticing a send that never happened. */
+const SCHEDULED_HOURS_UTC = [8, 16];   // vercel.json — 11:15 and 19:30 Israel
 
 export async function GET(req: NextRequest) {
   const sb = createServerClient();
