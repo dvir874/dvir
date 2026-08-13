@@ -49,6 +49,7 @@ export type FailureScope =
 
 export type FailureKind =
   | "provider_terminal"   /* the provider will never accept this — do not retry */
+  | "provider_deferred"   /* the recipient is capped; the same send works tomorrow */
   | "provider_retryable"  /* throttling, 5xx, network — retry is meaningful */
   | "unmatched"           /* a real reply we could not attach to a guest */
   | "lookup"              /* a database read failed; we acted on partial truth */
@@ -56,18 +57,33 @@ export type FailureKind =
 
 /* Meta codes that are settled facts about a recipient, not transient trouble.
  *
- * 131026 the number has no WhatsApp · 131049 the recipient's marketing cap ·
- * 131050 opted out · 131048 the SENDING number is restricted.
+ * 131026 the number has no WhatsApp · 131050 opted out · 131048 the SENDING
+ * number is restricted. Retrying any of these spends quota to earn the same
+ * answer.
  *
- * Retrying any of these spends quota to earn the same answer. Three guests hit
- * 131049 on the evening of 12/08; every future attempt to reach them through
- * the API is arithmetic with a known result, and the only route left is a
- * person sending from their own phone. */
-const TERMINAL_CODES = new Set([131026, 131048, 131049, 131050]);
+ * 131049 is deliberately NOT here, and this is a correction. It is the
+ * recipient's own cap on marketing templates across all senders, and Meta
+ * documents that the same template may be sent again after 24 hours — sooner
+ * suppresses them for a further 24. policyFor() in whatsapp.ts already knows
+ * this and schedules a retry at ~26h, and that policy is the correct one.
+ *
+ * I classified it terminal here on the night of 12/08 and only noticed the
+ * contradiction the next morning, when two guests failed with the same code and
+ * were treated differently: עדי on his first attempt was queued for 14/08
+ * 12:02, and וובט, who had already failed the evening before, was not. Both
+ * were right. This file was the thing that was wrong, and a screen built on it
+ * would have shown a guest as unreachable while a retry sat waiting for him. */
+const TERMINAL_CODES = new Set([131026, 131048, 131050]);
+
+/* Retryable, but not soon, and not by the sender's own judgement. Kept separate
+   so a status screen can say "waiting until tomorrow" rather than "failed". */
+const DEFERRED_CODES = new Set([131049]);
 
 export function classify(input: { error: unknown; code?: number | null }): FailureKind {
   if (typeof input.code === "number") {
-    return TERMINAL_CODES.has(input.code) ? "provider_terminal" : "provider_retryable";
+    if (TERMINAL_CODES.has(input.code)) return "provider_terminal";
+    if (DEFERRED_CODES.has(input.code)) return "provider_deferred";
+    return "provider_retryable";
   }
   const text = messageOf(input.error).toLowerCase();
   if (!text) return "internal";

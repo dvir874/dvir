@@ -6,12 +6,21 @@ import { classify, messageOf, newRunId, recordFailure } from "./failures.ts";
    unhappy paths cannot go quiet — which is the entire reason the module exists. */
 
 test("terminal provider codes are never classified as retryable", () => {
-  for (const code of [131026, 131048, 131049, 131050]) {
+  for (const code of [131026, 131048, 131050]) {
     assert.equal(classify({ error: "failed", code }), "provider_terminal",
       `${code} must be terminal — retrying it spends quota for a known answer`);
   }
   /* 130472 is the unavoidable one percent, not an account emergency. */
   assert.equal(classify({ error: "failed", code: 130472 }), "provider_retryable");
+});
+
+test("131049 is deferred, not terminal — the send path retries it at ~26h", () => {
+  /* On 13/08 two guests failed with this code minutes apart. עדי, on his first
+     attempt, was correctly queued for the next day; וובט, who had already failed
+     the evening before, was correctly not. Calling it terminal here would have
+     shown עדי as unreachable while his retry sat waiting. */
+  assert.equal(classify({ error: "failed", code: 131049 }), "provider_deferred");
+  assert.notEqual(classify({ error: "failed", code: 131049 }), "provider_terminal");
 });
 
 test("throttling and transport errors are retryable, our own bugs are not", () => {
@@ -90,7 +99,7 @@ test("the row carries the code and stays inside its column", async () => {
     guestId: "g1", eventId: "e1", ref: "wamid.123", runId: "run_abc",
   });
   const written = row as unknown as Record<string, unknown>;
-  assert.equal(written.kind, "provider_terminal");
+  assert.equal(written.kind, "provider_deferred");   /* 131049 — see the test above */
   assert.equal(written.guest_id, "g1");
   assert.equal(written.ref, "wamid.123");
   assert.equal(written.run_id, "run_abc");
