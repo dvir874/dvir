@@ -82,9 +82,14 @@ test("an unusable number is reported by name and row, never dropped", () => {
 test("plausibility rejects what is merely digits", () => {
   assert.ok(isPlausiblePhone("0528688437"));
   assert.ok(isPlausiblePhone("021234567"), "landline: 02 + 7 digits");
-  assert.ok(!isPlausiblePhone("50590220"));
-  assert.ok(!isPlausiblePhone("1234567890"));
+  assert.ok(!isPlausiblePhone("50590220"), "eight digits reaches nobody");
   assert.ok(!isPlausiblePhone(""));
+  /* "1234567890" is deliberately NOT asserted either way any more. Ten digits
+     with no leading zero was implausible while only Israeli numbers were
+     accepted; with foreign numbers it is inside the E.164 range and cannot be
+     ruled out from its shape alone. Where the two rules disagree, accepting is
+     the safer error: a guest with an odd-looking number is reported to the
+     couple, while one rejected here is simply gone. */
 });
 
 test("headcount defaults to one and is bounded", () => {
@@ -110,4 +115,28 @@ test("a plain single-table sheet still works", () => {
   assert.equal(r.guests.length, 1);
   assert.equal(r.guests[0].phone, "0501234567");
   assert.equal(r.guests[0].guest_count, 3);
+});
+
+test("a foreign number is kept, not rejected as malformed", () => {
+  /* סטיב ומריאן live abroad. The client corrected their row to +1 646 284 1932
+     on 13/08 and the parser called it invalid — refusing every foreign number
+     would quietly drop them, and every overseas relative after them. */
+  assert.equal(normalisePhone(" 16462841932 +"), "16462841932");
+  assert.ok(isPlausiblePhone("16462841932"), "US");
+  assert.ok(isPlausiblePhone("447911123456"), "UK");
+  assert.ok(isPlausiblePhone("33612345678"), "France");
+});
+
+test("Israeli numbers still keep their local shape", () => {
+  /* The rest of the system stores and matches on 0XX, so this must not change. */
+  assert.equal(normalisePhone("+972-52-3641679"), "0523641679");
+  assert.equal(normalisePhone("972537171556"), "0537171556");
+  assert.equal(normalisePhone("055-8838607"), "0558838607");
+});
+
+test("a number that is merely digits is still refused", () => {
+  assert.ok(!isPlausiblePhone("50590220"), "too short");
+  assert.ok(!isPlausiblePhone("1234"), "far too short");
+  assert.ok(!isPlausiblePhone("0123456789012"), "leading zero is a local number we misread");
+  assert.ok(!isPlausiblePhone(""));
 });

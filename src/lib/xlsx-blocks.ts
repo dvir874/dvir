@@ -74,33 +74,54 @@ function headerKind(v: unknown): "name" | "phone" | "count" | null {
   return null;
 }
 
-/* Israeli mobile and landline, from whatever Excel did to it.
+/* Whatever Excel did to it, and wherever the guest lives.
  *
- * Three real shapes from one file:
- *   "055-8838607"    typed as text
- *   "0 52-868-8437"  a space after the zero
- *   586855990        stored as a NUMBER — Excel ate the leading zero, and all
- *                    eighty-seven of one family's rows look like this
+ * Four real shapes from two versions of one file:
+ *   "055-8838607"     typed as text
+ *   "0 52-868-8437"   a space after the zero
+ *   586855990         stored as a NUMBER — Excel ate the leading zero, and all
+ *                     eighty-seven rows of one family look like this
+ *   " 16462841932 +"  a US number, +1 646 284 1932
  *
- * The last one is the dangerous one: it is a valid number, it imports without
- * complaint, and it can never be matched to the guest's own WhatsApp reply. On
- * 12/08 three guests were stored in a shape like this; one was Dvir's sister,
- * and her answer would not have counted. */
+ * The third is the dangerous one: valid, imports without complaint, and can
+ * never be matched to that guest's own WhatsApp reply. Three guests were stored
+ * that way on 12/08; one was Dvir's sister.
+ *
+ * The fourth arrived on 13/08 when the client corrected a row, and the parser
+ * rejected it as malformed. It was not malformed — סטיב ומריאן live abroad.
+ * WhatsApp is not an Israeli service and a wedding is not an Israeli-only guest
+ * list; refusing every foreign number would have quietly dropped them, and any
+ * relative overseas after them, out of every future client's list.
+ *
+ * Israeli numbers keep their local 0XX shape, because that is what the rest of
+ * the system stores and matches on. Foreign numbers are kept as E.164 digits —
+ * which is also exactly what Meta sends back on a reply, so matching works
+ * without a second code path. */
 export function normalisePhone(raw: unknown): string {
-  let d = String(raw ?? "").replace(/\D/g, "");
+  const text = String(raw ?? "");
+  let d = text.replace(/\D/g, "");
   if (!d) return "";
-  if (d.startsWith("972")) d = "0" + d.slice(3);
+
+  if (d.startsWith("972")) return "0" + d.slice(3);
   /* Nine digits and no leading zero is Excel's numeric mangling, not a real
-     nine-digit number — Israeli numbers are ten digits with the zero, or nine
-     for the older two-digit area codes, which also start with zero. */
+     nine-digit number — Israeli numbers carry the zero. */
   if (d.length === 9 && !d.startsWith("0")) d = "0" + d;
+  if (d.startsWith("0")) return d;
+
+  /* No leading zero and not Israeli: a country code. Kept as digits, the same
+     shape Meta uses. */
   return d;
 }
 
 export function isPlausiblePhone(p: string): boolean {
-  /* Mobile: 05X + 7 digits = 10. Landline: 0X + 7 digits = 9, area codes 2-4
-     and 8-9. Anything else is digits, not a number we can reach a guest on. */
-  return /^0(5\d{8}|[2-4,8-9]\d{7})$/.test(p);
+  /* Israeli — mobile 05X + 7 digits, landline 0X + 7 with area codes 2-4, 8-9. */
+  if (/^0(5\d{8}|[2-4,8-9]\d{7})$/.test(p)) return true;
+  /* Foreign, in E.164 digits. The range covers every real country code and
+     national number: shortest plausible is around ten digits, longest is
+     fifteen by the standard. A leading zero here would be a local number we
+     failed to recognise, not an international one, so it is excluded. */
+  if (/^[1-9]\d{9,14}$/.test(p)) return true;
+  return false;
 }
 
 /* Excel column letter, for a report a human can act on. */
