@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { eventTimes } from "@/lib/event-times";
 import {
   getWhatsAppConfig, sendInvitation, toE164,
   SECONDS_PER_MESSAGE, SAFE_DAILY_LIMIT, MAX_RETRIES, rollingWindowUsage,
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
 
   const evIds = [...new Set((guests ?? []).map(g => g.event_id))];
   const { data: events } = await sb.from("events")
-    .select("id, name, date, address, wa_header_image_url").in("id", evIds);
+    .select("id, name, date, address, reception_time, chuppah_time, wa_header_image_url").in("id", evIds);
   const eventById = new Map((events ?? []).map(e => [e.id, e]));
 
   const sent: string[] = [];
@@ -104,10 +105,11 @@ export async function POST(req: NextRequest) {
       date: ev?.date ? new Date(ev.date).toLocaleDateString("he-IL",
         { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "",
       venue: ev?.address ?? "",
-      times: "קבלת פנים 19:00 | חופה וקידושין 20:00",
+      /* From the event, not from a constant — see src/lib/event-times.ts. */
+      times: eventTimes(ev) ?? "",
     };
-    if (details && (!details.couple || !details.date || !details.venue)) {
-      failed.push({ name: g.name, error: "חסרים פרטי אירוע" });
+    if (details && (!details.couple || !details.date || !details.venue || !details.times)) {
+      failed.push({ name: g.name, error: "חסרים פרטי אירוע (שם, תאריך, מקום או שעות)" });
       continue;
     }
 

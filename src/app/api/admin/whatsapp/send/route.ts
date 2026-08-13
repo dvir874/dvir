@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { eventTimes } from "@/lib/event-times";
 import {
   getWhatsAppConfig, sendInvitation, toE164,
   SAFE_DAILY_LIMIT, SECONDS_PER_MESSAGE, rollingWindowUsage,
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
   /* Each event carries its own invitation card and its own wording. */
   const { data: eventRow } = await sb
     .from("events")
-    .select("name, date, address, wa_header_image_url")
+    .select("name, date, address, reception_time, chuppah_time, wa_header_image_url")
     .eq("id", eventId).maybeSingle();
   /* No global fallback. WHATSAPP_HEADER_IMAGE_URL holds ONE couple's invitation
      card, so falling back to it means the next client's 550 guests receive Dvir
@@ -149,12 +150,25 @@ export async function POST(req: NextRequest) {
           { weekday: "long", day: "numeric", month: "long", year: "numeric" })
       : "",
     venue: eventRow?.address ?? "",
-    times: "קבלת פנים 19:00 | חופה וקידושין 20:00",
+    /* The times come from the event, not from a constant.
+     *
+     * This line read "קבלת פנים 19:00 | חופה וקידושין 20:00" — written when
+     * there was one wedding, and left behind when the template was made
+     * generic. Three of the four variables were wired to the event and this one
+     * was not, so every client would have had Dvir's schedule sent out under
+     * their own names. אורי ✧ שחר receive at 17:30 and stand under the chuppah
+     * at 18:15, deliberately before sunset; 327 households would have been told
+     * 19:00 and 20:00, and some would have arrived after the chuppah. */
+    times: eventTimes(eventRow) ?? "",
   };
-  if (details && (!details.couple || !details.date || !details.venue)) {
+  /* times joins the same gate. A missing image already refuses rather than
+     falling back to another couple's card; a missing time must refuse rather
+     than falling back to another couple's schedule, which is what the constant
+     it replaced was doing silently. */
+  if (details && (!details.couple || !details.date || !details.venue || !details.times)) {
     return NextResponse.json(
       { error: "missing_event_details",
-        hint: "חסרים שם הזוג, תאריך או מקום האירוע — השליחה נעצרה" },
+        hint: "חסרים שם הזוג, תאריך, מקום או שעות האירוע — השליחה נעצרה" },
       { status: 400 },
     );
   }
