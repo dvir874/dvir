@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { eventTimes } from "@/lib/event-times";
+import { weddingDateLine } from "@/lib/hebrew-date";
 import {
   getWhatsAppConfig, sendInvitation, toE164,
   SECONDS_PER_MESSAGE, SAFE_DAILY_LIMIT, MAX_RETRIES, rollingWindowUsage,
@@ -102,8 +103,10 @@ export async function POST(req: NextRequest) {
     const isOwnWedding = g.event_id === "a5e65dcf-8109-438d-a4a1-8f65d6f3e948";
     const details = isOwnWedding ? undefined : {
       couple: ev?.name ?? "",
-      date: ev?.date ? new Date(ev.date).toLocaleDateString("he-IL",
-        { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "",
+      /* Both calendars. Her card says כ״ו אלול תשפ״ו and a guest
+         reading "8 בספטמבר" alone is being shown a translation of their
+         own date back to them. See src/lib/hebrew-date.ts. */
+      date: weddingDateLine(ev?.date ?? ""),
       venue: ev?.address ?? "",
       /* From the event, not from a constant — see src/lib/event-times.ts. */
       times: eventTimes(ev) ?? "",
