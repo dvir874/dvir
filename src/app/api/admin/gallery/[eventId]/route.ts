@@ -57,6 +57,34 @@ export async function POST(
     return NextResponse.json({ ok: true, status: newStatus });
   }
 
+  /* Declaring the gallery ready — the switch that was missing.
+   *
+   * The post-wedding thank-you has had an approved template, a working cron and
+   * three correct gates since before the first wedding. What it never had was a
+   * way for anyone to say "the photos are up": gallery_ready could only be set
+   * by hand in SQL, so the feature existed for whoever remembered it and for
+   * nobody else — the same shape as every other failure this week, a mechanism
+   * that works perfectly and that no one can reach.
+   *
+   * Setting it sends nothing. The cron still requires the date to have passed
+   * and still messages only guests who wanted photos, so flipping this early is
+   * harmless and flipping it twice sends nothing twice.
+   *
+   * Turning it back off also clears gallery_notified_at, because without that
+   * an event switched off and on again stays closed for ever.
+   *
+   * Admin-side on purpose. The couple-facing control is a real screen and goes
+   * through Stitch; this exists so the capability is reachable today rather
+   * than after a design round, ten days before a wedding. */
+  if (body.action === 'gallery_ready') {
+    const ready = (body as { ready?: boolean }).ready !== false;
+    const { error } = await sb.from('events')
+      .update({ gallery_ready: ready, ...(ready ? {} : { gallery_notified_at: null }) })
+      .eq('id', eventId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, gallery_ready: ready });
+  }
+
   if (body.action === 'sync_event_name') {
     const { data: event } = await sb.from('events').select('name').eq('id', eventId).single();
     await sb.from('gallery_albums').update({ event_name: event?.name ?? '' }).eq('event_id', eventId);

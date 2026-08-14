@@ -1516,10 +1516,10 @@ export default function RsvpClient({
                 <span style={{ fontSize: 20, lineHeight: 1.2 }}>📸</span>
                 <span>
                   <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: T.dark }}>
-                    הגלריה המשותפת של החתונה
+                    התמונות שלכם מהחתונה
                   </span>
                   <span style={{ display: "block", fontSize: 12.5, color: T.muted, marginTop: 3, lineHeight: 1.55 }}>
-                    אחרי האירוע נשלח לכם קישור — תוכלו להעלות את התמונות שצילמתם ולראות את של כולם 🤍
+                    אחרי האירוע נשלח לכם קישור להעלאת התמונות והסרטונים שצילמתם — הם מגיעים לזוג בלבד 🤍
                   </span>
                 </span>
               </div>

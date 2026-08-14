@@ -715,7 +715,20 @@ async function runSend(req: NextRequest) {
   /* Nobody left to invite or remind is exactly when the gallery announcement
      should go out — same budget, same pacing, same caps. */
   if (!targets.length) {
-    const gal = await notifyGallery(sb, cfg, budget);
+    /* A ceiling, so the thank-you does not silently starve the invitations.
+     *
+     * notifyGallery returns early when it sends, taking the entire run with
+     * it. That was harmless while wants_photos was a checkbox some guests
+     * unticked; it stopped being harmless when the gallery became automatic
+     * and every guest qualified. שחר has 555 of them — four consecutive days
+     * of full quota — and תהל ואביב's invitations would have gone out in
+     * none of those days, thirteen days before their own wedding.
+     *
+     * A third of the run, capped at sixty. The gallery still clears in a few
+     * days, and no couple's invitations stop while another couple's guests
+     * are being thanked. */
+    const galleryBudget = Math.max(1, Math.min(60, Math.floor(budget / 3)));
+    const gal = await notifyGallery(sb, cfg, galleryBudget);
     if (gal.sent) {
       return record(sb, {
         sent: gal.sent, reason: "gallery_notified", healed, statusesApplied,
