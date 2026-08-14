@@ -40,7 +40,14 @@ export const dynamic = "force-dynamic";
    constant was left at [7, 16]. It is only used for expectedRuns and the
    schedule display, so being wrong here does not stop a send; it stops us
    noticing a send that never happened. */
-const SCHEDULED_HOURS_UTC = [8, 16];   // vercel.json — 11:15 and 19:30 Israel
+/* The two DAILY runs — vercel.json, 11:15 and 19:30 Israel.
+ *
+ * There is a third cron, "15 18 * * 6", which fires only on מוצ״ש. It is left
+ * out on purpose: this list drives expectedRuns, and counting a weekly run as
+ * a daily one would report six missing runs every week. Undercounting costs a
+ * real missed run going unnoticed on a Saturday night; overcounting cries wolf
+ * six days out of seven, and an alarm nobody believes is worse than no alarm. */
+const SCHEDULED_HOURS_UTC = [8, 16];
 
 export async function GET(req: NextRequest) {
   const sb = createServerClient();

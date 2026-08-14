@@ -19,6 +19,9 @@
  * trusted with their guests and not.
  */
 
+/* Israel's latest Shabbat exit is ~20:30; 21:00 clears it year-round. */
+const MOTZASH_HOUR = 21;
+
 export type ShabbatVerdict = { blocked: boolean; reason?: string };
 
 /* Friday midday through the end of Saturday, Israel time — whatever the server's
@@ -33,7 +36,21 @@ export function shabbatBlock(now: Date = new Date()): ShabbatVerdict {
   if (day === "Fri" && hour >= 12) {
     return { blocked: true, reason: "shabbat_eve" };
   }
-  if (day === "Sat") {
+  /* Saturday is blocked until 21:00, not until midnight.
+   *
+   * It used to run to the end of the civil day, which was the safe thing to
+   * write and the wrong thing to keep: Shabbat goes out around 20:10 in August
+   * and the block ran four more hours past it, so מוצ״ש — the best sending hour
+   * of the Israeli week, when everyone is back and holding their phone — was
+   * unreachable. Dvir asked for 21:00 on מוצ״ש and the guard would have eaten
+   * it in silence.
+   *
+   * 21:00 rather than the actual זמן, deliberately. The latest Shabbat leaves
+   * in Israel is about 20:30, so this clears every week of the year without
+   * computing anything. In winter it is over-cautious by a few hours, which is
+   * the error worth making: a message that goes out late is a message, and one
+   * that goes out during Shabbat is a phone call from a guest. */
+  if (day === "Sat" && hour < MOTZASH_HOUR) {
     return { blocked: true, reason: "shabbat" };
   }
   return { blocked: false };

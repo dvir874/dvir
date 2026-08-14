@@ -43,3 +43,23 @@ test("winter is covered by the same rule", () => {
   assert.equal(shabbatBlock(il("2027-01-15T15:00:00Z")).blocked, true);
   assert.equal(shabbatBlock(il("2027-01-16T17:30:00Z")).blocked, true);
 });
+
+test("מוצ״ש opens at 21:00 — the run Dvir asked for is not eaten by the guard", () => {
+  /* 15/08/2026 is a Saturday. Shabbat goes out around 20:10 that night. */
+  assert.equal(shabbatBlock(new Date("2026-08-15T17:30:00Z")).blocked, true,  "20:30 — still blocked");
+  assert.equal(shabbatBlock(new Date("2026-08-15T18:15:00Z")).blocked, false, "21:15 — the מוצ״ש cron may send");
+  assert.equal(shabbatBlock(new Date("2026-08-15T20:00:00Z")).blocked, false, "23:00 — open");
+});
+
+test("Friday evening and Saturday morning stay shut", () => {
+  /* The whole reason the guard exists. Widening מוצ״ש must not widen these. */
+  assert.equal(shabbatBlock(new Date("2026-08-14T16:30:00Z")).blocked, true, "Friday 19:30");
+  assert.equal(shabbatBlock(new Date("2026-08-15T08:15:00Z")).blocked, true, "Saturday 11:15");
+});
+
+test("in winter 21:00 is late, not early — never inside Shabbat", () => {
+  /* Shabbat leaves around 17:15 in January. The guard is over-cautious here by
+     design; what must never happen is the reverse. */
+  assert.equal(shabbatBlock(new Date("2026-01-17T15:00:00Z")).blocked, true,  "17:00 IST — still Shabbat");
+  assert.equal(shabbatBlock(new Date("2026-01-17T19:15:00Z")).blocked, false, "21:15 IST — open");
+});
