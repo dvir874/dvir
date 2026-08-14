@@ -1495,12 +1495,35 @@ export default function RsvpClient({
               </div>
             )}
 
-            {/* Sharing photos is no longer a question. It was a pre-ticked
-                checkbox, which presents as a decision worth making — and every
-                extra control here is one more thing that has to work for a
-                guest to get through. The gallery is part of the wedding, not an
-                upsell. wants_photos stays in the database and is still sent as
-                true, so restoring the question is a render. */}
+            {/* The shared gallery — announced, not asked.
+             *
+             * It began as a pre-ticked checkbox. Dvir asked for it to be
+             * automatic and I removed the control entirely, which took the
+             * feature off the screen with it: שחר opened the page and said the
+             * photo option was missing, and she was right.
+             *
+             * "Automatic" meant do not make them decide — not do not tell them.
+             * A guest who does not know the gallery exists will not look for it
+             * after the wedding, and it is one of the few things on this page
+             * that is a gift rather than a request. So it is stated, always on,
+             * with nothing to tick. */}
+            {attending && (
+              <div style={{
+                marginBottom: 24, padding: "14px 16px", borderRadius: 14,
+                border: `1.5px solid ${T.border}`, background: "rgba(197,164,109,0.07)",
+                display: "flex", alignItems: "flex-start", gap: 12,
+              }}>
+                <span style={{ fontSize: 20, lineHeight: 1.2 }}>📸</span>
+                <span>
+                  <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: T.dark }}>
+                    הגלריה המשותפת של החתונה
+                  </span>
+                  <span style={{ display: "block", fontSize: 12.5, color: T.muted, marginTop: 3, lineHeight: 1.55 }}>
+                    אחרי האירוע נשלח לכם קישור — תוכלו להעלות את התמונות שצילמתם ולראות את של כולם 🤍
+                  </span>
+                </span>
+              </div>
+            )}
 
             {/* dvir_list: notes to the hosts (replaces meal choice) */}
             {attending && isDvir && (
