@@ -152,31 +152,51 @@ function findHeaderRow(grid: unknown[][]): number {
  * count, in any order. Runs are separated by the blank spacer columns the
  * client used between families. */
 function findBlocks(header: unknown[], titles: unknown[]): {
-  name: number; phone: number; count: number; title: string;
+  name: number; phone: number; count: number | null; title: string;
 }[] {
-  const blocks: { name: number; phone: number; count: number; title: string }[] = [];
+  const blocks: { name: number; phone: number; count: number | null; title: string }[] = [];
   let cur: { name?: number; phone?: number; count?: number; first?: number } = {};
 
   const flush = () => {
-    if (cur.name != null && cur.phone != null && cur.count != null) {
+    /* A name and a phone are enough.
+     *
+     * This required all three, so a sheet of just שם | פלאפון — which is what
+     * תהל ואביב sent, 309 rows of it — matched no block at all and the reader
+     * returned zero without saying why. Plenty of couples never fill in a
+     * headcount; the guest tells us that when they answer anyway.
+     *
+     * A missing count column means every row is one person until they say
+     * otherwise, which is the same default the count cell already had when it
+     * was blank. */
+    if (cur.name != null && cur.phone != null) {
       /* The block's title is the nearest non-empty cell at or after its first
          column on the title row — "מוזמנים פורת" sits above the name column. */
       let title = "";
       for (let c = cur.first ?? 0; c <= (cur.count ?? 0) + 1 && !title; c++) {
         title = clean(titles?.[c]);
       }
-      blocks.push({ name: cur.name, phone: cur.phone, count: cur.count, title });
+      blocks.push({ name: cur.name, phone: cur.phone, count: cur.count ?? null, title });
     }
     cur = {};
   };
 
   for (let c = 0; c < header.length; c++) {
     const kind = headerKind(header[c]);
-    if (!kind) { if (cur.name != null) flush(); continue; }
+    if (!kind) {
+      /* A blank column ends a block only once it has both a name and a phone.
+         תהל ואביב's sheet is שם | (blank) | פלאפון — flushing at the first gap
+         threw the name away before the phone was ever seen, and the whole file
+         read as empty. A gap inside an incomplete block is a spacer, not a
+         boundary. */
+      if (cur.name != null && cur.phone != null) flush();
+      continue;
+    }
     /* A second field of the same kind means a new block began without a spacer. */
     if (cur[kind] != null) flush();
     if (cur.first == null) cur.first = c;
     cur[kind] = c;
+    /* Close the block only once all three are in hand. With no count column the
+       run ends at the first blank column instead, handled above. */
     if (cur.name != null && cur.phone != null && cur.count != null) flush();
   }
   flush();
@@ -210,7 +230,7 @@ export function parseBlockedGuests(buffer: ArrayBuffer | Buffer): ParseResult {
 
         const rawPhone = grid[r]?.[b.phone];
         const phone = normalisePhone(rawPhone);
-        const n = Number(grid[r]?.[b.count]);
+        const n = b.count == null ? NaN : Number(grid[r]?.[b.count]);
         const count = Number.isFinite(n) && n >= 1 ? Math.min(20, Math.floor(n)) : 1;
         sum += count;
 
@@ -230,7 +250,8 @@ export function parseBlockedGuests(buffer: ArrayBuffer | Buffer): ParseResult {
 
       blocks.push({
         group,
-        columns: { name: colLetter(b.name), phone: colLetter(b.phone), count: colLetter(b.count) },
+        columns: { name: colLetter(b.name), phone: colLetter(b.phone),
+                   count: b.count == null ? "—" : colLetter(b.count) },
         rows, guests: sum,
       });
     }

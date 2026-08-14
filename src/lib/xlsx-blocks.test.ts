@@ -140,3 +140,19 @@ test("a number that is merely digits is still refused", () => {
   assert.ok(!isPlausiblePhone("0123456789012"), "leading zero is a local number we misread");
   assert.ok(!isPlausiblePhone(""));
 });
+
+test("a sheet of just name and phone is read, not silently ignored", () => {
+  /* תהל ואביב sent 309 rows of שם | פלאפון with no headcount column at all.
+     The reader required all three and returned zero without saying why — the
+     worst possible answer, because it looks like an empty file. Every row is
+     one person until the guest says otherwise, which is the same default a
+     blank count cell already had. */
+  const rows = [["שם", "", "פלאפון"], ["אחינועם דוראני", "", "0556690775"], ["יעל ללום", "", "972587902074"]];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), "גיליון1");
+  const r = parseBlockedGuests(XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer);
+  assert.equal(r.guests.length, 2);
+  assert.equal(r.guests[0].guest_count, 1);
+  assert.equal(r.guests[1].phone, "0587902074", "972 prefix still normalised");
+  assert.equal(r.blocks[0].columns.count, "—", "reported as absent, not guessed");
+});
