@@ -557,6 +557,9 @@ async function runSend(req: NextRequest) {
 
   const sent: string[] = [];
   const failed: { name: string; error: string }[] = [];
+  /* Guests who reached the batch from a query scoped to a different wedding.
+     Always empty in a healthy run; loud in the run where it is not. */
+  const crossEvent: { name: string; event: string }[] = [];
   let stopped: string | null = null;
 
   /* Who gets the day's budget, in order.
@@ -808,7 +811,7 @@ async function runSend(req: NextRequest) {
       posture: health.posture, window_used: usage.recipients });
 
   const { data: guests } = await sb.from("guests")
-    .select("id, name, phone, rsvp_token").in("id", targets.map(t => t.id));
+    .select("id, name, phone, rsvp_token, event_id").in("id", targets.map(t => t.id));
   const byId = new Map((guests ?? []).map(g => [g.id, g]));
 
   /* Batches, not one at a time.
@@ -833,6 +836,24 @@ async function runSend(req: NextRequest) {
     const results = await Promise.all(batch.map(async t => {
       const g = byId.get(t.id);
       if (!g?.phone || !g.rsvp_token) return null;
+
+      /* The guest must belong to the wedding whose details are in this message.
+       *
+       * targets is assembled from four separate queries — pending guests,
+       * reminders, deferred retries, backfill — and details comes from one
+       * event. Every one of those queries is supposed to be scoped to ev.id,
+       * and checking that they all are is a claim with a shelf life: the next
+       * source added is one nobody re-checks.
+       *
+       * So it is not a claim. A guest from another wedding is dropped here and
+       * recorded by name, which turns "I read the queries" into something that
+       * holds for queries not yet written. This is the only thing standing
+       * between three couples sending in the same week and שחר's guests being
+       * invited to תהל's wedding. */
+      if (g.event_id !== ev.id) {
+        crossEvent.push({ name: (g.name as string) ?? t.id, event: ev.name as string });
+        return null;
+      }
       const res = await sendInvitation(
         cfg, g.phone, g.rsvp_token, image, details,
         t.reminder ? "reminder" : "invitation",
@@ -931,6 +952,7 @@ async function runSend(req: NextRequest) {
       reasons: health.reasons,
     },
     skippedEvents,
+    ...(crossEvent.length ? { crossEvent } : {}),
     /* Named, not just counted. These are the guests the automation has given
        up on, and somebody has to phone them. */
     unreachable: [...unreachable.values()].length,
