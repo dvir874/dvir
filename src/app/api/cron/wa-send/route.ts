@@ -604,6 +604,18 @@ async function runSend(req: NextRequest) {
   /* Whose most recent attempt ended in a failure no retry can fix. Reported in
      the response rather than only skipped, because "the automation has given
      up on these three" is exactly the list a human has to work from. */
+  /* "Do not message this person." A couple saying so is not an error state and
+     must not expire: the helper-assignment field was borrowed for it once and
+     would have returned אורית to the queue two days later, after Dvir had
+     already spoken to her himself. Read straight from the guest, alongside the
+     numbers Meta will never accept — from the sender's side they are the same
+     instruction. */
+  const { data: dncRows } = await sb.from("guests")
+    .select("id, do_not_contact_note").eq("event_id", ev.id).eq("do_not_contact", true);
+  const doNotContact = new Map<string, string>(
+    (dncRows ?? []).map(r => [r.id as string, (r.do_not_contact_note as string) || "סומן: לא לפנות"]),
+  );
+
   const unreachable = new Map<string, string>();
   for (const [id, m] of lastByGuest) {
     if (m.status !== "failed") continue;
@@ -619,7 +631,8 @@ async function runSend(req: NextRequest) {
   const reserved = new Set((held ?? []).map(h => h.id as string));
 
   /* ---- 1. no evidence the invitation ever arrived ---- */
-  ids.filter(id => !contacted.has(id) && !reserved.has(id) && !unreachable.has(id))
+  ids.filter(id => !contacted.has(id) && !reserved.has(id) && !unreachable.has(id)
+                   && !doNotContact.has(id))
     .slice(0, budget)
     .forEach(id => targets.push({ id }));
 
@@ -693,7 +706,7 @@ async function runSend(req: NextRequest) {
        reminded once would reset their place in the queue and starve the very
        people this is for. */
     ids.filter(id => contacted.has(id) && !already.has(id) && !reserved.has(id)
-                  && !unreachable.has(id))
+                  && !unreachable.has(id) && !doNotContact.has(id))
       .sort((a, b) => (firstArrival.get(a) ?? "9999").localeCompare(firstArrival.get(b) ?? "9999"))
       .slice(0, budget - targets.length)
       .forEach(id => targets.push({ id, reminder: true }));
