@@ -1078,7 +1078,12 @@ export default function RsvpClient({
   const attending = choice === "confirmed";
 
   return (
-    <div dir="rtl" style={{ minHeight: "100dvh", background: T.ivory, fontFamily: "'Heebo', sans-serif", display: "flex", flexDirection: "column" }}>
+    /* The main answering screen — the one almost every guest actually sees.
+       The wash was put on the already-answered screen and on nothing else, so
+       Dvir refreshed, saw the same flat ivory and said nothing had changed. He
+       was right: three of the four changes had shipped and this one was on a
+       page he was not looking at. */
+    <div dir="rtl" style={{ minHeight: "100dvh", background: isDvir ? T.ivory : invitationWash, fontFamily: "'Heebo', sans-serif", display: "flex", flexDirection: "column" }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
