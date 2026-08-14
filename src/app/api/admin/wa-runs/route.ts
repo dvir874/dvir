@@ -42,7 +42,11 @@ export const dynamic = "force-dynamic";
    noticing a send that never happened. */
 /* The two DAILY runs — vercel.json, 11:15 and 19:30 Israel.
  *
- * There is a third cron, "15 18 * * 6", which fires only on מוצ״ש. It is left
+ * Two further crons fire weekly and are not in this list: "15 18 * * 6"
+ * (מוצ״ש 21:15) and "45 18 * * 0" (Sunday 21:45). They exist because the
+ * rolling 24-hour window, not the daily cap, is what actually limits a large
+ * first send — 150 at 21:15 on Saturday leaves nothing for either of Sunday's
+ * daytime runs, and the window only clears the following night. Both are left
  * out on purpose: this list drives expectedRuns, and counting a weekly run as
  * a daily one would report six missing runs every week. Undercounting costs a
  * real missed run going unnoticed on a Saturday night; overcounting cries wolf
