@@ -311,6 +311,14 @@ export default function RsvpClient({
   const [guest,      setGuest]      = useState<GuestInfo | null>(seed ?? null);
   const [event,      setEvent]      = useState<EventInfo | null>(
     (initialData?.event as EventInfo | null) ?? null);
+  /* The page takes its colour from the couple's own card.
+   *
+   * Every non-Dvir guest saw the same flat ivory. שחר painted a pale blue sky
+   * over sand-coloured hills with a yellow sun; a page in cream beside it looks
+   * like a different document. The wash is deliberately faint — the invitation
+   * is the picture, this is the wall it hangs on. */
+  const invitationWash = "linear-gradient(180deg, #EAF2F6 0%, #F7F3EC 46%, #FDFAF5 100%)";
+
   const [choice,     setChoice]     = useState<"confirmed" | "declined" | null>(
     seed && seed.status !== "pending" ? (seed.status as "confirmed" | "declined") : null);
   const [guestCount, setGuestCount] = useState(seed?.guest_count ?? 1);
@@ -325,8 +333,10 @@ export default function RsvpClient({
   /* Explicit opt-in for the post-event gallery. Asking turns the follow-up
      message into something the guest requested — kinder, and the only
      honest basis for sending it at all. */
-  const [wantsPhotos, setWantsPhotos] = useState(
-    typeof seed?.wants_photos === "boolean" ? seed.wants_photos : true);
+  /* Always on — the question was removed, see the note further down. Kept as
+     state rather than a literal so the column, the API and the submit path all
+     stay exactly as they were. */
+  const [wantsPhotos] = useState(true);
   const [wrongMsg,   setWrongMsg]   = useState("");      // "wrong number" report text
   const [wrongSending, setWrongSending] = useState(false);
   const [wrongSent,  setWrongSent]  = useState(false);
@@ -405,7 +415,6 @@ export default function RsvpClient({
         }
         if (data.guest.meal_preference) setMeal(data.guest.meal_preference);
         if (data.guest.meal_note) { setMealNote(data.guest.meal_note); setHasNotes(true); }
-        if (typeof data.guest.wants_photos === "boolean") setWantsPhotos(data.guest.wants_photos);
         setScreen(data.guest.status !== "pending" ? "done" : "form");
       })
       .catch(() => { if (!initialData) setScreen("error"); })
@@ -834,7 +843,7 @@ export default function RsvpClient({
 
     /* ── Confirmed state — E2-S4: MAZAL TOV header + checkmark ──── */
     return (
-      <div dir="rtl" className={isDvir ? "rsvp-warm-bg" : undefined} style={{ minHeight: "100dvh", background: isDvir ? undefined : T.ivory, fontFamily: "'Heebo', sans-serif", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
+      <div dir="rtl" className={isDvir ? "rsvp-warm-bg" : undefined} style={{ minHeight: "100dvh", background: isDvir ? undefined : invitationWash, fontFamily: "'Heebo', sans-serif", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
         <style>{`
           @keyframes spin { to { transform: rotate(360deg); } }
           @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
@@ -1337,6 +1346,27 @@ export default function RsvpClient({
               </button>
             </div>
 
+            {/* The way out, offered while they are still trying — not only after
+                they have succeeded.
+              *
+              * This line existed, but only on the screen a guest reaches AFTER
+              * answering. שיר never got there: her page rendered, her taps did
+              * nothing, and the one thing that could have helped her was behind
+              * the step she could not complete. A guest who cannot answer is
+              * exactly the guest who needs it. */}
+            <p style={{ textAlign: "center", margin: "0 0 18px" }}>
+              <a
+                href={`https://wa.me/972775494850?text=${encodeURIComponent(
+                  `היי, אני מנסה לאשר הגעה ל${event?.name ?? "חתונה"} והכפתורים לא מגיבים — `,
+                )}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{ color: T.muted, fontSize: 13, textDecoration: "underline",
+                         textUnderlineOffset: 3, display: "inline-block", padding: "10px 8px" }}
+              >
+                הכפתורים לא מגיבים? כתבו לנו ונרשום אתכם 💬
+              </a>
+            </p>
+
             {/* Guest count — circles (shown when attending) */}
             {attending && (
               <div style={{ marginBottom: "20px", animation: "fadeUp 0.3s ease both" }}>
@@ -1460,44 +1490,12 @@ export default function RsvpClient({
               </div>
             )}
 
-            {/* Photo-sharing opt-in.
-                The gallery is two-way: guests upload what they shot and the
-                couple gets every angle. Asking here means the post-event
-                message fulfils a request the guest made, instead of arriving
-                unannounced — better for the guest, and the only honest basis
-                for sending it. */}
-            {attending && (
-              <div style={{ marginBottom: "24px", animation: "fadeUp 0.3s ease 0.05s both" }}>
-                <button
-                  type="button"
-                  onClick={() => setWantsPhotos((v: boolean) => !v)}
-                  aria-pressed={wantsPhotos}
-                  style={{
-                    width: "100%", display: "flex", alignItems: "center", gap: "12px",
-                    padding: "14px 16px", borderRadius: "14px", cursor: "pointer",
-                    textAlign: "right", fontFamily: "'Heebo', sans-serif",
-                    border: `2px solid ${wantsPhotos ? T.gold : T.border}`,
-                    background: wantsPhotos ? "rgba(197,164,109,0.10)" : T.cream,
-                  }}
-                >
-                  <span style={{
-                    width: 24, height: 24, borderRadius: 7, flexShrink: 0,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    border: `2px solid ${wantsPhotos ? T.gold : T.border}`,
-                    background: wantsPhotos ? T.gold : "transparent",
-                    color: "#fff", fontSize: 14, fontWeight: 700,
-                  }}>{wantsPhotos ? "✓" : ""}</span>
-                  <span style={{ flex: 1 }}>
-                    <span style={{ display: "block", fontSize: "14px", fontWeight: 600, color: T.dark }}>
-                      📸 אשמח לשתף תמונות מהחתונה
-                    </span>
-                    <span style={{ display: "block", fontSize: "12.5px", color: T.muted, marginTop: 2, lineHeight: 1.5 }}>
-                      נשלח לכם קישור לגלריה המשותפת — תוכלו להעלות את התמונות שצילמתם ולראות את של כולם
-                    </span>
-                  </span>
-                </button>
-              </div>
-            )}
+            {/* Sharing photos is no longer a question. It was a pre-ticked
+                checkbox, which presents as a decision worth making — and every
+                extra control here is one more thing that has to work for a
+                guest to get through. The gallery is part of the wedding, not an
+                upsell. wants_photos stays in the database and is still sent as
+                true, so restoring the question is a render. */}
 
             {/* dvir_list: notes to the hosts (replaces meal choice) */}
             {attending && isDvir && (
