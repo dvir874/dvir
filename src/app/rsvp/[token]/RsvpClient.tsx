@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { hebrewDate } from "@/lib/hebrew-date";
 
 /* ─── Types ───────────────────────────────────────────────────── */
 type Status = "confirmed" | "declined" | "pending";
@@ -50,6 +51,9 @@ interface EventInfo {
   venue_name?: string | null;
   theme?: string | null;
   mini_site_hero_path?: string | null;
+  wa_header_image_url?: string | null;
+  reception_time?: string | null;
+  chuppah_time?: string | null;
   bit_phone?: string | null;
   paybox_link?: string | null;
 }
@@ -1148,10 +1152,20 @@ export default function RsvpClient({
       <div className="rsvp-form-wrap" style={{ flex: 1 }}>
 
         {/* Tablet: sticky photo panel — hidden for dvir_list (the invitation IS the visual) */}
-        {!isDvir && (
+        {/* The couple's own invitation, or nothing.
+         *
+         * This was a stock photograph of strangers from Unsplash, shown to every
+         * guest of every couple who was not Dvir. On the page for a religious
+         * wedding in Gush Etzion — whose bride painted her invitation by hand and
+         * set the chuppah before sunset — it read as contempt.
+         *
+         * wa_header_image_url is the card the couple already gave us for the
+         * WhatsApp message. If it is missing the panel is not rendered at all: an
+         * empty column is honest, a stranger's wedding is not. */}
+        {!isDvir && event?.wa_header_image_url && (
           <div className="rsvp-photo-side">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80" alt="" />
+            <img src={event.wa_header_image_url} alt="ההזמנה" style={{ objectFit: "contain", background: T.cream }} />
           </div>
         )}
 
@@ -1161,6 +1175,34 @@ export default function RsvpClient({
             {/* Invitation image + warm personal greeting — shown only for this wedding's
                 own guests (dvir_list). Graceful: any other event/guest has a different
                 source_group → nothing renders, zero effect on other couples. */}
+            {/* The same three things Dvir's guests see, for every other couple:
+                the invitation, both calendars, and the hours. All three were
+                already in the database and none of them reached this page —
+                שחר's guests were shown "8 בספטמבר" under a card she had written
+                כ״ו אלול תשפ״ו on by hand, and no ceremony times at all. */}
+            {!isDvir && event?.wa_header_image_url && (
+              <div className="rsvp-mobile-invitation" style={{ marginBottom: 20 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={event.wa_header_image_url} alt="ההזמנה"
+                     style={{ width: "100%", height: "auto", borderRadius: 14, display: "block",
+                              boxShadow: "0 2px 14px rgba(28,16,8,0.10)" }} />
+              </div>
+            )}
+            {!isDvir && (hebrewDate(event?.date ?? "") || event?.reception_time) && (
+              <div style={{ textAlign: "center", marginBottom: 20 }}>
+                {hebrewDate(event?.date ?? "") && (
+                  <p style={{ fontSize: 15, color: T.gold, margin: "0 0 4px", fontWeight: 600 }}>
+                    {hebrewDate(event!.date)}
+                  </p>
+                )}
+                {event?.reception_time && event?.chuppah_time && (
+                  <p style={{ fontSize: 14, color: T.muted, margin: 0 }}>
+                    קבלת פנים {event.reception_time} · חופה וקידושין {event.chuppah_time}
+                  </p>
+                )}
+              </div>
+            )}
+
             {isDvir && (
               <div className={introDone ? undefined : "inv-hold"} style={{ marginBottom: "24px", position: "relative" }}>
                 {/* Floating gold sparkles around the invitation */}

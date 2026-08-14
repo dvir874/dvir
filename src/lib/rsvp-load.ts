@@ -87,7 +87,7 @@ async function loadRsvpInner(token: string): Promise<RsvpLoad> {
        refusing to show it. Only the guest lookup can make this unavailable. */
     const [{ data: event }, { data: vault }, { data: assignment }] = await Promise.all([
       sb.from("events")
-        .select("name, date, address, venue_name, theme, mini_site_hero_path, bit_phone, paybox_link")
+        .select("name, date, address, venue_name, theme, mini_site_hero_path, wa_header_image_url, reception_time, chuppah_time, bit_phone, paybox_link")
         .eq("id", guest.event_id).maybeSingle(),
       sb.from("vault_tokens").select("token").eq("event_id", guest.event_id).maybeSingle(),
       sb.from("seating_assignments").select("table_id").eq("guest_id", guest.id).maybeSingle(),
