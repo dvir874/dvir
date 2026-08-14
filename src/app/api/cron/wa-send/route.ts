@@ -452,13 +452,38 @@ async function runSend(req: NextRequest) {
      quiet day. */
   const today = new Date().toISOString().slice(0, 10);
   const { data: events } = await sb.from("events")
-    .select("id, name, date, address, wa_header_image_url")
+    .select("id, name, date, address, wa_header_image_url, send_paused_until")
     .gte("date", today).order("date").limit(MAX_EVENTS_PER_RUN);
 
-  const active = (events ?? []).filter(e => e.wa_header_image_url);
-  const skippedEvents = (events ?? [])
-    .filter(e => !e.wa_header_image_url)
-    .map(e => ({ event: e.name, reason: "אין תמונת הזמנה" }));
+  /* A wedding can be held back without disturbing the order of the others.
+   *
+   * Nearest-wedding-first is the right default and stays. What it could not
+   * express is "not this one, not tonight": Dvir's own wedding is the nearest
+   * and would take every run, while שחר's 327 invitations wait behind it. He
+   * wants מוצ״ש and Sunday to go to her and his own 83 reminders to resume on
+   * Monday, and until now that meant watching the clock and flipping something
+   * by hand at 21:00 on a Saturday night.
+   *
+   * A paused event is not deprioritised, it is skipped — the next nearest
+   * wedding takes the run, and when the pause lapses the ordering returns to
+   * what it was with nothing to undo. It appears in skippedEvents with its
+   * return date so a silent run is never unexplained. */
+  const nowMs = Date.now();
+  const paused = (events ?? []).filter(e =>
+    e.send_paused_until && new Date(e.send_paused_until as string).getTime() > nowMs);
+  const pausedIds = new Set(paused.map(e => e.id as string));
+
+  const active = (events ?? []).filter(e => e.wa_header_image_url && !pausedIds.has(e.id as string));
+  const skippedEvents = [
+    ...(events ?? [])
+      .filter(e => !e.wa_header_image_url && !pausedIds.has(e.id as string))
+      .map(e => ({ event: e.name, reason: "אין תמונת הזמנה" })),
+    ...paused.map(e => ({
+      event: e.name,
+      reason: `מושהה עד ${new Date(e.send_paused_until as string)
+        .toLocaleString("he-IL", { timeZone: "Asia/Jerusalem", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}`,
+    })),
+  ];
 
   if (!active.length)
     return record(sb, { sent: 0, reason: "no_sendable_event", healed, skippedEvents },
