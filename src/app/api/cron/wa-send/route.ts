@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { shabbatBlock } from "@/lib/shabbat";
+import { coupleName, looksLikeCouple } from "@/lib/couple-name";
+import { eventTimes } from "@/lib/event-times";
+import { weddingDateLine } from "@/lib/hebrew-date";
 import {
   getWhatsAppConfig, sendInvitation, toE164, policyFor,
   rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY,
@@ -452,7 +455,7 @@ async function runSend(req: NextRequest) {
      quiet day. */
   const today = new Date().toISOString().slice(0, 10);
   const { data: events } = await sb.from("events")
-    .select("id, name, date, address, wa_header_image_url, send_paused_until")
+    .select("id, name, couple_names, date, address, venue_name, wa_header_image_url, send_paused_until, reception_time, chuppah_time")
     .gte("date", today).order("date").limit(MAX_EVENTS_PER_RUN);
 
   /* A wedding can be held back without disturbing the order of the others.
@@ -513,6 +516,44 @@ async function runSend(req: NextRequest) {
     if ((count ?? 0) > 0) { ev = cand; break; }
   }
   const image = ev.wa_header_image_url as string;
+
+  /* The four variables the generic template needs — built here, and refused
+   * here if they cannot be built.
+   *
+   * This call used to pass `undefined` for details, which made sendInvitation
+   * fall through to cfg.templateName: the template approved for Dvir's own
+   * wedding, with his and Mirav's names and date baked into the text. It was
+   * correct for exactly one event and would have sent שחר's 327 guests an
+   * invitation to somebody else's wedding, over her own photograph, with her
+   * own RSVP link underneath. It was right for מירב ודביר by coincidence,
+   * which is why nothing ever caught it.
+   *
+   * Refusing is the point. An event with no couple name, no times or no venue
+   * is skipped and reported, because the failure this replaces was not a
+   * crash — it was a message that sent perfectly and said the wrong thing. */
+  const couple = coupleName(ev);
+  const times  = eventTimes(ev);
+  const venue  = (ev.address as string | null)?.trim() || (ev.venue_name as string | null)?.trim() || null;
+  const when   = ev.date ? weddingDateLine(ev.date as string) : null;
+
+  const missing =
+    !couple                  ? "אין שמות בני זוג (couple_names)"
+    : !looksLikeCouple(couple) ? `"${couple}" לא נראה כמו שמות בני זוג`
+    : !when                  ? "אין תאריך"
+    : !venue                 ? "אין מקום"
+    : !times                 ? "אין שעות קבלת פנים/חופה"
+    : null;
+
+  if (missing) {
+    return record(sb, {
+      sent: 0, reason: "event_not_ready", healed,
+      skippedEvents: [...skippedEvents, { event: ev.name, reason: missing }],
+    }, { event_id: ev.id, cap, tier: health.tier, quality: health.quality,
+         posture: health.posture, window_used: usage.recipients });
+  }
+
+  const details = { couple, date: when, venue, times } as {
+    couple: string; date: string; venue: string; times: string };
 
   const sent: string[] = [];
   const failed: { name: string; error: string }[] = [];
@@ -793,7 +834,7 @@ async function runSend(req: NextRequest) {
       const g = byId.get(t.id);
       if (!g?.phone || !g.rsvp_token) return null;
       const res = await sendInvitation(
-        cfg, g.phone, g.rsvp_token, image, undefined,
+        cfg, g.phone, g.rsvp_token, image, details,
         t.reminder ? "reminder" : "invitation",
       );
       return { t, g, res };
