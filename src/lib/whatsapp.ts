@@ -675,7 +675,15 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
     phoneNumberId,
     accessToken,
     templateName: process.env.WHATSAPP_TEMPLATE_NAME ?? "wedding_invitation_regalifnei",
-    genericTemplateName: process.env.WHATSAPP_TEMPLATE_GENERIC ?? "wedding_invitation_v2",
+    /* v3 differs from v2 in its last line only: "מחכים לחגוג איתכם! 🤍"
+       without "ביום המאושר". שחר asked for those two words to go and Dvir made
+       it the wording for every couple, since a message that does not name the
+       day travels to any wedding. Meta approved v3 at 22:0x on 15/08, about
+       half an hour after the first 30 invitations had already gone out under
+       v2 — those thirty keep the old closing line and nothing is gained by
+       chasing them. WHATSAPP_TEMPLATE_GENERIC is not set in production, so
+       this default is what actually sends. */
+    genericTemplateName: process.env.WHATSAPP_TEMPLATE_GENERIC ?? "wedding_invitation_v3",
     /* The approved template with "מגיע" / "לא מגיע" quick replies.
 
        A tap answers the invitation without opening anything — which removes,
