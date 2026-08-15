@@ -11,7 +11,22 @@ import {
 } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+/* Five minutes, so a run can reach the daily cap instead of a fifth of it.
+ *
+ * Saturday night sent 30 with 150 available, no failures and an empty window.
+ * The daily cap was never the binder — the function was: at roughly four
+ * paced seconds a message it can only get so far before Vercel stops it, and
+ * five times the seconds is five times the messages. 30 × 5 = 150, which is
+ * exactly where usage.remaining takes over and stops it anyway.
+ *
+ * So this cannot overshoot. budget is min(remaining, timeCap) and raising
+ * timeCap only lets the run reach a ceiling Meta already enforces; the pacing
+ * between messages is untouched, which is the part that protects quality.
+ *
+ * 300 requires Vercel Pro. On Hobby the platform caps the function at 60 and
+ * this silently stays where it was — worth knowing if tomorrow sends 30 again,
+ * because then the plan is the answer and not the code. */
+export const maxDuration = 300;
 
 /* Hourly sender.
  *
