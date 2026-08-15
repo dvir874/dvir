@@ -1,4 +1,5 @@
 "use client";
+import { isPlausiblePhone } from "@/lib/phone-validate";
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -175,9 +176,14 @@ export default function GuestCenterPage() {
       {!loading && guests.length > 0 && (() => {
         const norm = (p: string) => p.replace(/\D/g, "").replace(/^972/, "0");
         const noPhone = guests.filter(g => !g.phone?.trim());
+        /* The same rule the importer and the sender use — see lib/phone.ts.
+           This used to demand ten digits starting 05, which called סטיב ומריאן's
+           American number invalid on שחר's own screen while the sender was
+           delivering to it perfectly well. A false alarm on a client's dashboard
+           is worse than none: she either worries, or "fixes" a correct number. */
         const badPhone = guests.filter(g => {
           const n = g.phone ? norm(g.phone) : "";
-          return n && !(n.length === 10 && n.startsWith("05"));
+          return !!n && !isPlausiblePhone(g.phone as string);
         });
         const seen = new Map<string, string>();
         const dupes: string[] = [];

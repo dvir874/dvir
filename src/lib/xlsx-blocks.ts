@@ -1,3 +1,4 @@
+import { isPlausiblePhone } from "./phone-validate.ts";
 /* Reading the guest list people actually send.
  *
  * parseGuestsFromXlsx assumes one tidy table: a header row, then a column each
@@ -113,16 +114,10 @@ export function normalisePhone(raw: unknown): string {
   return d;
 }
 
-export function isPlausiblePhone(p: string): boolean {
-  /* Israeli — mobile 05X + 7 digits, landline 0X + 7 with area codes 2-4, 8-9. */
-  if (/^0(5\d{8}|[2-4,8-9]\d{7})$/.test(p)) return true;
-  /* Foreign, in E.164 digits. The range covers every real country code and
-     national number: shortest plausible is around ten digits, longest is
-     fifteen by the standard. A leading zero here would be a local number we
-     failed to recognise, not an international one, so it is excluded. */
-  if (/^[1-9]\d{9,14}$/.test(p)) return true;
-  return false;
-}
+/* Moved to phone.ts so the couple's dashboard and the importer cannot
+   disagree about whether a guest is reachable. Imported, not merely
+   re-exported: the parser below calls it. */
+export { isPlausiblePhone };
 
 /* Excel column letter, for a report a human can act on. */
 function colLetter(i: number): string {
