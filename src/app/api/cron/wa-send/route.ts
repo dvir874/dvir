@@ -297,7 +297,32 @@ async function record(
       healed: (payload.healed as number) ?? 0,
       reason: (payload.reason as string) ?? null,
       stopped: (payload.stopped as string) ?? null,
-      details: (payload.details as object) ?? {},
+      /* Everything the row has no column for goes into details.
+       *
+       * This used to persist payload.details alone, and silently dropped every
+       * other key. deferredForTime was the expensive one: the send loop breaks
+       * on DEADLINE_MS at a batch boundary, sets it, and returns it in the HTTP
+       * response — which nobody reads — while the stored row kept only sent and
+       * failed. A run cut off by the clock was therefore written to look
+       * exactly like a run that finished with nothing left to do.
+       *
+       * That is what happened on 15/08: the 45-second deadline fired after five
+       * batches of six, thirty invitations went out of a possible 150, and the
+       * row said sent 30, reason null, failed none. Three separate explanations
+       * were checked against that row before the truth was found by reading the
+       * loop, because the one field that would have said so was thrown away
+       * here on its way to the database.
+       *
+       * Nothing passed to record() is dropped now. windowRecipients, limits,
+       * crossEvent, skippedEvents and anything added later land in details
+       * without needing a column or a change to this function. */
+      details: {
+        ...((payload.details as Record<string, unknown>) ?? {}),
+        ...Object.fromEntries(
+          Object.entries(payload).filter(([k]) =>
+            !["sent", "failed", "healed", "reason", "stopped", "details"].includes(k)),
+        ),
+      },
       ...extra,
     });
   } catch { /* a log that cannot be written must not stop a wedding invitation */ }
