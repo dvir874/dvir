@@ -804,6 +804,25 @@ export default function AdminPage() {
     });
   }
 
+  /* Editing the headcount in place.
+   *
+   * Guests answer by phone as often as by link — "we're two, not one" — and the
+   * only way to record that was to delete the row and add it back, which throws
+   * away their token, their delivery history and the fact that they were ever
+   * invited. Dvir was doing that by hand.
+   *
+   * The API already accepted guest_count on PATCH. Nothing was missing except a
+   * way to reach it. */
+  async function handleCountChange(guestId: string, raw: string) {
+    const n = Math.max(1, Math.min(20, parseInt(raw, 10) || 1));
+    setGuests(prev => prev.map(g => (g.id === guestId ? { ...g, guest_count: n } : g)));
+    await fetch(`/api/guests/${guestId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ guest_count: n }),
+    });
+  }
+
   async function handleDelete(guestId: string) {
     if (!confirm("למחוק את האורח?")) return;
     setGuests((prev) => prev.filter((g) => g.id !== guestId));
@@ -2766,7 +2785,25 @@ export default function AdminPage() {
                             ))}
                           </select>
                         </td>
-                        <td className="px-4 py-3 text-center" style={{ color: C.dark }}>{g.guest_count}</td>
+                        <td className="px-4 py-3 text-center">
+                          <input
+                            type="number" min={1} max={20}
+                            defaultValue={g.guest_count ?? 1}
+                            onBlur={e => {
+                              const n = Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 1));
+                              e.target.value = String(n);
+                              if (n !== (g.guest_count ?? 1)) handleCountChange(g.id, String(n));
+                            }}
+                            onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                            title="מספר המוזמנים — נשמר ביציאה מהשדה"
+                            style={{
+                              width: 52, padding: "5px 4px", textAlign: "center",
+                              fontSize: 14, color: C.dark, background: "transparent",
+                              border: `1px solid ${C.border}`, borderRadius: 8,
+                              fontFamily: "inherit",
+                            }}
+                          />
+                        </td>
                         <td className="px-4 py-3 text-xs" style={{ color: C.muted }}>
                           {g.meal_preference
                             ? ({ regular: "🍽️ רגיל", vegetarian: "🥗 צמחוני", vegan: "🌱 טבעוני", mehadrin: "✡️ מהדרין" }[g.meal_preference] ?? g.meal_preference)
