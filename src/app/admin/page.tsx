@@ -3606,7 +3606,7 @@ function AdminSidebar({
     textDim:   "rgba(255,255,255,0.62)",
     textFaint: "rgba(255,255,255,0.40)",
   };
-  const groups: { title: string; items: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] }[] = [
+  const groups: { title: string; items: { id: Tab; label: string; icon: React.ReactNode; badge?: number; href?: string }[] }[] = [
     { title: "ניהול", items: [
       { id: "command-center", label: "מרכז בקרה",   icon: <LayoutDashboard size={20} /> },
       { id: "guests",         label: "אורחים",      icon: <Users size={20} /> },
@@ -3615,6 +3615,10 @@ function AdminSidebar({
     ] },
     { title: "תקשורת", items: [
       { id: "messages",        label: "WhatsApp",    icon: <MessageCircle size={20} /> },
+      /* A route rather than a tab. The screen existed and was reachable only by
+         typing its URL, which is the same as not existing — Dvir asked twice
+         where to find it. */
+      { id: "messages",        label: "לפני שליחה",  icon: <Send size={20} />, href: "/admin/send-preview" },
       { id: "reminders",       label: "תזכורות",     icon: <Bell size={20} />, badge: pendingCount },
       { id: "recommendations", label: "מרכז המלצות", icon: <Sparkles size={20} />, badge: recCount },
     ] },
@@ -3653,11 +3657,11 @@ function AdminSidebar({
             <p className="px-4 mb-2" style={{ color: SC.textFaint, fontSize: 12, fontWeight: 700, letterSpacing: "0.12em" }}>{g.title}</p>
             <div className="flex flex-col gap-0.5">
               {g.items.map((it) => {
-                const active = activeTab === it.id;
+                const active = !it.href && activeTab === it.id;
                 return (
                   <button
-                    key={it.id}
-                    onClick={() => setActiveTab(it.id)}
+                    key={it.href ?? it.id}
+                    onClick={() => it.href ? (window.location.href = it.href) : setActiveTab(it.id)}
                     className="flex items-center gap-3 px-4 py-3 transition-all duration-200 text-right"
                     style={{
                       color:       active ? "#fff" : SC.textDim,
