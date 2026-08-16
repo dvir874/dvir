@@ -24,7 +24,6 @@ const C = {
   bubble: "#DCF8C6",
 };
 
-const DVIR_EVENT_ID = "a5e65dcf-8109-438d-a4a1-8f65d6f3e948";
 
 interface Msg { id: string; direction: string; body: string | null; status: string | null; error: string | null; at: string }
 interface Thread {
@@ -47,7 +46,13 @@ const STATUS_HE: Record<string, string> = {
 
 function Inbox() {
   const params = useSearchParams();
-  const eventId = params.get("event") ?? DVIR_EVENT_ID;
+  /* No silent fallback to somebody's real inbox.
+   *
+   * This defaulted to DVIR_EVENT_ID, so any entry point that forgot the query
+   * parameter showed one specific couple's private conversations — and looked
+   * completely normal doing it. A missing event is now visible instead of
+   * quietly resolved to the wrong one. */
+  const eventId = params.get("event") ?? "";
 
   const [threads, setThreads] = useState<Thread[]>([]);
   const [delivery, setDelivery] = useState<Delivery | null>(null);
@@ -59,6 +64,13 @@ function Inbox() {
 
   const load = useCallback(async () => {
     try {
+      if (!eventId) {
+        /* Reached without an event. Better an honest prompt than a 400, and far
+           better than the previous behaviour of showing somebody else's inbox. */
+        setErr("לא נבחר אירוע — חזרו לאדמין ובחרו חתונה");
+        setLoading(false);
+        return;
+      }
       const r = await fetch(`/api/admin/inbox?event_id=${eventId}`);
       const d = await r.json();
       if (!r.ok) { setErr(d?.hint ?? d?.error ?? "שגיאה"); return; }

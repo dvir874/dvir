@@ -1089,7 +1089,12 @@ export default function AdminPage() {
             📤 מרכז השליחה
           </a>
           <a
-            href="/admin/inbox"
+            /* The selected event travels with the link. Without it the inbox
+               fell back to a hardcoded event id, so switching the admin to
+               שחר showed her unread count on the badge and Dvir's own
+               conversations when you clicked it — one couple's private
+               messages displayed under another couple's name. */
+            href={`/admin/inbox?event=${selectedEventId}`}
             className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all hover:opacity-80"
             style={{ background: "rgba(37,211,102,0.16)", color: "#1A9B4E" }}
           >
