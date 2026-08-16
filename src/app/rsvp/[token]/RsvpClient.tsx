@@ -317,7 +317,16 @@ export default function RsvpClient({
    * over sand-coloured hills with a yellow sun; a page in cream beside it looks
    * like a different document. The wash is deliberately faint — the invitation
    * is the picture, this is the wall it hangs on. */
-  const invitationWash = "linear-gradient(180deg, #EAF2F6 0%, #F7F3EC 46%, #FDFAF5 100%)";
+  /* The page should look like it belongs to the invitation above it.
+   *
+   * This was one gradient for everybody, chosen under שחר's card — a cool blue
+   * wash echoing the green foliage on it. תהל ואביב's invitation is dried
+   * autumn leaves and warm beige, and the same blue reads as a different event
+   * entirely. events.rsvp_bg overrides it per wedding; unset keeps exactly what
+   * every couple has today. */
+  const invitationWash =
+    (event as { rsvp_bg?: string | null } | null)?.rsvp_bg?.trim()
+    || "linear-gradient(180deg, #EAF2F6 0%, #F7F3EC 46%, #FDFAF5 100%)";
 
   const [choice,     setChoice]     = useState<"confirmed" | "declined" | null>(
     seed && seed.status !== "pending" ? (seed.status as "confirmed" | "declined") : null);
