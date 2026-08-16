@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
+import { venueLine, wazeLink as wazeLinkFor } from '@/lib/venue';
 import {
   DEFAULT_TEMPLATES, renderTemplate, buildWaLink, type CampaignType,
 } from '@/lib/automation/message-templates';
@@ -30,7 +31,7 @@ export async function GET(
   const dateStr = new Date(event.date).toLocaleDateString('he-IL', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });
-  const wazeLink = event.address ? `https://waze.com/ul?q=${encodeURIComponent(event.address)}` : '';
+  const wazeLink = wazeLinkFor(event) ?? '';
   const galleryToken = (albumRes.data as { public_token?: string } | null)?.public_token ?? '[token]';
 
   const sample   = guests[0];
@@ -39,7 +40,7 @@ export async function GET(
     couple_name:     event.name,
     event_date:      dateStr,
     event_time:      '19:00',
-    venue:           (event as { venue_name?: string }).venue_name ?? event.address ?? '',
+    venue:           venueLine(event) ?? '',
     address:         event.address ?? '',
     event_link:      `${appUrl}/event/${eventId}`,
     navigation_link: wazeLink,
@@ -52,7 +53,7 @@ export async function GET(
       couple_name:     event.name,
       event_date:      dateStr,
       event_time:      '19:00',
-      venue:           (event as { venue_name?: string }).venue_name ?? event.address ?? '',
+      venue:           venueLine(event) ?? '',
       event_link:      `${appUrl}/event/${eventId}`,
       navigation_link: wazeLink,
     });

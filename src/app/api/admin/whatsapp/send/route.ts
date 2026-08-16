@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { venueLine } from "@/lib/venue";
 import { eventTimes } from "@/lib/event-times";
 import { weddingDateLine } from "@/lib/hebrew-date";
 import {
@@ -150,7 +151,7 @@ export async function POST(req: NextRequest) {
          reading "8 בספטמבר" alone is being shown a translation of their
          own date back to them. See src/lib/hebrew-date.ts. */
       date: weddingDateLine(eventRow?.date ?? ""),
-    venue: eventRow?.address ?? "",
+    venue: venueLine(eventRow) ?? "",
     /* The times come from the event, not from a constant.
      *
      * This line read "קבלת פנים 19:00 | חופה וקידושין 20:00" — written when
