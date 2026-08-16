@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { venueLine } from "@/lib/venue";
+import { coupleName, looksLikeCouple } from "@/lib/couple-name";
 import { eventTimes } from "@/lib/event-times";
 import { weddingDateLine } from "@/lib/hebrew-date";
 import {
@@ -79,7 +80,8 @@ export async function POST(req: NextRequest) {
 
   const evIds = [...new Set((guests ?? []).map(g => g.event_id))];
   const { data: events } = await sb.from("events")
-    .select("id, name, date, address, reception_time, chuppah_time, wa_header_image_url").in("id", evIds);
+    .select("id, name, couple_names, date, address, venue_name, reception_time, chuppah_time, wa_header_image_url")
+    .in("id", evIds);
   const eventById = new Map((events ?? []).map(e => [e.id, e]));
 
   const sent: string[] = [];
@@ -103,7 +105,10 @@ export async function POST(req: NextRequest) {
 
     const isOwnWedding = g.event_id === "a5e65dcf-8109-438d-a4a1-8f65d6f3e948";
     const details = isOwnWedding ? undefined : {
-      couple: ev?.name ?? "",
+      /* couple_names, not name — events.name is the dashboard title and this
+         variable sits inside "בעזרת ה׳ *{{1}}* מתחתנים". See the same fix in
+         the send route and src/lib/couple-name.ts. */
+      couple: coupleName(ev) ?? "",
       /* Both calendars. Her card says כ״ו אלול תשפ״ו and a guest
          reading "8 בספטמבר" alone is being shown a translation of their
          own date back to them. See src/lib/hebrew-date.ts. */
@@ -114,6 +119,14 @@ export async function POST(req: NextRequest) {
     };
     if (details && (!details.couple || !details.date || !details.venue || !details.times)) {
       failed.push({ name: g.name, error: "חסרים פרטי אירוע (שם, תאריך, מקום או שעות)" });
+      continue;
+    }
+    /* A retry is still a send, so a title that got past the stripper is refused
+       here too rather than resent — this row already failed once, and resending
+       it with the wrong name in it makes the guest's only message the wrong
+       one. Fill couple_names for the event. */
+    if (details && !looksLikeCouple(details.couple)) {
+      failed.push({ name: g.name, error: `"${details.couple}" לא נראה כמו שמות בני זוג — מלאו couple_names` });
       continue;
     }
 

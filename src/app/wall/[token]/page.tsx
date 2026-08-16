@@ -16,6 +16,7 @@ export default function LiveWallPage({ params }: { params: Promise<{ token: stri
   const { token } = use(params);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [eventName, setEventName] = useState("");
+  const [memoryToken, setMemoryToken] = useState<string | null>(null);
   const [idx, setIdx] = useState(0);
   const [error, setError] = useState(false);
   const knownIds = useRef<Set<string>>(new Set());
@@ -31,6 +32,7 @@ export default function LiveWallPage({ params }: { params: Promise<{ token: stri
         const d = await res.json();
         if (!alive) return;
         if (d?.album?.event_name) setEventName(d.album.event_name);
+        setMemoryToken(d?.memoryToken ?? null);
         const imgs: Photo[] = (d?.photos ?? []).filter((p: Photo) => !p.is_video);
         // Detect newly arrived photo → jump to it
         const newOnes = imgs.filter(p => !knownIds.current.has(p.id));
@@ -54,7 +56,12 @@ export default function LiveWallPage({ params }: { params: Promise<{ token: stri
     return () => clearInterval(t);
   }, [photos.length]);
 
-  const memoryUrl = typeof window !== "undefined" ? `${window.location.origin}/memory/${token}` : "";
+  /* The QR on the venue screen has to carry the vault token, not the album
+     token this page is addressed by: /memory/[token] authenticates against
+     vault_tokens. The same mix-up on the RSVP page put 88 guests in front of a
+     404. No vault yet → no QR, rather than a code a room full of people scans
+     into nothing. */
+  const memoryUrl = memoryToken && typeof window !== "undefined" ? `${window.location.origin}/memory/${memoryToken}` : "";
   const qrSrc = memoryUrl
     ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=6&color=1C1008&bgcolor=FFFFFF&data=${encodeURIComponent(memoryUrl)}`
     : null;

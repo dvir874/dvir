@@ -42,7 +42,14 @@ function Delivery() {
 
   const load = useCallback(async () => {
     const r = await fetch(`/api/admin/delivery?event_id=${eventId}`, { cache: "no-store" });
-    if (r.ok) setD(await r.json());
+    if (r.ok) { setD(await r.json()); return; }
+    /* The route answers 500 instead of a confident empty result when one of its
+       queries fails. Swallowing that left the numbers on screen unchanged and
+       unmarked — the same lie, only slower — so say the reading failed and let
+       the operator refresh before touching a send button.
+       Not cleared on success: resend() sets its result note and then calls
+       load(), and clearing here would wipe "נשלחו X · נכשלו Y". */
+    setNote("לא הצלחתי לקרוא את מצב המסירה. המספרים כאן עלולים להיות לא מעודכנים — רענן לפני שליחה.");
   }, [eventId]);
 
   useEffect(() => {
@@ -163,7 +170,9 @@ function Delivery() {
 
       <div style={{ maxWidth: 940, margin: "0 auto", padding: 16 }}>
         {!d ? (
-          <p style={{ textAlign: "center", color: C.muted, padding: 40 }}>טוען…</p>
+          /* note lives inside the loaded branch below, so a failure on the very
+             first read would otherwise sit on "טוען…" forever with no reason. */
+          <p style={{ textAlign: "center", color: note ? C.red : C.muted, padding: 40 }}>{note ?? "טוען…"}</p>
         ) : (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(110px,1fr))",

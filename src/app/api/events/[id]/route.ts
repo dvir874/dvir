@@ -25,10 +25,30 @@ export async function PATCH(
   if (!id) return NextResponse.json({ error: 'Missing event id' }, { status: 400 });
 
   const body = await req.json();
-  const allowed = ['name', 'date', 'address', 'theme', 'bit_phone', 'notes', 'client_name', 'client_phone', 'client_email', 'venue_name', 'dress_code', 'parking_info', 'greeting', 'mood_palette', 'mood_style', 'mood_vision', 'partner1_name', 'partner2_name', 'payment_status', 'payment_amount', 'payment_date', 'rsvp_deadline', 'service_steps', 'event_timeline', 'mini_site_enabled', 'mini_site_hero_path', 'slug'];
+  const allowed = ['name', 'date', 'address', 'theme', 'bit_phone', 'notes', 'client_name', 'client_phone', 'client_email', 'venue_name', 'dress_code', 'parking_info', 'greeting', 'mood_palette', 'mood_style', 'mood_vision', 'partner1_name', 'partner2_name', 'payment_status', 'payment_amount', 'payment_date', 'rsvp_deadline', 'service_steps', 'event_timeline', 'mini_site_enabled', 'mini_site_hero_path', 'slug', 'send_paused_until'];
   const update: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) update[key] = body[key];
+  }
+
+  /* send_paused_until is read straight into a comparison by the sender
+     (api/cron/wa-send) — an unparseable value there is an event that is either
+     skipped forever or sent when it was meant to be held back. It was added on
+     14/08 for holding one wedding while another's invitations go out, and until
+     now had no writer at all, so nothing had ever validated it. Only a real
+     timestamp or null (= resume sending) gets through. */
+  if ('send_paused_until' in update) {
+    const raw = update.send_paused_until;
+    if (raw === null || raw === '') {
+      update.send_paused_until = null;
+    } else if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(raw) && !Number.isNaN(Date.parse(raw))) {
+      update.send_paused_until = new Date(raw).toISOString();
+    } else {
+      return NextResponse.json(
+        { error: 'send_paused_until must be an ISO timestamp or null' },
+        { status: 400 },
+      );
+    }
   }
 
   const supabase = createServerClient();

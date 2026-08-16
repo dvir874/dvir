@@ -22,7 +22,14 @@ async function eventFor(token: string) {
   const sb = createServerClient();
   const { data } = await sb
     .from("events")
-    .select("id, name, date, address, venue_name")
+    /* couple_names and the two times are here because the helper's page writes
+       its own message text and had nothing to write it from: it fell back to a
+       hardcoded "קבלת פנים 19:00 | חופה וקידושין 20:00" and to events.name,
+       which is a dashboard title — "חתונת אורי ושחר מתחתנים". אורי ✧ שחר
+       receive at 17:30 and stand under the chuppah at 18:15, and a family
+       member sending from her own phone is the one place where nothing
+       downstream can catch either mistake. */
+    .select("id, name, couple_names, date, address, venue_name, reception_time, chuppah_time")
     .eq("helper_token", token)
     .maybeSingle();
   return { sb, event: data };
@@ -141,7 +148,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
     }));
 
   return NextResponse.json({
-    event: { name: event.name, date: event.date, address: event.address, venue_name: event.venue_name },
+    event: {
+      name: event.name, couple_names: event.couple_names ?? null,
+      date: event.date, address: event.address, venue_name: event.venue_name,
+      reception_time: event.reception_time ?? null, chuppah_time: event.chuppah_time ?? null,
+    },
     todo,
     done: guests.length - todo.length,
     total: guests.length,

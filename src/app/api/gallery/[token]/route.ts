@@ -51,6 +51,19 @@ export async function GET(
     eventName = ev?.name ?? null;
   }
 
+  /* The upload buttons on this page lead to /memory/[token], and that route
+     authenticates against vault_tokens — the album token this route is
+     addressed by does not open it. Handing out the album token is exactly what
+     sent 88 RSVP guests to a 404 before it was caught there. Null while an
+     event has no vault yet; the page hides the upload buttons instead of
+     offering a link that cannot work. */
+  let memoryToken: string | null = null;
+  if (album?.event_id) {
+    const { data: vault } = await sb
+      .from('vault_tokens').select('token').eq('event_id', album.event_id).maybeSingle();
+    memoryToken = vault?.token ?? null;
+  }
+
   if (!album) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
   /* The upload timestamp column is created_at. Asking for uploaded_at made
@@ -67,5 +80,5 @@ export async function GET(
   if (photosErr)
     return NextResponse.json({ error: photosErr.message }, { status: 500 });
 
-  return NextResponse.json({ album: { ...album, event_name: eventName }, photos: photos ?? [] });
+  return NextResponse.json({ album: { ...album, event_name: eventName }, photos: photos ?? [], memoryToken });
 }

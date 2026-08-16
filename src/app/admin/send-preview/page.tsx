@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 /* לפני שליחה — the last look before hundreds of invitations go out.
  *
@@ -35,12 +35,37 @@ type Ev = {
 export default function SendPreview() {
   const [data, setData] = useState<{ events: Ev[] } | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [ids, setIds] = useState<Record<string, string | null>>({});
 
-  useEffect(() => {
+  const load = useCallback(() => {
     fetch("/api/admin/send-preview")
       .then(r => r.ok ? r.json() : Promise.reject(new Error(r.status === 401 ? "צריך להתחבר לאדמין" : `שגיאה ${r.status}`)))
       .then(setData)
       .catch(e => setErr(e.message));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  /* השהיה נכתבת לפי מזהה אירוע, והתצוגה המקדימה מחזירה שם בלבד — היא נבנתה
+     כדי להיקרא, לא כדי ללחוץ עליה. השמות נפתרים מרשימת האירועים במקום להרחיב
+     את המבנה של /api/admin/send-preview.
+
+     שני אירועים עתידיים באותו שם נשמרים כ-null: אין דרך בטוחה לדעת על מי
+     לוחצים, ולהשהות את החתונה הלא נכונה גרוע מלא להציג כפתור. אותו סינון
+     תאריך כמו התצוגה המקדימה, כדי שאירוע שעבר לא יחסום שם של אירוע קרוב. */
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    fetch("/api/events")
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: { id: string; name: string; date: string }[]) => {
+        const byName: Record<string, string | null> = {};
+        for (const r of rows ?? []) {
+          if (!r.date || r.date < today) continue;
+          byName[r.name] = r.name in byName ? null : r.id;
+        }
+        setIds(byName);
+      })
+      .catch(() => { /* בלי המזהים פשוט אין כפתור השהיה — התצוגה עצמה עובדת */ });
   }, []);
 
   return (
@@ -65,13 +90,15 @@ export default function SendPreview() {
         {!data && !err && <Note tone="muted">טוען…</Note>}
         {data?.events.length === 0 && <Note tone="muted">אין אירועים קרובים</Note>}
 
-        {data?.events.map(ev => <Card key={ev.event} ev={ev} />)}
+        {data?.events.map(ev => (
+          <Card key={ev.event} ev={ev} eventId={ids[ev.event] ?? null} onChanged={load} />
+        ))}
       </div>
     </div>
   );
 }
 
-function Card({ ev }: { ev: Ev }) {
+function Card({ ev, eventId, onChanged }: { ev: Ev; eventId: string | null; onChanged: () => void }) {
   const blocked = !!ev.blockedReason;
   const paused = !!ev.pausedUntil;
 
@@ -121,9 +148,89 @@ function Card({ ev }: { ev: Ev }) {
         {ev.template && <span>תבנית: {ev.template}</span>}
         <span>{ev.templateSource}</span>
         {paused && <span>מושהה עד {new Date(ev.pausedUntil!).toLocaleString("he-IL", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}</span>}
+        {eventId && <PauseControl eventId={eventId} paused={paused} onChanged={onChanged} />}
       </div>
     </article>
   );
+}
+
+/* השהיה — הכתיבה היחידה במוצר ל-send_paused_until.
+ *
+ * הקרון קורא את השדה מאז 14/08 והשורה שמעל כבר הציגה אותו, אבל שום מסך לא ידע
+ * לכתוב אליו: להחזיק את החתונה של דביר (24/08) בצד כדי ש-327 ההזמנות של שחר
+ * יצאו במוצ״ש ובראשון היה אפשרי רק ב-SQL ידני — בדיוק הדבר שנשכח ב-21:00 בליל
+ * שבת, שזו הסיבה שהעמודה נוספה מלכתחילה.
+ *
+ * תאריכים מוכנים ולא שדה תאריך: ההחלטה האמיתית היא "לא הערב" או "לא עד יום
+ * שני", לא חותמת זמן שצריך לחשב. */
+function PauseControl({ eventId, paused, onChanged }: { eventId: string; paused: boolean; onChanged: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  async function save(until: string | null) {
+    setBusy(true);
+    setFailed(false);
+    try {
+      const r = await fetch(`/api/events/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ send_paused_until: until }),
+      });
+      if (!r.ok) throw new Error(String(r.status));
+      setOpen(false);
+      onChanged();
+    } catch {
+      /* לא משנים את התצוגה מקומית — עדיף להראות "לא נשמר" מאשר להראות מושהה
+         בזמן שהקרון עדיין מתכוון לשלוח. */
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const link = (extra?: React.CSSProperties): React.CSSProperties => ({
+    background: "none", border: "none", padding: 0, fontFamily: "inherit",
+    fontSize: 11.5, fontWeight: 700, color: T.gold,
+    cursor: busy ? "default" : "pointer", opacity: busy ? 0.5 : 1, ...extra,
+  });
+
+  return (
+    <span style={{ marginInlineStart: "auto", display: "flex", alignItems: "center", gap: 12 }}>
+      {failed && <span style={{ color: T.alert }}>לא נשמר</span>}
+      {paused ? (
+        <button type="button" disabled={busy} onClick={() => save(null)} style={link({ color: T.olive })}>
+          חידוש שליחה
+        </button>
+      ) : open ? (
+        <>
+          <button type="button" disabled={busy} onClick={() => save(morningAfter(1))} style={link()}>
+            עד מחר בבוקר
+          </button>
+          <button type="button" disabled={busy} onClick={() => save(morningAfter(2))} style={link()}>
+            עד מחרתיים
+          </button>
+          <button type="button" disabled={busy} onClick={() => setOpen(false)} style={link({ color: T.muted, fontWeight: 400 })}>
+            ביטול
+          </button>
+        </>
+      ) : (
+        <button type="button" onClick={() => setOpen(true)} style={link()}>
+          השהיית שליחה
+        </button>
+      )}
+    </span>
+  );
+}
+
+/* 08:00 מקומי ביום המבוקש, ולא "עוד 24 שעות": ריצת הבוקר הראשונה של השולח היא
+   09:00 בארץ, כך ש"עד מחר בבוקר" מחזיר את האירוע כבר בריצה הראשונה של מחר
+   ולא יום שלם אחריה. */
+function morningAfter(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(8, 0, 0, 0);
+  return d.toISOString();
 }
 
 /* The WhatsApp message as the guest will see it — the centrepiece, and the only

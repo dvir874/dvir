@@ -14,14 +14,19 @@ function QrCards() {
   const [memoryUrl, setMemoryUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /* The printed QR leads to /memory/[token], and that route authenticates
+     against vault_tokens — the gallery album's public_token, which this page
+     used to print, does not open it. The identical mix-up on the RSVP page sent
+     88 guests to a 404 before anyone noticed; a card on a table cannot be
+     recalled, so it must carry the vault token. */
   useEffect(() => {
     if (!eventId) { setLoading(false); return; }
     Promise.all([
       fetch(`/api/events/${eventId}`).then(r => r.ok ? r.json() : null),
-      fetch(`/api/admin/gallery/${eventId}`).then(r => r.ok ? r.json() : null),
-    ]).then(([ev, gal]) => {
+      fetch(`/api/memory/vault-token?event_id=${eventId}`).then(r => r.ok ? r.json() : null),
+    ]).then(([ev, vault]) => {
       if (ev?.name) setEventName(ev.name);
-      if (gal?.album?.public_token) setMemoryUrl(`${window.location.origin}/memory/${gal.album.public_token}`);
+      if (vault?.token) setMemoryUrl(`${window.location.origin}/memory/${vault.token}`);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [eventId]);
@@ -34,8 +39,8 @@ function QrCards() {
   if (loading)  return <p style={{ padding: 40, textAlign: "center" }}>טוען...</p>;
   if (!memoryUrl) return (
     <div dir="rtl" style={{ padding: 40, textAlign: "center", fontFamily: "Heebo, sans-serif" }}>
-      <p style={{ fontSize: 16, fontWeight: 600 }}>לאירוע הזה אין עדיין אלבום גלריה</p>
-      <p style={{ fontSize: 14, color: "#8C7B6E" }}>צרו אלבום דרך האדמין ואז חזרו לכאן</p>
+      <p style={{ fontSize: 16, fontWeight: 600 }}>לאירוע הזה אין עדיין קישור להעלאת תמונות</p>
+      <p style={{ fontSize: 14, color: "#8C7B6E" }}>צרו כספת זיכרונות בטאב &quot;זיכרונות&quot; באדמין ואז חזרו לכאן</p>
     </div>
   );
 

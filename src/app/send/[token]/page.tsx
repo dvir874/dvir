@@ -1,6 +1,8 @@
 "use client";
 
 import { use, useCallback, useEffect, useState } from "react";
+import { coupleName } from "@/lib/couple-name";
+import { eventTimes } from "@/lib/event-times";
 
 /* The helper's screen — one guest at a time, from a phone.
  *
@@ -24,7 +26,14 @@ const C = {
 
 interface Guest { id: string; name: string; phone: string; rsvp_token: string; group: string | null }
 interface Data {
-  event: { name: string; date: string; address: string | null; venue_name: string | null };
+  /* Everything past `name` is optional on purpose: the fields arrived after
+     helpers were already sending, and a link opened against an older response
+     must still build a message rather than render nothing. */
+  event: {
+    name: string; couple_names?: string | null;
+    date: string; address: string | null; venue_name: string | null;
+    reception_time?: string | null; chuppah_time?: string | null;
+  };
   todo: Guest[]; done: number; total: number;
 }
 
@@ -162,22 +171,41 @@ export default function HelperSendPage({ params }: { params: Promise<{ token: st
       : "";
     const where = [ev.venue_name, ev.address].filter(Boolean).join(", ");
 
+    /* The name the guest reads, not the label the dashboard shows. events.name
+       is a title — "חתונת אורי ושחר" — and dropped into the sentence below it
+       produced "בעזרת ה׳ חתונת אורי ושחר מתחתנים". couple_names is the real
+       field; coupleName falls back to the title for an event created before
+       that column existed, exactly as this page behaved yesterday. */
+    const couple = coupleName(ev) ?? ev.name;
+
+    /* Was the constant "קבלת פנים 19:00 | חופה וקידושין 20:00", written when
+       there was one wedding in the system. אורי ✧ שחר receive at 17:30 and
+       stand under the chuppah at 18:15, set before sunset on purpose, so that
+       line would have put guests in the car during their own chuppah.
+       Missing times drop the line rather than guess one: a wedding with no
+       hour stated still gets its date, its place and its link, and a wrong
+       hour is a valid string that nothing downstream would ever flag. */
+    const times = eventTimes(ev);
+    const details = [
+      when  ? `🗓 ${when}`  : null,
+      where ? `📍 ${where}` : null,
+      times ? `🥂 ${times}` : null,
+    ].filter(Boolean).join("\n");
+
     if (reminder) {
       /* Opens with the same line every template in the system opens with —
          see DEC-007. The couple's names come after it, never before. */
       return `💍 משפחה וחברים יקרים!
 
 רק תזכורת קטנה 🤍
-*${ev.name}* מתחתנים ב-${when}, ועדיין לא קיבלנו מכם תשובה.
+*${couple}* מתחתנים ב-${when}, ועדיין לא קיבלנו מכם תשובה.
 
 זה לוקח שנייה, ועוזר להם מאוד לסגור מספרים מול האולם:
 
 👇 לחצו כאן לאישור הגעה 👇
 ${location.origin}/rsvp/${g.rsvp_token}
 
-🗓 ${when}
-📍 ${where}
-🥂 קבלת פנים 19:00 | חופה וקידושין 20:00
+${details}
 
 תודה רבה! מחכים לחגוג איתכם 🤍
 
@@ -190,12 +218,10 @@ _(הודעה זו נשלחה באמצעות שירות רגע לפני)_`;
        and it matches every other template in the system. */
     return `💍 משפחה וחברים יקרים!
 
-בעזרת ה׳ *${ev.name}* מתחתנים! 🤍
+בעזרת ה׳ *${couple}* מתחתנים! 🤍
 והם שמחים להזמין אתכם לחגוג איתם:
 
-🗓 ${when}
-📍 ${where}
-🥂 קבלת פנים 19:00 | חופה וקידושין 20:00
+${details}
 
 👇 לחצו כאן לצפייה בהזמנה המלאה ואישור הגעה 👇
 ${location.origin}/rsvp/${g.rsvp_token}

@@ -464,26 +464,79 @@ function UpdatesCenter({ briefing, stats, seating }: {
 function PostEventDashboard({ token, eventName, eventDate }: { token: string; eventName: string; eventDate?: string }) {
   const [photoCount,    setPhotoCount]    = useState(0);
   const [blessingCount, setBlessingCount] = useState(0);
+  const [galleryToken,  setGalleryToken]  = useState<string | null>(null);
+  const [galleryOpens,  setGalleryOpens]  = useState(false);
+  const [uploadToken,   setUploadToken]   = useState<string | null>(null);
+  const [wallToken,     setWallToken]     = useState<string | null>(null);
 
+  /* The couple token opens /api/couple/* and nothing else. /api/gallery
+     authenticates against gallery_albums, /api/memory against vault_tokens —
+     so both counters here read 0 no matter how many photos and blessings had
+     arrived, and every card pointed at a 404. This is the screen the couple
+     opens the morning after the wedding, looking for exactly those two things.
+     Each link now waits for the token that actually opens it, the same lookup
+     /couple/[token]/day already does, and a card whose token we do not have is
+     left out rather than shown dead. */
   useEffect(() => {
-    fetch(`/api/gallery/${token}`)
-      .then(r => r.json())
-      .then(d => setPhotoCount(Array.isArray(d.photos) ? d.photos.length : 0))
+    fetch(`/api/couple/${token}/event`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.gallery_token) setGalleryToken(d.gallery_token); })
       .catch(() => {});
-    fetch(`/api/memory/${token}/items`)
-      .then(r => r.json())
-      .then(d => setBlessingCount(Array.isArray(d.items) ? d.items.filter((i: {type?: string}) => i.type === "blessing").length : 0))
+    fetch(`/api/couple/${token}/vault`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        /* Two tokens since 20260812_memory_owner_and_taken_at: the guest one
+           uploads, owner_token views. Sending the couple the guest link would
+           show them the "this is an upload link" refusal on their own wall. */
+        if (d?.vault_token) setUploadToken(d.vault_token);
+        if (d?.owner_token) setWallToken(d.owner_token);
+      })
       .catch(() => {});
   }, [token]);
+
+  /* Having a token is not the same as it opening the album: gallery_token is
+     the guests' public_token, and an album with is_public = false refuses it
+     (20260812_gallery_owner_token) — the couple's own key is the album's
+     owner_token, which no couple route hands out yet. So the album is read
+     first and the card appears only if that read succeeded. */
+  useEffect(() => {
+    if (!galleryToken) return;
+    fetch(`/api/gallery/${galleryToken}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d || d.error) return;
+        setGalleryOpens(true);
+        setPhotoCount(Array.isArray(d.photos) ? d.photos.length : 0);
+      })
+      .catch(() => {});
+  }, [galleryToken]);
+
+  useEffect(() => {
+    if (!wallToken) return;
+    /* This route answers with a bare array of items, not { items } */
+    fetch(`/api/memory/${wallToken}/items`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setBlessingCount(Array.isArray(d) ? d.filter((i: {type?: string}) => i.type === "blessing").length : 0))
+      .catch(() => {});
+  }, [wallToken]);
 
   const formattedDate = eventDate
     ? new Date(eventDate).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })
     : null;
 
-  const POST_GRID = [
-    { icon: "📸", label: "גלריה",          sub: "תמונות האירוע",     href: `/gallery/${token}` },
-    { icon: "💝", label: "ברכות",          sub: "כל הברכות שקיבלתם", href: `/memories/${token}` },
+  const POST_GRID: { icon: string; label: string; sub: string; href: string }[] = [
+    ...(galleryOpens ? [{ icon: "📸", label: "גלריה", sub: "תמונות האירוע",     href: `/gallery/${galleryToken}` }] : []),
+    ...(wallToken    ? [{ icon: "💝", label: "ברכות", sub: "כל הברכות שקיבלתם", href: `/memory/${wallToken}/wall` }] : []),
     { icon: "⭐", label: "ריוו",           sub: "כתבו ביקורת",        href: `/survey/${token}` },
+  ];
+
+  /* Same rule in the nav: a tab we cannot open is not shown. "עוד" already
+     renders as an inert item, so the row survives having fewer than four. */
+  const POST_NAV: { emoji: string; label: string; href: string | null; active: boolean }[] = [
+    { emoji: "🏠", label: "בית",      href: `/couple/${token}`, active: true  },
+    ...(galleryOpens ? [{ emoji: "📸", label: "גלריה",   href: `/gallery/${galleryToken}`,   active: false }] : []),
+    ...(wallToken    ? [{ emoji: "💝", label: "זכרונות", href: `/memory/${wallToken}/wall`,  active: false }] : []),
+    { emoji: "☰",  label: "עוד",      href: null,               active: false },
   ];
 
   return (
@@ -522,9 +575,12 @@ function PostEventDashboard({ token, eventName, eventDate }: { token: string; ev
           gap: 0, background: C.cream, borderRadius: 16, border: `1px solid ${C.border}`,
           padding: "14px 0", marginBottom: 20, overflow: "hidden",
         }}>
+          {/* A count we could not read is not a count of zero. "0 תמונות" and
+              "0 ברכות" on the morning after the wedding read as "nobody sent
+              anything", which is the one thing we know is not true. */}
           {[
-            { value: photoCount,    label: "תמונות" },
-            { value: blessingCount, label: "ברכות"  },
+            { value: galleryOpens ? photoCount    : "—", label: "תמונות" },
+            { value: wallToken    ? blessingCount : "—", label: "ברכות"  },
             { value: 0,             label: "זכרונות" },
           ].map((stat, i) => (
             <div key={stat.label} style={{
@@ -557,8 +613,10 @@ function PostEventDashboard({ token, eventName, eventDate }: { token: string; ev
         </div>
 
         {/* Photo upload CTA — dashed card per E3-S11 spec */}
-        {photoCount === 0 && (
-          <a href={`/memory/${token}`} style={{ textDecoration: "none", display: "block", marginBottom: 20 }}>
+        {/* The upload page validates against vault_tokens.token, so the couple
+            token landed them on "הקישור אינו תקין" instead of the camera. */}
+        {photoCount === 0 && uploadToken && (
+          <a href={`/memory/${uploadToken}`} style={{ textDecoration: "none", display: "block", marginBottom: 20 }}>
             <div style={{
               background: C.cream,
               border: `2px dashed ${C.gold}`,
@@ -589,12 +647,7 @@ function PostEventDashboard({ token, eventName, eventDate }: { token: string; ev
         display: "flex", alignItems: "stretch", height: 56,
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
       }} dir="rtl">
-        {[
-          { emoji: "🏠", label: "בית",      href: `/couple/${token}`,    active: true  },
-          { emoji: "📸", label: "גלריה",    href: `/gallery/${token}`,   active: false },
-          { emoji: "💝", label: "זכרונות",  href: `/memories/${token}`,  active: false },
-          { emoji: "☰",  label: "עוד",      href: null,                  active: false },
-        ].map(tab => (
+        {POST_NAV.map(tab => (
           tab.href ? (
             <a key={tab.label} href={tab.href}
                style={{ flex: 1, textDecoration: "none", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, position: "relative" }}>
@@ -702,7 +755,28 @@ function WeddingDayScreen({ token, event, briefing }: {
   const [newTime, setNewTime]   = useState("");
   const [newTitle, setNewTitle] = useState("");
   const [saving, setSaving]     = useState(false);
+  const [galleryToken, setGalleryToken] = useState<string | null>(null);
   const eventId = briefing?.event?.id;
+
+  /* /gallery/<couple token> is a 404: that route matches gallery_albums, not
+     events.couple_token. This screen exists for one day only, so a dead tile
+     here is a dead tile on the wedding day itself, with nobody left to report
+     it in time. Same lookup as /couple/[token]/day — and then the album is
+     actually opened before the tile is shown, because a private album
+     (is_public = false) refuses the guest token too. */
+  useEffect(() => {
+    let alive = true;
+    fetch(`/api/couple/${token}/event`)
+      .then(r => r.ok ? r.json() : null)
+      .then(async d => {
+        const gt = d?.gallery_token;
+        if (!gt) return;
+        const opens = await fetch(`/api/gallery/${gt}`).then(r => r.ok).catch(() => false);
+        if (alive && opens) setGalleryToken(gt);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [token]);
 
   const wazeLink = event.address
     ? `https://waze.com/ul?q=${encodeURIComponent(event.address)}`
@@ -732,7 +806,7 @@ function WeddingDayScreen({ token, event, briefing }: {
     { icon: "📍", label: "נווט ב-Waze",    href: wazeLink },
     { icon: "📞", label: "אנשי קשר",       href: `/couple/${token}/vendors` },
     { icon: "🪑", label: "הושבה",          href: `/couple/${token}/seating` },
-    { icon: "📸", label: "גלריה",          href: `/gallery/${token}` },
+    ...(galleryToken ? [{ icon: "📸", label: "גלריה", href: `/gallery/${galleryToken}` }] : []),
     { icon: "💬", label: "הודעה לאורחים",  href: `/couple/${token}/requests` },
   ];
 

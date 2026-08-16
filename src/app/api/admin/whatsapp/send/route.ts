@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { venueLine } from "@/lib/venue";
+import { coupleName, looksLikeCouple } from "@/lib/couple-name";
 import { eventTimes } from "@/lib/event-times";
 import { weddingDateLine } from "@/lib/hebrew-date";
 import {
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
   /* Each event carries its own invitation card and its own wording. */
   const { data: eventRow } = await sb
     .from("events")
-    .select("name, date, address, reception_time, chuppah_time, wa_header_image_url")
+    .select("name, couple_names, date, address, venue_name, reception_time, chuppah_time, wa_header_image_url")
     .eq("id", eventId).maybeSingle();
   /* No global fallback. WHATSAPP_HEADER_IMAGE_URL holds ONE couple's invitation
      card, so falling back to it means the next client's 550 guests receive Dvir
@@ -146,7 +147,12 @@ export async function POST(req: NextRequest) {
      template and supplies its details as variables. */
   const isOwnWedding = eventId === "a5e65dcf-8109-438d-a4a1-8f65d6f3e948";
   const details = isOwnWedding ? undefined : {
-    couple: eventRow?.name ?? "",
+    /* couple_names, not name. events.name is the dashboard title — "חתונת אורי
+       ושחר" — and this variable lands inside "בעזרת ה׳ *{{1}}* מתחתנים", so
+       reading name here produced "בעזרת ה׳ חתונת אורי ושחר מתחתנים" on every
+       manual send from /admin/send. The cron was already reading couple_names;
+       this route was left behind. See src/lib/couple-name.ts. */
+    couple: coupleName(eventRow) ?? "",
     /* Both calendars. Her card says כ״ו אלול תשפ״ו and a guest
          reading "8 בספטמבר" alone is being shown a translation of their
          own date back to them. See src/lib/hebrew-date.ts. */
@@ -171,6 +177,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "missing_event_details",
         hint: "חסרים שם הזוג, תאריך, מקום או שעות האירוע — השליחה נעצרה" },
+      { status: 400 },
+    );
+  }
+  /* And a title that got past the stripper stops here, the way the cron stops
+     (src/app/api/cron/wa-send/route.ts). The failure this guards against is not
+     a crash — it is a message that sends perfectly and says the wrong thing,
+     and a sent WhatsApp message cannot be recalled. The answer when this fires
+     is to fill couple_names for the event, not to loosen the rule. */
+  if (details && !looksLikeCouple(details.couple)) {
+    return NextResponse.json(
+      { error: "couple_name_not_valid",
+        hint: `"${details.couple}" לא נראה כמו שמות בני זוג — מלאו couple_names לאירוע לפני שליחה` },
       { status: 400 },
     );
   }

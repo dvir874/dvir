@@ -38,14 +38,20 @@ export default function GalleryPage({ params }: { params: Promise<{ token: strin
   const [album,    setAlbum]    = useState<AlbumInfo | null>(null);
   const [photos,   setPhotos]   = useState<Photo[]>([]);
   const [lightbox, setLightbox] = useState<number | null>(null); // index
+  /* Upload lives at /memory/[token], which authenticates against vault_tokens —
+     the album token in this page's URL does not open it. Linking the album
+     token here is the same mix-up that sent 88 RSVP guests to a 404, so the
+     vault token comes from the API and the buttons hide when there is none. */
+  const [memoryToken, setMemoryToken] = useState<string | null>(null);
   const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
     fetch(`/api/gallery/${token}`, { signal: AbortSignal.timeout(15_000) })
       .then(r => r.json())
-      .then((d: { album?: AlbumInfo; photos?: Photo[]; error?: string }) => {
+      .then((d: { album?: AlbumInfo; photos?: Photo[]; memoryToken?: string | null; error?: string }) => {
         if (d.error || !d.album) { setScreen("error"); return; }
         setAlbum(d.album);
+        setMemoryToken(d.memoryToken ?? null);
         const list = (d.photos ?? []).filter(p => p.public_url);
         setPhotos(list);
         setScreen(list.length === 0 ? "empty" : "grid");
@@ -154,12 +160,14 @@ export default function GalleryPage({ params }: { params: Promise<{ token: strin
           <p style={{ fontSize:"15px", color:T.muted, fontWeight:300, lineHeight:1.6, maxWidth:280 }}>
             הגלריה עדיין ריקה...<br />היי הראשונים מהחתונה לשתף את הרגעים המרגשים ❤️
           </p>
-          <a
-            href={`/memory/${token}`}
-            style={{ marginTop:8, padding:"16px 32px", borderRadius:"14px", background:T.gold, color:"#fff", fontFamily:"'Heebo',sans-serif", fontWeight:700, fontSize:"16px", textDecoration:"none", boxShadow:`0 4px 12px rgba(197,164,109,0.35)`, display:"inline-block" }}
-          >
-            העלאת תמונות הראשונות
-          </a>
+          {memoryToken && (
+            <a
+              href={`/memory/${memoryToken}`}
+              style={{ marginTop:8, padding:"16px 32px", borderRadius:"14px", background:T.gold, color:"#fff", fontFamily:"'Heebo',sans-serif", fontWeight:700, fontSize:"16px", textDecoration:"none", boxShadow:`0 4px 12px rgba(197,164,109,0.35)`, display:"inline-block" }}
+            >
+              העלאת תמונות הראשונות
+            </a>
+          )}
         </div>
       </div>
     );
@@ -189,12 +197,14 @@ export default function GalleryPage({ params }: { params: Promise<{ token: strin
             שתפו רגעים שצילמתם
           </p>
         </div>
-        <a
-          href={`/memory/${token}`}
-          style={{ flexShrink:0, padding:"8px 14px", borderRadius:20, background:T.gold, color:"#fff", fontFamily:"'Heebo',sans-serif", fontWeight:600, fontSize:13, textDecoration:"none", display:"flex", alignItems:"center", gap:5, boxShadow:"0 2px 8px rgba(197,164,109,0.35)" }}
-        >
-          <span style={{ fontSize:14 }}>+</span> הוספת תמונה
-        </a>
+        {memoryToken && (
+          <a
+            href={`/memory/${memoryToken}`}
+            style={{ flexShrink:0, padding:"8px 14px", borderRadius:20, background:T.gold, color:"#fff", fontFamily:"'Heebo',sans-serif", fontWeight:600, fontSize:13, textDecoration:"none", display:"flex", alignItems:"center", gap:5, boxShadow:"0 2px 8px rgba(197,164,109,0.35)" }}
+          >
+            <span style={{ fontSize:14 }}>+</span> הוספת תמונה
+          </a>
+        )}
       </div>
 
       {/* Masonry grid — CSS column-count (zero deps, native, RTL-safe) */}
@@ -226,26 +236,28 @@ export default function GalleryPage({ params }: { params: Promise<{ token: strin
       <div style={{ height:"100px" }}/>
 
       {/* FAB */}
-      <a
-        href={`/memory/${token}`}
-        aria-label="העלאת תמונה"
-        style={{
-          position:"fixed",
-          bottom:`calc(24px + env(safe-area-inset-bottom))`,
-          right:"20px",
-          width:"56px",
-          height:"56px",
-          borderRadius:"50%",
-          background:`linear-gradient(135deg,${T.gold},#B8935A)`,
-          boxShadow:"0 4px 16px rgba(197,164,109,0.5)",
-          display:"flex",
-          alignItems:"center",
-          justifyContent:"center",
-          textDecoration:"none",
-        }}
-      >
-        <Camera size={22} color="#fff"/>
-      </a>
+      {memoryToken && (
+        <a
+          href={`/memory/${memoryToken}`}
+          aria-label="העלאת תמונה"
+          style={{
+            position:"fixed",
+            bottom:`calc(24px + env(safe-area-inset-bottom))`,
+            right:"20px",
+            width:"56px",
+            height:"56px",
+            borderRadius:"50%",
+            background:`linear-gradient(135deg,${T.gold},#B8935A)`,
+            boxShadow:"0 4px 16px rgba(197,164,109,0.5)",
+            display:"flex",
+            alignItems:"center",
+            justifyContent:"center",
+            textDecoration:"none",
+          }}
+        >
+          <Camera size={22} color="#fff"/>
+        </a>
+      )}
 
       {/* Lightbox */}
       {lightbox !== null && currentPhoto && (
