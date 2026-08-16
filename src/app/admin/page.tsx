@@ -340,7 +340,7 @@ interface CouponRow {
    a guest who has the invitation and has not replied wants a reminder, and a
    guest who never received one wants an invitation. Merging them is how 130
    people sat in a list labelled "waiting" having heard nothing at all. */
-type StatusFilter = "all" | GuestStatus | "no_answer" | "not_sent" | "opened";
+type StatusFilter = "all" | GuestStatus | "no_answer" | "not_sent" | "unreachable" | "opened";
 
 /* ══════════════════════════════════════════════════════
    Main Admin Page
@@ -617,7 +617,7 @@ export default function AdminPage() {
   }, [selectedEventId]);
 
   const [deliveryMap, setDeliveryMap] = useState<Record<string,
-    { icon: string; label: string; color: string; title: string }>>({});
+    { icon: string; label: string; color: string; title: string; unreachable?: boolean }>>({});
 
   useEffect(() => {
     if (!selectedEventId) { setDeliveryMap({}); return; }
@@ -625,10 +625,17 @@ export default function AdminPage() {
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (!d) return;
-        const m: Record<string, { icon: string; label: string; color: string; title: string }> = {};
-        (d.failed ?? []).forEach((r: { id: string; he?: string; raw?: string }) => {
-          m[r.id] = { icon: "❌", label: "נכשל", color: "#C05050",
-                      title: r.he ?? r.raw ?? "ההודעה לא נמסרה" };
+        const m: Record<string, { icon: string; label: string; color: string; title: string; unreachable?: boolean }> = {};
+        /* retryable already comes from the delivery API — it was simply never
+           read here, so a guest with no WhatsApp account sat in the same bucket
+           as one whose message is still in flight. Seven of שחר's guests are in
+           that state and will never receive anything: 131026 is terminal, and
+           the only thing that reaches them is a phone call. */
+        (d.failed ?? []).forEach((r: { id: string; he?: string; raw?: string; retryable?: boolean }) => {
+          const dead = r.retryable === false;
+          m[r.id] = { icon: dead ? "📵" : "❌", label: dead ? "לא ניתן להשיג" : "נכשל",
+                      color: "#C05050", title: r.he ?? r.raw ?? "ההודעה לא נמסרה",
+                      unreachable: dead };
         });
         /* Weaker evidence than a delivery report, and it must not read as
            stronger: there is no report at all, only the guest's own behaviour.
@@ -684,8 +691,11 @@ export default function AdminPage() {
       statusFilter === "all"       ? true
       /* has the invitation, has not answered */
       : statusFilter === "no_answer" ? g.status === "pending" && reached
-      /* no evidence anything ever arrived */
-      : statusFilter === "not_sent"  ? g.status === "pending" && !reached
+      /* nothing was ever sent — no delivery row of any kind. Distinct from
+         unreachable below, which HAS a row and a terminal reason. */
+      : statusFilter === "not_sent"  ? g.status === "pending" && !reached && !deliveryMap[g.id]
+      /* WhatsApp will never reach them. Only a phone call will. */
+      : statusFilter === "unreachable" ? !!deliveryMap[g.id]?.unreachable
       : statusFilter === "opened"    ? !!g.opened_at
       : g.status === statusFilter;
     return matchSearch && matchStatus;
@@ -2550,11 +2560,15 @@ export default function AdminPage() {
                     return g.status === "pending" &&
                       (d === "נמסר" || d === "נקרא" || d === "הגיע" || d === "נשלח ידנית");
                   }).length})`],
-                  ["not_sent",  `⚠️ לא קיבלו (${guests.filter(g => {
-                    const d = deliveryMap[g.id]?.label;
-                    return g.status === "pending" &&
-                      !(d === "נמסר" || d === "נקרא" || d === "הגיע" || d === "נשלח ידנית");
-                  }).length})`],
+                  /* "לא קיבלו" used to mean three unrelated things at once:
+                     never sent, still in flight, and permanently unreachable.
+                     Dvir read 145 next to "ממתינים 265" and could not tell what
+                     either number was asking. They are separate questions and
+                     only one of them is something a person can act on. */
+                  ["not_sent",  `⚠️ טרם נשלחה הזמנה (${guests.filter(g =>
+                    g.status === "pending" && !deliveryMap[g.id]).length})`],
+                  ["unreachable", `📵 אין וואטסאפ — להתקשר (${guests.filter(g =>
+                    deliveryMap[g.id]?.unreachable).length})`],
                   ["opened",    `🔗 נכנסו לקישור (${guests.filter(g => g.opened_at).length})`],
                 ] as [StatusFilter, string][]).map(([val, lbl]) => (
                   <button
