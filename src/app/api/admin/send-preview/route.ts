@@ -83,7 +83,11 @@ export async function GET() {
        previews as ready is an event that sends. */
     const couple = coupleName(ev);
     const times  = eventTimes(ev);
-    const venue  = (ev.address as string | null)?.trim() || (ev.venue_name as string | null)?.trim() || null;
+    const vName  = (ev.venue_name as string | null)?.trim() || "";
+    const vAddr  = (ev.address as string | null)?.trim() || "";
+    const venue  =
+      vAddr && vName && !vAddr.includes(vName) ? `${vName}, ${vAddr}`
+      : vAddr || vName || null;
     const when   = ev.date ? weddingDateLine(ev.date as string) : null;
 
     const blocked =

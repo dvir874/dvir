@@ -573,7 +573,22 @@ async function runSend(req: NextRequest) {
    * crash — it was a message that sent perfectly and said the wrong thing. */
   const couple = coupleName(ev);
   const times  = eventTimes(ev);
-  const venue  = (ev.address as string | null)?.trim() || (ev.venue_name as string | null)?.trim() || null;
+  /* Both halves of the address, not whichever one happens to be filled.
+   *
+   * This read address and stopped. תהל ואביב were entered as venue_name "גן
+   * האירועים ארץ" + address "מושב עג׳ור", so their 310 guests would have been
+   * told to drive to "מושב עג׳ור" — a village, with no venue named in it.
+   * שחר's row happened to carry the whole string in address and came out right,
+   * which is the worst kind of correct: same person, same afternoon, two
+   * weddings, and only luck separated them.
+   *
+   * The schema allows two valid fillings that produce different messages, so
+   * the sender stops depending on which one it got. */
+  const vName  = (ev.venue_name as string | null)?.trim() || "";
+  const vAddr  = (ev.address as string | null)?.trim() || "";
+  const venue  =
+    vAddr && vName && !vAddr.includes(vName) ? `${vName}, ${vAddr}`
+    : vAddr || vName || null;
   const when   = ev.date ? weddingDateLine(ev.date as string) : null;
 
   const missing =
