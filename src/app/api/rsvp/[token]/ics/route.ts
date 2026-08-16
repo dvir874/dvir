@@ -14,7 +14,15 @@ function fmtUtc(d: Date): string {
 /* Local wall-clock, for use with TZID. events.date is a bare date with no time,
    so the ceremony hour has to come from somewhere — and it must be the SAME
    source the RSVP page prints, or the calendar and the page disagree. */
-const RECEPTION_HOUR = 19;
+/* The couple's real hour, not a constant.
+   The card said 19:00 to everybody while the page beside it printed the true
+   time from reception_time. אורי ושחר start at 17:30 and the chuppah is 18:15,
+   so a guest who added it to their calendar was reminded 45 minutes after the
+   ceremony. 19:00 stays only as the fallback when the field is empty. */
+const RECEPTION_FALLBACK = "190000";
+const hhmmss = (t: string | null | undefined) =>
+  /^\d{1,2}:\d{2}$/.test(t ?? "") ? String(t).padStart(5, "0").replace(":", "") + "00"
+                                  : RECEPTION_FALLBACK;
 /* Ends before midnight rather than at 19+5=24, which is not a valid hour in
    RFC 5545 and made the whole VEVENT unparseable. Matches the end time the
    Google Calendar button on the RSVP page already used. */
@@ -39,7 +47,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
 
   const { data: event } = await supabase
     .from('events')
-    .select('name, date, address, venue_name')
+    .select('name, date, address, venue_name, reception_time')
     .eq('id', guest.event_id)
     .single();
   if (!event?.date) return NextResponse.json({ error: 'No date' }, { status: 404 });
@@ -79,7 +87,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
     'BEGIN:VEVENT',
     `UID:${token}@regalifnei`,
     `DTSTAMP:${fmtUtc(new Date())}`,
-    `DTSTART;TZID=Asia/Jerusalem:${fmtLocal(event.date, `${String(RECEPTION_HOUR).padStart(2, '0')}0000`)}`,
+    `DTSTART;TZID=Asia/Jerusalem:${fmtLocal(event.date, hhmmss(event.reception_time))}`,
     `DTEND;TZID=Asia/Jerusalem:${fmtLocal(event.date, END_HHMM)}`,
     `SUMMARY:${icsEscape(event.name ?? 'חתונה 💍')}`,
     ...(location ? [`LOCATION:${icsEscape(location)}`] : []),

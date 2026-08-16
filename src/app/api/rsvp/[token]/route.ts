@@ -160,6 +160,17 @@ export async function POST(request: NextRequest, { params }: Params) {
     status,
     guest_count: guest_count ?? 1,
     response_time: new Date().toISOString(),
+    /* Close the WhatsApp conversation too.
+     *
+     * The simple page and wa-conversation.record() both clear this; the main
+     * page — the one nearly every guest uses — did not. wa-conversation sets
+     * ASK_COUNT right after "מגיע", and while that state is open ANY free text
+     * containing a number 1–20 is parsed as a headcount and written together
+     * with status "confirmed". So a guest who declined on the page and later
+     * wrote "תודה, אנחנו 2" was flipped back to attending, and one who chose 5
+     * on the page had it overwritten by a passing message. */
+    chat_state: null,
+    chat_state_at: null,
     ...(meal_preference !== undefined ? { meal_preference } : {}),
     ...(meal_note !== undefined ? { meal_note } : {}),
   };

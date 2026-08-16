@@ -308,7 +308,21 @@ export function policyFor(code: number | null | undefined, err?: string | null):
     case 131050:
       return { action: "never", human: "הנמען ביקש להפסיק לקבל — לעולם לא לשלוח שוב" };
     default:
-      return { action: "never", human: "כשל לא מסווג — לטיפול ידני" };
+      /* Retry, not never.
+       *
+       * codeFromText recognises four phrases; everything else landed here, and
+       * a transient HTTP 503 from Graph is built as "HTTP 503" and arrives at
+       * exactly this line. That wrote a failed row with retry_after null, so
+       * the next run read `never`, marked the guest unreachable, and dropped
+       * them from both the first-contact group and the reminders — while group
+       * 2 requires a non-null retry_after and could not pick them up either.
+       * A five-minute cloud outage mid-run permanently removed a batch of
+       * guests from every future send, silently.
+       *
+       * `never` now means only what it was meant to mean: no WhatsApp account
+       * (131026) and opted out (131050). */
+      return { action: "retry_later", delayH: 6, maxAttempts: 3,
+               human: "כשל לא מסווג — ניסיון חוזר בעוד 6 שעות" };
   }
 }
 
@@ -822,6 +836,15 @@ async function sendOnce(
     const res = await fetch(
       `https://graph.facebook.com/${API_VERSION}/${cfg.phoneNumberId}/messages`,
       {
+        /* The only send-path fetch without a timeout — sendGalleryReady and
+           fetchAccountHealth both have one. Promise.all over a batch cannot
+           settle while a single request hangs, and the DEADLINE check runs only
+           BETWEEN batches, so Vercel kills the invocation instead: messages
+           Meta already accepted get no wa_messages row, their guests look
+           untouched and are messaged again, and no wa_runs row is written at
+           all — which on /admin/sending is indistinguishable from a cron that
+           never ran. */
+        signal: AbortSignal.timeout(20_000),
         method: "POST",
         headers: {
           Authorization: `Bearer ${cfg.accessToken}`,

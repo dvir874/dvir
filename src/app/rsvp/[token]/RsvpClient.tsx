@@ -566,7 +566,12 @@ export default function RsvpClient({
        the instant with new Date(y, m, d, 19, ...) used the GUEST's timezone, so
        a guest abroad got 19:00 in their own city rather than in Israel. */
     const day = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
-    const dates = `${day}T190000/${day}T235900`;
+    /* The same 19:00 the .ics carried, in the Google Calendar link beside it.
+       Line ~1309 on this very page prints the couple's real hour to the guest;
+       this button ignored it. */
+    const recep = String(event?.reception_time ?? "").trim();
+    const hh = /^\d{1,2}:\d{2}$/.test(recep) ? recep.padStart(5, "0").replace(":", "") : "1900";
+    const dates = `${day}T${hh}00/${day}T235900`;
     const where = [event.venue_name, event.address].filter(Boolean).join(", ");
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.name)}&dates=${dates}&ctz=Asia/Jerusalem&location=${encodeURIComponent(where)}`;
   })();

@@ -754,9 +754,29 @@ async function runSend(req: NextRequest) {
     .gte("assigned_at", assignedSince);
   const reserved = new Set((held ?? []).map(h => h.id as string));
 
+  /* How long since we last put anything on this person's phone.
+   *
+   * Nothing here asked that question, and nothing else answered it either:
+   * rollingWindowUsage counts UNIQUE recipients, so messaging the same guest
+   * again never reduces `remaining` and the budget comes back identical on the
+   * next run. The reminder sort is deterministic and the same people stay
+   * pending, so the same head of the queue was selected by all six daily runs
+   * while the tail was never reached — up to six messages a day to one guest,
+   * and none at all to another.
+   *
+   * That is exactly what produces 131048, and 131048 stops sending for all
+   * three weddings at once.
+   *
+   * lastByGuest is already built above from every outbound row, so this costs
+   * nothing: no extra query, one map lookup per candidate. */
+  const messagedSince = (id: string, hours: number) => {
+    const at = lastByGuest.get(id)?.at;
+    return !!at && at > new Date(Date.now() - hours * 3_600_000).toISOString();
+  };
+
   /* ---- 1. no evidence the invitation ever arrived ---- */
   ids.filter(id => !contacted.has(id) && !reserved.has(id) && !unreachable.has(id)
-                   && !doNotContact.has(id))
+                   && !doNotContact.has(id) && !messagedSince(id, 24))
     .slice(0, budget)
     .forEach(id => targets.push({ id }));
 
@@ -830,7 +850,8 @@ async function runSend(req: NextRequest) {
        reminded once would reset their place in the queue and starve the very
        people this is for. */
     ids.filter(id => contacted.has(id) && !already.has(id) && !reserved.has(id)
-                  && !unreachable.has(id) && !doNotContact.has(id))
+                  && !unreachable.has(id) && !doNotContact.has(id)
+                  && !messagedSince(id, 72))
       .sort((a, b) => (firstArrival.get(a) ?? "9999").localeCompare(firstArrival.get(b) ?? "9999"))
       .slice(0, budget - targets.length)
       .forEach(id => targets.push({ id, reminder: true }));

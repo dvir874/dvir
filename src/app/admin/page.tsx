@@ -1420,7 +1420,16 @@ export default function AdminPage() {
                   { href: "/admin/budget",    label: "ניהול תקציב",   emoji: "💰" },
                   { href: "/admin/gifts",     label: "מעקב מתנות",    emoji: "🎁" },
                   { href: "/admin/reminders", label: "תזכורות RSVP",  emoji: "📨" },
-                  { href: "/admin/whatsapp",  label: "קמפיין וואטסאפ", emoji: "📲" },
+                  /* Removed, not renamed. This screen builds its guest link from
+                     selectedEvent.rsvp_token — a column that exists on guests,
+                     not on events — so the check is always false and it falls
+                     through to ${base}/couple/${couple_token}, sent to every
+                     guest under the words "לאישור הגעה".
+                     That token opens /api/couple/[token]/guests, which does
+                     select("*") and accepts PATCH and DELETE, and sits in
+                     PUBLIC_API_PREFIXES. One guest who received it could read,
+                     edit and delete the entire guest list.
+                     The screen comes back when it sends /rsvp/{guest.rsvp_token}. */
                   ...(selectedEventId ? [{ href: `/admin/gallery/${selectedEventId}`, label: "גלריית תמונות", emoji: "📸" }] : []),
                 ].map((item) => (
                   <a key={item.href} href={item.href} onClick={() => setShowToolsMenu(false)}
