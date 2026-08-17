@@ -57,6 +57,7 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
   const [preview,      setPreview]      = useState<string | null>(null);
   const [uploading,    setUploading]    = useState(false);
   const [errorMsg,     setErrorMsg]     = useState("");
+  const [errorDetail,  setErrorDetail]  = useState("");
   const [unlockYears,  setUnlockYears]  = useState(1);
   const [capsuleType,  setCapsuleType]  = useState("blessing");
   const [capsuleText,  setCapsuleText]  = useState("");
@@ -102,7 +103,7 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
   async function handleUpload() {
     if (!guestName.trim()) return;
     setUploading(true);
-    setErrorMsg("");
+    setErrorMsg(""); setErrorDetail("");
     try {
       if (uploadType === "capsule") {
         if (!capsuleText.trim()) { setErrorMsg("כתבו הודעה"); setUploading(false); return; }
@@ -150,9 +151,19 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
          pattern" — a raw Safari exception, in English, on a wedding page. Our
          own messages are already Hebrew and start with a known word; anything
          else is internal and gets replaced. */
-      const raw = e instanceof Error ? e.message : "";
+      const raw = e instanceof Error ? e.message : String(e ?? "");
       setErrorMsg(/[\u0590-\u05FF]/.test(raw) ? raw
         : "ההעלאה נכשלה. נסו שוב, ואם זה חוזר — נסו תמונה אחרת 🙏");
+      /* The real message, kept where a person can read it back to us.
+       *
+       * Hiding it was right for the guest and wrong for the debugging: the
+       * upload kept failing on Dvir's phone with "The string did not match the
+       * expected pattern" and once it was replaced there was nothing left to go
+       * on. The server accepts the same shapes over curl, so this is thrown in
+       * the browser before the request leaves — and only the browser can say
+       * which line. Small, grey, under the friendly sentence. */
+      setErrorDetail(!/[\u0590-\u05FF]/.test(raw) && raw ? raw : "");
+      console.error("[memory upload]", e, { name: file?.name, type: file?.type, size: file?.size });
     } finally {
       setUploading(false);
     }
@@ -160,7 +171,7 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
 
   function resetFlow() {
     setUploadType(null); setFile(null); setQueue([]); setPreview(null);
-    setBlessing(""); setErrorMsg(""); setCapsuleText("");
+    setBlessing(""); setErrorMsg(""); setErrorDetail(""); setCapsuleText("");
     setCapsuleType("blessing");
     setScreen("choose");
   }
@@ -377,6 +388,11 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
         {errorMsg && (
           <div style={{ padding:"12px 16px", borderRadius:"10px", background:"rgba(200,50,50,0.07)", color:"rgb(190,50,50)", fontSize:"13px", marginBottom:"16px" }}>
             {errorMsg}
+            {errorDetail && (
+              <div dir="ltr" style={{ marginTop:8, fontSize:11, opacity:0.75, wordBreak:"break-word" }}>
+                {errorDetail}
+              </div>
+            )}
           </div>
         )}
 
@@ -423,6 +439,11 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
         {errorMsg && (
           <div style={{ padding:"12px 16px", borderRadius:"10px", background:"rgba(200,50,50,0.07)", color:"rgb(190,50,50)", fontSize:"13px", marginBottom:"16px" }}>
             {errorMsg}
+            {errorDetail && (
+              <div dir="ltr" style={{ marginTop:8, fontSize:11, opacity:0.75, wordBreak:"break-word" }}>
+                {errorDetail}
+              </div>
+            )}
           </div>
         )}
 
@@ -492,6 +513,11 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
         {errorMsg && (
           <div style={{ padding:"12px 16px", borderRadius:"10px", background:"rgba(200,50,50,0.07)", color:"rgb(190,50,50)", fontSize:"13px", marginBottom:"16px" }}>
             {errorMsg}
+            {errorDetail && (
+              <div dir="ltr" style={{ marginTop:8, fontSize:11, opacity:0.75, wordBreak:"break-word" }}>
+                {errorDetail}
+              </div>
+            )}
           </div>
         )}
 
