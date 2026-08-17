@@ -37,3 +37,22 @@ test("what is genuinely not an image is still refused", () => {
   assert.equal(validateUploadFile(f("x.exe", "application/octet-stream")).ok, false);
   assert.equal(validateUploadFile(f("empty.jpg", "image/jpeg", 0)).ok, false);
 });
+
+test("an Android pick with an empty MIME is accepted on its filename", () => {
+  /* The mirror image of the iPhone case. Chrome on Android, and Google Photos
+     in particular, hands over files with type "" or application/octet-stream
+     while the name is perfectly good — so trusting only the MIME would have
+     traded one broken phone for the other. */
+  assert.equal(validateUploadFile(f("IMG_20260824_213004.jpg", "")).ok, true);
+  assert.equal(validateUploadFile(f("PXL_20260824.jpg", "application/octet-stream")).ok, true);
+  assert.equal(validateUploadFile(f("VID_20260824.mp4", "")).ok, true);
+  assert.equal(validateUploadFile(f("IMG_20260824.jpg", "")).safeExt, "jpg");
+});
+
+test("a type that positively says otherwise is still refused", () => {
+  /* Only an absent or generic type falls through to the name. A PDF announces
+     itself as application/pdf and is not unknown. */
+  assert.equal(validateUploadFile(f("holiday.jpg", "application/pdf")).ok, false);
+  assert.equal(validateUploadFile(f("x.jpg", "text/html")).ok, false);
+  assert.equal(validateUploadFile(f("nothing", "")).ok, false, "no MIME and no usable name");
+});

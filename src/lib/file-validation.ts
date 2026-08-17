@@ -56,14 +56,30 @@ export function validateUploadFile(
     ? (file.name.split('.').pop()?.toLowerCase() ?? '')
     : '';
 
-  const isImage = ALLOWED_IMAGE_MIME.has(declaredMime);
-  const isVideo = allowVideo && ALLOWED_VIDEO_MIME.has(declaredMime);
+  /* Two phones, two opposite failures, one rule.
+   *
+   * iOS gives a good MIME and a name with no extension. Android — Chrome, and
+   * Google Photos especially — often gives a good name and an empty or generic
+   * MIME ("" or application/octet-stream). Requiring both rejected the iPhone;
+   * trusting only the MIME would have rejected the Android.
+   *
+   * So either signal may vouch for the file, but a MIME that positively says
+   * something else still refuses it: a PDF named holiday.jpg announces itself
+   * as application/pdf and is not an unknown type. Only a genuinely absent or
+   * generic type falls through to the name. */
+  const GENERIC = declaredMime === "" || declaredMime === "application/octet-stream";
 
-  const fromMime = declaredMime.split('/')[1]?.replace('quicktime', 'mov').replace('jpeg', 'jpg') ?? '';
+  const isImage = ALLOWED_IMAGE_MIME.has(declaredMime)
+    || (GENERIC && ALLOWED_IMAGE_EXT.has(rawExt));
+  const isVideo = allowVideo && (ALLOWED_VIDEO_MIME.has(declaredMime)
+    || (GENERIC && ALLOWED_VIDEO_EXT.has(rawExt)));
+
+  const fromMime = GENERIC ? '' :
+    (declaredMime.split('/')[1]?.replace('quicktime', 'mov').replace('jpeg', 'jpg') ?? '');
   const ext =
     (isImage && ALLOWED_IMAGE_EXT.has(rawExt)) || (isVideo && ALLOWED_VIDEO_EXT.has(rawExt))
       ? rawExt
-      : fromMime;
+      : (fromMime || rawExt || 'bin');
 
   if (!isImage && !isVideo) {
     return {
