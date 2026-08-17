@@ -308,7 +308,18 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
           ref={fileRef}
           type="file"
           accept={uploadType === "photo" ? "image/*" : "video/*"}
-          capture={uploadType === "photo" ? "environment" : undefined}
+          /* No capture attribute.
+           *
+           * capture="environment" does not mean "offer the camera" — it means
+           * "open the rear camera and nothing else". The button says
+           * "בחרו תמונה מהגלריה" and opened the camera with no way back, so a
+           * guest who had already taken the photo could not upload it. And
+           * everyone will have already taken it: this link goes out the morning
+           * after the wedding, when the photographs are hours old and sitting
+           * in the camera roll.
+           *
+           * Without it the phone offers the choice — camera, library or files —
+           * which is what the label promised. */
           onChange={handleFileChange}
           style={{ display:"none" }}
         />
