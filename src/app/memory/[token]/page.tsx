@@ -52,6 +52,8 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
   const [guestName,    setGuestName]    = useState("");
   const [blessing,     setBlessing]     = useState("");
   const [file,         setFile]         = useState<File | null>(null);
+  /* The rest of a multi-file pick, uploaded one after another. */
+  const [queue,        setQueue]        = useState<File[]>([]);
   const [preview,      setPreview]      = useState<string | null>(null);
   const [uploading,    setUploading]    = useState(false);
   const [errorMsg,     setErrorMsg]     = useState("");
@@ -76,11 +78,18 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
     setScreen("name");
   }
 
+  /* Every file the guest picked, not the first one.
+   *
+   * The input took files[0] and had no multiple attribute, so a guest with
+   * eleven photos of the חופה did the whole flow eleven times. Dvir hit it on
+   * the second upload during a rehearsal; a guest at 01:00 would simply have
+   * stopped after the first. */
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
+    const picked = Array.from(e.target.files ?? []);
+    if (!picked.length) return;
+    setFile(picked[0]);
+    setQueue(picked.slice(1));
+    setPreview(URL.createObjectURL(picked[0]));
   }
 
   function proceedFromName() {
@@ -128,16 +137,29 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "שגיאה בהעלאה");
+      /* More in the queue — keep going without sending them round again. */
+      if (queue.length) {
+        const [next, ...rest] = queue;
+        setFile(next); setQueue(rest); setPreview(URL.createObjectURL(next));
+        setUploading(false);
+        return;
+      }
       setScreen("done");
     } catch (e) {
-      setErrorMsg(e instanceof Error ? e.message : "שגיאה");
+      /* Hebrew, always. A guest saw "The string did not match the expected
+         pattern" — a raw Safari exception, in English, on a wedding page. Our
+         own messages are already Hebrew and start with a known word; anything
+         else is internal and gets replaced. */
+      const raw = e instanceof Error ? e.message : "";
+      setErrorMsg(/[\u0590-\u05FF]/.test(raw) ? raw
+        : "ההעלאה נכשלה. נסו שוב, ואם זה חוזר — נסו תמונה אחרת 🙏");
     } finally {
       setUploading(false);
     }
   }
 
   function resetFlow() {
-    setUploadType(null); setFile(null); setPreview(null);
+    setUploadType(null); setFile(null); setQueue([]); setPreview(null);
     setBlessing(""); setErrorMsg(""); setCapsuleText("");
     setCapsuleType("blessing");
     setScreen("choose");
@@ -320,6 +342,7 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
            *
            * Without it the phone offers the choice — camera, library or files —
            * which is what the label promised. */
+          multiple
           onChange={handleFileChange}
           style={{ display:"none" }}
         />
