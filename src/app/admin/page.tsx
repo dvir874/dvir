@@ -2575,7 +2575,13 @@ export default function AdminPage() {
           <div>
             {/* Toolbar */}
             <div className="flex flex-col sm:flex-row gap-3 mb-4">
-              <div className="relative flex-1">
+              {/* A floor under the search box.
+                  flex-1 with no minimum let the filter chips beside it take the
+                  row: two more were added on 17/08 — 📵 אין וואטסאפ and 🧪 לא
+                  מקבלים תבניות — and the input collapsed to about the width of
+                  its own magnifier, so Dvir was typing into a field that showed
+                  nothing back. */}
+              <div className="relative flex-1 min-w-[240px]">
                 <Search size={15} className="absolute top-1/2 -translate-y-1/2 right-3.5" style={{ color: C.muted }} />
                 <input
                   placeholder="חיפוש לפי שם או טלפון…"
