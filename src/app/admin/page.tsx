@@ -5,7 +5,7 @@ import {
   Users, CheckCircle, Clock, XCircle, Search, Upload, Download,
   Trash2, Copy, MessageCircle, ChevronLeft, ChevronRight,
   Loader2, Plus, ExternalLink, RefreshCw, Percent, Zap,
-  Send, AlertTriangle, Bell, Wand2, Palette,
+  Send, AlertTriangle, Smartphone, Bell, Wand2, Palette,
   LayoutDashboard, CalendarDays, BarChart3, Sparkles, Eye,
   History, LifeBuoy, Inbox, Armchair, MapPin, ArrowLeft, Heart,
 } from "lucide-react";
@@ -3651,6 +3651,8 @@ function AdminSidebar({
          account, 6 in a Meta experiment group, 1 over the recipient cap — and
          Dvir had to ask for that list rather than open it. */
       { id: "messages",        label: "מי לא קיבל",  icon: <AlertTriangle size={20} />, href: "/admin/delivery" },
+      /* The fallback channel, on the phone rather than in a file on a Mac. */
+      { id: "messages",        label: "שליחה ב-SMS", icon: <Smartphone size={20} />, href: "/admin/sms" },
       { id: "reminders",       label: "תזכורות",     icon: <Bell size={20} />, badge: pendingCount },
       { id: "recommendations", label: "מרכז המלצות", icon: <Sparkles size={20} />, badge: recCount },
     ] },
