@@ -200,7 +200,35 @@ export async function GET() {
     };
   }
 
+  /* The day in one line: how many runs have already fired, how many are still
+     to come, and how many messages went out. "כמה שליחות ביום וכמה הודעות" was
+     a question that could only be answered by reading wa_runs by hand. */
+  const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+  const { data: todayRuns } = await sb.from("wa_runs")
+    .select("created_at, sent, reason").gte("created_at", dayStart.toISOString())
+    .order("created_at");
+  const real = (todayRuns ?? []).filter(r => r.reason !== "run_started");
+  const sentToday = real.reduce((n, r) => n + (Number(r.sent) || 0), 0);
+
+  /* vercel.json — 09:00, 11:15, 13:30, 16:00, 19:30, 21:30 Israel time. */
+  const SCHEDULE = [9 * 60, 11 * 60 + 15, 13 * 60 + 30, 16 * 60, 19 * 60 + 30, 21 * 60 + 30];
+  const nowIl = new Date().toLocaleTimeString("en-GB", { timeZone: "Asia/Jerusalem", hour12: false });
+  const nowMin = Number(nowIl.slice(0, 2)) * 60 + Number(nowIl.slice(3, 5));
+  const upcoming = SCHEDULE.filter(m => m > nowMin)
+    .map(m => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
+
   return NextResponse.json({
+    today: {
+      runsDone: real.length,
+      runsLeft: upcoming.length,
+      upcoming,
+      sent: sentToday,
+      perRun: real.map(r => ({
+        at: new Date(r.created_at as string).toLocaleTimeString("he-IL",
+              { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit" }),
+        sent: Number(r.sent) || 0,
+      })),
+    },
     templates: { invite, reminder },
     nextRun,
     note: "מה שהריצה הבאה תשלח. לא נשלחת אף הודעה ולא נכתב דבר.",

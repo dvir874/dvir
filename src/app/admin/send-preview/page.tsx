@@ -24,6 +24,10 @@ const T = {
 
 type NextRun = { event: string; approx: number; why: string };
 type Tpl = { name: string; status: string; body: string | null; vars: number | null; ok: boolean };
+type Today = {
+  runsDone: number; runsLeft: number; upcoming: string[];
+  sent: number; perRun: { at: string; sent: number }[];
+};
 
 type Ev = {
   event: string; date: string; status: string;
@@ -36,7 +40,7 @@ type Ev = {
 };
 
 export default function SendPreview() {
-  const [data, setData] = useState<{ events: Ev[]; nextRun?: NextRun | null; templates?: { invite: Tpl | null; reminder: Tpl | null } } | null>(null);
+  const [data, setData] = useState<{ events: Ev[]; nextRun?: NextRun | null; templates?: { invite: Tpl | null; reminder: Tpl | null }; today?: Today } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [ids, setIds] = useState<Record<string, string | null>>({});
 
@@ -94,6 +98,31 @@ export default function SendPreview() {
             the nearest with pending guests, so a ✅ card can wait days behind a
             closer wedding. Twice I told Dvir a run would go to תהל ואביב and
             twice it went to שחר, who sits between them by date. */}
+        {/* The day at a glance — runs fired, runs left, messages out.
+            Answering it meant reading wa_runs by hand every time. */}
+        {data?.today && (
+          <div style={{
+            background: T.card, border: `1px solid ${T.border}`, borderRadius: 14,
+            padding: "14px 18px", marginBottom: 14,
+          }}>
+            <p style={{ margin: 0, fontSize: 14, color: T.dark, textAlign: "center" }}>
+              היום: <strong>{data.today.runsDone}</strong> ריצות ·{" "}
+              <span style={{ color: T.gold, fontWeight: 800 }}>{data.today.sent}</span> הודעות ·{" "}
+              עוד <strong>{data.today.runsLeft}</strong> ריצות
+            </p>
+            {data.today.perRun.length > 0 && (
+              <p style={{ margin: "7px 0 0", fontSize: 11.5, color: T.muted, textAlign: "center" }}>
+                {data.today.perRun.map(r => `${r.at} → ${r.sent}`).join("  ·  ")}
+              </p>
+            )}
+            {data.today.upcoming.length > 0 && (
+              <p style={{ margin: "4px 0 0", fontSize: 11.5, color: T.muted, textAlign: "center" }}>
+                נותרו היום: {data.today.upcoming.join(" · ")}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* The two templates, and whether each can actually send.
             On 17/08 the reminder template had zero variables while the code sent
             four; fifty-three of Dvir's own reminders failed on #132000 and this
