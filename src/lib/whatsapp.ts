@@ -884,3 +884,36 @@ async function sendOnce(
     return { ok: false, error: e instanceof Error ? e.message : "network error" };
   }
 }
+
+/* The run summary, to the person who has to act on it.
+ *
+ * sending_run_summary_utility was approved and never sent — Dvir asked how he
+ * would know Meta had raised his tier, and "I check every morning" is not an
+ * answer. UTILITY, so it does not touch the marketing cap; five variables, in
+ * the order the approved body expects them.
+ */
+export async function sendRunSummary(
+  cfg: WhatsAppConfig,
+  to: string,
+  v: { event: string; sent: string; failed: string; left: string; attention: string },
+): Promise<void> {
+  const phone = toE164(to);
+  if (!phone) return;
+  await fetch(`https://graph.facebook.com/${API_VERSION}/${cfg.phoneNumberId}/messages`, {
+    method: "POST",
+    signal: AbortSignal.timeout(15_000),
+    headers: { Authorization: `Bearer ${cfg.accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messaging_product: "whatsapp", to: phone, type: "template",
+      template: {
+        name: "sending_run_summary_utility",
+        language: { code: cfg.templateLang },
+        components: [{
+          type: "body",
+          parameters: [v.event, v.sent, v.failed, v.left, v.attention]
+            .map(text => ({ type: "text", text })),
+        }],
+      },
+    }),
+  });
+}

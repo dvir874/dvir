@@ -7,7 +7,7 @@ import { weddingDateLine } from "@/lib/hebrew-date";
 import {
   getWhatsAppConfig, sendInvitation, toE164, policyFor,
   rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY,
-  fetchAccountHealth, warmupCap, recentPeakRecipients, sendGalleryReady,
+  fetchAccountHealth, warmupCap, recentPeakRecipients, sendGalleryReady, sendRunSummary,
 } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
@@ -1078,6 +1078,44 @@ async function runSend(req: NextRequest) {
       }
     }
   }
+
+  /* Tell Dvir, on his phone, when something needs him.
+   *
+   * sending_run_summary_utility has been approved and unsent this whole time —
+   * the seventh capability this week that existed and nothing reached. He asked
+   * how he would learn that Meta raised the tier, and the honest answer was
+   * that I check each morning, which is not a system.
+   *
+   * Only when it matters: the last run of the day, or a run that hit trouble.
+   * Six summaries a day is noise, and noise is how the one that counts gets
+   * ignored. UTILITY, so it costs nothing against the marketing cap.
+   *
+   * Never allowed to break a send — the whole thing is wrapped and swallowed.
+   * A failed alert must not lose a run that already put messages on phones. */
+  try {
+    const alertTo = process.env.ADMIN_ALERT_PHONE;
+    const hourIl = Number(new Date().toLocaleString("en-GB",
+      { timeZone: "Asia/Jerusalem", hour: "2-digit", hour12: false }));
+    const metaCap = Number(String(health.tier).replace(/\D/g, "")) || 0;
+    const needsAction =
+      failed.length > 5 ||
+      health.quality !== "GREEN" ||
+      (metaCap > 0 && cap > 0 && cap < metaCap);   /* Meta raised the tier */
+
+    if (alertTo && (needsAction || hourIl >= 21)) {
+      await sendRunSummary(cfg, alertTo, {
+        event: ev.name as string,
+        sent: String(sent.length),
+        failed: String(failed.length),
+        left: String(Math.max(0, cap - usage.recipients - sent.length)),
+        attention: metaCap > cap
+          ? `⬆ Meta אישרה ${metaCap} ליום — צריך להעלות את המכסה`
+          : health.quality !== "GREEN"
+            ? `⚠️ איכות ${health.quality}`
+            : String(failed.length),
+      });
+    }
+  } catch { /* an alert must never cost a run */ }
 
   return record(sb, {
     event: ev.name,
