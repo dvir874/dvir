@@ -1697,13 +1697,30 @@ export default function RsvpClient({
 
             {/* CTA */}
             <div style={{ marginBottom: "12px" }}>
+              {/* Not disabled — answered.
+                *
+                * This was disabled={submitting || !choice}, and it is the
+                * largest, goldest, most button-shaped thing on the screen. The
+                * two answers above it are cards, which do not read as controls
+                * to everyone. So a guest arrives, presses the obvious button
+                * first, and absolutely nothing happens: a disabled button gives
+                * no feedback of any kind — no message, no movement, no sound.
+                *
+                * שקד הומינר wrote "הכפתורים לא מגיבים" on 16/08 and waited for
+                * a human. Her JavaScript ran, her fetch reached us, her
+                * opened_at was recorded — the page was working perfectly and
+                * doing nothing, which is indistinguishable from broken.
+                *
+                * It now stays pressable and says what is missing. Refusing to
+                * respond is the one thing a button must never do. */}
               <GoldCTA
                 onClick={() => {
                   if (choice === "confirmed") handleSubmit("confirmed");
                   else if (choice === "declined") handleSubmit("declined");
+                  else setErrorMsg("בחרו קודם — מגיעים או לא מגיעים ☝️");
                 }}
                 loading={submitting}
-                disabled={submitting || !choice}
+                disabled={submitting}
                 fullWidth
               >
                 {submitting ? "שולח..." : "אישור והמשך"}
