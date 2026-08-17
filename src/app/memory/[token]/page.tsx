@@ -1,5 +1,6 @@
 "use client";
 
+import { shrinkImage } from "@/lib/shrink-image";
 import { use, useEffect, useState, useRef } from "react";
 import { Upload, Loader2, Lock, X } from "lucide-react";
 
@@ -129,7 +130,9 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
       } else {
         if (!file) { setErrorMsg("בחרו קובץ"); setUploading(false); return; }
         fd.append("type", uploadType!);
-        fd.append("file", file);
+        /* Shrunk here, because past this point the platform rejects it before
+           any of our code can say why — a bare 413 from Vercel at ~4.5MB. */
+        fd.append("file", uploadType === "photo" ? await shrinkImage(file) : file);
       }
 
       /* Uploads carry a file, so they get longer — but still finite. */
