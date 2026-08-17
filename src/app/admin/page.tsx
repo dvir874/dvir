@@ -3633,6 +3633,11 @@ function AdminSidebar({
          typing its URL, which is the same as not existing — Dvir asked twice
          where to find it. */
       { id: "messages",        label: "לפני שליחה",  icon: <Send size={20} />, href: "/admin/send-preview" },
+      /* Also a route, also previously reachable only by typing its URL. It
+         classifies every failure by reason — 7 guests of שחר with no WhatsApp
+         account, 6 in a Meta experiment group, 1 over the recipient cap — and
+         Dvir had to ask for that list rather than open it. */
+      { id: "messages",        label: "מי לא קיבל",  icon: <AlertTriangle size={20} />, href: "/admin/delivery" },
       { id: "reminders",       label: "תזכורות",     icon: <Bell size={20} />, badge: pendingCount },
       { id: "recommendations", label: "מרכז המלצות", icon: <Sparkles size={20} />, badge: recCount },
     ] },
