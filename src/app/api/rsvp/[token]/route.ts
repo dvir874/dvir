@@ -83,12 +83,27 @@ export async function GET(_request: NextRequest, { params }: Params) {
      a missing opened_at from the events, and cannot heal a missing event from
      anything. Ordering them this way turns the surviving write into the one
      the system can recover from. */
-  if (!guest.opened_at) {
+  /* Every open, not only the first.
+   *
+   * The event row was written inside `if (!guest.opened_at)`, so a guest who
+   * came back four times and still could not answer looked identical to one
+   * who glanced once and wandered off — both recorded exactly one rsvp_opened.
+   *
+   * That distinction is the whole signal. שקד הומינר opened שחר's invitation,
+   * could not make the buttons respond, and the only reason anybody found out
+   * is that she took the trouble to write. Twenty-eight of שחר's guests are in
+   * the same state right now and there is no way to tell which of them are
+   * stuck and which are simply undecided.
+   *
+   * The event is now written on every open; opened_at still records the first,
+   * so nothing that reads it changes. Repeat opens with no answer become
+   * something a person can look at. */
+  {
     const { error: evErr } = await supabase
       .from('guest_events')
       .insert({ guest_id: guest.id, event_type: 'rsvp_opened' });
 
-    const { error: openErr } = await supabase
+    const { error: openErr } = guest.opened_at ? { error: null } as { error: null } : await supabase
       .from('guests')
       .update({ opened_at: new Date().toISOString() })
       .eq('rsvp_token', token)
