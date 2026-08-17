@@ -91,6 +91,37 @@ export async function GET() {
     } catch { return null; }
   }
 
+  /* Meta's own numbers, so nobody has to remember to check them.
+   *
+   * The account is at TIER_250 and WA_CAP_OVERRIDE is 250 — identical, so the
+   * override costs nothing today. The moment Meta grants TIER_1000 those two
+   * stop being the same number and our own setting silently becomes the
+   * ceiling: the upgrade arrives and nothing changes, because a value that was
+   * a brake at 150 became a cap at 250 without anyone noticing.
+   *
+   * Dvir asked how he would know. The answer cannot be "I check every morning"
+   * — that is the shape of every other thing that went wrong this week. */
+  let health: { tier: string; quality: string; capped: boolean } | null = null;
+  if (cfg && waba) {
+    try {
+      const r = await fetch(
+        `https://graph.facebook.com/v21.0/${waba}/phone_numbers?fields=quality_rating,messaging_limit_tier`,
+        { headers: { Authorization: `Bearer ${cfg.accessToken}` }, cache: "no-store" },
+      );
+      const d = (await r.json())?.data?.[0];
+      if (d) {
+        const tier = String(d.messaging_limit_tier ?? "");
+        const metaCap = Number(tier.replace(/\D/g, "")) || 0;
+        const ours = Number(process.env.WA_CAP_OVERRIDE) || 0;
+        health = {
+          tier, quality: String(d.quality_rating ?? ""),
+          /* Meta allows more than we do — the override is now the limit. */
+          capped: metaCap > 0 && ours > 0 && ours < metaCap,
+        };
+      }
+    } catch { /* the rest of the screen still works */ }
+  }
+
   const invite   = await template(cfg?.genericTemplateName ?? null);
   const reminder = await template(cfg?.reminderTemplateName ?? null);
   const approvedBody = invite?.body ?? null;
@@ -229,6 +260,7 @@ export async function GET() {
         sent: Number(r.sent) || 0,
       })),
     },
+    health,
     templates: { invite, reminder },
     nextRun,
     note: "מה שהריצה הבאה תשלח. לא נשלחת אף הודעה ולא נכתב דבר.",

@@ -24,6 +24,7 @@ const T = {
 
 type NextRun = { event: string; approx: number; why: string };
 type Tpl = { name: string; status: string; body: string | null; vars: number | null; ok: boolean };
+type Health = { tier: string; quality: string; capped: boolean };
 type Today = {
   runsDone: number; runsLeft: number; upcoming: string[];
   sent: number; perRun: { at: string; sent: number }[];
@@ -40,7 +41,7 @@ type Ev = {
 };
 
 export default function SendPreview() {
-  const [data, setData] = useState<{ events: Ev[]; nextRun?: NextRun | null; templates?: { invite: Tpl | null; reminder: Tpl | null }; today?: Today } | null>(null);
+  const [data, setData] = useState<{ events: Ev[]; nextRun?: NextRun | null; templates?: { invite: Tpl | null; reminder: Tpl | null }; today?: Today; health?: Health | null } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [ids, setIds] = useState<Record<string, string | null>>({});
 
@@ -98,6 +99,30 @@ export default function SendPreview() {
             the nearest with pending guests, so a ✅ card can wait days behind a
             closer wedding. Twice I told Dvir a run would go to תהל ואביב and
             twice it went to שחר, who sits between them by date. */}
+        {/* Meta's tier, and a loud line when our own override has become the
+            ceiling. TIER_250 with WA_CAP_OVERRIDE=250 costs nothing; the day
+            Meta grants TIER_1000 those stop being the same number and the
+            upgrade arrives with nothing to show for it. */}
+        {data?.health && (
+          <div style={{
+            background: data.health.capped ? "rgba(197,164,109,0.12)" : T.card,
+            border: `1.5px solid ${data.health.capped ? T.gold : T.border}`,
+            borderRadius: 14, padding: "12px 18px", marginBottom: 14, textAlign: "center",
+          }}>
+            <p style={{ margin: 0, fontSize: 13.5, color: T.dark }}>
+              Meta: <strong>{data.health.tier.replace("TIER_", "")}</strong> ליום ·{" "}
+              איכות <strong style={{ color: data.health.quality === "GREEN" ? T.olive : T.alert }}>
+                {data.health.quality}
+              </strong>
+            </p>
+            {data.health.capped && (
+              <p style={{ margin: "6px 0 0", fontSize: 12.5, color: T.gold, fontWeight: 700 }}>
+                ⬆ Meta העלתה את המדרגה — צריך להעלות את WA_CAP_OVERRIDE ולעשות Redeploy
+              </p>
+            )}
+          </div>
+        )}
+
         {/* The day at a glance — runs fired, runs left, messages out.
             Answering it meant reading wa_runs by hand every time. */}
         {data?.today && (
