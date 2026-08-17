@@ -227,6 +227,10 @@ export async function GET(req: NextRequest) {
          anything. */
       failed.push({
         ...base, at: m.created_at, raw: m.error, ...explain(m.error_code, m.error),
+        /* The raw code, so the guest list can separate "has no WhatsApp at all"
+           from "has WhatsApp but Meta withholds templates from them". Both were
+           shown as 📵 אין וואטסאפ — להתקשר, and only one of them is true. */
+        code: m.error_code ?? null,
         /* The screen's bulk resend sends every row it marks retryable, and
            /api/admin/whatsapp/send does not re-check the policy when it is
            handed explicit guest_ids — so this flag is the last gate before a
