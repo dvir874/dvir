@@ -2,6 +2,8 @@ import { createServerClient } from "@/lib/supabase-server";
 import { requireAdmin } from "@/lib/auth-guard";
 import { policyFor } from "@/lib/whatsapp";
 import { coupleName } from "@/lib/couple-name";
+import { eventTimes } from "@/lib/event-times";
+import { venueLine } from "@/lib/venue";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +41,8 @@ export default async function SmsFallback({
   const today = new Date().toISOString().slice(0, 10);
 
   const { data: events } = await sb.from("events")
-    .select("id, name, couple_names, date").gte("date", today).order("date");
+    .select("id, name, couple_names, date, address, venue_name, reception_time, chuppah_time")
+    .gte("date", today).order("date");
   const ev = (events ?? []).find(e => e.id === event) ?? (events ?? [])[0];
   if (!ev) return <Shell><p style={p}>אין אירועים קרובים</p></Shell>;
 
@@ -76,9 +79,39 @@ export default async function SmsFallback({
     .sort((a, b) => (a.code ?? 0) - (b.code ?? 0));
 
   const couple = coupleName(ev) ?? ev.name;
-  const when = ev.date ? new Date(ev.date).toLocaleDateString("he-IL") : "";
+  const when = ev.date
+    ? new Date(ev.date).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    : "";
+  const times = eventTimes(ev);
+  const venue = venueLine(ev);
+
+  /* The whole invitation, not a stub.
+   *
+   * The first version was two lines, shortened for the 70-character Hebrew SMS
+   * segment. That limit only costs money when sending through a provider that
+   * bills per segment; these go from Dvir's own phone on an ordinary plan,
+   * where length is free. So the guest who could not be reached by WhatsApp was
+   * being sent less than everyone else for no reason at all — and these are
+   * often the older guests, the ones least likely to tap an unexplained link.
+   *
+   * Same opening as the approved template, so it reads as the same invitation
+   * arriving by a different road. */
   const body = (token: string) =>
-    `${couple} מתחתנים! ${when}\nלאישור הגעה: https://regalifnei.vercel.app/rsvp/${token}`;
+    [
+      "💍 משפחה וחברים יקרים!",
+      "",
+      `בעזרת ה׳ ${couple} מתחתנים! 🤍`,
+      "ושמחים להזמין אתכם לחגוג איתם:",
+      "",
+      when ? `🗓 ${when}` : "",
+      venue ? `📍 ${venue}` : "",
+      times ? `🥂 ${times}` : "",
+      "",
+      "לאישור הגעה:",
+      `https://regalifnei.vercel.app/rsvp/${token}`,
+      "",
+      "מחכים לחגוג איתכם! 🤍",
+    ].filter(l => l !== null).join("\n");
 
   return (
     <Shell>
