@@ -80,5 +80,41 @@ export async function GET(
   if (photosErr)
     return NextResponse.json({ error: photosErr.message }, { status: 500 });
 
-  return NextResponse.json({ album: { ...album, event_name: eventName }, photos: photos ?? [], memoryToken });
+  /* And everything guests actually uploaded.
+   *
+   * /api/memory writes to memory_items keyed on event_id; this route read
+   * gallery_photos keyed on album_id. Two tables, nothing joining them — so a
+   * photo could upload successfully, answer "התמונה הגיעה!", and never appear
+   * in the gallery or on the wall. Dvir's first upload on 17/08 did exactly
+   * that: it is in the database and it was invisible.
+   *
+   * Merged on read rather than migrated. The rows are correct where they are,
+   * both writers keep working, and nothing has to move on a live system seven
+   * days before a wedding. Blessings are left out — this endpoint feeds a photo
+   * wall, and a wall of text is not what it is for. */
+  let fromMemory: typeof photos = [];
+  if (album.event_id) {
+    const { data: items } = await sb
+      .from('memory_items')
+      .select('id, public_url, mime_type, type, guest_name, uploaded_at')
+      .eq('event_id', album.event_id)
+      .in('type', ['photo', 'video'])
+      .order('uploaded_at', { ascending: false });
+
+    fromMemory = (items ?? [])
+      .filter(m => m.public_url)
+      .map(m => ({
+        id: m.id,
+        public_url: m.public_url,
+        mime_type: m.mime_type,
+        is_video: m.type === 'video',
+        uploader_name: m.guest_name,
+        created_at: m.uploaded_at,
+      })) as typeof photos;
+  }
+
+  const all = [...(photos ?? []), ...(fromMemory ?? [])]
+    .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')));
+
+  return NextResponse.json({ album: { ...album, event_name: eventName }, photos: all, memoryToken });
 }
