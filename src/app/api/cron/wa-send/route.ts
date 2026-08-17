@@ -549,11 +549,37 @@ async function runSend(req: NextRequest) {
    * runs a day and this ordering, a second couple is served as soon as the
    * first has nobody left, which is the case that actually arrives. */
   let ev = active[0];
+  /* "Has pending guests" is not the same as "has anyone we may message today".
+   *
+   * This counted status = pending and stopped there, which was true before the
+   * cooldown existed. Now a wedding whose guests were all reminded this morning
+   * still shows a full pending list, gets selected by every later run, and
+   * sends nothing — while the wedding behind it, with three hundred people who
+   * have never been contacted, waits for a turn that never comes.
+   *
+   * That is exactly the case Dvir is about to create: his own 60 reminders go
+   * out at 09:00, and from 11:15 onward his event would win every run and send
+   * zero, starving תהל ואביב for the whole day.
+   *
+   * So the selection asks the question the send actually asks — is there anyone
+   * here we are allowed to message right now — using the same 24h floor as the
+   * first-contact group. Three events at most, one extra query each. */
   for (const cand of active) {
-    const { count } = await sb.from("guests")
-      .select("id", { count: "exact", head: true })
-      .eq("event_id", cand.id).eq("status", "pending");
-    if ((count ?? 0) > 0) { ev = cand; break; }
+    const { data: pend } = await sb.from("guests")
+      .select("id").eq("event_id", cand.id).eq("status", "pending")
+      .not("phone", "is", null).limit(900);
+    const pendIds = (pend ?? []).map(r => r.id as string);
+    if (!pendIds.length) continue;
+
+    const since = new Date(Date.now() - 24 * 3_600_000).toISOString();
+    const recent = new Set<string>();
+    for (let i = 0; i < pendIds.length; i += 150) {
+      const { data } = await sb.from("wa_messages")
+        .select("guest_id").eq("direction", "out")
+        .gte("created_at", since).in("guest_id", pendIds.slice(i, i + 150));
+      (data ?? []).forEach(m => m.guest_id && recent.add(m.guest_id as string));
+    }
+    if (pendIds.some(id => !recent.has(id))) { ev = cand; break; }
   }
   const image = ev.wa_header_image_url as string;
 
