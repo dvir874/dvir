@@ -28,17 +28,42 @@ export async function shrinkImage(file: File): Promise<File> {
   if (file.size <= TARGET_BYTES) return file;
 
   try {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
-    const w = Math.round(bitmap.width * scale);
-    const h = Math.round(bitmap.height * scale);
+    /* Two ways to decode, because one of them is not always there.
+     *
+     * createImageBitmap is the fast path, but Safari only gained it in 16.4 and
+     * it refuses HEIC outright — and HEIC is what an iPhone hands over. When it
+     * threw, the catch below returned the original file and the upload went
+     * straight back to 413, which is exactly what kept happening on Dvir's
+     * phone after the first fix. An <img> with an object URL decodes anything
+     * the browser can display, HEIC included, in every Safari that exists. */
+    const src: CanvasImageSource & { width: number; height: number } =
+      await (async () => {
+        try {
+          if (typeof createImageBitmap === "function") return await createImageBitmap(file);
+        } catch { /* fall through to the image element */ }
+        const url = URL.createObjectURL(file);
+        try {
+          const img = new Image();
+          img.decoding = "sync";
+          await new Promise<void>((ok, fail) => {
+            img.onload = () => ok();
+            img.onerror = () => fail(new Error("decode"));
+            img.src = url;
+          });
+          return img;
+        } finally { URL.revokeObjectURL(url); }
+      })();
+
+    const scale = Math.min(1, MAX_EDGE / Math.max(src.width, src.height));
+    const w = Math.round(src.width * scale);
+    const h = Math.round(src.height * scale);
 
     const canvas = document.createElement("canvas");
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext("2d");
     if (!ctx) return file;
-    ctx.drawImage(bitmap, 0, 0, w, h);
-    bitmap.close?.();
+    ctx.drawImage(src, 0, 0, w, h);
+    (src as ImageBitmap).close?.();
 
     const blob: Blob | null = await new Promise(res =>
       canvas.toBlob(res, "image/jpeg", QUALITY));

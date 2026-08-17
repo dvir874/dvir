@@ -132,7 +132,21 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
         fd.append("type", uploadType!);
         /* Shrunk here, because past this point the platform rejects it before
            any of our code can say why — a bare 413 from Vercel at ~4.5MB. */
-        fd.append("file", uploadType === "photo" ? await shrinkImage(file) : file);
+        /* Shrunk here, because past this point the platform rejects it before
+           any of our code can say why — a bare 413 from Vercel at ~4.5MB. */
+        const toSend = uploadType === "photo" ? await shrinkImage(file) : file;
+
+        /* If it is still too big, say so in Hebrew rather than letting Vercel
+           answer with a 413 the guest cannot interpret. Videos are the usual
+           case: nothing in the browser can shrink one. */
+        if (toSend.size > 4 * 1024 * 1024) {
+          setErrorMsg(uploadType === "video"
+            ? "הסרטון גדול מדי. נסו סרטון קצר יותר 🙏"
+            : "התמונה גדולה מדי ולא הצלחנו להקטין אותה. נסו לצלם מסך שלה ולהעלות 🙏");
+          setUploading(false);
+          return;
+        }
+        fd.append("file", toSend);
       }
 
       /* Uploads carry a file, so they get longer — but still finite. */
