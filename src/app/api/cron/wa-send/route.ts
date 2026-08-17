@@ -740,11 +740,52 @@ async function runSend(req: NextRequest) {
     (dncRows ?? []).map(r => [r.id as string, (r.do_not_contact_note as string) || "סומן: לא לפנות"]),
   );
 
+  /* Guests no send can reach right now — permanently, or until they speak first.
+   *
+   * This caught only "never" (131026 no account, 131050 opted out) and let
+   * "wait_for_inbound" through. 130472 is wait_for_inbound: Meta has placed the
+   * recipient in a marketing-experiment control group and withholds templates
+   * from them, and policyFor's own comment says no timer can fix it "no matter
+   * how long the timer is".
+   *
+   * But nothing excluded them, so they stayed eligible: their message failed so
+   * they never count as contacted, and every run picked them up again and sent
+   * a template that cannot arrive. Six of שחר's guests, once a day, for as long
+   * as the wedding is in the future — each attempt burning a send, writing
+   * another failed row and telling Meta we keep pushing at a number it asked us
+   * to leave alone.
+   *
+   * The exclusion is not permanent. The moment one of them messages us the
+   * webhook records an inbound row, the 24h service window opens, and the next
+   * run finds them contactable again. */
   const unreachable = new Map<string, string>();
   for (const [id, m] of lastByGuest) {
     if (m.status !== "failed") continue;
     const pol = policyFor(m.code, m.err);
-    if (pol.action === "never") unreachable.set(id, pol.human);
+    if (pol.action === "never" || pol.action === "wait_for_inbound") {
+      unreachable.set(id, pol.human);
+    }
+  }
+
+  /* And released the moment they speak.
+   *
+   * lastByGuest holds only OUTBOUND rows, so a guest whose template failed
+   * stays excluded on that evidence for ever — which turns wait_for_inbound
+   * into never, the exact opposite of what it means. An inbound message after
+   * the failure is the 24h window opening, and it is the one thing that makes
+   * these guests reachable again. */
+  const waiting = [...unreachable.keys()].filter(id => {
+    const a = policyFor(lastByGuest.get(id)?.code, lastByGuest.get(id)?.err ?? null);
+    return a.action === "wait_for_inbound";
+  });
+  if (waiting.length) {
+    const { data: spoke } = await sb.from("wa_messages")
+      .select("guest_id, created_at").eq("direction", "in").in("guest_id", waiting);
+    for (const r of spoke ?? []) {
+      const id = r.guest_id as string;
+      const failedAt = lastByGuest.get(id)?.at;
+      if (failedAt && (r.created_at as string) > failedAt) unreachable.delete(id);
+    }
   }
 
   const assignedSince = new Date(Date.now() - 48 * 3_600_000).toISOString();
