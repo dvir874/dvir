@@ -1373,16 +1373,38 @@ export default function RsvpClient({
               * nothing, and the one thing that could have helped her was behind
               * the step she could not complete. A guest who cannot answer is
               * exactly the guest who needs it. */}
+            {/* The page that always works, offered before the one that might not.
+              *
+              * /simple has existed since 13/08 — a plain form and a POST, no
+              * JavaScript anywhere, built precisely because שיר's taps did
+              * nothing. Nothing ever linked to it. On 16/08 שקד הומינר reached
+              * this same line, wrote "הכפתורים לא מגיבים", and waited for a
+              * human — while the page that would have taken her answer in ten
+              * seconds sat one path segment away, unreachable.
+              *
+              * A working escape hatch nobody can find is not an escape hatch.
+              * The link comes first now; writing to us is what is left when
+              * even that fails. */}
+            <p style={{ textAlign: "center", margin: "0 0 6px" }}>
+              <a
+                href={`/rsvp/${token}/simple`}
+                style={{ color: T.gold, fontSize: 13.5, fontWeight: 600,
+                         textDecoration: "underline", textUnderlineOffset: 3,
+                         display: "inline-block", padding: "10px 8px" }}
+              >
+                הכפתורים לא מגיבים? לחצו כאן לאישור מהיר ✓
+              </a>
+            </p>
             <p style={{ textAlign: "center", margin: "0 0 18px" }}>
               <a
                 href={`https://wa.me/972775494850?text=${encodeURIComponent(
                   `היי, אני מנסה לאשר הגעה ל${event?.name ?? "חתונה"} והכפתורים לא מגיבים — `,
                 )}`}
                 target="_blank" rel="noopener noreferrer"
-                style={{ color: T.muted, fontSize: 13, textDecoration: "underline",
-                         textUnderlineOffset: 3, display: "inline-block", padding: "10px 8px" }}
+                style={{ color: T.muted, fontSize: 12.5, textDecoration: "underline",
+                         textUnderlineOffset: 3, display: "inline-block", padding: "8px" }}
               >
-                הכפתורים לא מגיבים? כתבו לנו ונרשום אתכם 💬
+                או כתבו לנו ונרשום אתכם 💬
               </a>
             </p>
 
