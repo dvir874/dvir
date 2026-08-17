@@ -35,10 +35,35 @@ export function validateUploadFile(
   const { allowVideo = true, maxBytes } = options;
 
   const declaredMime = file.type.toLowerCase();
-  const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
 
-  const isImage = ALLOWED_IMAGE_MIME.has(declaredMime) && ALLOWED_IMAGE_EXT.has(ext);
-  const isVideo = allowVideo && ALLOWED_VIDEO_MIME.has(declaredMime) && ALLOWED_VIDEO_EXT.has(ext);
+  /* The extension is corroboration, not a requirement.
+   *
+   * This demanded that the MIME type AND the filename extension both be on the
+   * list, which assumes every file arrives named like a file. Photos picked on
+   * an iPhone frequently do not: iOS hands Safari names such as "image" with no
+   * dot at all, and split('.').pop() then returns the whole name — so a
+   * perfectly good image/jpeg was rejected because its extension was "image".
+   *
+   * Dvir found it rehearsing the day-after upload on 17/08. The API accepts a
+   * plain .jpg posted by curl without complaint; every photo from his phone
+   * failed. A guest would have concluded the site was broken, and on the
+   * morning after a wedding they would have been right.
+   *
+   * The declared type decides. When the name carries a usable extension it is
+   * kept, and when it does not one is derived from the MIME so the stored file
+   * is still named honestly. */
+  const rawExt = file.name.includes('.')
+    ? (file.name.split('.').pop()?.toLowerCase() ?? '')
+    : '';
+
+  const isImage = ALLOWED_IMAGE_MIME.has(declaredMime);
+  const isVideo = allowVideo && ALLOWED_VIDEO_MIME.has(declaredMime);
+
+  const fromMime = declaredMime.split('/')[1]?.replace('quicktime', 'mov').replace('jpeg', 'jpg') ?? '';
+  const ext =
+    (isImage && ALLOWED_IMAGE_EXT.has(rawExt)) || (isVideo && ALLOWED_VIDEO_EXT.has(rawExt))
+      ? rawExt
+      : fromMime;
 
   if (!isImage && !isVideo) {
     return {
