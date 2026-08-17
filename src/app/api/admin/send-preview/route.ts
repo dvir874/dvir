@@ -57,22 +57,44 @@ export async function GET() {
      that will actually be delivered rather than the text we believe is
      approved. Those two have already disagreed once: v3 was approved half an
      hour after 30 invitations went out under v2. */
-  let approvedBody: string | null = null;
-  const templateName = cfg?.genericTemplateName ?? null;
   const waba = process.env.WHATSAPP_BUSINESS_ACCOUNT_ID ?? process.env.WHATSAPP_WABA_ID;
-  if (cfg && waba && templateName) {
+
+  /* Both templates, checked against what the code actually sends.
+   *
+   * This fetched the invitation only, and on 17/08 the bug was in the other
+   * one: reminderTemplateName still pointed at wedding_reminder_buttons_v1,
+   * which has zero variables and Dvir's own wedding written into its text. The
+   * send passes four, so fifty-three of his reminders died on #132000 — seven
+   * days before his wedding — and the screen built to show what will be sent
+   * had nothing to say about it, because it only ever looked at invitations.
+   *
+   * Counting {{n}} in the approved body and comparing it to the four variables
+   * we send turns that class of failure into a red line on a screen instead of
+   * fifty-three silent failures found by reading the database the next day. */
+  async function template(name: string | null) {
+    if (!cfg || !waba || !name) return null;
     try {
       const r = await fetch(
-        `https://graph.facebook.com/v21.0/${waba}/message_templates?name=${templateName}`,
+        `https://graph.facebook.com/v21.0/${waba}/message_templates?name=${name}`,
         { headers: { Authorization: `Bearer ${cfg.accessToken}` }, cache: "no-store" },
       );
-      const j = await r.json();
-      const t = j?.data?.[0];
-      if (t?.status === "APPROVED") {
-        approvedBody = t.components?.find((c: { type: string }) => c.type === "BODY")?.text ?? null;
-      }
-    } catch { /* the preview is still useful without it */ }
+      const t = (await r.json())?.data?.[0];
+      if (!t) return { name, status: "לא נמצאה ב-Meta", body: null, vars: null, ok: false };
+      const body: string | null =
+        t.components?.find((c: { type: string }) => c.type === "BODY")?.text ?? null;
+      const vars = body ? new Set([...body.matchAll(/\{\{(\d+)\}\}/g)].map(m => m[1])).size : 0;
+      return {
+        name, status: t.status, body: t.status === "APPROVED" ? body : null, vars,
+        /* The send always passes four body variables. Anything else is #132000. */
+        ok: t.status === "APPROVED" && vars === 4,
+      };
+    } catch { return null; }
   }
+
+  const invite   = await template(cfg?.genericTemplateName ?? null);
+  const reminder = await template(cfg?.reminderTemplateName ?? null);
+  const approvedBody = invite?.body ?? null;
+  const templateName = cfg?.genericTemplateName ?? null;
 
   const preview = [];
   for (const ev of events ?? []) {
@@ -179,6 +201,7 @@ export async function GET() {
   }
 
   return NextResponse.json({
+    templates: { invite, reminder },
     nextRun,
     note: "מה שהריצה הבאה תשלח. לא נשלחת אף הודעה ולא נכתב דבר.",
     generatedAt: new Date().toISOString(),

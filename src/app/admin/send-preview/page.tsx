@@ -23,6 +23,7 @@ const T = {
 };
 
 type NextRun = { event: string; approx: number; why: string };
+type Tpl = { name: string; status: string; body: string | null; vars: number | null; ok: boolean };
 
 type Ev = {
   event: string; date: string; status: string;
@@ -35,7 +36,7 @@ type Ev = {
 };
 
 export default function SendPreview() {
-  const [data, setData] = useState<{ events: Ev[]; nextRun?: NextRun | null } | null>(null);
+  const [data, setData] = useState<{ events: Ev[]; nextRun?: NextRun | null; templates?: { invite: Tpl | null; reminder: Tpl | null } } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [ids, setIds] = useState<Record<string, string | null>>({});
 
@@ -93,6 +94,32 @@ export default function SendPreview() {
             the nearest with pending guests, so a ✅ card can wait days behind a
             closer wedding. Twice I told Dvir a run would go to תהל ואביב and
             twice it went to שחר, who sits between them by date. */}
+        {/* The two templates, and whether each can actually send.
+            On 17/08 the reminder template had zero variables while the code sent
+            four; fifty-three of Dvir's own reminders failed on #132000 and this
+            screen — built to show what will be sent — was silent, because it
+            only ever looked at the invitation. */}
+        {data?.templates && (
+          <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
+            {([["הזמנה", data.templates.invite], ["תזכורת", data.templates.reminder]] as const).map(([label, t]) => (
+              <div key={label} style={{
+                flex: "1 1 220px", background: T.card, borderRadius: 12, padding: "11px 14px",
+                border: `1.5px solid ${t?.ok ? T.border : T.alert}`,
+              }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: t?.ok ? T.dark : T.alert }}>
+                  {t?.ok ? "✓" : "✕"} תבנית {label}
+                </div>
+                <div style={{ fontSize: 11, color: T.muted, marginTop: 3, wordBreak: "break-all" }}>
+                  {t?.name ?? "—"}
+                </div>
+                <div style={{ fontSize: 11, color: t?.ok ? T.muted : T.alert, marginTop: 2 }}>
+                  {t ? `${t.status} · ${t.vars} משתנים${t.ok ? "" : " — הקוד שולח 4, השליחה תיכשל"}` : "לא נבדקה"}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {data?.nextRun && (
           <div style={{
             background: T.card, border: `1.5px solid ${T.gold}`, borderRadius: 14,
