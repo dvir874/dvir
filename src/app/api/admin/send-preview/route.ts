@@ -133,7 +133,53 @@ export async function GET() {
     });
   }
 
+  /* Which wedding actually wins the next run, and roughly how many go out.
+   *
+   * The cards below say whether each event COULD send. They do not say which
+   * one WILL, and those are different questions: the cron serves one event per
+   * run — the nearest wedding that still has pending guests — so an event that
+   * previews as ✅ may sit untouched for days behind a closer one.
+   *
+   * I told Dvir twice that a run would go to תהל ואביב after pausing his own
+   * wedding, and twice it went to שחר instead: she sits between them by date
+   * with 226 pending, and I checked one blocker and stopped. This line exists so
+   * that question is answered by the system rather than by me.
+   *
+   * The count is deliberately approximate. The real budget is min(remaining,
+   * timeCap) evaluated at run time against a rolling window that keeps moving,
+   * and a single number stated confidently is how the last two mistakes were
+   * made. */
+  const winner = preview.find(p => !p.blockedReason && !p.pausedUntil && p.pending > 0) ?? null;
+
+  let nextRun: { event: string; approx: number; why: string } | null = null;
+  if (winner) {
+    const ev = (events ?? []).find(e => e.name === winner.event);
+    const since = new Date(Date.now() - 24 * 3_600_000).toISOString();
+
+    /* Unique recipients in the rolling window — the same thing Meta counts, and
+       the reason a day with many failures leaves little room: an attempt counts
+       whether or not it arrived. */
+    const { data: recent } = await sb.from("wa_messages")
+      .select("wa_phone").eq("direction", "out").gte("created_at", since).limit(3000);
+    const used = new Set((recent ?? []).map(r => r.wa_phone).filter(Boolean)).size;
+
+    const { data: lastRun } = await sb.from("wa_runs")
+      .select("cap").not("cap", "is", null).order("created_at", { ascending: false }).limit(1);
+    const cap = Number(lastRun?.[0]?.cap ?? 0);
+
+    const { count: fresh } = ev ? await sb.from("guests")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", ev.id).eq("status", "pending").not("phone", "is", null) : { count: 0 };
+
+    nextRun = {
+      event: winner.event,
+      approx: Math.max(0, Math.min(fresh ?? 0, cap - used)),
+      why: `מכסה ${cap} · נוצלו ${used} ב-24 השעות האחרונות (כולל הודעות שנכשלו)`,
+    };
+  }
+
   return NextResponse.json({
+    nextRun,
     note: "מה שהריצה הבאה תשלח. לא נשלחת אף הודעה ולא נכתב דבר.",
     generatedAt: new Date().toISOString(),
     events: preview,

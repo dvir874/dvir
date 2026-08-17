@@ -22,6 +22,8 @@ const T = {
   gold: "#C5A46D", olive: "#6B7B5A", alert: "#B4453C",
 };
 
+type NextRun = { event: string; approx: number; why: string };
+
 type Ev = {
   event: string; date: string; status: string;
   blockedReason: string | null; pausedUntil: string | null;
@@ -33,7 +35,7 @@ type Ev = {
 };
 
 export default function SendPreview() {
-  const [data, setData] = useState<{ events: Ev[] } | null>(null);
+  const [data, setData] = useState<{ events: Ev[]; nextRun?: NextRun | null } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [ids, setIds] = useState<Record<string, string | null>>({});
 
@@ -85,6 +87,30 @@ export default function SendPreview() {
             תצוגה מקדימה ואישור סופי של הודעות וואטסאפ לפני הפצה לאורחים
           </p>
         </header>
+
+        {/* Which wedding wins the next run — the question the cards below do not
+            answer. They say each event COULD send; the cron serves one per run,
+            the nearest with pending guests, so a ✅ card can wait days behind a
+            closer wedding. Twice I told Dvir a run would go to תהל ואביב and
+            twice it went to שחר, who sits between them by date. */}
+        {data?.nextRun && (
+          <div style={{
+            background: T.card, border: `1.5px solid ${T.gold}`, borderRadius: 14,
+            padding: "14px 18px", marginBottom: 22, textAlign: "center",
+          }}>
+            <p style={{ margin: 0, fontSize: 15, color: T.dark }}>
+              הריצה הבאה: <strong>{data.nextRun.event}</strong>
+              {"  ·  "}
+              <span style={{ color: T.gold, fontWeight: 800 }}>~{data.nextRun.approx}</span> הודעות
+            </p>
+            <p style={{ margin: "5px 0 0", fontSize: 11.5, color: T.muted }}>
+              {data.nextRun.why}
+            </p>
+          </div>
+        )}
+        {data && !data.nextRun && (
+          <Note tone="muted">אף אירוע לא ישלח בריצה הבאה — כולם מושהים, חסומים או ללא ממתינים</Note>
+        )}
 
         {err && <Note tone="alert">{err}</Note>}
         {!data && !err && <Note tone="muted">טוען…</Note>}
