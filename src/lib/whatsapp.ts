@@ -708,7 +708,21 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
        Requires the webhook to record the taps. Sending buttons that nothing
        listens to is worse than sending none: the guest believes they have
        answered and we never know. */
-    reminderTemplateName: process.env.WHATSAPP_TEMPLATE_REMINDER ?? "wedding_reminder_buttons_v1",
+    /* The generic reminder, not the one with Dvir's wedding written into it.
+     *
+     * wedding_reminder_buttons_v1 has zero variables and the text says
+     * "החתונה של דביר בן ברוך ומירב ברון מתקרבת", with his venue and his hours.
+     * It was correct for exactly one event, the same way the invitation
+     * template was before 16/08.
+     *
+     * On 17/08 fifty-three of שחר's reminders failed with #132000, "number of
+     * parameters does not match" — the send now passes four body variables and
+     * this template accepts none. That failure is the only reason fifty-three of
+     * her guests were not reminded about somebody else's wedding, in her name.
+     *
+     * wedding_reminder_buttons_generic has been approved all along, with the
+     * same two quick-reply buttons and {{1}}–{{4}} in the right places. */
+    reminderTemplateName: process.env.WHATSAPP_TEMPLATE_REMINDER ?? "wedding_reminder_buttons_generic",
     galleryTemplateName: process.env.WHATSAPP_TEMPLATE_GALLERY ?? "wedding_gallery_ready_regalifnei",
     templateLang: process.env.WHATSAPP_TEMPLATE_LANG ?? "he",
     /* Kept only so existing callers still typecheck; nothing reads it as a
