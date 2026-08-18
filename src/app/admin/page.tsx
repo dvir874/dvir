@@ -617,7 +617,7 @@ export default function AdminPage() {
   }, [selectedEventId]);
 
   const [deliveryMap, setDeliveryMap] = useState<Record<string,
-    { icon: string; label: string; color: string; title: string; unreachable?: boolean; code?: number | null }>>({});
+    { icon: string; label: string; color: string; title: string; unreachable?: boolean; code?: number | null; neverSent?: boolean }>>({});
 
   useEffect(() => {
     if (!selectedEventId) { setDeliveryMap({}); return; }
@@ -625,7 +625,7 @@ export default function AdminPage() {
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (!d) return;
-        const m: Record<string, { icon: string; label: string; color: string; title: string; unreachable?: boolean; code?: number | null }> = {};
+        const m: Record<string, { icon: string; label: string; color: string; title: string; unreachable?: boolean; code?: number | null; neverSent?: boolean }> = {};
         /* retryable already comes from the delivery API — it was simply never
            read here, so a guest with no WhatsApp account sat in the same bucket
            as one whose message is still in flight. Seven of שחר's guests are in
@@ -659,9 +659,15 @@ export default function AdminPage() {
           m[r.id] = { icon: "⏳", label: "לא ידוע", color: "rgba(28,16,8,0.45)",
                       title: "נשלח, אך לא התקבל דוח מסירה" };
         });
+        /* This bucket IS "טרם נשלחה הזמנה", so it has to say so out loud.
+           The chip used to count guests with no entry in this map at all,
+           which sounds like the same thing and is the exact opposite: the
+           delivery API puts a never-sent guest here, so every guest the chip
+           existed to find was the one guest it excluded. Three of Dvir's own
+           guests, added the night before, read as 0. */
         (d.unsent ?? []).forEach((r: { id: string; reason?: string }) => {
           m[r.id] = { icon: "◻️", label: "לא נשלח", color: "#B8860B",
-                      title: r.reason ?? "טרם נשלחה הודעה" };
+                      title: r.reason ?? "טרם נשלחה הודעה", neverSent: true };
         });
         (d.reached ?? []).forEach((r: { id: string; status?: string }) => {
           m[r.id] = r.status === "read"
@@ -693,7 +699,8 @@ export default function AdminPage() {
       : statusFilter === "no_answer" ? g.status === "pending" && reached
       /* nothing was ever sent — no delivery row of any kind. Distinct from
          unreachable below, which HAS a row and a terminal reason. */
-      : statusFilter === "not_sent"  ? g.status === "pending" && !reached && !deliveryMap[g.id]
+      : statusFilter === "not_sent"  ? g.status === "pending" && !reached &&
+                                       (!deliveryMap[g.id] || deliveryMap[g.id].neverSent)
       /* WhatsApp will never reach them. Only a phone call will. */
       : statusFilter === "unreachable" ? !!deliveryMap[g.id]?.unreachable && deliveryMap[g.id]?.code !== 130472
       /* Reachable, just not by template. An inbound message reopens them. */
@@ -2607,7 +2614,8 @@ export default function AdminPage() {
                      either number was asking. They are separate questions and
                      only one of them is something a person can act on. */
                   ["not_sent",  `⚠️ טרם נשלחה הזמנה (${guests.filter(g =>
-                    g.status === "pending" && !deliveryMap[g.id]).length})`],
+                    g.status === "pending" &&
+                    (!deliveryMap[g.id] || deliveryMap[g.id].neverSent)).length})`],
                   /* Two situations, not one. 131026 means there is no WhatsApp
                      account on that number and only a phone call reaches them.
                      130472 means Meta is withholding TEMPLATES from a number
