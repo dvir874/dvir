@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { shabbatBlock } from "@/lib/shabbat";
 import { coupleName, looksLikeCouple } from "@/lib/couple-name";
+import { isEligibleNow } from "@/lib/eligibility";
 import { eventTimes } from "@/lib/event-times";
 import { weddingDateLine } from "@/lib/hebrew-date";
 import {
@@ -582,8 +583,6 @@ async function runSend(req: NextRequest) {
      * unused.
      *
      * Never contacted → the 24h floor. Already contacted → the 72h one. */
-    const h24 = new Date(Date.now() - 24 * 3_600_000).toISOString();
-    const h72 = new Date(Date.now() - 72 * 3_600_000).toISOString();
     const last = new Map<string, string>();
     const arrived = new Set<string>();
     for (let i = 0; i < pendIds.length; i += 150) {
@@ -598,10 +597,9 @@ async function runSend(req: NextRequest) {
         if (!last.has(id) || at > last.get(id)!) last.set(id, at);
       }
     }
-    const anyEligible = pendIds.some(id => {
-      const at = last.get(id);
-      return arrived.has(id) ? (!at || at < h72) : (!at || at < h24);
-    });
+    const anyEligible = pendIds.some(id => isEligibleNow({
+      delivered: arrived.has(id), lastOutboundAt: last.get(id) ?? null,
+    }));
     if (anyEligible) { ev = cand; break; }
   }
   const image = ev.wa_header_image_url as string;
@@ -859,14 +857,16 @@ async function runSend(req: NextRequest) {
    *
    * lastByGuest is already built above from every outbound row, so this costs
    * nothing: no extra query, one map lookup per candidate. */
-  const messagedSince = (id: string, hours: number) => {
-    const at = lastByGuest.get(id)?.at;
-    return !!at && at > new Date(Date.now() - hours * 3_600_000).toISOString();
-  };
+  /* One rule, from lib/eligibility. The floors used to be spelled out here and
+     again in the selection above, and the two disagreed — see that file. */
+  const mayMessage = (id: string) => isEligibleNow({
+    delivered: contacted.has(id),
+    lastOutboundAt: lastByGuest.get(id)?.at ?? null,
+  });
 
   /* ---- 1. no evidence the invitation ever arrived ---- */
   ids.filter(id => !contacted.has(id) && !reserved.has(id) && !unreachable.has(id)
-                   && !doNotContact.has(id) && !messagedSince(id, 24))
+                   && !doNotContact.has(id) && mayMessage(id))
     .slice(0, budget)
     .forEach(id => targets.push({ id }));
 
@@ -941,7 +941,7 @@ async function runSend(req: NextRequest) {
        people this is for. */
     ids.filter(id => contacted.has(id) && !already.has(id) && !reserved.has(id)
                   && !unreachable.has(id) && !doNotContact.has(id)
-                  && !messagedSince(id, 72))
+                  && mayMessage(id))
       .sort((a, b) => (firstArrival.get(a) ?? "9999").localeCompare(firstArrival.get(b) ?? "9999"))
       .slice(0, budget - targets.length)
       .forEach(id => targets.push({ id, reminder: true }));

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { requireAdmin } from "@/lib/auth-guard";
 import { coupleName, looksLikeCouple } from "@/lib/couple-name";
+import { isEligibleNow } from "@/lib/eligibility";
 import { eventTimes } from "@/lib/event-times";
 import { weddingDateLine } from "@/lib/hebrew-date";
 import { getWhatsAppConfig } from "@/lib/whatsapp";
@@ -213,7 +214,6 @@ export async function GET() {
    * A preview that computes the answer differently from the sender is a second
    * implementation that agrees until the day it matters — which is the same
    * mistake as the address, the couple names and the reminder template. */
-  const since24 = new Date(Date.now() - 24 * 3_600_000).toISOString();
 
   async function eligible(eventId: string): Promise<number> {
     const { data: pend } = await sb.from("guests")
@@ -225,7 +225,6 @@ export async function GET() {
        72h before a reminder. A single 24h test here would report guests the
        sender will refuse — which is how the 19:31 and 21:30 runs on 18/08 both
        chose an event with nobody to message. */
-    const h72 = new Date(Date.now() - 72 * 3_600_000).toISOString();
     const last = new Map<string, string>();
     const arrived = new Set<string>();
     for (let i = 0; i < ids.length; i += 150) {
@@ -240,10 +239,10 @@ export async function GET() {
         if (!last.has(id) || at > last.get(id)!) last.set(id, at);
       }
     }
-    return ids.filter(id => {
-      const at = last.get(id);
-      return arrived.has(id) ? (!at || at < h72) : (!at || at < since24);
-    }).length;
+    /* The sender's own rule, imported — not restated. */
+    return ids.filter(id => isEligibleNow({
+      delivered: arrived.has(id), lastOutboundAt: last.get(id) ?? null,
+    })).length;
   }
 
   let winner: typeof preview[number] | null = null;
