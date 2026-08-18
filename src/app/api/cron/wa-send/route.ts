@@ -1152,7 +1152,19 @@ async function runSend(req: NextRequest) {
       health.quality !== "GREEN" ||
       (metaCap > 0 && cap > 0 && cap < metaCap);   /* Meta raised the tier */
 
-    if (alertTo && (needsAction || hourIl >= 21)) {
+    /* Every run that actually sent, plus anything that needs a decision.
+     *
+     * The first version spoke only at the end of the day or on trouble, on the
+     * reasoning that six summaries a day become noise. Dvir asked for the
+     * reminders too: 43 of his own went out at 11:17 and he learned it by
+     * opening a screen. He is right that a send is not noise — it is the thing
+     * the system exists to do, and there are only one to three of them a day
+     * once the quota is spent by mid-morning.
+     *
+     * A run that sends nothing still says nothing, unless quota is going to
+     * waste. That is the line: messages out, or a decision needed. Never
+     * "nothing happened, as expected". */
+    if (alertTo && (sent.length > 0 || needsAction || hourIl >= 21)) {
       await sendRunSummary(cfg, alertTo, {
         event: ev.name as string,
         sent: String(sent.length),
