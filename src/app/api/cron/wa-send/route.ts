@@ -352,6 +352,17 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/* One unanswered-guest alert per hour, however many runs fire in between. */
+async function alreadyAlertedThisHour(sb: ReturnType<typeof createServerClient>) {
+  const { count } = await sb.from("wa_runs")
+    .select("id", { count: "exact", head: true })
+    .eq("reason", "guest_waiting_alert")
+    .gte("created_at", new Date(Date.now() - 3_600_000).toISOString());
+  if (count) return true;
+  await sb.from("wa_runs").insert({ sent: 0, reason: "guest_waiting_alert" }).then(() => {}, () => {});
+  return false;
+}
+
 async function runSend(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
@@ -367,7 +378,61 @@ async function runSend(req: NextRequest) {
   const cfg = getWhatsAppConfig();
   if (!cfg) return NextResponse.json({ error: "whatsapp_not_configured" }, { status: 503 });
 
+
   const sb = createServerClient();
+
+  /* A guest wrote and nobody has answered.
+   *
+   * This is the last thing in the system that is still completely silent. שקד
+   * הומינר wrote on 16/08 — "אני מנסה לאשר הגעה והכפתורים לא מגיבים" — and the
+   * only reason anyone saw it is that Dvir happened to open the inbox. A guest
+   * asking a question is the one message that cannot wait for someone to think
+   * of checking.
+   *
+   * Two hours of silence, so a reply written five minutes later is not
+   * announced, and only once per hour so a slow morning does not become a
+   * stream. Runs before anything else in the send, and can never affect it. */
+  try {
+    const alertTo = process.env.ADMIN_ALERT_PHONE;
+    if (alertTo) {
+      const since = new Date(Date.now() - 24 * 3_600_000).toISOString();
+      const twoHoursAgo = new Date(Date.now() - 2 * 3_600_000).toISOString();
+      const { data: inbound } = await sb.from("wa_messages")
+        .select("guest_id, wa_phone, body, created_at")
+        .eq("direction", "in").gte("created_at", since)
+        .lte("created_at", twoHoursAgo)
+        .order("created_at", { ascending: false }).limit(30);
+
+      const waiting: { name: string; body: string }[] = [];
+      for (const m of inbound ?? []) {
+        if (!m.guest_id) continue;
+        /* Answered means WE wrote to them after they wrote to us. */
+        const { count: replied } = await sb.from("wa_messages")
+          .select("id", { count: "exact", head: true })
+          .eq("direction", "out").eq("guest_id", m.guest_id)
+          .gt("created_at", m.created_at as string);
+        if (replied) continue;
+        /* Already announced in an earlier run? One alert per guest per day. */
+        const { count: told } = await sb.from("wa_messages")
+          .select("id", { count: "exact", head: true })
+          .eq("direction", "in").eq("guest_id", m.guest_id)
+          .gt("created_at", m.created_at as string);
+        if (told) continue;
+        const { data: g } = await sb.from("guests")
+          .select("name").eq("id", m.guest_id).maybeSingle();
+        waiting.push({ name: (g?.name as string) ?? (m.wa_phone as string), body: String(m.body ?? "").slice(0, 60) });
+        if (waiting.length >= 3) break;
+      }
+
+      if (waiting.length && !(await alreadyAlertedThisHour(sb))) {
+        await sendRunSummary(cfg, alertTo, {
+          event: waiting.map(w => w.name).join(", "),
+          sent: "0", failed: "0", left: String(waiting.length),
+          attention: `💬 אורחים כתבו ואין תשובה: ${waiting.map(w => `${w.name} — "${w.body}"`).join(" · ")}`,
+        });
+      }
+    }
+  } catch { /* never let a notification cost a send */ }
   /* The clock the run is actually bounded by.
    *
    * timeCap below estimates from pacing constants alone and got it wrong: on
@@ -965,6 +1030,18 @@ async function runSend(req: NextRequest) {
     const galleryBudget = Math.max(1, Math.min(60, Math.floor(budget / 3)));
     const gal = await notifyGallery(sb, cfg, galleryBudget);
     if (gal.sent) {
+      /* The thank-you round, the morning after. Same reasoning as the other
+         milestones: worth a message because it is the moment he tells a couple
+         their gallery is live, and he should not have to check for it. */
+      try {
+        const to = process.env.ADMIN_ALERT_PHONE;
+        if (to) await sendRunSummary(cfg, to, {
+          event: gal.event ?? "", sent: String(gal.sent), failed: "0",
+          left: String(Math.max(0, cap - usage.recipients - gal.sent)),
+          attention: "📸 סבב התודה והגלריה יצא לאורחים",
+        });
+      } catch { /* an alert must never cost a run */ }
+
       return record(sb, {
         sent: gal.sent, reason: "gallery_notified", healed, statusesApplied,
         galleryEvent: gal.event,
@@ -1164,6 +1241,35 @@ async function runSend(req: NextRequest) {
      * A run that sends nothing still says nothing, unless quota is going to
      * waste. That is the line: messages out, or a decision needed. Never
      * "nothing happened, as expected". */
+    /* Did this run finish a round?
+     *
+     * Computed from the state the run leaves behind rather than remembered, so
+     * it needs no column and cannot fire twice: once nobody is left without an
+     * invitation the condition is only true for the run that emptied the list,
+     * because every later run sends nothing.
+     *
+     * These are the moments Dvir wants to hear about without opening anything —
+     * they are also the moments he messages a client, and a client would rather
+     * hear it from him than ask. */
+    let milestone = "";
+    if (sent.length > 0) {
+      const { count: noInvite } = await sb.from("guests")
+        .select("id", { count: "exact", head: true })
+        .eq("event_id", ev.id).eq("status", "pending")
+        .not("phone", "is", null).neq("category", "demo")
+        .is("opened_at", null);
+
+      const firstContacts = targets.filter(t => !t.reminder).length;
+      const reminders = targets.filter(t => t.reminder).length;
+
+      if (firstContacts > 0 && (noInvite ?? 0) === 0) {
+        milestone = `🎉 סבב ההזמנות הושלם — כל האורחים קיבלו`;
+      } else if (reminders > 0 && firstContacts === 0) {
+        /* Nothing left this run was allowed to remind. */
+        milestone = `🔔 סבב התזכורות הושלם — ${reminders} יצאו`;
+      }
+    }
+
     if (alertTo && (sent.length > 0 || needsAction || hourIl >= 21)) {
       await sendRunSummary(cfg, alertTo, {
         event: ev.name as string,
@@ -1174,7 +1280,7 @@ async function runSend(req: NextRequest) {
           ? `⬆ Meta אישרה ${metaCap} ליום — צריך להעלות את המכסה`
           : health.quality !== "GREEN"
             ? `⚠️ איכות ${health.quality}`
-            : String(failed.length),
+            : milestone || String(failed.length),
       });
     }
   } catch { /* an alert must never cost a run */ }
