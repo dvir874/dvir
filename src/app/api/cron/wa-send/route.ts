@@ -630,6 +630,28 @@ async function runSend(req: NextRequest) {
    * So the selection asks the question the send actually asks — is there anyone
    * here we are allowed to message right now — using the same 24h floor as the
    * first-contact group. Three events at most, one extra query each. */
+  /* Nobody is reminded while anybody is still uninvited — across all weddings,
+   * not only within one.
+   *
+   * Group 3 below already says "reminders, only once nobody is left uninvited",
+   * and it was true per event and false everywhere else. שחר has 199 people
+   * holding an invitation they have not answered and 6 who never received one;
+   * תהל has 6 more. Nearest-wedding-first gives שחר the run, her 199 reminders
+   * fill a 250-a-day ceiling, and תהל's 6 — people who have never once been
+   * told there is a wedding — wait behind them. Not for a run. For a day, and
+   * then the next day, because the same arithmetic repeats.
+   *
+   * A reminder is worth something. A first invitation is worth the whole
+   * feature: the guest cannot answer, cannot be counted, and cannot arrive.
+   * The two should never compete for the same slot, and the fifteen people this
+   * concerns cost 6% of one day.
+   *
+   * So: if any wedding still has someone never contacted, this run serves the
+   * nearest such wedding and sends first contacts only. The reminders are not
+   * cancelled, they wait for a run — and with six runs a day the uninvited are
+   * drained by mid-morning, which is what happened on 20/08. */
+  let firstContactOnly = false;
+  let fallback: (typeof active)[number] | null = null;
   for (const cand of active) {
     const { data: pend } = await sb.from("guests")
       .select("id").eq("event_id", cand.id).eq("status", "pending")
@@ -662,11 +684,22 @@ async function runSend(req: NextRequest) {
         if (!last.has(id) || at > last.get(id)!) last.set(id, at);
       }
     }
-    const anyEligible = pendIds.some(id => isEligibleNow({
+    const eligible = pendIds.filter(id => isEligibleNow({
       delivered: arrived.has(id), lastOutboundAt: last.get(id) ?? null,
     }));
-    if (anyEligible) { ev = cand; break; }
+    if (!eligible.length) continue;
+
+    /* Never reached, and allowed to be reached now. */
+    const uninvited = eligible.filter(id => !arrived.has(id));
+    if (uninvited.length) { ev = cand; firstContactOnly = true; break; }
+
+    /* Nearest wedding with reminder work, remembered in case no wedding
+       anywhere still has anyone uninvited. The loop continues rather than
+       settling here, because a later wedding may. */
+    if (!fallback) fallback = cand;
   }
+  /* No first contacts left anywhere — the ordinary reminder day. */
+  if (!firstContactOnly && fallback) ev = fallback;
   const image = ev.wa_header_image_url as string;
 
   /* The four variables the generic template needs — built here, and refused
@@ -990,7 +1023,12 @@ async function runSend(req: NextRequest) {
      Their own approved template, never the invitation again: sending the same
      invitation a second time to someone who already has it reads as a system
      that lost track of them. */
-  if (targets.length < budget) {
+  /* `firstContactOnly` extends this same sentence past the edge of one event —
+     see the selection above. Guarded on the group having actually produced
+     someone: if the first-contact group came back empty for any reason, this
+     must fall through to reminders rather than turn a run into silence. */
+  const holdReminders = firstContactOnly && targets.length > 0;
+  if (targets.length < budget && !holdReminders) {
     const already = new Set(targets.map(t => t.id));
     /* Longest wait first.
 
