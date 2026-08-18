@@ -96,7 +96,7 @@ export async function GET(
   if (album.event_id) {
     const { data: items } = await sb
       .from('memory_items')
-      .select('id, public_url, mime_type, type, guest_name, uploaded_at')
+      .select('id, public_url, mime_type, type, guest_name, uploaded_at, taken_at')
       .eq('event_id', album.event_id)
       .in('type', ['photo', 'video'])
       .order('uploaded_at', { ascending: false });
@@ -109,12 +109,21 @@ export async function GET(
         mime_type: m.mime_type,
         is_video: m.type === 'video',
         uploader_name: m.guest_name,
-        created_at: m.uploaded_at,
+        /* When the shutter fired, falling back to when it arrived.
+         *
+         * The couple replay the evening in the order it happened, not in the
+         * order people got round to uploading — a guest who empties their
+         * camera roll at 2am would otherwise put the chuppah after the dancing.
+         * exifTakenAt already records it on upload; nothing read it. */
+        created_at: m.taken_at ?? m.uploaded_at,
       })) as typeof photos;
   }
 
+  /* Oldest first — the evening in the order it happened. A gallery that opens
+     on the last photo of the night makes the couple scroll backwards through
+     their own wedding. */
   const all = [...(photos ?? []), ...(fromMemory ?? [])]
-    .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')));
+    .sort((a, b) => String(a.created_at ?? '').localeCompare(String(b.created_at ?? '')));
 
   return NextResponse.json({ album: { ...album, event_name: eventName }, photos: all, memoryToken });
 }
