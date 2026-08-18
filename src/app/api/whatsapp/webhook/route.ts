@@ -22,6 +22,49 @@ export const dynamic = "force-dynamic";
 
 const VERIFY_TOKEN = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN ?? "regalifnei-wa-hook";
 
+/* Who is allowed to speak here.
+ *
+ * This endpoint took anyone's word for it. It is public by design — Meta has
+ * to reach it — and it was never checking that Meta was the caller. An audit
+ * on 18/08 sent two forged requests with no credential of any kind: the first
+ * wrote a row, the second moved a guest from pending to confirmed and left a
+ * guest_events row that looks exactly like a real answer.
+ *
+ * Guest phone numbers are not secret. They are printed on invitations and the
+ * shuttle list shows names. So anyone could confirm or cancel any guest at any
+ * wedding, and the number the caterer is given — 322 here, 550 at תהל — is
+ * what would move.
+ *
+ * The fix is the signature Meta already sends and nobody read.
+ *
+ * THE RAMP. Getting this wrong is worse than the bug: a mistyped secret
+ * rejects Meta itself, every RSVP stops being recorded, and it stops SILENTLY
+ * five days before Dvir's wedding. So enforcement is not the default and
+ * cannot be reached by accident —
+ *
+ *   no META_APP_SECRET          → today's behaviour exactly, nothing rejected
+ *   secret set                  → verify, log the verdict, still process
+ *   secret + ENFORCE=true       → reject what fails
+ *
+ * He turns it on after watching real callbacks report `ok` in the log, not
+ * before. Always 200, at every stage: a rejection must look boring to Meta, or
+ * Meta disables the hook and takes the real traffic with it. */
+const APP_SECRET = process.env.META_APP_SECRET ?? "";
+const ENFORCE = process.env.META_WEBHOOK_ENFORCE === "true";
+
+async function signatureVerdict(
+  raw: string, header: string | null,
+): Promise<"unconfigured" | "ok" | "bad" | "missing"> {
+  if (!APP_SECRET) return "unconfigured";
+  if (!header?.startsWith("sha256=")) return "missing";
+  const { createHmac, timingSafeEqual } = await import("node:crypto");
+  const mine = createHmac("sha256", APP_SECRET).update(raw, "utf8").digest("hex");
+  const theirs = header.slice(7);
+  /* Same length before comparing — timingSafeEqual throws on a mismatch. */
+  if (mine.length !== theirs.length) return "bad";
+  return timingSafeEqual(Buffer.from(mine), Buffer.from(theirs)) ? "ok" : "bad";
+}
+
 /* GET — Meta's one-time subscription handshake */
 export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
@@ -71,7 +114,22 @@ function bodyOf(m: WaMessage): string {
 export async function POST(req: NextRequest) {
   /* Always 200 — a non-200 makes Meta retry and eventually disable the hook */
   try {
-    const body = await req.json();
+    /* The raw text, before anything parses it. HMAC is computed over the exact
+       bytes Meta signed; JSON.stringify of a parsed object reorders keys and
+       drops whitespace, so a check built on req.json() fails 100% of the time
+       and would read as "Meta is forging its own callbacks". */
+    const raw = await req.text();
+    const verdict = await signatureVerdict(raw, req.headers.get("x-hub-signature-256"));
+
+    if (verdict !== "ok" && verdict !== "unconfigured") {
+      console.warn(`[webhook] signature ${verdict}${ENFORCE ? " — rejected" : " — observed only"}`);
+      if (ENFORCE) return NextResponse.json({ ok: true });
+    } else if (verdict === "ok" && !ENFORCE) {
+      /* The line he is waiting to see before flipping the switch. */
+      console.log("[webhook] signature ok");
+    }
+
+    const body = JSON.parse(raw);
 
     /* EVERY entry and EVERY change, not just the first of each.
        Meta batches: one POST can carry several entries, each with several
