@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
 import { venueLine, wazeLink as wazeLinkFor } from '@/lib/venue';
+import { coupleName } from '@/lib/couple-name';
 import {
   DEFAULT_TEMPLATES, renderTemplate, buildWaLink, type CampaignType,
 } from '@/lib/automation/message-templates';
@@ -16,7 +17,7 @@ export async function GET(
   const sb     = createServerClient();
 
   const [evRes, tmplRes, guestRes, albumRes] = await Promise.all([
-    sb.from('events').select('id,name,date,address,venue_name').eq('id', eventId).single(),
+    sb.from('events').select('id,name,couple_names,date,address,venue_name,reception_time').eq('id', eventId).single(),
     type ? sb.from('message_templates').select('body').eq('event_id', eventId).eq('type', type).maybeSingle() : Promise.resolve({ data: null }),
     sb.from('guests').select('id,name,phone,status').eq('event_id', eventId).eq('status', 'confirmed'),
     sb.from('gallery_albums').select('public_token').eq('event_id', eventId).maybeSingle(),
@@ -34,12 +35,25 @@ export async function GET(
   const wazeLink = wazeLinkFor(event) ?? '';
   const galleryToken = (albumRes.data as { public_token?: string } | null)?.public_token ?? '[token]';
 
+  /* Two values that were constants and should never have been.
+   *
+   * `event.name` is the dashboard title — "חתונת אורי ושחר" — and this lands
+   * inside a sentence about the couple, so it read "בעזרת ה׳ חתונת אורי ושחר
+   * מתחתנים". The cron and the manual send route were both corrected for this;
+   * this route was left behind. See src/lib/couple-name.ts.
+   *
+   * '19:00' was simply Dvir's own reception time, written into the code and
+   * then told to every other couple. תהל's guests would have been given an
+   * hour nobody at that wedding had agreed to. */
+  const couple    = coupleName(event) ?? event.name;
+  const eventTime = (event.reception_time as string | null) ?? '19:00';
+
   const sample   = guests[0];
   const rendered = renderTemplate(bodyTpl, {
     guest_name:      sample?.name ?? 'שם האורח',
-    couple_name:     event.name,
+    couple_name:     couple,
     event_date:      dateStr,
-    event_time:      '19:00',
+    event_time:      eventTime,
     venue:           venueLine(event) ?? '',
     address:         event.address ?? '',
     event_link:      `${appUrl}/event/${eventId}`,
@@ -50,9 +64,9 @@ export async function GET(
   const links = guests.map((g) => {
     const msg = renderTemplate(bodyTpl, {
       guest_name:      g.name,
-      couple_name:     event.name,
+      couple_name:     couple,
       event_date:      dateStr,
-      event_time:      '19:00',
+      event_time:      eventTime,
       venue:           venueLine(event) ?? '',
       event_link:      `${appUrl}/event/${eventId}`,
       navigation_link: wazeLink,
