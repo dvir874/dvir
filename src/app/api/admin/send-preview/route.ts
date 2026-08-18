@@ -202,7 +202,43 @@ export async function GET() {
    * timeCap) evaluated at run time against a rolling window that keeps moving,
    * and a single number stated confidently is how the last two mistakes were
    * made. */
-  const winner = preview.find(p => !p.blockedReason && !p.pausedUntil && p.pending > 0) ?? null;
+  /* The same question the cron asks, not a near-miss of it.
+   *
+   * This picked the first event with pending > 0. The cron stopped doing that
+   * yesterday: a wedding whose guests were all messaged today still shows a
+   * full pending list but has nobody it may contact, so it is skipped. On
+   * 18/08 the screen announced "הריצה הבאה: מירב ודביר · ~44" while his 44
+   * pending had 3 eligible and the run was going to תהל ואביב.
+   *
+   * A preview that computes the answer differently from the sender is a second
+   * implementation that agrees until the day it matters — which is the same
+   * mistake as the address, the couple names and the reminder template. */
+  const since24 = new Date(Date.now() - 24 * 3_600_000).toISOString();
+
+  async function eligible(eventId: string): Promise<number> {
+    const { data: pend } = await sb.from("guests")
+      .select("id").eq("event_id", eventId).eq("status", "pending")
+      .not("phone", "is", null).neq("category", "demo").limit(900);
+    const ids = (pend ?? []).map(r => r.id as string);
+    if (!ids.length) return 0;
+    const recent = new Set<string>();
+    for (let i = 0; i < ids.length; i += 150) {
+      const { data } = await sb.from("wa_messages")
+        .select("guest_id").eq("direction", "out")
+        .gte("created_at", since24).in("guest_id", ids.slice(i, i + 150));
+      (data ?? []).forEach(m => m.guest_id && recent.add(m.guest_id as string));
+    }
+    return ids.filter(id => !recent.has(id)).length;
+  }
+
+  let winner: typeof preview[number] | null = null;
+  let winnerFree = 0;
+  for (const p of preview) {
+    if (p.blockedReason || p.pausedUntil || p.pending === 0) continue;
+    const ev = (events ?? []).find(e => e.name === p.event);
+    const free = ev ? await eligible(ev.id as string) : 0;
+    if (free > 0) { winner = p; winnerFree = free; break; }
+  }
 
   let nextRun: { event: string; approx: number; why: string } | null = null;
   if (winner) {
@@ -220,13 +256,10 @@ export async function GET() {
       .select("cap").not("cap", "is", null).order("created_at", { ascending: false }).limit(1);
     const cap = Number(lastRun?.[0]?.cap ?? 0);
 
-    const { count: fresh } = ev ? await sb.from("guests")
-      .select("id", { count: "exact", head: true })
-      .eq("event_id", ev.id).eq("status", "pending").not("phone", "is", null) : { count: 0 };
-
     nextRun = {
       event: winner.event,
-      approx: Math.max(0, Math.min(fresh ?? 0, cap - used)),
+      /* Eligible now, not merely pending — the cooldown decides both. */
+      approx: Math.max(0, Math.min(winnerFree, cap - used)),
       why: `מכסה ${cap} · נוצלו ${used} ב-24 השעות האחרונות (כולל הודעות שנכשלו)`,
     };
   }
