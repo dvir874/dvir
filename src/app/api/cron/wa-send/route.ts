@@ -972,9 +972,36 @@ async function runSend(req: NextRequest) {
            posture: health.posture, window_used: usage.recipients });
     }
   }
-  if (!targets.length) return record(sb, { sent: 0, reason: "nothing_due", healed },
-    { event_id: ev.id, cap, tier: health.tier, quality: health.quality,
-      posture: health.posture, window_used: usage.recipients });
+  if (!targets.length) {
+    /* A run that chose a wedding and then had nobody to message.
+     *
+     * This is the exact shape of the 18/08 evening: selection picked מירב ודביר
+     * on a 24-hour test, the reminder group refused them on a 72-hour one, and
+     * both the 19:31 and 21:30 runs recorded nothing_due while תהל ואביב had
+     * 204 eligible guests and 204 of the day's quota expired. Nothing said a
+     * word — Dvir found it himself at half past nine.
+     *
+     * The thresholds are aligned now, so this should not recur. But "should not"
+     * is what I said yesterday, and a run that selects an event and sends zero
+     * is worth a message either way: it means the selection and the send
+     * disagree, which is a bug every time it happens.
+     *
+     * Only when there is quota left. A quiet run at the end of a full day is
+     * normal and must not wake anybody. */
+    const left = Math.max(0, cap - usage.recipients);
+    if (left > 20) {
+      try {
+        const to = process.env.ADMIN_ALERT_PHONE;
+        if (to) await sendRunSummary(cfg, to, {
+          event: ev.name as string, sent: "0", failed: "0", left: String(left),
+          attention: "⚠️ הריצה בחרה אירוע ולא שלחה כלום — בדוק מי זכאי",
+        });
+      } catch { /* an alert must never cost a run */ }
+    }
+    return record(sb, { sent: 0, reason: "nothing_due", healed },
+      { event_id: ev.id, cap, tier: health.tier, quality: health.quality,
+        posture: health.posture, window_used: usage.recipients });
+  }
 
   const { data: guests } = await sb.from("guests")
     .select("id, name, phone, rsvp_token, event_id").in("id", targets.map(t => t.id));
