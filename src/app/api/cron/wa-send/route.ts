@@ -571,15 +571,38 @@ async function runSend(req: NextRequest) {
     const pendIds = (pend ?? []).map(r => r.id as string);
     if (!pendIds.length) continue;
 
-    const since = new Date(Date.now() - 24 * 3_600_000).toISOString();
-    const recent = new Set<string>();
+    /* The same two floors the send itself applies, not one average of them.
+     *
+     * This asked a single question — "messaged in the last 24 hours?" — while
+     * the groups below use two: 24h before a first contact, 72h before a
+     * reminder. A guest last messaged thirty hours ago passed the selection and
+     * failed the send, so on 18/08 the 19:31 and 21:30 runs both chose מירב
+     * ודביר, found nothing they were allowed to send, and recorded nothing_due
+     * — while תהל ואביב had 204 eligible guests and 204 of the day's quota went
+     * unused.
+     *
+     * Never contacted → the 24h floor. Already contacted → the 72h one. */
+    const h24 = new Date(Date.now() - 24 * 3_600_000).toISOString();
+    const h72 = new Date(Date.now() - 72 * 3_600_000).toISOString();
+    const last = new Map<string, string>();
+    const arrived = new Set<string>();
     for (let i = 0; i < pendIds.length; i += 150) {
       const { data } = await sb.from("wa_messages")
-        .select("guest_id").eq("direction", "out")
-        .gte("created_at", since).in("guest_id", pendIds.slice(i, i + 150));
-      (data ?? []).forEach(m => m.guest_id && recent.add(m.guest_id as string));
+        .select("guest_id, status, created_at").eq("direction", "out")
+        .in("guest_id", pendIds.slice(i, i + 150));
+      for (const m of data ?? []) {
+        const id = m.guest_id as string;
+        if (!id) continue;
+        if (["delivered", "read"].includes(m.status as string)) arrived.add(id);
+        const at = m.created_at as string;
+        if (!last.has(id) || at > last.get(id)!) last.set(id, at);
+      }
     }
-    if (pendIds.some(id => !recent.has(id))) { ev = cand; break; }
+    const anyEligible = pendIds.some(id => {
+      const at = last.get(id);
+      return arrived.has(id) ? (!at || at < h72) : (!at || at < h24);
+    });
+    if (anyEligible) { ev = cand; break; }
   }
   const image = ev.wa_header_image_url as string;
 

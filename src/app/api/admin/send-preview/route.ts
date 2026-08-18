@@ -221,14 +221,29 @@ export async function GET() {
       .not("phone", "is", null).neq("category", "demo").limit(900);
     const ids = (pend ?? []).map(r => r.id as string);
     if (!ids.length) return 0;
-    const recent = new Set<string>();
+    /* Two floors, exactly as the cron applies them: 24h before a first contact,
+       72h before a reminder. A single 24h test here would report guests the
+       sender will refuse — which is how the 19:31 and 21:30 runs on 18/08 both
+       chose an event with nobody to message. */
+    const h72 = new Date(Date.now() - 72 * 3_600_000).toISOString();
+    const last = new Map<string, string>();
+    const arrived = new Set<string>();
     for (let i = 0; i < ids.length; i += 150) {
       const { data } = await sb.from("wa_messages")
-        .select("guest_id").eq("direction", "out")
-        .gte("created_at", since24).in("guest_id", ids.slice(i, i + 150));
-      (data ?? []).forEach(m => m.guest_id && recent.add(m.guest_id as string));
+        .select("guest_id, status, created_at").eq("direction", "out")
+        .in("guest_id", ids.slice(i, i + 150));
+      for (const m of data ?? []) {
+        const id = m.guest_id as string;
+        if (!id) continue;
+        if (["delivered", "read"].includes(m.status as string)) arrived.add(id);
+        const at = m.created_at as string;
+        if (!last.has(id) || at > last.get(id)!) last.set(id, at);
+      }
     }
-    return ids.filter(id => !recent.has(id)).length;
+    return ids.filter(id => {
+      const at = last.get(id);
+      return arrived.has(id) ? (!at || at < h72) : (!at || at < since24);
+    }).length;
   }
 
   let winner: typeof preview[number] | null = null;
