@@ -5,7 +5,7 @@ import BookDemoCTA from "@/components/BookDemoCTA";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: 'איך זה עובד | רגע לפני',
+  title: 'איך זה עובד',
   description: 'איך מערכת ניהול האורחים של רגע לפני עובדת — תהליך מהיר, פשוט, ומותאם לכל זוג.',
 };
 

@@ -8,7 +8,7 @@ import CTAStrip from "@/components/CTAStrip";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "פיצ'רים | רגע לפני",
+  title: "פיצ'רים",
   description: "כל הפיצ'רים של מערכת ניהול האורחים — אישורי הגעה, תזכורות, הושבה, תקציב ומתנות.",
 };
 

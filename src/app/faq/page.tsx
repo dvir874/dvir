@@ -4,7 +4,7 @@ import FAQ from "@/components/FAQ";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: 'שאלות נפוצות | רגע לפני',
+  title: 'שאלות נפוצות',
   description: 'תשובות לשאלות הכי נפוצות על מערכת ניהול האורחים של רגע לפני.',
 };
 
