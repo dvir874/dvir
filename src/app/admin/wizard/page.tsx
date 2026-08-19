@@ -8,7 +8,7 @@ import {
 import { THEME_LIST } from "@/lib/themes";
 import type { ThemeId } from "@/lib/themes";
 import {
-  parseGuestText, parseCsvText, validateGuests,
+  parseGuestText, parseCsvText, validateGuests, rowToGuest,
   type ParsedGuest, type GuestValidation, ISSUE_LABEL,
 } from "@/lib/guest-parser";
 
@@ -78,11 +78,10 @@ export default function WizardPage() {
         const wb = XLSX.read(buffer, { type: "array" });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
-        const guests: ParsedGuest[] = rows.map((row) => ({
-          name: String(row["שם"] ?? row["name"] ?? row["Name"] ?? "").trim(),
-          phone: String(row["טלפון"] ?? row["phone"] ?? row["Phone"] ?? "").trim(),
-          guest_count: Number(row["מספר מוזמנים"] ?? row["guests"] ?? 1) || 1,
-        })).filter((g) => g.name.length > 0);
+        /* Header aliases live in lib/guest-parser — three spellings per field
+           was never going to survive a real couple's spreadsheet. */
+        const guests: ParsedGuest[] = rows.map(rowToGuest)
+          .filter((g) => g.name.length > 0);
         applyGuests(guests);
       }
     } catch {
