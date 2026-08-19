@@ -464,6 +464,7 @@ function UpdatesCenter({ briefing, stats, seating }: {
 function PostEventDashboard({ token, eventName, eventDate }: { token: string; eventName: string; eventDate?: string }) {
   const [photoCount,    setPhotoCount]    = useState(0);
   const [blessingCount, setBlessingCount] = useState(0);
+  const [blessings, setBlessings] = useState<BlessingItem[]>([]);
   const [galleryToken,  setGalleryToken]  = useState<string | null>(null);
   const [galleryOpens,  setGalleryOpens]  = useState(false);
   const [uploadToken,   setUploadToken]   = useState<string | null>(null);
@@ -516,7 +517,18 @@ function PostEventDashboard({ token, eventName, eventDate }: { token: string; ev
     /* This route answers with a bare array of items, not { items } */
     fetch(`/api/memory/${wallToken}/items`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => setBlessingCount(Array.isArray(d) ? d.filter((i: {type?: string}) => i.type === "blessing").length : 0))
+      .then(d => {
+        /* The texts, not only how many. They were counted and thrown away:
+           the couple read "5 ברכות" and had nowhere to go and read them, and
+           BlessingCard — which exists, and looks right — was being handed a
+           hardcoded line picked by the length of a name, and was never
+           rendered at all. Five people wrote something to תהל and אביב and
+           two to Dvir and Mirav, and none of it could be opened. */
+        const items = Array.isArray(d) ? d : [];
+        const bl = items.filter((i: BlessingItem) => i.type === "blessing" && i.blessing_text);
+        setBlessingCount(bl.length);
+        setBlessings(bl);
+      })
       .catch(() => {});
   }, [wallToken]);
 
@@ -592,6 +604,29 @@ function PostEventDashboard({ token, eventName, eventDate }: { token: string; ev
             </div>
           ))}
         </div>
+
+        {/* What the guests actually wrote.
+            The counter above has always been able to say "5 ברכות"; nothing
+            could open them. These are the only words in the product a guest
+            wrote to the couple by hand, and they were the one thing kept out
+            of reach. */}
+        {blessings.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <p style={{
+              fontFamily: "Heebo, sans-serif", fontWeight: 300, fontSize: 12,
+              color: C.muted, margin: "0 0 10px", textAlign: "center",
+            }}>
+              מה שכתבו לכם
+            </p>
+            {blessings.map((b, i) => (
+              <BlessingCard
+                key={b.id ?? i}
+                name={b.guest_name?.trim() || "אורח"}
+                text={b.blessing_text}
+              />
+            ))}
+          </div>
+        )}
 
         {/* 2×2 action grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
@@ -1867,6 +1902,11 @@ function BudgetVisual({ budget }: { budget: { planned: number; actual: number; r
 }
 
 
+type BlessingItem = {
+  id?: string; type?: string; blessing_text?: string | null;
+  guest_name?: string | null; uploaded_at?: string | null;
+};
+
 const BLESSINGS = [
   "האהבה שלכם היא המפה, והחתונה היא הצעד הראשון במסע.",
   "כל רגע שעובר מקרב אתכם ליום שתזכרו לנצח.",
@@ -1875,8 +1915,11 @@ const BLESSINGS = [
   "מהיום הזה ועד כל הימים — ביחד.",
 ];
 
-function BlessingCard({ name }: { name: string }) {
-  const blessing = BLESSINGS[Math.floor(name.length % BLESSINGS.length)];
+function BlessingCard({ name, text }: { name: string; text?: string | null }) {
+  /* A real blessing when there is one. BLESSINGS stays as the fallback for
+     the pre-wedding card, where nobody has written anything yet. */
+  const real = !!text?.trim();
+  const blessing = real ? text!.trim() : BLESSINGS[Math.floor(name.length % BLESSINGS.length)];
   return (
     <div style={{
       borderRadius: "1.25rem",
@@ -1891,7 +1934,11 @@ function BlessingCard({ name }: { name: string }) {
     }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent, rgba(197,164,109,0.5), transparent)" }} />
       <p style={{ fontSize: 12, letterSpacing: "0.25em", textTransform: "uppercase" as const, color: "rgba(197,164,109,0.6)", marginBottom: "0.75rem", fontFamily: "Heebo, sans-serif" }}>
-        ✦ לכבוד {name}
+        {/* The name means opposite things in the two cases: on the generic
+            card it is the couple being wished well, on a real blessing it is
+            the guest who sat down and wrote it. Reading "לכבוד ענת דוד" over
+            ענת's own words gets the whole thing backwards. */}
+        ✦ {real ? `${name} כתבו לכם` : `לכבוד ${name}`}
       </p>
       <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(1rem,3.5vw,1.2rem)", color: "white", lineHeight: 1.7, margin: 0, fontWeight: 400 }}>
         &ldquo;{blessing}&rdquo;
