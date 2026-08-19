@@ -71,8 +71,17 @@ export async function POST(req: NextRequest) {
 
   /* Guests and their events, so each retry carries the right card */
   const guestIds = [...new Set(due.map(d => d.guest_id).filter(Boolean))] as string[];
-  const { data: guests } = await sb.from("guests")
-    .select("id, name, phone, rsvp_token, event_id, category").in("id", guestIds);
+  /* In chunks — limit is min(budget, timeCap), so this list reaches 250 and
+     250 UUIDs is a ~9,000 character query string. Same latent failure the
+     cron's target lookup had: PostgREST returns what it could parse, the map
+     comes back short, and every retry it missed is skipped with no send and no
+     error. A retry that vanishes looks exactly like a retry that succeeded. */
+  const guests: { id: string; name: string; phone: string; rsvp_token: string; event_id: string; category: string | null }[] = [];
+  for (let i = 0; i < guestIds.length; i += 100) {
+    const { data } = await sb.from("guests")
+      .select("id, name, phone, rsvp_token, event_id, category").in("id", guestIds.slice(i, i + 100));
+    guests.push(...((data ?? []) as typeof guests));
+  }
   /* Demo guests exist to make screenshots; they must never consume the daily
      budget that real invitations need. */
   const guestById = new Map(
