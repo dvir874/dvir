@@ -100,7 +100,23 @@ function mediaOf(m: WaMessage): WaMedia | null {
 }
 
 /* Israeli numbers are stored locally (05X…) but arrive as 9725X… */
-const localise = (wa: string) => (wa.startsWith("972") ? "0" + wa.slice(3) : wa);
+/* Meta always says 972501234567. The guests table says both.
+ *
+ * 948 rows are stored 05…, 18 are stored 972… — the importer and the manual
+ * add normalise differently and always have. localise produced the 05… form
+ * only, so those 18 guests could never be found: they tap מגיע, Meta delivers
+ * the callback, the lookup misses, and the reply is dropped without a trace.
+ * From every screen they look like people who were asked and said nothing.
+ *
+ * Both forms, every time. Cheaper than a migration and it cannot rot: the next
+ * row written in whichever format still matches. */
+function phoneVariants(wa: string): string[] {
+  const d = (wa ?? "").replace(/\D/g, "");
+  if (d.startsWith("972")) return ["0" + d.slice(3), d];
+  if (d.startsWith("0"))   return [d, "972" + d.slice(1)];
+  return [d];
+}
+const localise = (wa: string) => phoneVariants(wa)[0] ?? wa;
 
 /* Pull readable text out of whichever message shape Meta sent */
 function bodyOf(m: WaMessage): string {
@@ -156,12 +172,19 @@ export async function POST(req: NextRequest) {
     /* Resolve phone numbers to guests in one query */
     const phones = [...statuses.map(s => s.recipient_id), ...messages.map(m => m.from)]
       .filter(Boolean)
-      .map(p => localise(p as string));
+      .flatMap(p => phoneVariants(p as string));
 
     const { data: guests } = phones.length
       ? await sb.from("guests").select("id, event_id, phone").in("phone", [...new Set(phones)])
       : { data: [] };
-    const byPhone = new Map((guests ?? []).map(g => [g.phone, g]));
+    /* Indexed under every spelling of the number it was found by, so the
+       lookups below can keep asking with one. */
+    const byPhone = new Map<string, { id: string; event_id: string; phone: string }>();
+    for (const g of guests ?? []) {
+      for (const v of phoneVariants(g.phone as string)) {
+        byPhone.set(v, g as { id: string; event_id: string; phone: string });
+      }
+    }
 
     /* ---- delivery status on messages we sent ---- */
     for (const s of statuses) {
