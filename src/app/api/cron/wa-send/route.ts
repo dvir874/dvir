@@ -82,6 +82,22 @@ const MIN_MINUTES_BETWEEN_RUNS = 10;
 /* A run stakes this the moment it decides to send, and clears the way for the
    next scheduled run a few minutes later. Shorter than the gap between the two
    daily crons by a wide margin, so a crashed run never blocks a real one. */
+/* Reminders held until this moment. First invitations are unaffected.
+ *
+ * שחר asked for her reminders to go tomorrow rather than tonight, and the
+ * sixteen guests of hers who have never received anything still had to go out
+ * in the 21:50 run — so "pause the wedding" was the wrong instrument: it would
+ * have held the sixteen too.
+ *
+ * A constant with a date rather than a column, deliberately. It is a dated,
+ * one-off decision made twenty minutes before a run, and the alternative was a
+ * migration on a live database at 21:20 the night before it mattered. It
+ * expires by itself: after this instant every run behaves exactly as it did
+ * before, with nothing to remember to undo.
+ *
+ * 2026-08-20 06:00Z = 09:00 Israel, the first run of tomorrow. */
+const REMINDERS_RESUME_AT = Date.parse("2026-08-20T06:00:00Z");
+
 const RUN_CLAIM = "run_started";
 const CLAIM_TTL_MINUTES = 4;
 
@@ -1144,7 +1160,8 @@ async function runSend(req: NextRequest) {
    * What the hold did instead was throw budget away. Simulated against
    * tonight, the 22:00 run has 204 slots, four first contacts, and would have
    * sent four — while 81 of שחר's reminders sat waiting for tomorrow. */
-  if (targets.length < budget) {
+  const remindersHeld = Date.now() < REMINDERS_RESUME_AT;
+  if (targets.length < budget && !remindersHeld) {
     const already = new Set(targets.map(t => t.id));
     /* Longest wait first.
 
@@ -1177,7 +1194,7 @@ async function runSend(req: NextRequest) {
    * picks תהל because it has four people never contacted, תהל has nobody due
    * for a reminder, and 196 slots expire while 76 of שחר's guests wait — the
    * exact reminders Dvir asked to go out tonight. */
-  if (targets.length < budget) {
+  if (targets.length < budget && !remindersHeld) {
     for (const other of active) {
       if (targets.length >= budget) break;
       if (other.id === ev.id || !packs.has(other.id as string)) continue;
