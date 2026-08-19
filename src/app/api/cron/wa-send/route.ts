@@ -4,6 +4,7 @@ import { shabbatBlock } from "@/lib/shabbat";
 import { coupleName, looksLikeCouple } from "@/lib/couple-name";
 import { isEligibleNow } from "@/lib/eligibility";
 import { eventTimes } from "@/lib/event-times";
+import { venueLine } from "@/lib/venue";
 import { weddingDateLine } from "@/lib/hebrew-date";
 import {
   getWhatsAppConfig, sendInvitation, toE164, policyFor,
@@ -716,6 +717,32 @@ async function runSend(req: NextRequest) {
    * Refusing is the point. An event with no couple name, no times or no venue
    * is skipped and reported, because the failure this replaces was not a
    * crash — it was a message that sent perfectly and said the wrong thing. */
+  /* Everything one wedding needs in a message, or the reason it cannot be sent.
+   *
+   * Extracted so a run can carry more than one wedding. A run served exactly
+   * one, and on a day when the nearest wedding has three people left that
+   * wasted the rest: 13:30 today has 43 free slots, two first contacts at
+   * מירב ודביר, and would have sent two — while תהל's nine and שחר's sixteen
+   * waited for a turn. See the second first-contact pass below. */
+  type Pack = { image: string; details: { couple: string; date: string; venue: string; times: string } };
+  const packFor = (e: (typeof active)[number]): { pack?: Pack; missing?: string } => {
+    const c = coupleName(e);
+    const t = eventTimes(e);
+    const v = venueLine(e);
+    const d = e.date ? weddingDateLine(e.date as string) : null;
+    const img = e.wa_header_image_url as string | null;
+    const why =
+      !img                 ? "אין תמונת הזמנה"
+      : !c                 ? "אין שמות בני זוג (couple_names)"
+      : !looksLikeCouple(c) ? `"${c}" לא נראה כמו שמות בני זוג`
+      : !d                 ? "אין תאריך"
+      : !v                 ? "אין מקום"
+      : !t                 ? "אין שעות קבלת פנים/חופה"
+      : null;
+    return why ? { missing: why }
+               : { pack: { image: img!, details: { couple: c!, date: d!, venue: v!, times: t! } } };
+  };
+
   const couple = coupleName(ev);
   const times  = eventTimes(ev);
   /* Both halves of the address, not whichever one happens to be filled.
@@ -754,6 +781,18 @@ async function runSend(req: NextRequest) {
 
   const details = { couple, date: when, venue, times } as {
     couple: string; date: string; venue: string; times: string };
+
+  /* Every wedding this run is allowed to speak for, keyed by event. The send
+     loop looks a guest's own wedding up here rather than trusting that all
+     four target queries were scoped correctly — a wedding with no pack is
+     dropped by name, exactly as a cross-event guest was before. */
+  const packs = new Map<string, Pack>([[ev.id as string, { image, details }]]);
+  for (const e of active) {
+    if (packs.has(e.id as string)) continue;
+    const { pack, missing: why } = packFor(e);
+    if (pack) packs.set(e.id as string, pack);
+    else if (why) skippedEvents.push({ event: e.name as string, reason: why });
+  }
 
   const sent: string[] = [];
   const failed: { name: string; error: string }[] = [];
@@ -1018,6 +1057,70 @@ async function runSend(req: NextRequest) {
     }
   }
 
+  /* ---- 2b. the first contacts at every OTHER wedding ----
+   *
+   * Group 1 is the same rule scoped to one event, and one event was all a run
+   * could ever carry. That is what makes a 43-slot run send two messages: the
+   * nearest wedding has two people left uninvited, and nothing lets the run
+   * reach the nine at תהל or the sixteen at שחר sitting behind it.
+   *
+   * Each guest is sent their OWN wedding's invitation — packs is keyed by
+   * event and the send loop looks up per guest, so the image, the names, the
+   * venue and the times all come from the wedding the guest is actually
+   * invited to. That is the failure this whole file is most afraid of, and it
+   * is now checked per message rather than assumed per run.
+   *
+   * Reminders still come after all of it. Nobody is reminded anywhere while
+   * anybody is uninvited anywhere. */
+  if (targets.length < budget) {
+    for (const other of active) {
+      if (targets.length >= budget) break;
+      if (other.id === ev.id || !packs.has(other.id as string)) continue;
+
+      const { data: op } = await sb.from("guests")
+        .select("id, phone, rsvp_token, category, do_not_contact")
+        .eq("event_id", other.id).eq("status", "pending")
+        .order("send_priority", { ascending: false });
+      const oIds = (op ?? [])
+        .filter(x => x.category !== "demo" && x.phone && x.rsvp_token && !x.do_not_contact)
+        .map(x => x.id as string);
+      if (!oIds.length) continue;
+
+      const arrived = new Set<string>();
+      const latest = new Map<string, { at: string; code: number | null; err: string | null }>();
+      for (let i = 0; i < oIds.length; i += 100) {
+        const { data } = await sb.from("wa_messages")
+          .select("guest_id, status, error_code, error, created_at")
+          .eq("direction", "out").in("guest_id", oIds.slice(i, i + 100));
+        for (const m of data ?? []) {
+          const id = m.guest_id as string;
+          if (!id) continue;
+          if (["delivered", "read"].includes(m.status as string)) arrived.add(id);
+          const at = m.created_at as string;
+          const prev = latest.get(id);
+          if (!prev || at > prev.at) latest.set(id, { at, code: m.error_code, err: m.error });
+        }
+      }
+
+      /* A helper may already be holding this guest — same reason as above. */
+      const { data: held } = await sb.from("guests")
+        .select("id").eq("event_id", other.id).not("assigned_to", "is", null);
+      const reservedHere = new Set((held ?? []).map(r => r.id as string));
+
+      const seen = new Set(targets.map(t => t.id));
+      for (const id of oIds) {
+        if (targets.length >= budget) break;
+        if (seen.has(id) || arrived.has(id) || reservedHere.has(id)) continue;
+        const l = latest.get(id);
+        /* Latest attempt only — a number that failed in June and delivered in
+           August is reachable. Same judgement as the unreachable map above. */
+        if (l && ["never", "wait_for_inbound"].includes(policyFor(l.code, l.err).action)) continue;
+        if (!isEligibleNow({ delivered: false, lastOutboundAt: l?.at ?? null })) continue;
+        targets.push({ id });
+      }
+    }
+  }
+
   /* ---- 3. reminders, only once nobody is left uninvited ----
 
      Their own approved template, never the invitation again: sending the same
@@ -1054,6 +1157,69 @@ async function runSend(req: NextRequest) {
       .sort((a, b) => (firstArrival.get(a) ?? "9999").localeCompare(firstArrival.get(b) ?? "9999"))
       .slice(0, budget - targets.length)
       .forEach(id => targets.push({ id, reminder: true }));
+  }
+
+  /* ---- 3b. reminders at the OTHER weddings ----
+   *
+   * Only once the nearest wedding has nobody left to remind. That ordering is
+   * the whole point — a wedding in five days outranks one in five weeks — but
+   * it stopped being an ordering and became a wall: when the nearest wedding
+   * ran dry the run simply ended, however much of the day was left.
+   *
+   * Tonight is the clearest case. 204 slots come back at 21:44, the 22:00 run
+   * picks תהל because it has four people never contacted, תהל has nobody due
+   * for a reminder, and 196 slots expire while 76 of שחר's guests wait — the
+   * exact reminders Dvir asked to go out tonight. */
+  if (targets.length < budget) {
+    for (const other of active) {
+      if (targets.length >= budget) break;
+      if (other.id === ev.id || !packs.has(other.id as string)) continue;
+
+      const { data: op } = await sb.from("guests")
+        .select("id, phone, rsvp_token, category, do_not_contact")
+        .eq("event_id", other.id).eq("status", "pending");
+      const oIds = (op ?? [])
+        .filter(x => x.category !== "demo" && x.phone && x.rsvp_token && !x.do_not_contact)
+        .map(x => x.id as string);
+      if (!oIds.length) continue;
+
+      const arrived = new Set<string>();
+      const firstAt = new Map<string, string>();
+      const latest = new Map<string, { at: string; code: number | null; err: string | null }>();
+      for (let i = 0; i < oIds.length; i += 100) {
+        const { data } = await sb.from("wa_messages")
+          .select("guest_id, status, error_code, error, created_at")
+          .eq("direction", "out").in("guest_id", oIds.slice(i, i + 100));
+        for (const m of data ?? []) {
+          const id = m.guest_id as string;
+          if (!id) continue;
+          const at = m.created_at as string;
+          if (["delivered", "read"].includes(m.status as string)) {
+            arrived.add(id);
+            const f = firstAt.get(id);
+            if (!f || at < f) firstAt.set(id, at);
+          }
+          const prev = latest.get(id);
+          if (!prev || at > prev.at) latest.set(id, { at, code: m.error_code, err: m.error });
+        }
+      }
+
+      const { data: held } = await sb.from("guests")
+        .select("id").eq("event_id", other.id).not("assigned_to", "is", null);
+      const reservedHere = new Set((held ?? []).map(r => r.id as string));
+
+      const seen = new Set(targets.map(t => t.id));
+      /* Longest wait first, same as the group above. */
+      oIds.filter(id => arrived.has(id) && !seen.has(id) && !reservedHere.has(id))
+        .filter(id => {
+          const l = latest.get(id);
+          if (l && ["never", "wait_for_inbound"].includes(policyFor(l.code, l.err).action)) return false;
+          return isEligibleNow({ delivered: true, lastOutboundAt: l?.at ?? null });
+        })
+        .sort((a, b) => (firstAt.get(a) ?? "9999").localeCompare(firstAt.get(b) ?? "9999"))
+        .slice(0, budget - targets.length)
+        .forEach(id => targets.push({ id, reminder: true }));
+    }
   }
 
   /* Nobody left to invite or remind is exactly when the gallery announcement
@@ -1164,12 +1330,13 @@ async function runSend(req: NextRequest) {
        * holds for queries not yet written. This is the only thing standing
        * between three couples sending in the same week and שחר's guests being
        * invited to תהל's wedding. */
-      if (g.event_id !== ev.id) {
+      const pack = packs.get(g.event_id as string);
+      if (!pack) {
         crossEvent.push({ name: (g.name as string) ?? t.id, event: ev.name as string });
         return null;
       }
       const res = await sendInvitation(
-        cfg, g.phone, g.rsvp_token, image, details,
+        cfg, g.phone, g.rsvp_token, pack.image, pack.details,
         t.reminder ? "reminder" : "invitation",
       );
       return { t, g, res };
