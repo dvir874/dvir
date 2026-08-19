@@ -24,6 +24,10 @@ const EVENTS = [
 
 const RESOURCES = [
   { label: "כמה עולים אישורי הגעה?", href: "/guides/rsvp-cost" },
+  /* Was in the sitemap and linked from nowhere. It is the page for someone
+     who has already decided to buy and is choosing between vendors — the
+     highest-intent page on the site, and no visitor could reach it. */
+  { label: "השוואת שירותי אישורי הגעה", href: "/guides/compare" },
   { label: "מדריך סידורי הושבה", href: "/guides/seating-guide" },
   { label: "תוכנית שותפים לספקים", href: "/partners" },
   { label: "לאולמות ומפיקים", href: "/venues" },
