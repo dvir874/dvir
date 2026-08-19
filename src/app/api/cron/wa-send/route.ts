@@ -1297,9 +1297,23 @@ async function runSend(req: NextRequest) {
         posture: health.posture, window_used: usage.recipients });
   }
 
-  const { data: guests } = await sb.from("guests")
-    .select("id, name, phone, rsvp_token, event_id").in("id", targets.map(t => t.id));
-  const byId = new Map((guests ?? []).map(g => [g.id, g]));
+  /* In chunks, because this list is no longer small.
+   *
+   * `.in()` becomes a query string, and a query string has a length nobody
+   * declares until it is exceeded — 250 UUIDs is about 9,000 characters. It
+   * held while a run was one wedding's reminders; now a run can carry the
+   * day's whole budget across three weddings, and the failure mode is not an
+   * error. PostgREST returns the rows it could parse, byId comes back short,
+   * and every target it missed is silently skipped: no send, no failure, no
+   * row. Exactly the kind of quiet loss this file keeps being bitten by. */
+  const guests: { id: string; name: string; phone: string; rsvp_token: string; event_id: string }[] = [];
+  const allIds = targets.map(t => t.id);
+  for (let i = 0; i < allIds.length; i += 100) {
+    const { data } = await sb.from("guests")
+      .select("id, name, phone, rsvp_token, event_id").in("id", allIds.slice(i, i + 100));
+    guests.push(...((data ?? []) as typeof guests));
+  }
+  const byId = new Map(guests.map(g => [g.id, g]));
 
   /* Batches, not one at a time.
 
