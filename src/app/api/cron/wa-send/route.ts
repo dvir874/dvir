@@ -9,7 +9,7 @@ import { weddingDateLine } from "@/lib/hebrew-date";
 import {
   getWhatsAppConfig, sendInvitation, toE164, policyFor,
   rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY,
-  fetchAccountHealth, warmupCap, recentPeakRecipients, sendGalleryReady, sendRunSummary,
+  fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendRunSummary,
 } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
@@ -221,15 +221,21 @@ async function notifyGallery(
   const today = new Date().toISOString().slice(0, 10);
 
   const { data: evs } = await sb.from("events")
-    .select("id, name, gallery_ready, gallery_notified_at")
+    .select("id, name, couple_names, gallery_ready, gallery_notified_at")
     .lt("date", today).eq("gallery_ready", true).is("gallery_notified_at", null)
     .order("date", { ascending: false }).limit(1);
   const ev = (evs ?? [])[0];
   if (!ev) return { sent: 0 };
 
-  const { data: album } = await sb.from("gallery_albums")
-    .select("public_token").eq("event_id", ev.id).maybeSingle();
-  if (!album?.public_token) return { sent: 0 };
+  /* The upload page, not the gallery. See sendPhotosUploadRequest — the guest
+     is being asked for their photos, and the gallery is the couple's alone.
+     /memory/[token] reads vault_tokens, which is a different token from the
+     album's: שחר has an album and no vault token, תהל has a vault token and no
+     album, so neither could be assumed from the other. */
+  const { data: vault } = await sb.from("vault_tokens")
+    .select("token").eq("event_id", ev.id).maybeSingle();
+  const couple = coupleName(ev);
+  if (!vault?.token || !couple) return { sent: 0 };
 
   const { data: guests } = await sb.from("guests")
     .select("id, phone, wants_photos, category")
@@ -253,7 +259,8 @@ async function notifyGallery(
   for (let i = 0; i < todo.length; i += SEND_CONCURRENCY) {
     const batch = await Promise.all(
       todo.slice(i, i + SEND_CONCURRENCY).map(async g => ({
-        g, res: await sendGalleryReady(cfg, g.phone as string, album.public_token as string),
+        g, res: await sendPhotosUploadRequest(
+          cfg, g.phone as string, couple, vault.token as string),
       })),
     );
     for (const { g, res } of batch) {
