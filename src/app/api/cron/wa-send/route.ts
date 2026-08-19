@@ -1023,12 +1023,18 @@ async function runSend(req: NextRequest) {
      Their own approved template, never the invitation again: sending the same
      invitation a second time to someone who already has it reads as a system
      that lost track of them. */
-  /* `firstContactOnly` extends this same sentence past the edge of one event —
-     see the selection above. Guarded on the group having actually produced
-     someone: if the first-contact group came back empty for any reason, this
-     must fall through to reminders rather than turn a run into silence. */
-  const holdReminders = firstContactOnly && targets.length > 0;
-  if (targets.length < budget && !holdReminders) {
+  /* No hold here, and the first version of this change had one.
+   *
+   * The crowding-out this was meant to prevent is a problem BETWEEN events,
+   * and the selection above already solves it: the run picks a wedding that
+   * still has someone uninvited, so every wedding gets its turn within a day.
+   * Inside a single run there is nothing to protect against — group 1 is built
+   * before group 3 and takes its budget first.
+   *
+   * What the hold did instead was throw budget away. Simulated against
+   * tonight, the 22:00 run has 204 slots, four first contacts, and would have
+   * sent four — while 81 of שחר's reminders sat waiting for tomorrow. */
+  if (targets.length < budget) {
     const already = new Set(targets.map(t => t.id));
     /* Longest wait first.
 
