@@ -1380,7 +1380,14 @@ async function runSend(req: NextRequest) {
         await sb.from("guest_events").insert({ guest_id: g.id, event_type: "invite_sent" });
         if (res.messageId) {
           await sb.from("wa_messages").insert({
-            event_id: ev.id, guest_id: g.id,
+            /* The GUEST's wedding, not the run's.
+               A run now carries several weddings, and this wrote whichever one
+               was selected — so on 19/08 five of תהל's guests were recorded
+               against מירב ודביר. The message they received was correct (the
+               send reads packs by g.event_id), but the row describing it was
+               not, and the retry queue and every per-event count read this
+               column. */
+            event_id: (g.event_id as string) ?? ev.id, guest_id: g.id,
             wa_phone: toE164(g.phone) ?? "",
             direction: "out",
             body: t.reminder ? "תזכורת אישור הגעה"
@@ -1420,7 +1427,8 @@ async function runSend(req: NextRequest) {
              Writing the failure makes it a fact the rest of the system can act
              on. No wamid, because Meta never issued one. */
           await sb.from("wa_messages").insert({
-            event_id: ev.id, guest_id: g.id,
+            /* The guest's wedding — same reason as the success path above. */
+            event_id: (g.event_id as string) ?? ev.id, guest_id: g.id,
             wa_phone: toE164(g.phone) ?? "",
             direction: "out",
             body: t.reminder ? "תזכורת אישור הגעה" : "הזמנה לחתונה (תבנית)",
