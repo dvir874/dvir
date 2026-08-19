@@ -544,6 +544,18 @@ export default function RsvpClient({
             : {}),
         }),
       });
+      /* 429 needs its own sentence, and it is not a pedantic distinction.
+       *
+       * The limit is 20 a minute per IP, and Israeli mobile carriers put a lot
+       * of people behind one address — on the evening 250 invitations go out,
+       * guests on the same network can trip it without doing anything wrong.
+       * Telling them the connection dropped invites the one response that
+       * cannot work: tapping שלח again straight away, failing again, and
+       * deciding the thing is broken. */
+      if (res.status === 429) {
+        setErrorMsg("יש עומס רגעי. המתינו דקה ונסו שוב — התשובה שלכם לא אבדה.");
+        return;
+      }
       if (!res.ok) throw new Error("server error");
       setGuest(g => g ? { ...g, status: newChoice, guest_count: guestCount } : g);
       setScreen("done");
