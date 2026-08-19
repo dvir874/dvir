@@ -1358,6 +1358,32 @@ export default function AdminPage() {
                       <Copy size={13} /> קישור לזוג
                     </button>
                   )}
+                  {/* The switch that had an API and no screen.
+                      gallery_ready gates the whole day-after flow, and until now
+                      the only way to set it was SQL — so the approved template,
+                      the working cron and the three correct gates behind it were
+                      reachable by nobody. Five days before a wedding that is the
+                      difference between the guests being asked for their photos
+                      and not. */}
+                  <button onClick={async () => {
+                    if (!selectedEventId) return;
+                    if (!confirm("לסמן שהתמונות עלו?\n\nמהריצה הבאה אחרי תאריך החתונה, האורחים שביקשו יקבלו קישור להעלאת התמונות שלהם.")) return;
+                    try {
+                      const res = await fetch(`/api/admin/gallery/${selectedEventId}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "gallery_ready", ready: true }),
+                      });
+                      const d = await res.json();
+                      alert(res.ok ? "✅ סומן. הבקשות ייצאו בריצה הבאה אחרי תאריך החתונה."
+                                   : `לא הצלחנו: ${d.error ?? res.status}`);
+                    } catch { alert("לא הצלחנו לעדכן"); }
+                    setShowCoupleMenu(false);
+                  }}
+                    className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-amber-50 transition-colors"
+                    style={{ color: C.dark, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
+                    🖼 סמן שהתמונות עלו
+                  </button>
                   {selectedEvent?.couple_token && (
                     <button onClick={async () => {
                       const phone = selectedEvent?.client_phone?.replace(/[^0-9]/g, "").replace(/^0/, "972") ?? "";
