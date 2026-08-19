@@ -4936,11 +4936,21 @@ function AdminMessagesTab({ selectedEventId, events }: { selectedEventId: string
       message_text: customText,
       template_key: selectedTemplate.key,
     }));
-    await fetch("/api/admin/message-queue", {
+    /* The response was thrown away, which mattered the moment the server
+       started refusing anything: a rejected batch left the queue empty, the
+       screen advanced to "send" anyway, and it looked exactly like a batch
+       that had gone through and had nothing in it. */
+    const res = await fetch("/api/admin/message-queue", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-admin-token": process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "" },
       body: JSON.stringify({ event_id: selectedEventId, messages }),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error ?? "לא הצלחנו להכניס את ההודעות לתור");
+      setQueueing(false);
+      return;
+    }
     const q = await fetch(`/api/admin/message-queue?event_id=${selectedEventId}`, { headers: { "x-admin-token": process.env.NEXT_PUBLIC_ADMIN_TOKEN ?? "" } }).then(r => r.json());
     if (Array.isArray(q)) setQueue(q);
     setQueueing(false);

@@ -35,6 +35,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "event_id and messages[] required" }, { status: 400 });
   }
 
+  /* DEC-007, which CLAUDE.md says this route enforces and it never did.
+   *
+   * Every message the business number sends opens the same way, and the
+   * reason is not branding. A guest gets one WhatsApp from an unknown number
+   * about the most important day of someone else's life; the opening line is
+   * how they know in half a second that this is the wedding thing and not a
+   * scam. A queued message that skips it is the one that gets reported, and a
+   * report is what restricted this number on 9/8 and stopped all three
+   * weddings for days.
+   *
+   * Rejecting the whole batch rather than filtering it: a partial insert
+   * means somebody has to work out which of two hundred rows went in. */
+  const OPENING = "💍 משפחה וחברים יקרים!";
+  const offenders = messages
+    .map((m, i) => ({ i, text: (m.message_text ?? "").trimStart() }))
+    .filter(m => !m.text.startsWith(OPENING));
+  if (offenders.length) {
+    return NextResponse.json({
+      error: `כל הודעה חייבת להיפתח ב-"${OPENING}" — ${offenders.length} מתוך ${messages.length} לא נפתחות כך`,
+      first_bad_index: offenders[0].i,
+      first_bad_preview: offenders[0].text.slice(0, 60),
+    }, { status: 400 });
+  }
+
   const supabase = createServerClient();
   const rows = messages.map(m => ({
     event_id,
