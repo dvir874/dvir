@@ -265,6 +265,68 @@ export async function sendPhotosUploadRequest(
   }
 }
 
+/* "מחר מתחתנים" — the morning before.
+ *
+   wedding_tomorrow_reminder has been approved at Meta the whole time and
+   nothing ever called it. Four days before Dvir's own wedding, 196 people who
+   said they were coming would simply not have been told what time to arrive.
+
+   UTILITY, and legitimately so: it goes only to guests who confirmed, about an
+   event they confirmed to, on the day before it. That also keeps it out of the
+   marketing cap.
+
+   Four variables, in the template's order: couple, reception, chuppah, venue.
+   All four are refused rather than guessed if missing — an invitation that
+   says "קבלת פנים undefined" is worse than one that never arrived. */
+export async function sendDayBefore(
+  cfg: WhatsAppConfig, phone: string,
+  couple: string, reception: string, chuppah: string, venue: string,
+): Promise<SendResult> {
+  const to = toE164(phone);
+  if (!to) return { ok: false, error: "מספר לא תקין" };
+  if (![couple, reception, chuppah, venue].every(v => v?.trim()))
+    return { ok: false, error: "חסרים פרטי אירוע" };
+
+  await pace();
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/${API_VERSION}/${cfg.phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${cfg.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(20_000),
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to,
+          type: "template",
+          template: {
+            name: cfg.dayBeforeTemplateName,
+            language: { code: cfg.templateLang },
+            components: [{
+              type: "body",
+              parameters: [couple, reception, chuppah, venue]
+                .map(text => ({ type: "text", text })),
+            }],
+          },
+        }),
+      },
+    );
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: json?.error?.error_user_msg ?? json?.error?.message ?? `HTTP ${res.status}`,
+      };
+    }
+    return { ok: true, messageId: json?.messages?.[0]?.id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "network error" };
+  }
+}
+
 /* Kept for the one wedding whose names the template was approved with — see
    above. Nothing calls it; it is here so the swap is one line to undo. */
 export async function sendGalleryReady(
@@ -732,6 +794,7 @@ export interface WhatsAppConfig {
   /** Approved UTILITY template announcing the photo gallery */
   galleryTemplateName: string;
   photosUploadTemplateName: string;
+  dayBeforeTemplateName: string;
 }
 
 /** The four body variables of the generic invitation template */
@@ -788,6 +851,8 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
     galleryTemplateName: process.env.WHATSAPP_TEMPLATE_GALLERY ?? "wedding_gallery_ready_regalifnei",
     photosUploadTemplateName:
       process.env.WHATSAPP_TEMPLATE_PHOTOS_UPLOAD ?? "wedding_photos_upload_request",
+    dayBeforeTemplateName:
+      process.env.WHATSAPP_TEMPLATE_DAY_BEFORE ?? "wedding_tomorrow_reminder",
     templateLang: process.env.WHATSAPP_TEMPLATE_LANG ?? "he",
     /* Kept only so existing callers still typecheck; nothing reads it as a
        fallback any more. The comment used to say there was deliberately no

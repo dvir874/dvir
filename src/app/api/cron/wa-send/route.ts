@@ -9,7 +9,7 @@ import { weddingDateLine } from "@/lib/hebrew-date";
 import {
   getWhatsAppConfig, sendInvitation, toE164, policyFor,
   rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY,
-  fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendRunSummary,
+  fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendDayBefore, sendRunSummary,
 } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
@@ -228,6 +228,88 @@ async function applyOrphanStatuses(
    Already-sent guests are excluded by their own guest_events row rather than
    by a flag on the event, so a run that dies halfway resumes exactly where it
    stopped and nobody is messaged twice. */
+/* "מחר מתחתנים" — the morning before the wedding.
+ *
+ * Runs before everything else, and that ordering is the whole feature. A
+ * reminder that goes out a day late is still a reminder; this one is worthless
+ * the moment the wedding starts. It is also small and bounded — only guests who
+ * confirmed, only the day before, once each — so giving it first call on the
+ * budget costs the reminders one morning and nothing else.
+ *
+ * Deduplicated through guest_events rather than a new column: 'day_before_sent'
+ * per guest, the same mechanism 'gallery_sent' and 'invite_sent' already use.
+ * A run that dies halfway resumes exactly where it stopped.
+ *
+ * Refuses rather than guesses. An event missing its times or venue is skipped
+ * and reported — "קבלת פנים undefined" reaching 196 people is worse than
+ * nothing reaching them. */
+async function notifyDayBefore(
+  sb: ReturnType<typeof createServerClient>,
+  cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+  budget: number,
+): Promise<{ sent: number; event?: string; skipped?: string }> {
+  if (budget <= 0) return { sent: 0 };
+
+  /* Tomorrow in Israel, not in UTC. At 10:00 Israel the two agree, but the
+     function must not depend on the hour it happens to run at. */
+  const tomorrow = new Date(Date.now() + 86_400_000)
+    .toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+
+  const { data: evs } = await sb.from("events")
+    .select("id, name, couple_names, date, address, venue_name, reception_time, chuppah_time")
+    .eq("date", tomorrow).limit(3);
+  const ev = (evs ?? [])[0];
+  if (!ev) return { sent: 0 };
+
+  const couple = coupleName(ev);
+  const venue  = venueLine(ev);
+  const rec    = (ev.reception_time as string | null)?.trim();
+  const chu    = (ev.chuppah_time as string | null)?.trim();
+  if (!couple || !venue || !rec || !chu)
+    return { sent: 0, event: ev.name as string, skipped: "חסרים שמות, מקום או שעות" };
+
+  const { data: guests } = await sb.from("guests")
+    .select("id, name, phone, category, do_not_contact")
+    .eq("event_id", ev.id).eq("status", "confirmed");
+  const eligible = (guests ?? []).filter(g =>
+    g.category !== "demo" && String(g.phone ?? "").trim() && !g.do_not_contact);
+  if (!eligible.length) return { sent: 0 };
+
+  const ids = eligible.map(g => g.id as string);
+  const already = new Set<string>();
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data } = await sb.from("guest_events")
+      .select("guest_id").eq("event_type", "day_before_sent")
+      .in("guest_id", ids.slice(i, i + 100));
+    (data ?? []).forEach(r => r.guest_id && already.add(r.guest_id as string));
+  }
+
+  const todo = eligible.filter(g => !already.has(g.id as string)).slice(0, budget);
+  if (!todo.length) return { sent: 0 };
+
+  let sent = 0;
+  for (let i = 0; i < todo.length; i += SEND_CONCURRENCY) {
+    const batch = await Promise.all(
+      todo.slice(i, i + SEND_CONCURRENCY).map(async g => ({
+        g, res: await sendDayBefore(cfg, g.phone as string, couple, rec, chu, venue),
+      })),
+    );
+    for (const { g, res } of batch) {
+      if (!res.ok) continue;
+      sent++;
+      await sb.from("guest_events").insert({ guest_id: g.id, event_type: "day_before_sent" });
+      if (res.messageId) {
+        await sb.from("wa_messages").insert({
+          event_id: ev.id, guest_id: g.id, wa_phone: toE164(g.phone as string) ?? "",
+          direction: "out", body: "מחר מתחתנים (תבנית)",
+          wamid: res.messageId, status: "accepted",
+        });
+      }
+    }
+  }
+  return { sent, event: ev.name as string };
+}
+
 async function notifyGallery(
   sb: ReturnType<typeof createServerClient>,
   cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
@@ -575,8 +657,21 @@ async function runSend(req: NextRequest) {
      so the run is bounded by the rolling window rather than by the clock —
      which is the whole point of the change. */
   const timeCap = Math.floor(((maxDuration - 12) / SECONDS_PER_MESSAGE) * SEND_CONCURRENCY);
-  const budget = Math.max(0, Math.min(usage.remaining, timeCap));
-  if (!budget) return record(sb, { sent: 0, reason: "budget_exhausted", cap, healed },
+  let budget = Math.max(0, Math.min(usage.remaining, timeCap));
+
+  /* The day before, first — see notifyDayBefore.
+   *
+   * Before the event selection and before every group, because this is the one
+   * message with no second chance: a guest told at 22:00 what time to arrive
+   * tomorrow was told too late, and one told after the חופה was not told at
+   * all. Everything else in this file can wait a run.
+   *
+   * What it takes comes off the budget the rest of the run then shares, so a
+   * day with 196 of these simply has fewer reminders — which is the correct
+   * trade and not an accident. */
+  const dayBefore = await notifyDayBefore(sb, cfg, budget);
+  budget = Math.max(0, budget - dayBefore.sent);
+  if (!budget) return record(sb, { sent: dayBefore.sent, reason: dayBefore.sent ? "day_before_only" : "budget_exhausted", cap, healed, dayBefore },
     { cap, tier: health.tier, quality: health.quality, posture: health.posture,
       window_used: usage.recipients });
 
