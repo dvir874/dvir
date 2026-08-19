@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { checkRateLimit, getClientIp, LIMITS } from "@/lib/rate-limit";
+import { requireAdmin } from "@/lib/auth-guard";
 
 export async function POST(request: NextRequest) {
   /* Same shape as onboarding: public, unauthenticated, writes rows. */
@@ -47,11 +48,19 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
-  const adminToken = request.headers.get("x-admin-token");
-  if (adminToken !== process.env.ADMIN_TOKEN) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export async function GET() {
+  /* The cookie, like every other admin route.
+   *
+   * This compared an x-admin-token header against ADMIN_TOKEN, and the only
+   * caller — the בקשות עיצוב tab — sends process.env.NEXT_PUBLIC_ADMIN_TOKEN,
+   * which is not set in production and therefore compiles to "". So the tab
+   * has answered 401 to its own admin every time it was opened, while the POST
+   * beside it kept accepting submissions from the public invitation pages.
+   *
+   * Nobody noticed because the table is still empty. The first person to ask
+   * for a design would have been invisible. */
+  const denied = await requireAdmin();
+  if (denied) return denied;
 
   const supabase = createServerClient();
   const { data, error } = await supabase
