@@ -30,7 +30,7 @@
     },
     {
       "path": "/api/cron/wa-send",
-      "schedule": "0 19 * * *"
+      "schedule": "50 18 * * *"
     }
   ]
 }
