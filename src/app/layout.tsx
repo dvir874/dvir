@@ -63,8 +63,24 @@ export const metadata: Metadata = {
   verification: {
     google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ?? '',
   },
+  /* No canonical here, and that is the fix.
+   *
+   * A canonical set in the ROOT layout is inherited by every page that does
+   * not override it, so /features, /faq, /venues, /pricing, /religious and
+   * /bar-mitzvah all told Google the same thing: "I am a duplicate of the
+   * homepage — index that instead." Verified in production on 20/08: eight
+   * pages, one canonical, all pointing at the root.
+   *
+   * The whole marketing site was invisible except the homepage. Every page
+   * written to bring customers in was asking not to be found, including the
+   * venues page rewritten an hour earlier.
+   *
+   * Next resolves a relative canonical against metadataBase, so '/' on the
+   * home page and nothing elsewhere means each URL is its own canonical —
+   * which is the correct default for a site with no duplicate content. Pages
+   * that genuinely need one (a filtered or paginated view) can still set it
+   * themselves. */
   alternates: {
-    canonical: process.env.NEXT_PUBLIC_APP_URL ?? 'https://regalifnei.vercel.app',
     languages: { 'he-IL': process.env.NEXT_PUBLIC_APP_URL ?? 'https://regalifnei.vercel.app' },
   },
 };

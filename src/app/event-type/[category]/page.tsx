@@ -123,10 +123,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: data.title,
       description: data.description,
-      url: `${BASE}/ניהול-אירועים/${category}`,
+      // These must be the real, reachable URL of this page. They previously pointed at
+      // `${BASE}/ניהול-אירועים/${category}` — a route that does not exist in this repo
+      // (no Hebrew-named directory under src/app, no rewrite in next.config.ts, nothing
+      // in vercel.json), so all 7 pages declared their canonical to be a 404. Fixed
+      // 2026-08-20. The same bug existed on the retired /wedding-city/[city] route.
+      url: `${BASE}/event-type/${category}`,
       images: [{ url: '/og.png', width: 1200, height: 630 }],
     },
-    alternates: { canonical: `${BASE}/ניהול-אירועים/${category}` },
+    alternates: { canonical: `${BASE}/event-type/${category}` },
   };
 }
 

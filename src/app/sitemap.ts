@@ -6,11 +6,11 @@ const CATEGORIES = [
   'wedding', 'birthday', 'barmitzva', 'batmitzva', 'hina', 'brit', 'brita',
 ];
 
-const CITIES = [
-  'tel-aviv', 'jerusalem', 'haifa', 'beer-sheva', 'rishon-lezion',
-  'petah-tikva', 'ashdod', 'netanya', 'holon', 'bnei-brak',
-  'ramat-gan', 'bat-yam', 'herzliya', 'kfar-saba', 'modiin',
-];
+// NOTE: the 15 /wedding-city/<city> URLs were removed from this sitemap on
+// 2026-08-20. That route now 307-redirects to /weddings (see
+// src/app/wedding-city/[city]/page.tsx for the full reasoning and for the
+// Search Console check to run before making the redirect permanent).
+// A sitemap must never advertise a URL that redirects or 404s.
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
@@ -40,12 +40,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority:        0.9,
   }));
 
-  const cityPages: MetadataRoute.Sitemap = CITIES.map((city) => ({
-    url:             `${BASE}/wedding-city/${city}`,
-    lastModified:    now,
-    changeFrequency: 'monthly' as const,
-    priority:        0.8,
-  }));
-
-  return [...statics, ...categoryPages, ...cityPages];
+  return [...statics, ...categoryPages];
 }

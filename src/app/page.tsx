@@ -1,3 +1,12 @@
+import type { Metadata } from "next";
+
+/* The one page that keeps a canonical, now that the root layout no longer
+   forces one on everybody. Relative, so metadataBase resolves it — and so a
+   preview deployment does not announce the production URL as its own. */
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
+
 import HeaderWarm from "@/components/HeaderWarm";
 import HeroWarm from "@/components/HeroWarm";
 import LiveSnapshot from "@/components/LiveSnapshot";
