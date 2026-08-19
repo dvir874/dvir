@@ -832,6 +832,40 @@ export default function AdminPage() {
     });
   }
 
+  /* "Do not message this person."
+   *
+     The sender has honoured this flag since the day it was added — a marked
+     guest is dropped from every group, permanently, and the note says why.
+     Nothing could set it. Honouring a guest who asks to stop meant opening the
+     SQL editor, which in practice means nobody does it and the automation
+     keeps messaging someone who asked it not to. That is a promise broken to a
+     guest, and the fastest route back to the spam reports that restricted this
+     number on 9/8 and stopped all three weddings for days.
+
+     Deliberately not the same control as delete: the guest stays in the list,
+     keeps their token and their history, and still counts in the headcount.
+     They simply stop being messaged. */
+  async function handleDoNotContact(guestId: string, name: string, on: boolean) {
+    if (on) {
+      const note = prompt(`לא לפנות יותר אל ${name}.\n\nלמה? (יופיע לצידו ברשימה)`, "ביקש/ה להפסיק");
+      if (note === null) return;
+      setGuests(prev => prev.map(g => g.id === guestId
+        ? { ...g, do_not_contact: true, do_not_contact_note: note || "סומן ידנית: לא לפנות" } : g));
+      await fetch(`/api/guests/${guestId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ do_not_contact: true, do_not_contact_note: note }),
+      });
+    } else {
+      if (!confirm(`להחזיר את ${name} לשליחות?`)) return;
+      setGuests(prev => prev.map(g => g.id === guestId
+        ? { ...g, do_not_contact: false, do_not_contact_note: null } : g));
+      await fetch(`/api/guests/${guestId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ do_not_contact: false }),
+      });
+    }
+  }
+
   async function handleDelete(guestId: string) {
     if (!confirm("למחוק את האורח?")) return;
     setGuests((prev) => prev.filter((g) => g.id !== guestId));
@@ -2919,6 +2953,15 @@ export default function AdminPage() {
                               style={{ background: "rgba(37,211,102,0.10)", color: "#25D366" }}
                             >
                               <MessageCircle size={13} />
+                            </button>
+                            <button
+                              title={g.do_not_contact ? `לא פונים אליו — ${g.do_not_contact_note ?? ""}` : "לא לפנות יותר"}
+                              onClick={() => handleDoNotContact(g.id, g.name, !g.do_not_contact)}
+                              className="p-1.5 rounded-lg transition-all hover:opacity-70"
+                              style={{ background: g.do_not_contact ? "rgba(197,164,109,0.20)" : "rgba(28,16,8,0.05)",
+                                       color: g.do_not_contact ? C.gold : "rgba(28,16,8,0.45)", fontSize: 12, lineHeight: 1 }}
+                            >
+                              {g.do_not_contact ? "🔕" : "🔔"}
                             </button>
                             <button
                               title="מחק"

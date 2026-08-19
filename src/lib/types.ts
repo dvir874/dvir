@@ -120,6 +120,10 @@ export interface Guest {
   meal_preference?: string | null;
   meal_note?: string | null;
   category?: string | null;
+  /* "Do not message this person." Honoured by the sender since it existed;
+     settable from the guest list since 20/08. */
+  do_not_contact?: boolean | null;
+  do_not_contact_note?: string | null;
 }
 
 export type MealPreference = 'regular' | 'vegetarian' | 'vegan' | 'mehadrin';

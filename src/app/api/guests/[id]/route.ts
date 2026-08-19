@@ -11,9 +11,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (denied) return denied;
   const { id } = await params;
   const body = await request.json();
-  const { status, guest_count } = body as {
+  const { status, guest_count, do_not_contact, do_not_contact_note } = body as {
     status?: GuestStatus;
     guest_count?: number;
+    do_not_contact?: boolean;
+    do_not_contact_note?: string | null;
   };
 
   const update: Record<string, unknown> = {};
@@ -23,6 +25,27 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       status !== 'pending' ? new Date().toISOString() : null;
   }
   if (guest_count !== undefined) update.guest_count = guest_count;
+
+  /* "Do not message this person" — readable by the sender since the day it was
+     added, writable by nobody.
+   *
+     The cron has always honoured it: a marked guest is dropped from every
+     group, permanently, and the note explains why. But nothing could set it,
+     so honouring a guest who asks to stop meant opening the SQL editor — and
+     the realistic outcome of that is that nobody does it, and the automation
+     keeps messaging someone who asked it not to. That is a promise broken to a
+     guest and the fastest route back to the spam reports that restricted this
+     number on 9/8 and stopped all three weddings for days.
+
+     Clearing it also clears the note, so a guest brought back does not carry a
+     stale reason forward. */
+  if (do_not_contact !== undefined) {
+    update.do_not_contact = do_not_contact;
+    update.do_not_contact_at = do_not_contact ? new Date().toISOString() : null;
+    update.do_not_contact_note = do_not_contact
+      ? (do_not_contact_note?.trim() || 'סומן ידנית: לא לפנות')
+      : null;
+  }
 
   const supabase = createServerClient();
   const { data, error } = await supabase
