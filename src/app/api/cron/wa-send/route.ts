@@ -243,6 +243,62 @@ async function applyOrphanStatuses(
  * Refuses rather than guesses. An event missing its times or venue is skipped
  * and reported — "קבלת פנים undefined" reaching 196 people is worse than
  * nothing reaching them. */
+/* The evening digest — one message per wedding, written to be forwarded.
+ *
+ * שחר asks "did anything go out today? how many answered?" and Dvir opens the
+ * admin, checks, and answers. Then it happens again tomorrow. The cost is not
+ * the two minutes; it is being permanently on call.
+ *
+ * Sent to HIM, not to the couple, on purpose. Some days the number is not
+ * flattering and he will want to add a sentence, and some days it is better
+ * not to send anything at all. That judgement is his and the product should
+ * not take it.
+ *
+ * Once a day, on the last run, and only for weddings that still have someone
+ * to reach — a couple whose list is finished does not need a nightly note. */
+async function sendDailyDigest(
+  sb: ReturnType<typeof createServerClient>,
+  cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+): Promise<void> {
+  const to = process.env.ADMIN_ALERT_PHONE;
+  if (!to) return;
+
+  const dayStart = new Date(); dayStart.setUTCHours(0, 0, 0, 0);
+  const since = dayStart.toISOString();
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { data: evs } = await sb.from("events")
+    .select("id, name, couple_names").gte("date", today).order("date").limit(4);
+
+  for (const ev of evs ?? []) {
+    const { data: gs } = await sb.from("guests")
+      .select("id, status, category").eq("event_id", ev.id).limit(900);
+    const real = (gs ?? []).filter(g => g.category !== "demo");
+    if (!real.length) continue;
+    const pending = real.filter(g => g.status === "pending").length;
+    if (!pending) continue;                       /* nothing left to report on */
+    const confirmed = real.filter(g => g.status === "confirmed").length;
+
+    const { count: sentToday } = await sb.from("wa_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("direction", "out").eq("event_id", ev.id).gte("created_at", since);
+
+    const { count: answeredToday } = await sb.from("guests")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", ev.id).neq("status", "pending").gte("response_time", since);
+
+    if (!sentToday && !answeredToday) continue;   /* a quiet day is not news */
+
+    await sendRunSummary(cfg, to, {
+      event: `🤍 עדכון יומי — ${coupleName(ev) ?? ev.name}`,
+      sent: String(sentToday ?? 0),
+      failed: String(answeredToday ?? 0),
+      left: String(pending),
+      attention: `אישרו עד כה: ${confirmed} מתוך ${real.length} · אפשר להעביר לזוג כמו שזה`,
+    });
+  }
+}
+
 async function notifyDayBefore(
   sb: ReturnType<typeof createServerClient>,
   cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
@@ -745,6 +801,12 @@ async function runSend(req: NextRequest) {
   }
 
   } catch { /* a notification must never cost a send */ }
+
+  /* Last run of the day only — 18:50 UTC is 21:50 in Israel. */
+  if (new Date().getUTCHours() >= 18) {
+    try { await sendDailyDigest(sb, cfg); }
+    catch { /* a notification must never cost a send */ }
+  }
 
   const dayBefore = await notifyDayBefore(sb, cfg, budget);
   budget = Math.max(0, budget - dayBefore.sent);
