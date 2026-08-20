@@ -3805,6 +3805,8 @@ function AdminSidebar({
       /* Did this wedding make money. The system could account for every
          message and not for a single shekel; asked what שחר earned, nothing
          in it knew. */
+      /* Paste the couple's WhatsApp message instead of retyping it. */
+      { id: "guests",          label: "קליטת אירוע", icon: <Sparkles size={20} />, href: "/admin/intake" },
       { id: "analytics",       label: "רווחיות",     icon: <BarChart3 size={20} />, href: "/admin/profit" },
       { id: "reminders",       label: "תזכורות",     icon: <Bell size={20} />, badge: pendingCount },
       { id: "recommendations", label: "מרכז המלצות", icon: <Sparkles size={20} />, badge: recCount },
