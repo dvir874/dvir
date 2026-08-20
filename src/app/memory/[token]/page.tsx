@@ -4,6 +4,20 @@ import { shrinkImage } from "@/lib/shrink-image";
 import { use, useEffect, useState, useRef } from "react";
 import { Upload, Loader2, Lock, X } from "lucide-react";
 
+/* The one link the guests of a wedding actually see.
+ *
+ * It was hardcoded to regalifnei.co.il, which has no DNS record at all — not
+ * an A record, not a www. Every guest who tapped the only CTA on this page
+ * got a browser error, and the wall is exactly where a guest is most likely
+ * to be planning a wedding of their own. A dead link there does not merely
+ * fail to convert; it says the business does not exist.
+ *
+ * Now it follows the same source of truth as robots, the sitemap and the
+ * layout, so the day a real domain is pointed at the site this moves with
+ * them instead of being the one place left behind. */
+const SITE       = process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app";
+const SITE_LABEL = SITE.replace(/^https?:\/\//, "").replace(/\/$/, "");
+
 const T = {
   ivory:    "#FDFAF5",
   cream:    "#F6F1E8",
@@ -663,12 +677,12 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
               053-331-8177
             </a>
             <a
-              href="https://regalifnei.co.il"
+              href={SITE}
               target="_blank"
               rel="noopener noreferrer"
               style={{ minHeight:"44px", display:"inline-flex", alignItems:"center", padding:"0 12px", color:"#4D463A", textDecoration:"none" }}
             >
-              regalifnei.co.il
+              {SITE_LABEL}
             </a>
           </div>
         </footer>

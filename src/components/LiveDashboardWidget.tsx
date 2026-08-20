@@ -3,6 +3,12 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
+/* Shown inside a mock browser bar on the landing page. It read
+   regalifnei.co.il — a domain that does not resolve — so the screenshot the
+   site uses to look established named an address that does not exist. */
+const SITE_LABEL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app")
+  .replace(/^https?:\/\//, "").replace(/\/$/, "");
+
 const TASKS = [
   { id: 1, label: "הזמנת צלם", done: true,  cat: "צלם" },
   { id: 2, label: "בחירת תפריט", done: true,  cat: "קייטרינג" },
@@ -152,7 +158,7 @@ export default function LiveDashboardWidget() {
                   <div style={{ width:7, height:7, borderRadius:"50%", background:"#ffbd2e" }} />
                   <div style={{ width:7, height:7, borderRadius:"50%", background:"#27c93f" }} />
                   <div style={{ flex:1, height:14, borderRadius:4, background:"rgba(255,255,255,0.05)", marginRight:8, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                    <span style={{ fontSize:7, color:"rgba(255,255,255,0.2)", fontFamily:"Heebo, sans-serif" }}>regalifnei.co.il/dashboard</span>
+                    <span style={{ fontSize:7, color:"rgba(255,255,255,0.2)", fontFamily:"Heebo, sans-serif" }}>{SITE_LABEL}/dashboard</span>
                   </div>
                 </div>
 
