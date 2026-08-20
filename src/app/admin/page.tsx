@@ -300,6 +300,21 @@ function computeHealthScore(
 }
 
 /* ── Design tokens ─────────────────────────────────── */
+/* "לפני כמה" בעברית, בלי ספרייה.
+   Rounded down deliberately: telling someone data is 1 minute old when it is
+   119 seconds old is the kind of small lie that makes them stop trusting the
+   label, and the label only works if it is trusted. */
+function agoLabel(at: number, now: number): string {
+  const s = Math.max(0, Math.floor((now - at) / 1000));
+  if (s < 15) return "עכשיו";
+  if (s < 60) return `לפני ${s} שניות`;
+  const m = Math.floor(s / 60);
+  if (m === 1) return "לפני דקה";
+  if (m < 60) return `לפני ${m} דקות`;
+  const h = Math.floor(m / 60);
+  return h === 1 ? "לפני שעה" : `לפני ${h} שעות`;
+}
+
 const C = {
   cream:   "#F6F1E8",
   ivory:   "#FDFAF5",
@@ -470,6 +485,22 @@ export default function AdminPage() {
       });
   }, []);
 
+  /* When this list was last read.
+   *
+     "ממתין" and "answered a minute ago" look identical on screen, and nothing
+     said which one you were looking at. On 20/08 שילה גז and אלקיים both
+     confirmed at 12:12; the table said ממתין because it had been loaded
+     earlier, and the only way to find out was to open the inbox and check
+     them one at a time — which is the work this screen exists to remove. */
+  const [guestsFetchedAt, setGuestsFetchedAt] = useState<number | null>(null);
+  /* A second clock, so "עודכן לפני דקה" becomes "לפני 3 דקות" on its own.
+     Without it the label would be as stale as the thing it describes. */
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTick(Date.now()), 20_000);
+    return () => window.clearInterval(id);
+  }, []);
+
   const fetchGuests = useCallback((eventId: string) => {
     setGuestsLoading(true);
     fetch(`/api/guests?event_id=${eventId}`)
@@ -485,8 +516,24 @@ export default function AdminPage() {
         console.error("[admin] /api/guests fetch failed", err);
         setGuests([]);
       })
-      .finally(() => { setGuestsLoading(false); setLoading(false); });
+      .finally(() => {
+        setGuestsLoading(false); setLoading(false); setGuestsFetchedAt(Date.now());
+      });
   }, []);
+
+  /* Re-read every 60s while the tab is in front.
+   *
+     Paused when the tab is hidden, because a background tab polling a guest
+     list for hours is a cost with no reader. It resumes — and refreshes
+     immediately — the moment the tab comes back, which is exactly when
+     someone is about to look at a number and act on it. */
+  useEffect(() => {
+    if (!selectedEventId) return;
+    const tick = () => { if (!document.hidden) fetchGuests(selectedEventId); };
+    const id = window.setInterval(tick, 60_000);
+    document.addEventListener("visibilitychange", tick);
+    return () => { window.clearInterval(id); document.removeEventListener("visibilitychange", tick); };
+  }, [selectedEventId, fetchGuests]);
 
   useEffect(() => {
     if (selectedEventId) {
@@ -2657,6 +2704,25 @@ export default function AdminPage() {
                   className="w-full rounded-xl pr-10 pl-4 py-2.5 text-sm outline-none"
                   style={{ background: C.ivory, border: `1px solid ${C.border}`, color: C.dark }}
                 />
+              </div>
+              {/* How old these numbers are. See guestsFetchedAt.
+                  Without it a stale table and a live one are the same picture,
+                  and the only way to tell was to open the inbox and check
+                  guests one at a time. */}
+              <div className="flex items-center gap-2 mb-1.5" style={{ fontSize: 11.5, color: C.muted, fontFamily: "Heebo, sans-serif" }}>
+                <span>
+                  {guestsLoading ? "מרענן…"
+                    : guestsFetchedAt ? `עודכן ${agoLabel(guestsFetchedAt, nowTick)} · מתרענן לבד כל דקה`
+                    : ""}
+                </span>
+                <button
+                  onClick={() => selectedEventId && fetchGuests(selectedEventId)}
+                  disabled={guestsLoading}
+                  style={{ background: "none", border: "none", color: C.gold, cursor: "pointer",
+                           fontSize: 11.5, fontWeight: 700, padding: 0, textDecoration: "underline" }}
+                >
+                  רענן עכשיו
+                </button>
               </div>
               <div className="flex gap-1.5 flex-wrap">
                 {([
