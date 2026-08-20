@@ -255,18 +255,52 @@ async function notifyDayBefore(
   const tomorrow = new Date(Date.now() + 86_400_000)
     .toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
 
+  /* EVERY wedding tomorrow, not the first one.
+   *
+   * This took evs[0] and stopped, which was invisible while no two weddings
+   * shared a date and became a silent failure the moment two did: תהל ואביב
+   * and טל ולאל are both on 22/09, so on 21/09 one of them would have been
+   * told what time to arrive and the other would have heard nothing at all.
+   * Two Saturdays in an Israeli September is not an edge case. */
   const { data: evs } = await sb.from("events")
     .select("id, name, couple_names, date, address, venue_name, reception_time, chuppah_time")
-    .eq("date", tomorrow).limit(3);
-  const ev = (evs ?? [])[0];
-  if (!ev) return { sent: 0 };
+    .eq("date", tomorrow).limit(5);
+  if (!(evs ?? []).length) return { sent: 0 };
+
+  let sentTotal = 0;
+  const names: string[] = [];
+  const skips: string[] = [];
+
+  for (const ev of evs ?? []) {
+    if (sentTotal >= budget) break;
+    const one = await dayBeforeForEvent(sb, cfg, ev, budget - sentTotal);
+    sentTotal += one.sent;
+    if (one.sent) names.push(ev.name as string);
+    if (one.skipped) skips.push(`${ev.name}: ${one.skipped}`);
+  }
+  return {
+    sent: sentTotal,
+    event: names.join(" + ") || undefined,
+    skipped: skips.join(" · ") || undefined,
+  };
+}
+
+async function dayBeforeForEvent(
+  sb: ReturnType<typeof createServerClient>,
+  cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+  ev: { id: string; name: string; couple_names?: string | null; date?: string | null;
+        address?: string | null; venue_name?: string | null;
+        reception_time?: string | null; chuppah_time?: string | null },
+  budget: number,
+): Promise<{ sent: number; skipped?: string }> {
+  if (budget <= 0) return { sent: 0 };
 
   const couple = coupleName(ev);
   const venue  = venueLine(ev);
   const rec    = (ev.reception_time as string | null)?.trim();
   const chu    = (ev.chuppah_time as string | null)?.trim();
   if (!couple || !venue || !rec || !chu)
-    return { sent: 0, event: ev.name as string, skipped: "חסרים שמות, מקום או שעות" };
+    return { sent: 0, skipped: "חסרים שמות, מקום או שעות" };
 
   const { data: guests } = await sb.from("guests")
     .select("id, name, phone, category, do_not_contact")
@@ -307,7 +341,7 @@ async function notifyDayBefore(
       }
     }
   }
-  return { sent, event: ev.name as string };
+  return { sent };
 }
 
 async function notifyGallery(
