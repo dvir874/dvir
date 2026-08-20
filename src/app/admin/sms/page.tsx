@@ -4,6 +4,7 @@ import { policyFor } from "@/lib/whatsapp";
 import { coupleName } from "@/lib/couple-name";
 import { eventTimes } from "@/lib/event-times";
 import { venueLine } from "@/lib/venue";
+import SmsRow from "./SmsRow";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,7 @@ export default async function SmsFallback({
   if (!ev) return <Shell><p style={p}>אין אירועים קרובים</p></Shell>;
 
   const { data: guests } = await sb.from("guests")
-    .select("id, name, phone, rsvp_token").eq("event_id", ev.id).limit(900);
+    .select("id, name, phone, rsvp_token, status, opened_at").eq("event_id", ev.id).limit(900);
   const byId = new Map((guests ?? []).map(g => [g.id as string, g]));
 
   /* The most recent failure per guest, so someone who failed at 10:00 and was
@@ -71,6 +72,13 @@ export default async function SmsFallback({
       }
     }
   }
+
+  /* Who has already been texted, and who acted on it. Without these the list
+     shows the same thirteen people for ever and the only way to know who is
+     left is to remember. */
+  const { data: smsEvents } = await sb.from("guest_events")
+    .select("guest_id").eq("event_type", "sms_sent").in("guest_id", ids);
+  const texted = new Set((smsEvents ?? []).map(r => r.guest_id as string));
 
   const rows = [...last.entries()]
     .filter(([, m]) => m.code != null && ["never", "wait_for_inbound"].includes(policyFor(m.code, m.err).action))
@@ -138,26 +146,18 @@ export default async function SmsFallback({
       {rows.length === 0 && <p style={{ ...p, textAlign: "center" }}>אין אורחים כאלה — הכל הגיע 🤍</p>}
 
       {rows.map(({ g, code, note }) => (
-        <a
+        <SmsRow
           key={g.id}
-          href={`sms:${g.phone}&body=${encodeURIComponent(body(g.rsvp_token as string))}`}
-          style={{
-            display: "block", background: T.card, border: `1px solid ${T.border}`,
-            borderRadius: 14, padding: "16px 18px", marginBottom: 12,
-            textDecoration: "none", color: "inherit",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 16, fontWeight: 700, color: T.dark }}>
-              {code === 130472 ? "🧪" : "📵"} {g.name}
-            </span>
-            <span style={{ fontSize: 14, color: T.gold, fontWeight: 700, whiteSpace: "nowrap" }}>
-              שלח ›
-            </span>
-          </div>
-          <div style={{ fontSize: 13, color: T.muted, marginTop: 4 }}>{g.phone}</div>
-          <div style={{ fontSize: 11.5, color: T.muted, marginTop: 3 }}>{note}</div>
-        </a>
+          id={g.id as string}
+          name={g.name as string}
+          phone={g.phone as string}
+          note={note}
+          icon={code === 130472 ? "🧪" : "📵"}
+          body={body(g.rsvp_token as string)}
+          alreadySent={texted.has(g.id as string)}
+          opened={!!g.opened_at}
+          answered={g.status !== "pending"}
+        />
       ))}
 
       {rows.length > 0 && (
