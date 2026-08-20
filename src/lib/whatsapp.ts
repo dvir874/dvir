@@ -170,6 +170,27 @@ async function pace() {
 const QUICK_REPLY_TEMPLATES = new Set([
   "wedding_reminder_buttons_v1",
   "wedding_reminder_buttons_generic",
+  /* UTILITY, and that is the entire point of it being here.
+   *
+   * Meta classifies a template at approval and the class decides who may
+   * receive it. Three of the four delivery failures across all three weddings
+   * are marketing-only rules: 130472 (the recipient is in one of Meta's
+   * marketing experiments), 131049 (a per-user marketing frequency cap), and
+   * 131050 (the recipient switched marketing off). Measured on the live data,
+   * that is 34 guests — 19 of Dvir's, 10 of שחר's, 5 of תהל's — who are not
+   * refused by Meta at all. They are refused by the category.
+   *
+   * wedding_reminder_rides_v1 carries the same image header, the same four
+   * variables and the same two quick-reply buttons as the marketing reminder,
+   * so the guest sees the same message plus a rides offer. It just is not
+   * marketing.
+   *
+   * It belongs in this list rather than only in the env var because a template
+   * missing from here is given a url button component it does not have, and
+   * Meta rejects that outright — not for some messages, for every message in
+   * the run. Switching WHATSAPP_TEMPLATE_REMINDER without this line is a silent
+   * total outage of reminders. */
+  "wedding_reminder_rides_v1",
 ]);
 
 /** Seconds one message costs, worst case — lets callers size a batch to fit
