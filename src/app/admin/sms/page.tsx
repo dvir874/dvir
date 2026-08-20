@@ -104,22 +104,44 @@ export default async function SmsFallback({
    *
    * Same opening as the approved template, so it reads as the same invitation
    * arriving by a different road. */
+  /* Short, and the link last. This is not a style choice.
+   *
+     The full invitation was 288 characters of Hebrew and emoji, which is
+     UCS-2 — 67 characters per SMS segment, five segments. The URL began at
+     character 195 and a segment boundary fell at 201, so it was cut as
+     "https:" / "//regalifnei.verce…". On a phone that reassembles the parts
+     correctly nobody notices. On one that does not, the guest sees a link
+     with no address and taps something that cannot open — which is exactly
+     what יעקב בן שושן described on 20/08, four days after his invitation
+     failed to reach him by WhatsApp.
+     
+     And it breaks precisely where it hurts most: the people without WhatsApp
+     are the ones on older handsets.
+     
+     So the text is trimmed to what one or two segments hold, and the URL is
+     the LAST thing in the message. A link at the end can lose the tail of a
+     dropped segment and still be visible; a link in the middle cannot. */
+  /* One SMS segment, and the link cannot break.
+   *
+     The full invitation was 288 characters of Hebrew and emoji — UCS-2, 67
+     characters per segment, five segments — and a boundary fell at 201, four
+     characters into the URL. It arrived as "https:" and "//regalifnei.verce…"
+     on separate parts. Reassembled correctly nobody notices; reassembled
+     badly the guest taps a link with no address, which is what יעקב בן שושן
+     described on 20/08.
+     
+     Shortening the text alone could not fix it: the URL itself is 70
+     characters, longer than a segment. /r/<8 chars> is 39, so message and
+     link together fit in ONE segment and there is nothing to split.
+     
+     The date and the venue are not in it on purpose. The SMS has one job —
+     deliver a link that opens — and the page it opens carries everything
+     else. A message that is complete and unreadable is worth less than a
+     line that works. */
+  const shortBase = (process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app")
+    .replace(/^https?:\/\//, "");
   const body = (token: string) =>
-    [
-      "💍 משפחה וחברים יקרים!",
-      "",
-      `בעזרת ה׳ ${couple} מתחתנים! 🤍`,
-      "ושמחים להזמין אתכם לחגוג איתם:",
-      "",
-      when ? `🗓 ${when}` : "",
-      venue ? `📍 ${venue}` : "",
-      times ? `🥂 ${times}` : "",
-      "",
-      "לאישור הגעה:",
-      `https://regalifnei.vercel.app/rsvp/${token}`,
-      "",
-      "מחכים לחגוג איתכם! 🤍",
-    ].filter(l => l !== null).join("\n");
+    `אישור הגעה — ${couple}\n${shortBase}/r/${token.slice(0, 8)}`;
 
   return (
     <Shell>
