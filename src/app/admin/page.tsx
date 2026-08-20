@@ -1465,6 +1465,48 @@ export default function AdminPage() {
                     style={{ color: C.dark, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
                     🖼 סמן שהתמונות עלו
                   </button>
+                  {/* נתק 1 — the survey that nothing ever sent.
+                      The referral machine was reported as "built and
+                      disconnected at the last centimetre". It was worse than
+                      that: satisfaction_surveys had zero rows, and the reason
+                      was not only that nothing sent the link — nothing ever
+                      CREATED one. /api/referral/generate has existed all along,
+                      idempotent, commented "admin creates a survey + referral
+                      for a completed event", and no screen in the product ever
+                      called it. There was no link to send even by hand.
+
+                      Deliberately not a cron and deliberately not a template.
+                      This is one message to one couple, four times a year, into
+                      a WhatsApp conversation that is already open — a MARKETING
+                      template submitted to Meta for that is cost and risk buying
+                      nothing. He taps, he reads it, he sends it.
+
+                      The one referral this business ever won came from שחר
+                      telling somebody, unprompted. This is that, asked for. */}
+                  <button onClick={async () => {
+                    if (!selectedEventId) return;
+                    const future = selectedEvent?.date ? new Date(selectedEvent.date) > new Date() : false;
+                    if (future && !confirm("החתונה עוד לא הייתה.\n\nבקשת משוב לפני האירוע נשמעת מוזרה לזוג. לשלוח בכל זאת?")) return;
+                    try {
+                      const res = await fetch("/api/referral/generate", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ event_id: selectedEventId }),
+                      });
+                      const d = await res.json();
+                      if (!res.ok || !d.survey_token) { alert(`לא הצלחנו: ${d.error ?? res.status}`); return; }
+                      const url = `${window.location.origin}/survey/${d.survey_token}`;
+                      const phone = selectedEvent?.client_phone?.replace(/[^0-9]/g, "").replace(/^0/, "972") ?? "";
+                      const msg = `היי! 🤍\nמזל טוב, ותודה שנתתם לי להיות חלק מהיום הזה.\n\nאם יש לכם דקה — אשמח לשמוע איך זה היה מהצד שלכם:\n${url}`;
+                      if (phone) window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
+                      else { navigator.clipboard.writeText(url); alert("אין טלפון שמור לזוג — הקישור הועתק"); }
+                    } catch { alert("לא הצלחנו ליצור קישור משוב"); }
+                    setShowCoupleMenu(false);
+                  }}
+                    className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-amber-50 transition-colors"
+                    style={{ color: C.dark, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
+                    ⭐ בקש משוב מהזוג
+                  </button>
                   {selectedEvent?.couple_token && (
                     <button onClick={async () => {
                       const phone = selectedEvent?.client_phone?.replace(/[^0-9]/g, "").replace(/^0/, "972") ?? "";
