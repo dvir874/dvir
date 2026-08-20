@@ -45,6 +45,9 @@ export default function SurveyPage({ params }: { params: Promise<{ token: string
   const [blessing,   setBlessing]   = useState("");
   const [favMoment,  setFavMoment]  = useState<FavMoment>(null);
   const [submitting, setSubmitting] = useState(false);
+  /* The referral code the API already returns and the page used to throw away.
+     See the thank-you screen below. */
+  const [refCode, setRefCode] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/survey/${token}`)
@@ -70,7 +73,15 @@ export default function SurveyPage({ params }: { params: Promise<{ token: string
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rating: selected, review_text: reviewParts.join("\n") || null }),
       });
-      if (res.ok) setScreen("done");
+      if (res.ok) {
+        /* The API generates a referral code for anyone who rated 4-5 and
+           returns it in this very response. Nothing read it, so the code was
+           written to referral_codes and never shown to the one person who
+           could use it. The couple saw "תודה! ❤️" and closed the tab. */
+        const body = await res.json().catch(() => ({}));
+        setRefCode(typeof body?.ref_code === "string" ? body.ref_code : null);
+        setScreen("done");
+      }
     } catch {
       // keep form visible
     } finally {
@@ -263,6 +274,36 @@ export default function SurveyPage({ params }: { params: Promise<{ token: string
       <p style={{ fontFamily:"'Heebo',sans-serif", fontSize:"16px", fontWeight:300, color:T.muted }}>
         הפידבק שלכם יעזור לנו לשפר
       </p>
+
+      {/* The moment a happy couple is most willing to recommend is the second
+          after they said they were happy. This is that second, and until now
+          nothing was offered in it. */}
+      {refCode && (
+        <div style={{ marginTop:"28px", padding:"20px 18px", background:"#FDFAF5",
+                      border:`1px solid ${T.gold}`, borderRadius:16, textAlign:"center" }}>
+          <p style={{ fontFamily:"'Heebo',sans-serif", fontSize:"14px", color:T.muted, margin:"0 0 10px", lineHeight:1.7 }}>
+            מכירים זוג שמתחתן?<br />הקוד האישי שלכם נותן להם הנחה — ולכם תודה 🤍
+          </p>
+          <p style={{ fontFamily:"'Frank Ruhl Libre',serif", fontSize:"24px", fontWeight:700,
+                      color:T.gold, letterSpacing:"0.04em", margin:"0 0 12px", direction:"ltr" }}>
+            {refCode}
+          </p>
+          <button
+            onClick={() => {
+              const url = `${window.location.origin}/ref/${refCode}`;
+              navigator.clipboard?.writeText(url).then(
+                () => alert("הקישור הועתק 🤍"),
+                () => prompt("העתיקו את הקישור:", url),
+              );
+            }}
+            style={{ background:T.gold, color:"#fff", border:"none", borderRadius:9999,
+                     padding:"12px 28px", fontSize:"15px", fontWeight:700,
+                     fontFamily:"'Heebo',sans-serif", cursor:"pointer", minHeight:44 }}
+          >
+            העתיקו את הקישור לשיתוף
+          </button>
+        </div>
+      )}
     </div>
   );
 
