@@ -534,6 +534,7 @@ async function runSend(req: NextRequest) {
    * stream. Runs before anything else in the send, and can never affect it. */
   try {
     const alertTo = process.env.ADMIN_ALERT_PHONE;
+
     if (alertTo) {
       const since = new Date(Date.now() - 24 * 3_600_000).toISOString();
       const twoHoursAgo = new Date(Date.now() - 2 * 3_600_000).toISOString();
@@ -703,6 +704,48 @@ async function runSend(req: NextRequest) {
    * What it takes comes off the budget the rest of the run then shares, so a
    * day with 196 of these simply has fewer reminders — which is the correct
    * trade and not an accident. */
+  try {
+  /* The one alert that prevents damage instead of reporting it.
+   *
+   * On 9/8 Meta restricted this number with 131048 and sending stopped for
+   * ALL THREE weddings for days. Dvir found out by looking. Quality moves
+   * GREEN → YELLOW → RED before a restriction lands, so a message the
+   * moment it slips is the difference between slowing down in time and
+   * discovering it afterwards.
+   *
+   * The previous value is read from wa_runs, which has recorded quality on
+   * every run since it existed — no new column, and the comparison is
+   * against what actually happened rather than something held in memory
+   * that a cold start would lose.
+   *
+   * Deliberately unconditional on posture: this fires even on a run that
+   * sends nothing, because a number can degrade on a quiet day too. */
+  if (process.env.ADMIN_ALERT_PHONE && health.quality && health.quality !== "UNKNOWN") {
+    const RANK: Record<string, number> = { GREEN: 3, YELLOW: 2, RED: 1 };
+    const now = RANK[health.quality] ?? 0;
+    const { data: prevRows } = await sb.from("wa_runs")
+      .select("quality, created_at").not("quality", "is", null)
+      .neq("quality", "UNKNOWN")
+      .order("created_at", { ascending: false }).limit(2);
+    const prev = (prevRows ?? []).map(r => r.quality as string).find(q => RANK[q]);
+    const was = prev ? RANK[prev] ?? 0 : 0;
+
+    if (was && now && now < was) {
+      /* Once per drop, not once per run — the check above reads the last
+         recorded value, so the next run compares against the new low and
+         stays quiet. */
+      await sendRunSummary(cfg, process.env.ADMIN_ALERT_PHONE, {
+        event: `⚠️ דירוג האיכות ירד: ${prev} → ${health.quality}`,
+        sent: "0", failed: "0", left: String(usage.remaining ?? 0),
+        attention: health.quality === "RED"
+          ? "🔴 אדום — מטא עלולה להגביל את המספר בקרוב. לעצור שליחות ולבדוק דיווחי ספאם."
+          : "🟡 צהוב — התקרה תרד לחצי אוטומטית. כדאי להאט ולבדוק למי נשלח לאחרונה.",
+      });
+    }
+  }
+
+  } catch { /* a notification must never cost a send */ }
+
   const dayBefore = await notifyDayBefore(sb, cfg, budget);
   budget = Math.max(0, budget - dayBefore.sent);
   if (!budget) return record(sb, { sent: dayBefore.sent, reason: dayBefore.sent ? "day_before_only" : "budget_exhausted", cap, healed, dayBefore },
