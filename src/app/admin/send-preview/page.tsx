@@ -27,7 +27,15 @@ type Tpl = { name: string; status: string; body: string | null; vars: number | n
 type Health = { tier: string; quality: string; capped: boolean };
 type Today = {
   runsDone: number; runsLeft: number; upcoming: string[];
-  sent: number; perRun: { at: string; sent: number }[];
+  sent: number;
+  perRun: {
+    at: string; sent: number; counted: number; reason: string | null;
+    messages: {
+      label: string; kind: string; count: number;
+      template: string | null; status: string | null; category: string | null;
+      event?: string; rendered: string | null;
+    }[];
+  }[];
 };
 
 type Ev = {
@@ -144,6 +152,71 @@ export default function SendPreview() {
               <p style={{ margin: "4px 0 0", fontSize: 11.5, color: T.muted, textAlign: "center" }}>
                 נותרו היום: {data.today.upcoming.join(" · ")}
               </p>
+            )}
+
+            {/* מה נשלח בפועל — להבדיל מכל השאר במסך, שמראה מה יישלח.
+                נשאל ב-21:50 "איזו הודעה נשלחה עכשיו?", והמסך הציג את ההזמנה
+                בזמן שכל מה שיצא היה תבנית "מחר מתחתנים". סגור כברירת מחדל
+                כדי שהשורה העליונה תישאר מה שהיא. */}
+            {data.today.perRun.some(r => r.messages.length > 0) && (
+              <details style={{ marginTop: 10 }}>
+                <summary style={{ fontSize: 12, color: T.gold, cursor: "pointer",
+                                  textAlign: "center", fontWeight: 700 }}>
+                  מה נשלח בפועל בכל ריצה
+                </summary>
+                {/* אין עמודה ששומרת שם תבנית לכל הודעה, אז השם נגזר מהתצורה
+                    הנוכחית לפי סוג ההודעה. הסוג עצמו נשמר בזמן השליחה ולכן
+                    מדויק. אם תבנית הוחלפה במהלך היום — הודעות שיצאו לפני
+                    ההחלפה יוצגו עם השם החדש, וזה נאמר כאן ולא מוסתר. */}
+                <p style={{ fontSize: 11, color: T.muted, textAlign: "center",
+                            margin: "6px 0 0", lineHeight: 1.6 }}>
+                  סוג ההודעה נשמר בזמן השליחה. שם התבנית נגזר מההגדרה הנוכחית —
+                  אם החלפת תבנית היום, הודעות מוקדמות יוצגו עם השם החדש.
+                </p>
+
+                {data.today.perRun.filter(r => r.messages.length > 0).slice().reverse().map(r => (
+                  <div key={r.at} style={{ marginTop: 12, paddingTop: 10,
+                                           borderTop: `1px solid ${T.border}` }}>
+                    <p style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: T.dark }}>
+                      {r.at} · {r.counted} הודעות
+                      {r.counted !== r.sent && (
+                        <span style={{ fontWeight: 500, color: T.muted, fontSize: 11 }}>
+                          {"  "}(הריצה דיווחה {r.sent} — היא לא סופרת את "מחר מתחתנים")
+                        </span>
+                      )}
+                    </p>
+
+                    {r.messages.map((m, i) => (
+                      <div key={i} style={{ marginTop: 8 }}>
+                        <p style={{ margin: 0, fontSize: 12.5, color: T.dark }}>
+                          <strong>{m.label}</strong> · {m.count}
+                          {m.event ? ` · ${m.event}` : ""}
+                        </p>
+                        {m.template && (
+                          <p style={{ margin: "2px 0 0", fontSize: 11, color: T.muted }} dir="ltr">
+                            {m.template}
+                            {m.status ? ` · ${m.status}` : ""}
+                            {m.category ? ` · ${m.category}` : ""}
+                          </p>
+                        )}
+                        {m.rendered && (
+                          <p style={{
+                            margin: "6px 0 0", fontSize: 12, color: "#111B21",
+                            background: "#fff", border: `1px solid ${T.border}`,
+                            borderRadius: 10, padding: "10px 12px",
+                            whiteSpace: "pre-wrap", direction: "rtl", lineHeight: 1.65,
+                          }}>{m.rendered}</p>
+                        )}
+                        {!m.template && (
+                          <p style={{ margin: "2px 0 0", fontSize: 11, color: T.muted }}>
+                            לא תבנית — טקסט חופשי
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </details>
             )}
           </div>
         )}

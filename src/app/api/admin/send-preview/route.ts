@@ -6,6 +6,7 @@ import { isEligibleNow } from "@/lib/eligibility";
 import { eventTimes } from "@/lib/event-times";
 import { weddingDateLine } from "@/lib/hebrew-date";
 import { getWhatsAppConfig } from "@/lib/whatsapp";
+import { venueLine } from "@/lib/venue";
 
 export const dynamic = "force-dynamic";
 
@@ -125,6 +126,10 @@ export async function GET() {
 
   const invite   = await template(cfg?.genericTemplateName ?? null);
   const reminder = await template(cfg?.reminderTemplateName ?? null);
+  /* The other two the sender can reach. Not shown as cards — they are only
+     needed to render what a run ACTUALLY sent, below. */
+  const dayBefore = await template(cfg?.dayBeforeTemplateName ?? null);
+  const photos    = await template(cfg?.photosUploadTemplateName ?? null);
   const approvedBody = invite?.body ?? null;
   const templateName = cfg?.genericTemplateName ?? null;
 
@@ -288,6 +293,116 @@ export async function GET() {
   const real = (todayRuns ?? []).filter(r => r.reason !== "run_started");
   const sentToday = real.reduce((n, r) => n + (Number(r.sent) || 0), 0);
 
+  /* What each run ACTUALLY sent — not what the next one would.
+   *
+   * Everything above this line is a forecast: the cards render the template the
+   * NEXT run will use, with today's values. That is the right thing for the
+   * question "is the message correct before I send it", and it answers nothing
+   * about the question Dvir actually asked at 21:50 — "which message just went
+   * out?" The screen showed the invitation preview all evening while every
+   * message leaving the system was the day-before template, and there was no
+   * way to tell them apart.
+   *
+   * The two are different questions and a forecast can never answer the second,
+   * because the template can change between runs — it did today, when
+   * WHATSAPP_TEMPLATE_REMINDER moved to the UTILITY template mid-afternoon and
+   * the card kept showing the same thing before and after.
+   *
+   * There is no per-message template column, and adding one would only start
+   * recording from today. wa_messages.body already carries a Hebrew label the
+   * sender writes at send time, so the mapping is read from what actually
+   * happened rather than reconstructed from configuration.
+   *
+   * A run writes its row when it FINISHES, not when it starts — record() is the
+   * last thing it does. So a run's messages are the ones that precede its row
+   * and follow the previous run's row, and the obvious reading (everything
+   * after the run started) attributes every message to the wrong run and shows
+   * an empty list for the one that just sent. Found by running it. */
+  const KIND = (body: string): { tpl: typeof invite; label: string; kind: string } | null => {
+    const b = body ?? "";
+    if (b.includes("מחר מתחתנים"))  return { tpl: dayBefore, label: "מחר מתחתנים",        kind: "day_before" };
+    if (b.includes("גלריי"))         return { tpl: photos,    label: "תמונות מהחתונה",     kind: "photos" };
+    if (b.includes("תזכורת"))        return { tpl: reminder,  label: "תזכורת אישור הגעה",  kind: "reminder" };
+    if (b.includes("הזמנה"))         return { tpl: invite,    label: "הזמנה לחתונה",       kind: "invitation" };
+    return null;                    /* a free-text reply Dvir typed — not a template */
+  };
+
+  const { data: todayMsgs } = await sb.from("wa_messages")
+    .select("created_at, body, event_id").eq("direction", "out")
+    .gte("created_at", dayStart.toISOString()).order("created_at").limit(3000);
+
+  /* Rendered with the SAME helpers the sender calls, and with each template's
+     own variable order — the day-before passes reception and חופה separately,
+     the others pass one combined times line. Getting this wrong would show a
+     message nobody received, which is worse than showing nothing. */
+  function renderFor(kind: string, eventId: string | null, body: string | null): string | null {
+    if (!body) return null;
+    const ev = (events ?? []).find(e => e.id === eventId);
+    if (!ev) return body;
+    const couple = coupleName(ev);
+    const venue  = venueLine(ev);
+    if (!couple || !venue) return body;
+    if (kind === "day_before") {
+      const rec = (ev.reception_time as string | null)?.trim();
+      const chu = (ev.chuppah_time as string | null)?.trim();
+      if (!rec || !chu) return body;
+      return body.replace("{{1}}", couple).replace("{{2}}", rec)
+                 .replace("{{3}}", chu).replace("{{4}}", venue);
+    }
+    if (kind === "photos") return body.replace("{{1}}", couple);
+    const when  = ev.date ? weddingDateLine(ev.date as string) : null;
+    const times = eventTimes(ev);
+    if (!when || !times) return body;
+    return body.replace("{{1}}", couple).replace("{{2}}", when)
+               .replace("{{3}}", venue).replace("{{4}}", times);
+  }
+
+  const evName = (id: string | null) =>
+    (events ?? []).find(e => e.id === id)?.name as string | undefined;
+
+  function sentIn(prevEnd: string | null, thisEnd: string) {
+    const rows = (todayMsgs ?? []).filter(m => {
+      const t = m.created_at as string;
+      return t <= thisEnd && (!prevEnd || t > prevEnd);
+    });
+    const groups = new Map<string, { label: string; kind: string; count: number;
+                                     template: string | null; status: string | null;
+                                     category: string | null; event?: string; rendered: string | null }>();
+    for (const m of rows) {
+      const k = KIND(String(m.body ?? ""));
+      const key = `${k?.kind ?? "free"}|${m.event_id ?? ""}`;
+      const g = groups.get(key);
+      if (g) { g.count++; continue; }
+      groups.set(key, {
+        label: k?.label ?? "הודעה חופשית שנכתבה ידנית",
+        kind: k?.kind ?? "free",
+        count: 1,
+        template: k?.tpl?.name ?? null,
+        status: k?.tpl?.status ?? null,
+        category: k ? (k.kind === "day_before" || k.kind === "photos" ? "UTILITY" : null) : null,
+        event: evName(m.event_id as string | null),
+        rendered: k ? renderFor(k.kind, m.event_id as string | null, k.tpl?.body ?? null) : null,
+      });
+    }
+    return [...groups.values()].sort((a, b) => b.count - a.count);
+  }
+
+  /* Counted from wa_messages, because the run's own number is not the total.
+   *
+   * record() writes `sent: sent.length` — the group sends for the event it
+   * chose — and "מחר מתחתנים" is counted in a separate field that never reaches
+   * it. Today's run at 21:52 reports 50 and actually sent 158, so the headline
+   * on this screen has been understating every day that had a day-before send.
+   *
+   * The messages table is what left the system, so it wins. The run's own
+   * figure is still shown when the two disagree, because the gap is the bug and
+   * hiding it would be the same mistake one level up. */
+  const countedIn = (prevEnd: string | null, thisEnd: string) =>
+    (todayMsgs ?? []).filter(m => {
+      const t = m.created_at as string;
+      return t <= thisEnd && (!prevEnd || t > prevEnd);
+    }).length;
+
   /* vercel.json — 09:00, 11:15, 13:30, 16:00, 19:30, 21:30 Israel time. */
   const SCHEDULE = [9 * 60, 11 * 60 + 15, 13 * 60 + 30, 16 * 60, 19 * 60 + 30, 21 * 60 + 30];
   const nowIl = new Date().toLocaleTimeString("en-GB", { timeZone: "Asia/Jerusalem", hour12: false });
@@ -301,10 +416,19 @@ export async function GET() {
       runsLeft: upcoming.length,
       upcoming,
       sent: sentToday,
-      perRun: real.map(r => ({
+      perRun: real.map((r, i) => ({
         at: new Date(r.created_at as string).toLocaleTimeString("he-IL",
               { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit" }),
         sent: Number(r.sent) || 0,
+        reason: r.reason ?? null,
+        /* Only for runs that sent something — an empty run has nothing to show
+           and a row of "0" for every quiet run would bury the ones that matter. */
+        counted: countedIn((real[i - 1]?.created_at as string | undefined) ?? null,
+                           r.created_at as string),
+        messages: (Number(r.sent) || 0) > 0
+          ? sentIn((real[i - 1]?.created_at as string | undefined) ?? null,
+                   r.created_at as string)
+          : [],
       })),
     },
     health,
