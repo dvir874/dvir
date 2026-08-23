@@ -25,6 +25,21 @@ type Venue = {
   warm?: string;              /* the wedding of ours that happened there */
 };
 
+/* WhatsApp or a phone call — and the difference is not cosmetic.
+ *
+ * Every number on this page used to become a wa.me link. Three of the five
+ * already here cannot receive WhatsApp at all: 04-6226623 is a switchboard,
+ * and 072-3300736 and 072-2136677 are virtual numbers — דפי זהב says so in
+ * its own terms. Tapping them opened WhatsApp on "this number is not
+ * registered", which reads as a broken product rather than a wrong number,
+ * and costs the one attempt a venue gives you.
+ *
+ * Israeli directories publish tracking numbers by design. That is a fact
+ * about the source, not a gap in the research, so the fix is to route by
+ * prefix rather than to keep hunting: 05x opens WhatsApp, everything else
+ * places a call. */
+const isMobile = (p: string) => /^05\d/.test(p.replace(/\D/g, ""));
+
 const VENUES: Venue[] = [
   { name: "אולמי גאיה", city: "האומן 12, חדרה",
     phones: ["04-6226623", "053-9345038", "072-3300736"],
@@ -34,6 +49,33 @@ const VENUES: Venue[] = [
     phones: ["04-8304444", "072-2136677"],
     source: "דפי זהב · sky-garden.co.il",
     warm: "לאל וטל, 22/09" },
+
+  /* The two halls that hosted a client's wedding and were missing from here.
+     Each can be sent something no competitor can produce: the meal report from
+     an event that took place in their own hall. */
+  { name: "חוות ארץ האיילים", city: "כפר עציון, גוש עציון",
+    phones: ["072-3134802"],
+    source: "דפי זהב (מספר וירטואלי — מרכזייה, לא הנייד של האולם)",
+    warm: "שחר ואורי, 08/09" },
+  { name: "ארץ — בית לאירועים", city: "מושב עגור",
+    phones: ["050-5185518"],
+    source: "דפי זהב",
+    warm: "תהל ואביב, 22/09" },
+
+  /* Cold, and every number below is a directory switchboard rather than a
+     person. They are worth a call, not a WhatsApp. */
+  { name: "White", city: "פרדס חנה-כרכור",
+    phones: ["072-2160297"], source: "walla mazaltov" },
+  { name: "דונה אירועי בוטיק", city: "המטלל 10, חדרה",
+    phones: ["076-8006832"], source: "b144 (מספר מעקב)" },
+  { name: "אלריה — אולם לאירועי בוטיק", city: "יהודי פקיעין 1, חדרה",
+    phones: ["076-8108873"], source: "b144 (מספר מעקב)" },
+  { name: "אואזיס", city: "הזגג 22, חדרה",
+    phones: ["076-8105756"], source: "b144 (מספר מעקב)" },
+  { name: "בראשית אירועים", city: "אזור עגור",
+    phones: ["076-8017147"], source: "b144 (מספר מעקב)" },
+  { name: "ארמונות אור", city: "אזור עגור",
+    phones: ["076-8885493"], source: "b144 (מספר מעקב)" },
 ];
 
 /* Two messages, because a hall that hosted you is not a stranger. */
@@ -90,16 +132,22 @@ export default function VenuesOutreach() {
               <div style={{ fontSize: 13, color: T.muted, marginTop: 3 }}>{v.city}</div>
 
               <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                {v.phones.map(ph => (
-                  <a key={ph} href={wa(ph, msg)} target="_blank" rel="noreferrer"
-                     onClick={() => setSent(s => ({ ...s, [v.name]: true }))}
-                     style={{ flex: "1 1 130px", textAlign: "center", background: done ? "none" : T.gold,
-                              color: done ? T.gold : "#fff", border: `1px solid ${T.gold}`,
-                              borderRadius: 9999, padding: "10px 12px", fontSize: 13.5, fontWeight: 700,
-                              textDecoration: "none", minHeight: 42, lineHeight: "22px" }} dir="ltr">
-                    {ph}
-                  </a>
-                ))}
+                {v.phones.map(ph => {
+                  const mob = isMobile(ph);
+                  return (
+                    <a key={ph} href={mob ? wa(ph, msg) : `tel:${ph.replace(/\D/g, "")}`}
+                       target={mob ? "_blank" : undefined} rel="noreferrer"
+                       onClick={() => setSent(s => ({ ...s, [v.name]: true }))}
+                       style={{ flex: "1 1 130px", textAlign: "center",
+                                background: done ? "none" : (mob ? T.gold : "none"),
+                                color: done ? T.gold : (mob ? "#fff" : T.olive),
+                                border: `1px solid ${mob ? T.gold : T.olive}`,
+                                borderRadius: 9999, padding: "10px 12px", fontSize: 13.5, fontWeight: 700,
+                                textDecoration: "none", minHeight: 42, lineHeight: "22px" }} dir="ltr">
+                      {mob ? "💬 " : "📞 "}{ph}
+                    </a>
+                  );
+                })}
               </div>
 
               <details style={{ marginTop: 10 }}>
@@ -115,7 +163,8 @@ export default function VenuesOutreach() {
 
         <p style={{ fontSize: 12, color: T.muted, textAlign: "center", marginTop: 22, lineHeight: 1.8 }}>
           כל מספר כאן הוא מספר עסקי פומבי, עם המקור שלו.<br />
-          אולם שלא נמצא לו מספר — לא מופיע עם ניחוש.
+          אולם שלא נמצא לו מספר — לא מופיע עם ניחוש.<br />
+          <strong>💬 נייד — נפתח בוואטסאפ עם ההודעה. 📞 מרכזייה — שיחה בלבד.</strong>
         </p>
       </div>
     </div>
