@@ -124,6 +124,11 @@ export interface Guest {
      settable from the guest list since 20/08. */
   do_not_contact?: boolean | null;
   do_not_contact_note?: string | null;
+  /* Declared in the RSVP form, or read out of a free-text WhatsApp reply by
+     detectRideIntent. /api/guests selects '*', so these were already arriving
+     and only the type did not say so — which is why no screen could use them. */
+  ride_from?: string | null;
+  ride_role?: 'seek' | 'offer' | string | null;
 }
 
 export type MealPreference = 'regular' | 'vegetarian' | 'vegan' | 'mehadrin';

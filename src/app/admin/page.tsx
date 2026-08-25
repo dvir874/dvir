@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Users, CheckCircle, Clock, XCircle, Search, Upload, Download,
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { Event, EventSummary, Forecast, Guest, GuestEvent, GuestStatus, HealthScore, EventStatus, ApprovalRequest } from "@/lib/types";
 import { EVENT_STATUS_LABEL, EVENT_STATUS_COLOR } from "@/lib/types";
+import { buildRideBoard } from "@/lib/rides";
 import { generateReminderRecommendations } from "@/lib/reminder-recommendations";
 import type { ReminderRecommendation } from "@/lib/reminder-recommendations";
 import { ACTION_LABEL } from "@/lib/reminder-recommendations";
@@ -1061,6 +1062,20 @@ export default function AdminPage() {
   }
 
   const selectedEvent = events.find((e) => e.id === selectedEventId);
+
+  /* Rides waiting to be introduced.
+   *
+   * The board, the area canonicalisation and the two consent messages have all
+   * existed at /couple/<token>/rides for a while, and nothing ever told anybody
+   * they were there: שחר has thirteen matches sitting on a page she has no
+   * reason to open. A feature nobody is told about is indistinguishable from
+   * one that was never built — the fourth time that has been true here, after
+   * the day-before template, the gallery switch and the referral survey.
+   *
+   * Computed from the guest list already in memory, so it costs no request.
+   * ride_from and ride_role were always in the response; only the type was
+   * silent about them. */
+  const rideBoard = useMemo(() => buildRideBoard(guests), [guests]);
   const insights  = generateInsights(guests, selectedEvent?.name ?? "האירוע", selectedEvent?.date);
   const forecast  = computeForecast(guests);
   const health    = guests.length > 0
@@ -1203,6 +1218,36 @@ export default function AdminPage() {
               </span>
             )}
           </a>
+          {/* Deliberately the same shape as the inbox badge: a number that
+              appears only when there is something to act on, and the areas
+              named on hover so "from where" needs no click. */}
+          {selectedEvent?.couple_token && rideBoard.matches.length > 0 && (
+            <a
+              href={`/couple/${selectedEvent.couple_token}/rides`}
+              target="_blank" rel="noreferrer"
+              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all hover:opacity-80"
+              style={{ background: "rgba(197,164,109,0.22)", color: "#8B6914" }}
+            >
+              🚗 לוח טרמפים
+              <span
+                title={
+                  `${rideBoard.matches.length} התאמות · ` +
+                  rideBoard.areas
+                    .filter(a => a.seekers.length > 0 && a.drivers.length > 0)
+                    .map(a => `${a.area}: ${a.seekers.length} מחפשים, ${a.drivers.length} מציעים`)
+                    .join(" · ")
+                }
+                style={{
+                  background: "#B4453C", color: "white", borderRadius: 99,
+                  minWidth: 18, height: 18, display: "inline-flex",
+                  alignItems: "center", justifyContent: "center",
+                  fontSize: 12, fontWeight: 700, padding: "0 5px",
+                }}
+              >
+                {rideBoard.matches.length}
+              </span>
+            </a>
+          )}
           <a
             href="/admin/quote"
             className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
