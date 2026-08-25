@@ -814,6 +814,45 @@ async function runSend(req: NextRequest) {
     { cap, tier: health.tier, quality: health.quality, posture: health.posture,
       window_used: usage.recipients });
 
+  /* The thank-you, second — and it has to be here rather than at the bottom.
+   *
+   * It used to live inside `if (!targets.length)`, which reads as "send it when
+   * there is nothing better to do" and behaves as "never send it". A run
+   * selects the nearest wedding with anyone eligible, and one eligible guest
+   * anywhere is enough to skip this block entirely. On 25/08 that was exactly
+   * the state: Dvir's wedding was the day before, 192 guests had asked for the
+   * photos, and שחר, תהל and לאל וטל each had someone eligible — so the flag
+   * could have been switched on and nothing would have gone out, for days.
+   *
+   * The message is worth the most in the hours after a wedding, when the photos
+   * are still on everyone's phone, and worth steadily less every day after. It
+   * cannot wait behind an invitation for a wedding a month away.
+   *
+   * Still capped, for the reason the old comment gave: a wedding with 555 of
+   * these would otherwise take four consecutive days of quota and stop another
+   * couple's invitations. Sixty a run clears 192 in four runs and leaves the
+   * rest of every run to the invitations.
+   *
+   * Gated on gallery_ready, which only Dvir can set, so this sends nothing
+   * until he says the photos are actually up. */
+  const gallery = await notifyGallery(sb, cfg, Math.max(1, Math.min(60, budget)));
+  if (gallery.sent) {
+    budget = Math.max(0, budget - gallery.sent);
+    try {
+      const to = process.env.ADMIN_ALERT_PHONE;
+      if (to) await sendRunSummary(cfg, to, {
+        event: gallery.event ?? "", sent: String(gallery.sent), failed: "0",
+        left: String(Math.max(0, cap - usage.recipients - gallery.sent)),
+        attention: "📸 סבב התודה והתמונות יצא לאורחים",
+      });
+    } catch { /* an alert must never cost a send */ }
+    return record(sb, {
+      sent: gallery.sent, reason: "gallery_notified", healed,
+      galleryEvent: gallery.event, cap,
+    }, { cap, tier: health.tier, quality: health.quality,
+         posture: health.posture, window_used: usage.recipients });
+  }
+
   /* An event with no card of its own is skipped, never sent with someone
      else's. Reported, so a missing image surfaces instead of looking like a
      quiet day. */
@@ -1480,43 +1519,6 @@ async function runSend(req: NextRequest) {
     }
   }
 
-  /* Nobody left to invite or remind is exactly when the gallery announcement
-     should go out — same budget, same pacing, same caps. */
-  if (!targets.length) {
-    /* A ceiling, so the thank-you does not silently starve the invitations.
-     *
-     * notifyGallery returns early when it sends, taking the entire run with
-     * it. That was harmless while wants_photos was a checkbox some guests
-     * unticked; it stopped being harmless when the gallery became automatic
-     * and every guest qualified. שחר has 555 of them — four consecutive days
-     * of full quota — and תהל ואביב's invitations would have gone out in
-     * none of those days, thirteen days before their own wedding.
-     *
-     * A third of the run, capped at sixty. The gallery still clears in a few
-     * days, and no couple's invitations stop while another couple's guests
-     * are being thanked. */
-    const galleryBudget = Math.max(1, Math.min(60, Math.floor(budget / 3)));
-    const gal = await notifyGallery(sb, cfg, galleryBudget);
-    if (gal.sent) {
-      /* The thank-you round, the morning after. Same reasoning as the other
-         milestones: worth a message because it is the moment he tells a couple
-         their gallery is live, and he should not have to check for it. */
-      try {
-        const to = process.env.ADMIN_ALERT_PHONE;
-        if (to) await sendRunSummary(cfg, to, {
-          event: gal.event ?? "", sent: String(gal.sent), failed: "0",
-          left: String(Math.max(0, cap - usage.recipients - gal.sent)),
-          attention: "📸 סבב התודה והגלריה יצא לאורחים",
-        });
-      } catch { /* an alert must never cost a run */ }
-
-      return record(sb, {
-        sent: gal.sent, reason: "gallery_notified", healed, statusesApplied,
-        galleryEvent: gal.event,
-      }, { event_id: ev.id, cap, tier: health.tier, quality: health.quality,
-           posture: health.posture, window_used: usage.recipients });
-    }
-  }
   if (!targets.length) {
     /* A run that chose a wedding and then had nobody to message.
      *
