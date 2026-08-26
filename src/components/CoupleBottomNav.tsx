@@ -46,7 +46,9 @@ function getSheetItems(token: string): SheetItem[] {
     { emoji: "💰",  label: "תקציב",             href: `/couple/${token}/budget`  },
     { emoji: "🎁",  label: "מתנות",             href: `/couple/${token}/gifts`   },
     { emoji: "🤝",  label: "ספקים",             href: `/couple/${token}/vendors` },
-    { emoji: "🚗",  label: "לוח טרמפים",        href: `/couple/${token}/rides`   },
+    /* לוח הטרמפים ירד מכאן ב-26/08. חיבור בין שני אורחים הוא שיקול על אנשים
+       שדביר מכיר, והוא ביקש שזה יהיה שלו — ולא כפתור שזוג לוחץ עליו בחצות על
+       מישהו שהוא בקושי זוכר. הלוח נמצא ב-/admin/rides. */
     { emoji: "🍽️", label: "דוח מנות לאולם",    href: `/couple/${token}/venue-report` },
     { emoji: "📸",  label: "גלריית תמונות",     href: `/gallery/${token}`        },
     { emoji: "🗺️", label: "המסע שלכם",          href: `/couple/${token}/journey` },

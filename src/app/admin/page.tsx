@@ -1221,9 +1221,9 @@ export default function AdminPage() {
           {/* Deliberately the same shape as the inbox badge: a number that
               appears only when there is something to act on, and the areas
               named on hover so "from where" needs no click. */}
-          {selectedEvent?.couple_token && rideBoard.matches.length > 0 && (
+          {selectedEventId && rideBoard.matches.length > 0 && (
             <a
-              href={`/couple/${selectedEvent.couple_token}/rides`}
+              href={`/admin/rides?event=${selectedEventId}`}
               target="_blank" rel="noreferrer"
               className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all hover:opacity-80"
               style={{ background: "rgba(197,164,109,0.22)", color: "#8B6914" }}
