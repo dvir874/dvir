@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isEligibleNow, cooldownHours, FIRST_CONTACT_COOLDOWN_H, REMINDER_COOLDOWN_H } from "./eligibility.ts";
+import { isEligibleNow, cooldownHours, FIRST_CONTACT_COOLDOWN_H, REMINDER_COOLDOWN_H,
+         MAX_REMINDERS_PER_GUEST } from "./eligibility.ts";
 
 const NOW = Date.parse("2026-08-18T21:00:00.000Z");
 const hoursAgo = (h: number) => new Date(NOW - h * 3_600_000).toISOString();
@@ -10,7 +11,7 @@ test("never messaged — always eligible", () => {
   assert.equal(isEligibleNow({ delivered: true, lastOutboundAt: null }, NOW), true);
 });
 
-test("the two floors are 24 and 72, and they apply to different people", () => {
+test("the two floors are 24 and 120, and they apply to different people", () => {
   assert.equal(cooldownHours({ delivered: false, lastOutboundAt: null }), FIRST_CONTACT_COOLDOWN_H);
   assert.equal(cooldownHours({ delivered: true, lastOutboundAt: null }), REMINDER_COOLDOWN_H);
 });
@@ -27,8 +28,31 @@ test("the thirty-hour guest — the exact case that lost an evening", () => {
 test("boundaries", () => {
   assert.equal(isEligibleNow({ delivered: false, lastOutboundAt: hoursAgo(23) }, NOW), false);
   assert.equal(isEligibleNow({ delivered: false, lastOutboundAt: hoursAgo(25) }, NOW), true);
-  assert.equal(isEligibleNow({ delivered: true,  lastOutboundAt: hoursAgo(71) }, NOW), false);
-  assert.equal(isEligibleNow({ delivered: true,  lastOutboundAt: hoursAgo(73) }, NOW), true);
+  /* 120 since 26/08, not 72 — a second reminder three days after the first
+     arrived while the first was still being ignored. */
+  assert.equal(isEligibleNow({ delivered: true,  lastOutboundAt: hoursAgo(119) }, NOW), false);
+  assert.equal(isEligibleNow({ delivered: true,  lastOutboundAt: hoursAgo(121) }, NOW), true);
+});
+
+test("two reminders is the limit, and it applies to nobody else", () => {
+  /* Measured over 1,000 sent: reminders one and two produced 276 of 312
+     answers. The third onwards is a message to somebody who has ignored two,
+     and it costs a slot in a 250-a-day ceiling another wedding is waiting on. */
+  const old = { delivered: true, lastOutboundAt: hoursAgo(200) };
+  assert.equal(isEligibleNow({ ...old, remindersSent: 1 }, NOW), true);
+  assert.equal(isEligibleNow({ ...old, remindersSent: MAX_REMINDERS_PER_GUEST }, NOW), false);
+  assert.equal(isEligibleNow({ ...old, remindersSent: 9 }, NOW), false);
+
+  /* Omitted means not counted — every caller that has not been taught to count
+     keeps the behaviour it had. */
+  assert.equal(isEligibleNow(old, NOW), true);
+
+  /* A guest nothing ever reached is not "reminded", however many attempts
+     failed, and must stay reachable. */
+  assert.equal(
+    isEligibleNow({ delivered: false, lastOutboundAt: hoursAgo(200), remindersSent: 9 }, NOW),
+    true,
+  );
 });
 
 test("a failed send still counts as contact", () => {

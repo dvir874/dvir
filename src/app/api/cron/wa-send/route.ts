@@ -1154,13 +1154,23 @@ async function runSend(req: NextRequest) {
      attempt describes where things actually stand. */
   const lastByGuest = new Map<string,
     { at: string; status: string; code: number | null; err: string | null }>();
+  /* Reminders already sent, for the cap in lib/eligibility.
+   *
+   * There is no per-message type column; the sender writes a Hebrew label into
+   * body at send time, and that label is the only record of what a message
+   * was. Counting it here is reading what happened rather than reconstructing
+   * it from configuration that may since have changed. */
+  const remindersByGuest = new Map<string, number>();
   for (let i = 0; i < ids.length; i += 100) {
     const slice = ids.slice(i, i + 100);
     const { data } = await sb.from("wa_messages")
-      .select("guest_id, status, error_code, error, created_at")
+      .select("guest_id, status, error_code, error, created_at, body")
       .eq("direction", "out").in("guest_id", slice);
     (data ?? []).forEach(m => {
       if (!m.guest_id) return;
+      if (String(m.body ?? "").includes("תזכורת")) {
+        remindersByGuest.set(m.guest_id, (remindersByGuest.get(m.guest_id) ?? 0) + 1);
+      }
       if (["delivered", "read"].includes(m.status)) {
         contacted.add(m.guest_id);
         /* EARLIEST arrival, not latest. See the reminder ordering below. */
@@ -1295,6 +1305,10 @@ async function runSend(req: NextRequest) {
   const mayMessage = (id: string) => isEligibleNow({
     delivered: contacted.has(id),
     lastOutboundAt: lastByGuest.get(id)?.at ?? null,
+    /* Two reminders and no more — see MAX_REMINDERS_PER_GUEST. Passed only
+       here, where a reminder is what would be sent; the first-contact groups
+       must stay uncapped. */
+    remindersSent: remindersByGuest.get(id) ?? 0,
   });
 
   /* ---- 1. no evidence the invitation ever arrived ---- */
