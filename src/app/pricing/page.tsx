@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { BASE_PRICE, FULL_PACKAGE_PRICE, ADDONS, BASE_LABEL, digitalAddonEntries } from "@/lib/pricing";
+import { BASE_PRICE, FULL_PACKAGE_PRICE, ADDONS, BASE_LABEL, digitalAddonEntries, SIZE_TIERS } from "@/lib/pricing";
 
 const C = {
   ivory:   "#FDFAF5",
@@ -83,6 +83,13 @@ export default function PricingCalculatorPage() {
             <div>
               <p style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>חבילת הבסיס</p>
               <p style={{ fontSize: 12, color: C.muted, margin: "4px 0 0" }}>תמיד כלולה — וכוללת הרבה יותר ממה שנשמע</p>
+              {/* The price is per size and always was; the page just never said
+                  so, and quoted the smallest tier to everybody. A caption on the
+                  card Dvir already has, not a new control — a size selector is a
+                  design decision and CLAUDE.md forbids inventing one. */}
+              <p style={{ fontSize: 11.5, color: C.muted, margin: "6px 0 0", lineHeight: 1.7 }}>
+                {SIZE_TIERS.map(t => `${t.label} — ₪${t.base}`).join(" · ")}
+              </p>
             </div>
             <span style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: 26, fontWeight: 900, color: C.goldT, flexShrink: 0 }}>₪{BASE_PRICE}</span>
           </div>

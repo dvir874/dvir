@@ -23,6 +23,46 @@ export const DEPOSIT_AMOUNT = 100;
  * חדש בדף התמחור הוא אלמנט עיצובי, ו-CLAUDE.md אוסר להמציא עיצוב. */
 export const MANAGED_PRICE = 549;
 
+/* Price by size, because until now there was none.
+ *
+ * BASE_PRICE was one number for every wedding, so /pricing quoted 249₪ to a
+ * 500-guest event and to a 100-guest one alike. Every client so far has been
+ * 260–370 guests and the gap never showed; the first 500-guest enquiry — a
+ * friend of Dvir's, 15/12 — would have read 249₪ off the site before he
+ * answered.
+ *
+ * The tiers sit where the market sits, measured 26/08 from published price
+ * lists. At 500 records DigiNet charges ₪519 for automated WhatsApp with no
+ * human in it, and ₪1,049 for the same plus three rounds of phone calls;
+ * מגיעים או לא charges ₪2 a guest with a call centre and publishes nothing
+ * above 450. רגע לפני is above the first and below the second, and the
+ * managed numbers say so.
+ *
+ * A record is a phone number, not a person: one invitation to a couple is one
+ * record, which is how every competitor counts and how the sender bills. */
+export interface SizeTier {
+  /** Inclusive upper bound on records. */
+  upTo: number;
+  label: string;
+  /** Self-serve: they upload, the system sends, nobody's hours are spent. */
+  base: number;
+  /** Dvir in it — setup, list repair, guest questions, the numbers Meta refuses. */
+  managed: number;
+}
+
+export const SIZE_TIERS: SizeTier[] = [
+  { upTo: 250, label: "עד 250 מוזמנים", base: BASE_PRICE, managed: MANAGED_PRICE },
+  { upTo: 400, label: "251–400",        base: 399,        managed: 649 },
+  { upTo: 600, label: "401–600",        base: 549,        managed: 750 },
+];
+
+/** The tier a guest count falls into. Above the largest tier is a quote, not a
+    price — 600+ is a different conversation and pretending otherwise is how
+    the single-number mistake happened in the first place. */
+export function tierFor(records: number): SizeTier | null {
+  return SIZE_TIERS.find(t => records <= t.upTo) ?? null;
+}
+
 export interface Addon {
   label: string;
   price: number;          // 0 = free
