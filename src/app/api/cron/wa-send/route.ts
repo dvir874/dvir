@@ -54,6 +54,10 @@ const MAX_EVENTS_PER_RUN = 3;
    wedding in six runs — one day — without ever taking a run whole. */
 const RIDES_GROUP_PER_RUN = 60;
 
+/* The thank-you: ceiling, and the room left behind it for invitations. */
+const GALLERY_PER_RUN = 150;
+const GALLERY_RESERVE = 30;
+
 /* Israel is UTC+3 in August. Nothing goes out before 09:00 local — a wedding
    invitation arriving at 04:00 gets reported, and reports are what restricted
    this number in the first place.
@@ -915,12 +919,24 @@ async function runSend(req: NextRequest) {
    *
    * Still capped, for the reason the old comment gave: a wedding with 555 of
    * these would otherwise take four consecutive days of quota and stop another
-   * couple's invitations. Sixty a run clears 192 in four runs and leaves the
-   * rest of every run to the invitations.
+   * couple's invitations.
+   *
+   * The number moved from sixty to a hundred and fifty on 27/08, with a
+   * reserve replacing the flat ceiling as the actual protection. Sixty was
+   * measured against nothing: it cleared 195 in four runs, so the last guest
+   * heard at 21:30 instead of 16:00, and this is the one message whose value
+   * decays by the hour — a guest asked for photos the day after still has them
+   * open on their phone, and one asked at midnight has moved on.
+   *
+   * A reserve says what the ceiling was trying to say and says it honestly:
+   * leave room for the invitations, take the rest. Thirty is more than the
+   * uninvited backlog has been on any day this month, and at a full 250-budget
+   * a 555-guest gallery is still held to 150, leaving a hundred behind it.
    *
    * Gated on gallery_ready, which only Dvir can set, so this sends nothing
    * until he says the photos are actually up. */
-  const gallery = await notifyGallery(sb, cfg, Math.max(1, Math.min(60, budget)));
+  const gallery = await notifyGallery(sb, cfg,
+    Math.max(1, Math.min(GALLERY_PER_RUN, budget - GALLERY_RESERVE)));
   if (gallery.sent) {
     budget = Math.max(0, budget - gallery.sent);
     try {
