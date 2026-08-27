@@ -286,6 +286,74 @@ export async function sendPhotosUploadRequest(
   }
 }
 
+/* The rides group.
+ *
+ * A guest with no way of getting there is a guest who has not answered, and
+ * שחר worked that out before we did — asked for a link to a lift group in the
+ * message, and opened the group herself when it could not go in one.
+ *
+ * MARKETING, and Meta was right about that: a group invitation is not a
+ * follow-up to anything the guest did. It costs 6.6× a utility message, which
+ * is ~44₪ for a 334-guest wedding — worth it once, and worth designing away
+ * for the next couple, where the link rides inside the invitation that was
+ * going out regardless.
+ *
+ * The button carries the guest's own rsvp_token rather than the group link:
+ * Meta refuses chat.whatsapp.com in a button outright (2388273), and routing
+ * through /rides/<token> means the tap is countable and has a name on it.
+ *
+ * Everyone invited, not only those who confirmed. That is the whole point —
+ * the person still deciding is the one the group might decide for. */
+export async function sendRidesGroup(
+  cfg: WhatsAppConfig, phone: string, couple: string, rsvpToken: string,
+): Promise<SendResult> {
+  const to = toE164(phone);
+  if (!to) return { ok: false, error: "מספר לא תקין" };
+  if (!couple.trim() || !rsvpToken.trim())
+    return { ok: false, error: "חסר שם הזוג או טוקן אורח" };
+
+  await pace();
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/${API_VERSION}/${cfg.phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${cfg.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(20_000),
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to,
+          type: "template",
+          template: {
+            name: cfg.ridesGroupTemplateName,
+            language: { code: cfg.templateLang },
+            components: [
+              { type: "body", parameters: [{ type: "text", text: couple }] },
+              {
+                type: "button", sub_type: "url", index: "0",
+                parameters: [{ type: "text", text: rsvpToken }],
+              },
+            ],
+          },
+        }),
+      },
+    );
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: json?.error?.error_user_msg ?? json?.error?.message ?? `HTTP ${res.status}`,
+      };
+    }
+    return { ok: true, messageId: json?.messages?.[0]?.id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "network error" };
+  }
+}
+
 /* "מחר מתחתנים" — the morning before.
  *
    wedding_tomorrow_reminder has been approved at Meta the whole time and
@@ -815,6 +883,7 @@ export interface WhatsAppConfig {
   /** Approved UTILITY template announcing the photo gallery */
   galleryTemplateName: string;
   photosUploadTemplateName: string;
+  ridesGroupTemplateName: string;
   dayBeforeTemplateName: string;
 }
 
@@ -872,6 +941,8 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
     galleryTemplateName: process.env.WHATSAPP_TEMPLATE_GALLERY ?? "wedding_gallery_ready_regalifnei",
     photosUploadTemplateName:
       process.env.WHATSAPP_TEMPLATE_PHOTOS_UPLOAD ?? "wedding_photos_upload_request",
+    ridesGroupTemplateName:
+      process.env.WHATSAPP_TEMPLATE_RIDES_GROUP ?? "wedding_rides_group_v1",
     dayBeforeTemplateName:
       process.env.WHATSAPP_TEMPLATE_DAY_BEFORE ?? "wedding_tomorrow_reminder",
     templateLang: process.env.WHATSAPP_TEMPLATE_LANG ?? "he",

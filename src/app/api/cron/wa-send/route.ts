@@ -9,8 +9,7 @@ import { weddingDateLine } from "@/lib/hebrew-date";
 import {
   getWhatsAppConfig, sendInvitation, toE164, policyFor,
   rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY,
-  fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendDayBefore, sendRunSummary,
-} from "@/lib/whatsapp";
+  fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendDayBefore, sendRunSummary, sendRidesGroup } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 /* Five minutes, so a run can reach the daily cap instead of a fifth of it.
@@ -51,6 +50,9 @@ export const maxDuration = 300;
    would never go out on their own, no matter how correctly everything else
    behaved. */
 const MAX_EVENTS_PER_RUN = 3;
+/* Ceiling per run for the rides-group message. Sixty clears a 334-guest
+   wedding in six runs — one day — without ever taking a run whole. */
+const RIDES_GROUP_PER_RUN = 60;
 
 /* Israel is UTC+3 in August. Nothing goes out before 09:00 local — a wedding
    invitation arriving at 04:00 gets reported, and reports are what restricted
@@ -297,6 +299,89 @@ async function sendDailyDigest(
       attention: `אישרו עד כה: ${confirmed} מתוך ${real.length} · אפשר להעביר לזוג כמו שזה`,
     });
   }
+}
+
+/* The rides group, once per guest per wedding.
+ *
+ * Placed after the gallery and before event selection, and deliberately NOT
+ * returning the run: the gallery takes a whole run because it is a burst that
+ * clears in four, while this one competes with invitations that are still
+ * going out — לאל וטל had forty guests with nothing at all the day this was
+ * written. It takes its ceiling off the top and leaves the rest.
+ *
+ * Gated on rides_group_url, which only Dvir sets and which the events API
+ * validates as a real invite link. No link, no send, no error — a wedding
+ * without a group simply never enters this.
+ *
+ * Deduplicated through guest_events like every other milestone, so a guest
+ * added tomorrow is picked up on their own and nobody is messaged twice. */
+async function notifyRidesGroup(
+  sb: ReturnType<typeof createServerClient>,
+  cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+  budget: number,
+): Promise<{ sent: number; event?: string }> {
+  if (budget <= 0) return { sent: 0 };
+  const today = new Date().toISOString().slice(0, 10);
+  const nowMs = Date.now();
+
+  const { data: evs } = await sb.from("events")
+    .select("id, name, couple_names, rides_group_url, send_paused_until")
+    .gte("date", today).not("rides_group_url", "is", null).order("date").limit(5);
+
+  for (const ev of evs ?? []) {
+    if (!(ev.rides_group_url as string | null)?.trim()) continue;
+    if (ev.send_paused_until
+        && new Date(ev.send_paused_until as string).getTime() > nowMs) continue;
+    const couple = coupleName(ev);
+    if (!couple) continue;
+
+    const { data: guests } = await sb.from("guests")
+      .select("id, phone, rsvp_token, category, do_not_contact")
+      .eq("event_id", ev.id);
+    const eligible = (guests ?? []).filter(g =>
+      g.category !== "demo" && String(g.phone ?? "").trim()
+      && g.rsvp_token && !g.do_not_contact);
+    if (!eligible.length) continue;
+
+    const ids = eligible.map(g => g.id as string);
+    const already = new Set<string>();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data } = await sb.from("guest_events")
+        .select("guest_id").eq("event_type", "rides_group_sent")
+        .in("guest_id", ids.slice(i, i + 100));
+      (data ?? []).forEach(r => r.guest_id && already.add(r.guest_id as string));
+    }
+
+    const todo = eligible.filter(g => !already.has(g.id as string))
+      .slice(0, Math.min(RIDES_GROUP_PER_RUN, budget));
+    if (!todo.length) continue;
+
+    let sent = 0;
+    for (let i = 0; i < todo.length; i += SEND_CONCURRENCY) {
+      const batch = await Promise.all(
+        todo.slice(i, i + SEND_CONCURRENCY).map(async g => ({
+          g, res: await sendRidesGroup(cfg, g.phone as string, couple,
+                                       g.rsvp_token as string),
+        })),
+      );
+      for (const { g, res } of batch) {
+        if (!res.ok) continue;
+        sent++;
+        await sb.from("guest_events")
+          .insert({ guest_id: g.id, event_type: "rides_group_sent" });
+        if (res.messageId) {
+          await sb.from("wa_messages").insert({
+            event_id: ev.id, guest_id: g.id,
+            wa_phone: toE164(g.phone as string) ?? "",
+            direction: "out", body: "קבוצת טרמפים (תבנית)",
+            wamid: res.messageId, status: "accepted",
+          });
+        }
+      }
+    }
+    if (sent) return { sent, event: ev.name as string };
+  }
+  return { sent: 0 };
 }
 
 async function notifyDayBefore(
@@ -852,6 +937,14 @@ async function runSend(req: NextRequest) {
     }, { cap, tier: health.tier, quality: health.quality,
          posture: health.posture, window_used: usage.recipients });
   }
+
+  const rides = await notifyRidesGroup(sb, cfg, budget);
+  budget = Math.max(0, budget - rides.sent);
+  if (!budget) return record(sb, {
+    sent: rides.sent, reason: "rides_group_only", healed, cap,
+    ridesEvent: rides.event,
+  }, { cap, tier: health.tier, quality: health.quality,
+       posture: health.posture, window_used: usage.recipients });
 
   /* An event with no card of its own is skipped, never sent with someone
      else's. Reported, so a missing image surfaces instead of looking like a

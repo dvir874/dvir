@@ -1552,6 +1552,37 @@ export default function AdminPage() {
                     style={{ color: C.dark, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
                     ⭐ בקש משוב מהזוג
                   </button>
+                  {/* קבוצת הטרמפים.
+                      נפתחת לפני שההזמנות יוצאות, כי תבנית ההזמנה מטמיעה את
+                      הקישור בגוף ההודעה — כך כל אורח רואה אותה מהרגע הראשון
+                      במקום שנרדוף אחריה בדיעבד, כמו שקרה אצל שחר. */}
+                  <button onClick={async () => {
+                    if (!selectedEventId) return;
+                    const cur = (selectedEvent as { rides_group_url?: string | null })?.rides_group_url ?? "";
+                    const val = prompt(
+                      "קישור לקבוצת הטרמפים של האירוע:\n\n" +
+                      "פותחים קבוצת וואטסאפ, מעתיקים ממנה קישור הזמנה, ומדביקים כאן.\n" +
+                      "להשאיר ריק כדי לבטל.",
+                      cur,
+                    );
+                    if (val === null) return;
+                    try {
+                      const res = await fetch(`/api/events/${selectedEventId}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ rides_group_url: val.trim() }),
+                      });
+                      const d = await res.json();
+                      alert(res.ok
+                        ? (val.trim() ? "✅ נשמר. ההזמנות יכללו את הקישור." : "✅ הקישור הוסר.")
+                        : `לא נשמר: ${d.error ?? res.status}`);
+                    } catch { alert("לא הצלחנו לשמור"); }
+                    setShowCoupleMenu(false);
+                  }}
+                    className="flex items-center gap-2 w-full px-4 py-3 text-xs hover:bg-amber-50 transition-colors"
+                    style={{ color: C.dark, fontFamily: "Heebo, sans-serif", background: "none", border: "none", cursor: "pointer" }}>
+                    🚗 קבוצת טרמפים
+                  </button>
                   {selectedEvent?.couple_token && (
                     <button onClick={async () => {
                       const phone = selectedEvent?.client_phone?.replace(/[^0-9]/g, "").replace(/^0/, "972") ?? "";

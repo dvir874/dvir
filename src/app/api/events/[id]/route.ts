@@ -25,7 +25,7 @@ export async function PATCH(
   if (!id) return NextResponse.json({ error: 'Missing event id' }, { status: 400 });
 
   const body = await req.json();
-  const allowed = ['name', 'date', 'address', 'theme', 'bit_phone', 'notes', 'client_name', 'client_phone', 'client_email', 'venue_name', 'dress_code', 'parking_info', 'greeting', 'mood_palette', 'mood_style', 'mood_vision', 'partner1_name', 'partner2_name', 'payment_status', 'payment_amount', 'payment_date', 'rsvp_deadline', 'service_steps', 'event_timeline', 'mini_site_enabled', 'mini_site_hero_path', 'slug', 'send_paused_until'];
+  const allowed = ['name', 'date', 'address', 'theme', 'bit_phone', 'notes', 'client_name', 'client_phone', 'client_email', 'venue_name', 'dress_code', 'parking_info', 'greeting', 'mood_palette', 'mood_style', 'mood_vision', 'partner1_name', 'partner2_name', 'payment_status', 'payment_amount', 'payment_date', 'rsvp_deadline', 'service_steps', 'event_timeline', 'mini_site_enabled', 'mini_site_hero_path', 'slug', 'send_paused_until', 'rides_group_url'];
   const update: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) update[key] = body[key];
@@ -37,6 +37,28 @@ export async function PATCH(
      14/08 for holding one wedding while another's invitations go out, and until
      now had no writer at all, so nothing had ever validated it. Only a real
      timestamp or null (= resume sending) gets through. */
+  /* The rides group link, which the invitation template embeds.
+   *
+   * Validated rather than trusted, for the same reason send_paused_until is:
+   * this value is pasted into a message that goes to every guest of a wedding,
+   * and a typo is not a broken link on a screen somebody checks — it is 500
+   * people tapping through to nothing. Only a real WhatsApp invite, or empty
+   * to clear it. */
+  if ('rides_group_url' in update) {
+    const raw = update.rides_group_url;
+    if (raw === null || raw === '') {
+      update.rides_group_url = null;
+    } else if (typeof raw === 'string'
+               && /^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]{10,}$/.test(raw.trim())) {
+      update.rides_group_url = raw.trim();
+    } else {
+      return NextResponse.json(
+        { error: 'rides_group_url must be a https://chat.whatsapp.com/... invite link, or empty' },
+        { status: 400 },
+      );
+    }
+  }
+
   if ('send_paused_until' in update) {
     const raw = update.send_paused_until;
     if (raw === null || raw === '') {
