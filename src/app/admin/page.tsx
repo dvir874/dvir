@@ -5,7 +5,7 @@ import {
   Users, CheckCircle, Clock, XCircle, Search, Upload, Download,
   Trash2, Copy, MessageCircle, ChevronLeft, ChevronRight,
   Loader2, Plus, ExternalLink, RefreshCw, Percent, Zap,
-  Send, AlertTriangle, Smartphone, Bell, Wand2, Palette,
+  Send, AlertTriangle, Smartphone, Bell, Wand2, Palette, Car,
   LayoutDashboard, CalendarDays, BarChart3, Sparkles, Eye,
   History, LifeBuoy, Inbox, Armchair, MapPin, ArrowLeft, Heart,
 } from "lucide-react";
@@ -1126,6 +1126,8 @@ export default function AdminPage() {
       pendingCount={pending}
       recCount={generateReminderRecommendations(overview).length}
       onCreate={() => setShowCreate(true)}
+      eventId={selectedEventId ?? null}
+      rideMatches={rideBoard.matches.length}
     />
     <div className="min-h-screen md:mr-[260px]" style={{ background: C.cream, fontFamily: "Heebo, sans-serif" }}>
       {/* ── Top bar ─────────────────────────────────── */}
@@ -3886,13 +3888,16 @@ export default function AdminPage() {
 
 /* ── Admin Sidebar — Stitch dashboard shell (desktop) ── */
 function AdminSidebar({
-  activeTab, setActiveTab, pendingCount, recCount, onCreate,
+  activeTab, setActiveTab, pendingCount, recCount, onCreate, eventId, rideMatches,
 }: {
   activeTab: Tab;
   setActiveTab: (t: Tab) => void;
   pendingCount: number;
   recCount: number;
   onCreate: () => void;
+  /* The board is per wedding, so the link has to carry which one. */
+  eventId: string | null;
+  rideMatches: number;
 }) {
   const SC = {
     bg:        "#586151",              // secondary — matches approved Stitch render
@@ -3920,6 +3925,13 @@ function AdminSidebar({
       { id: "messages",        label: "מי לא קיבל",  icon: <AlertTriangle size={20} />, href: "/admin/delivery" },
       /* The fallback channel, on the phone rather than in a file on a Mac. */
       { id: "messages",        label: "שליחה ב-SMS", icon: <Smartphone size={20} />, href: "/admin/sms" },
+      /* The rides board, which lived on the couple's dashboard until Dvir asked
+         for the matchmaking to be his. It was reachable only from a badge that
+         appears when there are matches — which is the same trap as every other
+         screen in this menu: findable exactly when you already knew to look. */
+      { id: "messages",        label: "לוח טרמפים",  icon: <Car size={20} />,
+        href: eventId ? `/admin/rides?event=${eventId}` : "/admin/rides",
+        badge: rideMatches || undefined },
       /* Did this wedding make money. The system could account for every
          message and not for a single shekel; asked what שחר earned, nothing
          in it knew. */
