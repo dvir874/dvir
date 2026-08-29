@@ -5,7 +5,7 @@ import {
   Users, CheckCircle, Clock, XCircle, Search, Upload, Download,
   Trash2, Copy, MessageCircle, ChevronLeft, ChevronRight,
   Loader2, Plus, ExternalLink, RefreshCw, Percent, Zap,
-  Send, AlertTriangle, Smartphone, Bell, Wand2, Palette, Car,
+  Send, AlertTriangle, Smartphone, Bell, Wand2, Palette, Car, Image, QrCode, Building2, FileUp,
   LayoutDashboard, CalendarDays, BarChart3, Sparkles, Eye,
   History, LifeBuoy, Inbox, Armchair, MapPin, ArrowLeft, Heart,
 } from "lucide-react";
@@ -3975,6 +3975,12 @@ function AdminSidebar({
       { id: "guests",         label: "אורחים",      icon: <Users size={20} /> },
       { id: "calendar",       label: "לוח שנה",     icon: <CalendarDays size={20} /> },
       { id: "analytics",      label: "אנליטיקה",    icon: <BarChart3 size={20} /> },
+      /* Five screens were reachable only by typing their URL, which this menu's
+         own comments already call "the same as not existing". This one is the
+         sharpest of them: without an invitation image the sender refuses the
+         whole event, and ירון ואיילת has none. */
+      { id: "guests",         label: "תמונת הזמנה", icon: <Image size={20} />, href: "/admin/event-image" },
+      { id: "guests",         label: "ייבוא אורחים", icon: <FileUp size={20} />, href: "/admin/guests-import" },
     ] },
     { title: "תקשורת", items: [
       { id: "messages",        label: "WhatsApp",    icon: <MessageCircle size={20} /> },
@@ -4004,6 +4010,14 @@ function AdminSidebar({
       { id: "analytics",       label: "רווחיות",     icon: <BarChart3 size={20} />, href: "/admin/profit" },
       { id: "reminders",       label: "תזכורות",     icon: <Bell size={20} />, badge: pendingCount },
       { id: "recommendations", label: "מרכז המלצות", icon: <Sparkles size={20} />, badge: recCount },
+      /* Sending to one guest by hand — the 29 Meta refuses, and anyone who
+         needs a nudge that is not a template. */
+      { id: "messages",        label: "שליחה ידנית", icon: <Send size={20} />, href: "/admin/whatsapp" },
+      /* The QR and upload links a couple puts on a table at the wedding. */
+      { id: "messages",        label: "QR לאורחים",  icon: <QrCode size={20} />, href: "/admin/memory" },
+      /* One tap per venue. A hall does 40-60 weddings a year and this page had
+         no way in at all. */
+      { id: "analytics",       label: "פנייה לאולמות", icon: <Building2 size={20} />, href: "/admin/venues-outreach" },
     ] },
     { title: "מעקב", items: [
       { id: "couple-view",   label: "מבט הזוג",     icon: <Eye size={20} /> },
