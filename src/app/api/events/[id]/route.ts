@@ -50,7 +50,35 @@ export async function PATCH(
       update.rides_group_url = null;
     } else if (typeof raw === 'string'
                && /^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]{10,}$/.test(raw.trim())) {
-      update.rides_group_url = raw.trim();
+      /* Shape is not enough. A link can be perfectly formed and lead nowhere,
+       * and on 30/08 one did: a capital I read as a lowercase l off a
+       * screenshot, saved, and put in front of 175 of שחר's guests before
+       * anybody found out. The couple was told her group link had been reset.
+       * It had not.
+       *
+       * WhatsApp answers an invite it recognises with the group's name in
+       * og:title, and answers a dead one with that field empty. So the link is
+       * asked whether it is real before it is stored — one request, once, at
+       * the only moment it is cheap to be wrong. */
+      const link = raw.trim();
+      try {
+        const probe = await fetch(link, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)' },
+          signal: AbortSignal.timeout(8_000),
+        });
+        const html = await probe.text();
+        const title = html.match(/property="og:title" content="([^"]*)"/)?.[1] ?? '';
+        if (!title.trim()) {
+          return NextResponse.json({
+            error: 'הקישור תקין בצורתו אבל וואטסאפ לא מזהה אותו כקבוצה. ' +
+                   'בדקו שהועתק במלואו — אות אחת שונה מספיקה.',
+          }, { status: 400 });
+        }
+      } catch {
+        /* Reachability is WhatsApp's problem, not the couple's: a timeout must
+           not block a link that is fine. Shape already passed. */
+      }
+      update.rides_group_url = link;
     } else {
       return NextResponse.json(
         { error: 'rides_group_url must be a https://chat.whatsapp.com/... invite link, or empty' },
