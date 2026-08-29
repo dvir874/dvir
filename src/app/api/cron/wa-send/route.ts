@@ -1945,7 +1945,19 @@ async function runSend(req: NextRequest) {
 
   return record(sb, {
     event: ev.name,
-    sent: sent.length, failed: failed.length, stopped,
+    /* Everything this run sent, not only the group it chose.
+     *
+     * This wrote sent.length — the invitations and reminders for one event —
+     * while "מחר מתחתנים", the gallery and the rides group were counted in
+     * their own fields and reached no total. On 23/08 the run at 21:52 sent
+     * 158 messages and recorded 50, so the day read 139 on every screen while
+     * 247 had actually left. Every number built on this was wrong by exactly
+     * the messages that mattered most that week.
+     *
+     * The parts stay reported separately below; this is their sum. */
+    sent: sent.length + dayBefore.sent + rides.sent,
+    groupSent: sent.length,
+    failed: failed.length, stopped,
     /* Guests the run had time for but not budget. Reported rather than dropped:
        they are picked up by the next run, and a run that ends early must say so
        rather than looking like a quiet day. */
