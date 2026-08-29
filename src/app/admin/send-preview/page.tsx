@@ -41,6 +41,8 @@ type Today = {
 type Ev = {
   event: string; date: string; status: string;
   blockedReason: string | null; pausedUntil: string | null;
+  links?: { label: string; status: "ok" | "broken" | "missing"; detail?: string; url?: string }[];
+  linksBroken?: string;
   pending: number; template: string | null; templateSource: string;
   headerImage: string | null;
   variables: { couple: string; date: string; venue: string; times: string } | null;
@@ -304,6 +306,36 @@ function Card({ ev, eventId, onChanged }: { ev: Ev; eventId: string | null; onCh
         </div>
         <Chip blocked={blocked} paused={paused} />
       </div>
+
+      {/* Every link this wedding's guests are about to tap.
+          This screen caught wrong words and never looked at the links — and on
+          30/08 the words were right while the rides link led nowhere for 175
+          people. Loud when broken, one quiet line when fine. */}
+      {ev.links && ev.links.length > 0 && (
+        <div style={{
+          marginTop: 14, padding: ev.linksBroken ? "12px 14px" : "9px 12px",
+          borderRadius: 12,
+          border: `1px solid ${ev.linksBroken ? T.alert : T.border}`,
+          background: ev.linksBroken ? "rgba(180,69,60,0.06)" : "transparent",
+        }}>
+          {ev.linksBroken ? (
+            <>
+              <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: T.alert }}>
+                🔗 קישור שבור — האורחים יגיעו לשומקום
+              </p>
+              {ev.links.filter(l => l.status === "broken").map(l => (
+                <p key={l.label} style={{ margin: "6px 0 0", fontSize: 12.5, color: T.dark, lineHeight: 1.6 }}>
+                  <strong>{l.label}</strong>{l.detail ? ` — ${l.detail}` : ""}
+                </p>
+              ))}
+            </>
+          ) : (
+            <p style={{ margin: 0, fontSize: 12, color: T.muted, textAlign: "center" }}>
+              🔗 {ev.links.filter(l => l.status === "ok").map(l => l.label).join(" · ")} — נבדקו ועובדים
+            </p>
+          )}
+        </div>
+      )}
 
       {blocked ? (
         <div style={{

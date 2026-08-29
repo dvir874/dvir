@@ -7,6 +7,7 @@ import { eventTimes } from "@/lib/event-times";
 import { weddingDateLine } from "@/lib/hebrew-date";
 import { getWhatsAppConfig } from "@/lib/whatsapp";
 import { venueLine } from "@/lib/venue";
+import { checkEventLinks, brokenSummary } from "@/lib/link-health";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,7 @@ export async function GET() {
   const nowMs = Date.now();
 
   const { data: events } = await sb.from("events")
-    .select("id, name, couple_names, date, address, venue_name, wa_header_image_url, send_paused_until, reception_time, chuppah_time")
+    .select("id, name, couple_names, date, address, venue_name, wa_header_image_url, send_paused_until, reception_time, chuppah_time, rides_group_url")
     .gte("date", today).order("date");
 
   /* Meta's own copy of the approved template, so the preview shows the text
@@ -174,7 +175,24 @@ export async function GET() {
           .replace("{{1}}", couple!).replace("{{2}}", when!)
           .replace("{{3}}", venue!).replace("{{4}}", times!);
 
+    /* Everything this wedding's guests are about to tap.
+     *
+     * This screen exists so a wrong message is caught before it is sent, and
+     * it was checking the words while the links went unread. On 30/08 the
+     * words were perfect and the rides link led nowhere for 175 people. */
+    const { data: vault } = await sb.from("vault_tokens")
+      .select("token").eq("event_id", ev.id).maybeSingle();
+    const links = await checkEventLinks({
+      headerImage: ev.wa_header_image_url as string | null,
+      ridesGroupUrl: (ev.rides_group_url as string | null) ?? undefined,
+      sampleRsvpToken: g?.rsvp_token as string | undefined,
+      vaultToken: vault?.token as string | undefined,
+      baseUrl: process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app",
+    });
+
     preview.push({
+      links,
+      linksBroken: brokenSummary(links),
       event: ev.name,
       date: ev.date,
       status: blocked ? "❌ לא יישלח" : paused ? "⏸ מושהה" : "✅ יישלח",

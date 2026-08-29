@@ -10,6 +10,7 @@ import {
   getWhatsAppConfig, sendInvitation, toE164, policyFor,
   rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY,
   fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendDayBefore, sendRunSummary, sendRidesGroup } from "@/lib/whatsapp";
+import { checkEventLinks, brokenSummary } from "@/lib/link-health";
 
 export const dynamic = "force-dynamic";
 /* Five minutes, so a run can reach the daily cap instead of a fifth of it.
@@ -895,6 +896,47 @@ async function runSend(req: NextRequest) {
   if (new Date().getUTCHours() >= 18) {
     try { await sendDailyDigest(sb, cfg); }
     catch { /* a notification must never cost a send */ }
+
+    /* And once a day, whether the links still work.
+     *
+     * A wrong link is silent by nature: it answers 200, it looks right on
+     * every screen, and the only thing that reports it is a guest telling the
+     * couple, who tells Dvir, a day and 175 messages later. That is what
+     * happened on 30/08.
+     *
+     * Once a night, on the last run, and only when something is actually
+     * broken — an alert that fires on a healthy evening is one nobody reads
+     * by the third day. */
+    try {
+      const to = process.env.ADMIN_ALERT_PHONE;
+      if (to) {
+        const today2 = new Date().toISOString().slice(0, 10);
+        const { data: live } = await sb.from("events")
+          .select("id, name, wa_header_image_url, rides_group_url")
+          .gte("date", today2).order("date").limit(5);
+        for (const ev of live ?? []) {
+          const [{ data: g }, { data: vt }] = await Promise.all([
+            sb.from("guests").select("rsvp_token").eq("event_id", ev.id)
+              .not("rsvp_token", "is", null).limit(1).maybeSingle(),
+            sb.from("vault_tokens").select("token").eq("event_id", ev.id).maybeSingle(),
+          ]);
+          const broken = brokenSummary(await checkEventLinks({
+            headerImage: ev.wa_header_image_url as string | null,
+            ridesGroupUrl: (ev.rides_group_url as string | null) ?? undefined,
+            sampleRsvpToken: g?.rsvp_token as string | undefined,
+            vaultToken: vt?.token as string | undefined,
+            baseUrl: process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app",
+          }));
+          if (broken) {
+            await sendRunSummary(cfg, to, {
+              event: `🔗 קישור שבור — ${ev.name}`,
+              sent: "0", failed: "0", left: "0",
+              attention: `${broken} · אורחים שילחצו יגיעו לשומקום. /admin/send-preview`,
+            });
+          }
+        }
+      }
+    } catch { /* a check must never cost a send */ }
   }
 
   const dayBefore = await notifyDayBefore(sb, cfg, budget);
