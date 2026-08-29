@@ -31,6 +31,29 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   if (error || !vaultToken) return NextResponse.json({ error: 'Invalid token' }, { status: 404 });
 
+  /* Somebody opened the upload page.
+   *
+   * 192 guests were asked for photos and six arrived from two people, and
+   * nothing in the system could say whether the other 190 never tapped or
+   * tapped and gave up. Those need completely different fixes — one is a
+   * message problem, the other is this page — and there was no way to tell
+   * them apart, because only a finished upload left a trace.
+   *
+   * One row per open. Not per person: the link in the message is the event's
+   * vault token, the same for every guest, so there is nobody to attribute it
+   * to and claiming otherwise would be worse than counting. Opens against
+   * uploads is the ratio that matters, and this is the half that was missing.
+   *
+   * referral_clicks is a generic arrival log with a free-text code and is
+   * reused here behind an explicit prefix rather than asking for another
+   * migration. If it ever earns its own table, the rows move as they are.
+   *
+   * Never allowed to fail the page — a counter that breaks an upload is worse
+   * than no counter. */
+  await supabase.from('referral_clicks')
+    .insert({ ref_code: `memory_open:${vaultToken.event_id}` })
+    .then(() => {}, () => {});
+
   const event = Array.isArray(vaultToken.events) ? vaultToken.events[0] : vaultToken.events;
   return NextResponse.json({
     event_id: vaultToken.event_id,
