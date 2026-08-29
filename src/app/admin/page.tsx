@@ -1076,6 +1076,36 @@ export default function AdminPage() {
    * ride_from and ride_role were always in the response; only the type was
    * silent about them. */
   const rideBoard = useMemo(() => buildRideBoard(guests), [guests]);
+  /* What the couple said about themselves, on the screen where Dvir decides
+   * what to say back.
+   *
+   * The onboarding asks a couple what they are afraid of and stores the
+   * answer, and no screen has ever displayed it. תהל ticked budget, logistics,
+   * forgetting and stress on the day she signed up and nobody has seen those
+   * four words since. שחר said she already had her list.
+   *
+   * This is the whole of the personal service, written down and unread: a
+   * client who says "I am afraid I will forget something" is telling you
+   * exactly which message to send her in three weeks. */
+  const ONBOARDING_LABELS: Record<string, string> = {
+    budget: "תקציב", logistics: "לוגיסטיקה", forgetting: "פחד לשכוח משהו",
+    stress: "לחץ", guests: "רשימת האורחים", time: "חוסר זמן",
+    luxury: "יוקרתי", boho: "בוהו", modern: "מודרני", outdoor: "בטבע",
+    classic: "קלאסי", has_list: "יש רשימה מוכנה", needs_list: "צריכים עזרה ברשימה",
+    both: "שניהם מנהלים יחד", partner1: "בן/בת הזוג הראשון", partner2: "בן/בת הזוג השני",
+  };
+  const onboarding = (() => {
+    const ev = selectedEvent as unknown as {
+      onboarding_fears?: string[] | null; onboarding_style?: string | null;
+      onboarding_manager?: string | null; onboarding_moment?: string | null;
+    } | undefined;
+    if (!ev) return null;
+    const fears = (ev.onboarding_fears ?? []).filter(Boolean);
+    if (!fears.length && !ev.onboarding_style && !ev.onboarding_moment) return null;
+    return { fears, style: ev.onboarding_style, manager: ev.onboarding_manager,
+             moment: ev.onboarding_moment };
+  })();
+
   const insights  = generateInsights(guests, selectedEvent?.name ?? "האירוע", selectedEvent?.date);
   const forecast  = computeForecast(guests);
   const health    = guests.length > 0
@@ -2497,6 +2527,40 @@ export default function AdminPage() {
         <AdminAgenda events={events} onSelect={(id) => setSelectedEventId(id)} />
 
         {/* ── Insights Panel ─────────────────────────── */}
+        {onboarding && (
+          <div className="rounded-2xl p-4 mb-5"
+               style={{ background: "rgba(107,123,90,0.06)", border: "1px solid rgba(107,123,90,0.18)" }}>
+            <p className="text-xs font-semibold mb-3 tracking-wide uppercase" style={{ color: "#6B7B5A" }}>
+              מה הזוג אמר כשנרשם
+            </p>
+            <div className="flex flex-col gap-2">
+              {onboarding.fears.length > 0 && (
+                <p className="text-sm" style={{ color: C.dark }}>
+                  <strong>ממה חוששים:</strong>{" "}
+                  {onboarding.fears.map(f => ONBOARDING_LABELS[f] ?? f).join(" · ")}
+                </p>
+              )}
+              {onboarding.style && (
+                <p className="text-sm" style={{ color: C.dark }}>
+                  <strong>סגנון:</strong>{" "}
+                  {ONBOARDING_LABELS[onboarding.style] ?? onboarding.style}
+                </p>
+              )}
+              {onboarding.manager && (
+                <p className="text-sm" style={{ color: C.dark }}>
+                  <strong>מי מנהל:</strong>{" "}
+                  {ONBOARDING_LABELS[onboarding.manager] ?? onboarding.manager}
+                </p>
+              )}
+              {onboarding.moment && (
+                <p className="text-sm" style={{ color: C.dark }}>
+                  <strong>הרגע שהכי מחכים לו:</strong> {onboarding.moment}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
         {insights.length > 0 && (
           <div
             className="rounded-2xl p-4 mb-5"
