@@ -16,10 +16,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
   if (!eventId) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   const sb = createServerClient();
+  /* Demo rows are excluded everywhere else — the sender, every count, every
+     report, the admin lists — because a demo guest is a preview with nobody
+     behind it. This route was the one place that still returned them, and it
+     is the client's own screen: a couple opening their dashboard would find a
+     stranger in their guest list and have no way to know it was not real.
+     A preview link that lives on their event must be invisible to them. */
   const { data, error } = await sb
     .from("guests")
     .select("*")
     .eq("event_id", eventId)
+    .neq("category", "demo")
     .order("name");
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

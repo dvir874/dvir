@@ -49,6 +49,14 @@ const CALL_COST      = 2;    // outsourced caller
 
 const ils = (n: number) => `₪${Math.round(n).toLocaleString("he-IL")}`;
 
+/* A live wedding beats any mock-up: a couple who taps this sees the real
+   invitation of a real event being run right now, not a demo of one. The token
+   belongs to a category='demo' guest with no phone — it is filtered out of every
+   count and every send, and it resets itself on each open, so it can be handed
+   to any number of prospects. Replace it when לאל וטל is over: create another
+   demo guest on a current event and paste the new token here. */
+const DEMO_LINK = "https://regalifnei.vercel.app/rsvp/1831aeb5-a913-4dfc-ac62-b840684ad66a";
+
 type Pack = "rsvp" | "design";
 
 export default function QuoteBuilder() {
@@ -60,6 +68,11 @@ export default function QuoteBuilder() {
   const [print, setPrint]   = useState(false);
   const [calls, setCalls]   = useState(0);
   const [copied, setCopied] = useState(false);
+  /* The calculator prices by the per-guest rate above. Every deal actually
+     closed so far was negotiated to a round number instead — שחר 260, שלמה 300,
+     אמיר 420 — so the figure that reaches the couple has to be typeable.
+     Empty means "use the calculated total". */
+  const [override, setOverride] = useState("");
 
   const withDesign = pack === "design";
 
@@ -100,29 +113,37 @@ export default function QuoteBuilder() {
     if (q.printTotal)  lines.push(`קבצים לדפוס: ${ils(q.printTotal)}`);
     if (q.callTotal)   lines.push(`שיחות טלפון: ${calls} × ${CALL_PRICE} ₪ = ${ils(q.callTotal)}`);
 
+    const priced = override.trim() ? `₪${override.trim()}` : ils(q.total);
+    const timing = date.trim()
+      ? `${date.trim()} — יש לנו מספיק זמן לוודא שכל האורחים שלך יגיעו, ולשלוח הזמנות בנחת.\n\n`
+      : "";
+
     return `היי ${who} 🤍
-${when}
-שמחתי שפניתם! הנה בדיוק מה שאתם מקבלים ברגע לפני:
 
-${designBlock}📩 *הזמנה דיגיטלית* — לא תמונה, חוויה שנפתחת בטלפון
-✅ *אישורי הגעה אוטומטיים* — כל אורח עם קישור אישי, בלי בלבול
-🔔 *תזכורות חכמות* — רק למי שעדיין לא ענה
+${timing}מה שאתה מקבל ממני:
+
+📩 *הזמנה דיגיטלית מעוצבת* — לא תמונה, חוויה שנפתחת בטלפון
+✅ *קישור אישי לכל מוזמן*, עם ספירת אורחים מדויקת
+🔔 *תזכורות אוטומטיות* רק למי שעדיין לא ענה
 🚗 *תזכורת ביום האירוע* עם ניווט Waze ישיר לאולם
-📊 *דשבורד ניהול* — כמה אישרו, מי מגיע, הסעות, הכול בזמן אמת
 📸 *גלריה משותפת* — האורחים מעלים את התמונות שצילמו
-🤍 *הודעת תודה* לכל האורחים למחרת
+📊 *לוח בקרה בזמן אמת* — מי אישר, מי עוד לא, כמה מגיעים
+📋 *רשימה מסודרת* לקראת האירוע
+💬 *אורח שכותב שאלה — אני עונה לו*, לא אתה
+${designBlock}
+אתה בעצם לא נוגע בשום דבר מזה. רק מסתכל על המספרים — מי אישר ומי עדיין לא.
 
-*המחיר*
-${lines.join("\n")}
-━━━━━━━━━━━━━
-*סה״כ: ${ils(q.total)}* — הכול כלול, בלי הפתעות
-${launch ? `\n🎉 זהו *מחיר השקה* לזוגות הראשונים. המחיר המלא: ${PRICE_LIST.toFixed(2)} ₪ למוזמן${withDesign ? ` ו-${ils(DESIGN_LIST)} על העיצוב` : ""}.\n` : ""}
-ההודעות נשלחות בערוץ הרשמי של וואטסאפ לעסקים — תמונת ההזמנה שלכם מופיעה בכל הודעה, יש דוחות מסירה אמיתיים, והמספר האישי שלכם לא נחשף ולא בסיכון חסימה.
+את כל זה אתה מקבל ב-*${priced}* ל-${guests} מוזמנים.
 
-אשמח להראות לכם הדגמה חיה לפני שתחליטו 🙂
+רוצה לראות בדיוק איך זה נראה? הנה חתונה אמיתית שאני מנהל עכשיו — לחץ ותראה מה האורח מקבל:
+${DEMO_LINK}
+
+ההודעות נשלחות בערוץ הרשמי של וואטסאפ לעסקים — יש דוחות מסירה אמיתיים, והמספר האישי שלך לא נחשף ולא בסיכון חסימה.
+
+במידה ואתה מעוניין, בשמחה. מה שנשאר: תשלח לי את רשימת המוזמנים, שם האולם והכתובת, ושעת החופה. משם אני מתחיל לעבוד 🙏
 
 דביר · רגע לפני`;
-  }, [names, date, guests, calls, launch, withDesign, print, q]);
+  }, [names, date, guests, override, withDesign, print, q]);
 
   const copy = () => {
     navigator.clipboard.writeText(message);
@@ -213,6 +234,13 @@ ${launch ? `\n🎉 זהו *מחיר השקה* לזוגות הראשונים. ה�
               <label style={label}>מספר מוזמנים</label>
               <input style={input} type="number" min={0} value={guests}
                 onChange={e => setGuests(Math.max(0, Number(e.target.value) || 0))} />
+            </div>
+
+            <div>
+              <label style={label}>מחיר סופי (ריק = לפי החישוב)</label>
+              <input style={input} type="number" min={0} value={override}
+                placeholder={String(Math.round(q.total))}
+                onChange={e => setOverride(e.target.value)} />
             </div>
 
             <div>
