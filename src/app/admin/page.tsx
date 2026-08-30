@@ -1,14 +1,7 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import {
-  Users, CheckCircle, Clock, XCircle, Search, Upload, Download,
-  Trash2, Copy, MessageCircle, ChevronLeft, ChevronRight,
-  Loader2, Plus, ExternalLink, RefreshCw, Percent, Zap,
-  Send, AlertTriangle, Smartphone, Bell, Wand2, Palette, Car, Image, QrCode, Building2, FileUp,
-  LayoutDashboard, CalendarDays, BarChart3, Sparkles, Eye,
-  History, LifeBuoy, Inbox, Armchair, MapPin, ArrowLeft, Heart,
-} from "lucide-react";
+import { Users, CheckCircle, Clock, XCircle, Search, Upload, Download, Trash2, Copy, MessageCircle, ChevronLeft, ChevronRight, Loader2, Plus, ExternalLink, RefreshCw, Percent, Zap, Send, AlertTriangle, Smartphone, Bell, Wand2, Palette, Car, Image, QrCode, Building2, FileUp, LayoutDashboard, CalendarDays, BarChart3, Sparkles, Eye, History, LifeBuoy, Inbox, Armchair, MapPin, ArrowLeft, Heart, Sunrise } from "lucide-react";
 import type { Event, EventSummary, Forecast, Guest, GuestEvent, GuestStatus, HealthScore, EventStatus, ApprovalRequest } from "@/lib/types";
 import { EVENT_STATUS_LABEL, EVENT_STATUS_COLOR } from "@/lib/types";
 import { buildRideBoard } from "@/lib/rides";
@@ -4031,6 +4024,9 @@ function AdminSidebar({
     ] },
   ];
   const links = [
+    /* First, because it is the one screen that answers "what do I do now" and
+       the others answer "what happened". */
+    { href: "/admin/morning",     label: "הבוקר שלי",  icon: <Sunrise size={20} /> },
     { href: "/admin/crm",         label: "CRM לידים",  icon: <Users size={20} /> },
     { href: "/admin/seating",     label: "הושבה",      icon: <Armchair size={20} /> },
     { href: "/admin/automations", label: "אוטומציות",  icon: <Zap size={20} /> },
