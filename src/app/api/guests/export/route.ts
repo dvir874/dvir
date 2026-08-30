@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
-import { generateGuestsXlsx } from '@/lib/xlsx-utils';
+import { generateGuestsXlsx, generateIplanXls } from '@/lib/xlsx-utils';
 import type { Guest } from '@/lib/types';
 import { requireAdmin } from '@/lib/auth-guard';
 
@@ -20,6 +20,19 @@ export async function GET(request: NextRequest) {
     .order('name');
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  /* ?format=iplan gives the seating file instead of the general one. Same
+     route because it is the same question — "give me the guests as a file" —
+     asked by a different program. */
+  if (searchParams.get('format') === 'iplan') {
+    const buffer = generateIplanXls((data ?? []) as Guest[]);
+    return new NextResponse(buffer as unknown as BodyInit, {
+      headers: {
+        'Content-Type': 'application/vnd.ms-excel',
+        'Content-Disposition': 'attachment; filename="iplan.xls"',
+      },
+    });
+  }
 
   const buffer = generateGuestsXlsx((data ?? []) as Guest[]);
   return new NextResponse(buffer as unknown as BodyInit, {

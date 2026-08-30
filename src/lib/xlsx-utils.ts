@@ -91,3 +91,54 @@ export function generateGuestsXlsx(guests: Guest[]): Buffer {
   XLSX.utils.book_append_sheet(wb, ws, 'מוזמנים');
   return Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
 }
+
+
+/* The seating file iplan will accept, and only that shape.
+ *
+ * Dvir asked for this export five times in one week and every one of them was
+ * a script run by hand, because iplan does not take the generic sheet above.
+ * It wants a legacy .xls — BIFF8, not xlsx — with the sheet named הזמנות, two
+ * header rows rather than one, and its own column titles. Each of those was
+ * guessed wrong at least once before he sent the real template on 24/08:
+ * "אורחים" instead of "הזמנות", "הזמנה עבור" instead of "הזמנה לכבוד", and a
+ * single header row, which silently shifted every guest up by one and lost the
+ * first of them.
+ *
+ * Row 0 is the merged banner iplan draws over the column groups. It carries no
+ * data and iplan does not read it, but the file is rejected without it.
+ *
+ * Confirmed guests only. Seating a table for someone who has not answered — or
+ * said no — is the one mistake this file can make that costs money, because
+ * the chair and the meal are both ordered from it. */
+export function generateIplanXls(
+  guests: Guest[],
+  opts: { coupleSideLabel?: (g: Guest) => string } = {},
+): Buffer {
+  const side = opts.coupleSideLabel ?? ((g: Guest) => {
+    const s = (g as Guest & { side?: string | null }).side;
+    return s === "groom" ? "חתן" : s === "bride" ? "כלה" : "";
+  });
+
+  const rows: (string | number)[][] = [
+    ["", "", "שיוך", "", "פרטי התקשרות", "", "", "כתובת", "", "", "", ""],
+    ["הזמנה לכבוד", "מס' אורחים שהוזמנו", "צד", "קבוצה", "סלולרי",
+     "טלפון רגיל", "אימייל", "עיר", "רחוב", "מיקוד", "תא דואר", "צ'ק צפוי"],
+  ];
+
+  for (const g of guests) {
+    if (g.status !== "confirmed") continue;
+    rows.push([
+      String(g.name ?? "").trim(),
+      Math.max(1, Number(g.guest_count) || 1),
+      side(g),
+      (g as Guest & { source_group?: string | null }).source_group ?? "",
+      String(g.phone ?? "").trim(),
+      "", "", "", "", "", "", "",
+    ]);
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "הזמנות");
+  return Buffer.from(XLSX.write(wb, { type: "buffer", bookType: "biff8" }));
+}
