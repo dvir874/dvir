@@ -1353,6 +1353,12 @@ async function runSend(req: NextRequest) {
    * was. Counting it here is reading what happened rather than reconstructing
    * it from configuration that may since have changed. */
   const remindersByGuest = new Map<string, number>();
+  /* Sends Meta ACCEPTED, for the first-contact ceiling in lib/eligibility.
+     Accepted, not delivered: a wamid means Meta took the message, and Meta does
+     not always report back afterwards. Guests whose reports never arrived were
+     exempt from every ceiling and were written to daily — 46 of them, 123
+     redundant messages, 42 of which took a slot out of a 250-a-day cap. */
+  const acceptedByGuest = new Map<string, number>();
   for (let i = 0; i < ids.length; i += 100) {
     const slice = ids.slice(i, i + 100);
     const { data } = await sb.from("wa_messages")
@@ -1362,6 +1368,9 @@ async function runSend(req: NextRequest) {
       if (!m.guest_id) return;
       if (String(m.body ?? "").includes("תזכורת")) {
         remindersByGuest.set(m.guest_id, (remindersByGuest.get(m.guest_id) ?? 0) + 1);
+      }
+      if (m.status !== "failed" && !m.error_code) {
+        acceptedByGuest.set(m.guest_id, (acceptedByGuest.get(m.guest_id) ?? 0) + 1);
       }
       if (["delivered", "read"].includes(m.status)) {
         contacted.add(m.guest_id);
@@ -1501,6 +1510,7 @@ async function runSend(req: NextRequest) {
        here, where a reminder is what would be sent; the first-contact groups
        must stay uncapped. */
     remindersSent: remindersByGuest.get(id) ?? 0,
+    attemptsAccepted: acceptedByGuest.get(id) ?? 0,
   });
 
   /* ---- 1. no evidence the invitation ever arrived ---- */

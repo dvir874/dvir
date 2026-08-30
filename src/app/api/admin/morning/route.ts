@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { coupleName } from "@/lib/couple-name";
 import { shabbatBlock } from "@/lib/shabbat";
-import { dueWithin, type ContactState } from "@/lib/eligibility";
+import { dueWithin, MAX_FIRST_CONTACT_ATTEMPTS, type ContactState } from "@/lib/eligibility";
 
 export const dynamic = "force-dynamic";
 
@@ -206,22 +206,34 @@ export async function GET() {
        throttles are not listed: the system retries those by itself, and a list
        that mixes them is one where the seven that need a phone call are lost
        among eighteen that need nothing. */
-    const attempts = new Map<string, { ok: boolean; codes: Set<number> }>();
+    const attempts = new Map<string, { arrived: boolean; accepted: number; codes: Set<number> }>();
     for (const m of hist ?? []) {
       const id = m.guest_id as string;
       if (!id) continue;
-      if (!attempts.has(id)) attempts.set(id, { ok: false, codes: new Set() });
+      if (!attempts.has(id)) attempts.set(id, { arrived: false, accepted: 0, codes: new Set() });
       const a = attempts.get(id)!;
-      if (!m.error_code && m.status !== "failed") a.ok = true;
+      if (m.status === "delivered" || m.status === "read") a.arrived = true;
+      if (!m.error_code && m.status !== "failed") a.accepted++;
       if (m.error_code) a.codes.add(Number(m.error_code));
     }
     for (const g of real) {
       const a = attempts.get(g.id as string);
-      if (!a || a.ok || g.do_not_contact) continue;
-      if (![...a.codes].some(c => PERMANENT.has(c))) continue;
+      if (!a || a.arrived || g.do_not_contact) continue;
+
+      const permanent = [...a.codes].some(c => PERMANENT.has(c));
+      /* The sender has stopped on its own. eligibility.ts caps first contacts
+         at four accepted sends, and a guest who hits that ceiling would
+         otherwise vanish: no more messages, and no row anywhere saying why.
+         Silencing someone without saying so is worse than the duplicate
+         messages the ceiling exists to prevent. */
+      const ceilinged = a.accepted >= MAX_FIRST_CONTACT_ATTEMPTS;
+      if (!permanent && !ceilinged) continue;
+
       unreachable.push({
         name: String(g.name), phone: String(g.phone ?? ""),
-        reason: a.codes.has(131050) ? "ביקש לא לקבל" : "אין וואטסאפ",
+        reason: a.codes.has(131050) ? "ביקש לא לקבל"
+              : permanent ? "אין וואטסאפ"
+              : `${a.accepted} הודעות נשלחו, אף אחת לא נמסרה`,
         token: String(g.rsvp_token ?? ""),
         wedding: coupleName(ev) ?? String(ev.name),
       });

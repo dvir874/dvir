@@ -61,6 +61,32 @@ export const REMINDER_COOLDOWN_H = 120;
  * sending a fourth identical template. */
 export const MAX_REMINDERS_PER_GUEST = 3;
 
+/** How many times a first contact may be ACCEPTED by Meta before we stop.
+ *
+ * The reminder cap above only ever applied to guests marked delivered, and
+ * `delivered` means a delivery report arrived. Meta does not always send one:
+ * fifty-one messages from mid-August still sit at "sent" with a wamid, so Meta
+ * took them and simply never reported back.
+ *
+ * For those guests every branch here read "nobody has reached them yet" —
+ * forever. They got the 24-hour first-contact floor instead of the five-day
+ * one, and no cap at all, so the invitation went out again every day. Forty-six
+ * guests received a duplicate invitation, a hundred and twenty-three redundant
+ * messages in total; אריה זאבי and יונתן דידי each got the same invitation five
+ * times. Forty-two of those were billed and, worse, took forty-two slots out of
+ * a 250-a-day ceiling on days when that ceiling was the thing stopping other
+ * guests from being reached at all.
+ *
+ * Four, from what a retry actually buys. Across 881 invitations that were ever
+ * delivered: 97.2% on the first attempt, 99.2% by the second, 99.9% by the
+ * third. One guest out of 881 was reached on the seventh. Beyond four the
+ * expected return is a fraction of one guest and the cost is unbounded.
+ *
+ * Counts ACCEPTED sends only. A send Meta rejected never left, and retrying it
+ * is the correct behaviour — those are the 131049s, and they resolve by
+ * themselves. Counting them would silence a guest nobody ever wrote to. */
+export const MAX_FIRST_CONTACT_ATTEMPTS = 4;
+
 export interface ContactState {
   /** A delivery report actually arrived — delivered or read. Accepted is not enough. */
   delivered: boolean;
@@ -70,6 +96,10 @@ export interface ContactState {
       the cap is then not applied — every existing caller keeps its behaviour
       until it passes the number. */
   remindersSent?: number;
+  /** First-contact sends Meta ACCEPTED — a wamid came back — regardless of
+      whether a delivery report ever followed. Omitted means "not counted", so
+      existing callers are unchanged. */
+  attemptsAccepted?: number;
 }
 
 /** The floor that applies to this guest, in hours. */
@@ -88,6 +118,9 @@ export function isEligibleNow(c: ContactState, nowMs: number = Date.now()): bool
   /* Only ever caps reminders. A guest nothing reached is not "reminded" no
      matter how many attempts failed, and must stay reachable. */
   if (c.delivered && (c.remindersSent ?? 0) >= MAX_REMINDERS_PER_GUEST) return false;
+  /* …and the mirror of it, which was missing: a guest Meta kept accepting for
+     and never reported on was exempt from every ceiling here. */
+  if (!c.delivered && (c.attemptsAccepted ?? 0) >= MAX_FIRST_CONTACT_ATTEMPTS) return false;
   if (!c.lastOutboundAt) return true;
   const floor = new Date(nowMs - cooldownHours(c) * 3_600_000).toISOString();
   return c.lastOutboundAt < floor;
@@ -106,6 +139,7 @@ export function isEligibleNow(c: ContactState, nowMs: number = Date.now()): bool
  */
 export function eligibleAt(c: ContactState): number | null {
   if (c.delivered && (c.remindersSent ?? 0) >= MAX_REMINDERS_PER_GUEST) return null;
+  if (!c.delivered && (c.attemptsAccepted ?? 0) >= MAX_FIRST_CONTACT_ATTEMPTS) return null;
   if (!c.lastOutboundAt) return 0;               /* due now, and always has been */
   return new Date(c.lastOutboundAt).getTime() + cooldownHours(c) * 3_600_000;
 }

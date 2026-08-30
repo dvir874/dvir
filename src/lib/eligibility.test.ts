@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isEligibleNow, cooldownHours, FIRST_CONTACT_COOLDOWN_H, REMINDER_COOLDOWN_H, MAX_REMINDERS_PER_GUEST, eligibleAt, dueWithin } from "./eligibility.ts";
+import { isEligibleNow, cooldownHours, FIRST_CONTACT_COOLDOWN_H, REMINDER_COOLDOWN_H, MAX_REMINDERS_PER_GUEST, eligibleAt, dueWithin, MAX_FIRST_CONTACT_ATTEMPTS } from "./eligibility.ts";
 import type { ContactState } from "./eligibility.ts";
 
 const NOW = Date.parse("2026-08-18T21:00:00.000Z");
@@ -109,4 +109,45 @@ test("tomorrow's count is the guests due, not the quota available", () => {
     { delivered: true,  lastOutboundAt: back(300), remindersSent: 3 },    // never
   ];
   assert.deepEqual(dueWithin(guests, T0 + 24 * H, T0), { now: 2, soon: 1, never: 1 });
+});
+
+/* ── the ceiling that was missing ─────────────────────────────────────── */
+
+test("a guest Meta keeps accepting for is not written to forever", () => {
+  /* אריה זאבי and יונתן דידי, שחר's wedding. Five invitations each between
+     17/08 and 25/08, every one accepted with a wamid and none ever reported
+     delivered — so `delivered` stayed false, the 24-hour floor applied instead
+     of the five-day one, and no cap applied at all. */
+  const stuck = { delivered: false, lastOutboundAt: back(200), attemptsAccepted: 4 };
+  assert.equal(isEligibleNow(stuck, T0), false);
+  assert.equal(eligibleAt(stuck), null);
+});
+
+test("the first four attempts are still made", () => {
+  /* 97.2% of deliveries land on attempt one, 99.9% by three. Stopping earlier
+     would silence guests a retry would have reached. */
+  for (let n = 0; n < 4; n++) {
+    assert.equal(
+      isEligibleNow({ delivered: false, lastOutboundAt: back(200), attemptsAccepted: n }, T0),
+      true, `ניסיון ${n + 1} היה צריך להישלח`);
+  }
+});
+
+test("sends Meta refused do not count against the ceiling", () => {
+  /* The 131049s. Those messages never left, retrying them is correct, and
+     counting them would silence a guest nobody has written to even once. */
+  const neverLeft = { delivered: false, lastOutboundAt: back(200), attemptsAccepted: 0 };
+  assert.equal(isEligibleNow(neverLeft, T0), true);
+});
+
+test("a guest who was reached is governed by the reminder cap, not this one", () => {
+  /* The two ceilings must not overlap: delivered guests keep their own rule. */
+  const reached = { delivered: true, lastOutboundAt: back(200), attemptsAccepted: 9, remindersSent: 1 };
+  assert.equal(isEligibleNow(reached, T0), true);
+});
+
+test("an uncounted caller keeps the behaviour it had", () => {
+  /* attemptsAccepted omitted means "not counted" — every call site that has not
+     been taught to count yet must be unaffected. */
+  assert.equal(isEligibleNow({ delivered: false, lastOutboundAt: back(200) }, T0), true);
 });
