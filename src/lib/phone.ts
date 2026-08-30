@@ -1,5 +1,27 @@
 import { PHONE_DISPLAY } from '@/lib/constants';
 
+/* One base URL for every guest-facing link this file builds.
+ *
+ * There were three answers in this one file. whatsappInviteLink and
+ * whatsappReminderLink — the two that build the /rsvp/<token> link a guest
+ * actually taps — fell back to https://raga-lifnei.co.il, a domain that has
+ * never been registered and does not resolve. The other two fell back to the
+ * vercel address, which works.
+ *
+ * Production sets NEXT_PUBLIC_BASE_URL, so nothing broken has gone out. But a
+ * dead default is only dormant, not harmless: it surfaces the moment anything
+ * runs without that variable — a preview deploy, a local build, a script — and
+ * what it produces is an invitation link that fails silently for the guest and
+ * looks like a broken product rather than a missing env var.
+ *
+ * Both names are read because the codebase uses both: the cron sender reads
+ * NEXT_PUBLIC_APP_URL, everything here reads NEXT_PUBLIC_BASE_URL, and only
+ * the latter is set in Vercel. */
+export const SITE_URL =
+  process.env.NEXT_PUBLIC_BASE_URL
+  || process.env.NEXT_PUBLIC_APP_URL
+  || 'https://regalifnei.vercel.app';
+
 export function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
   if (digits.startsWith('972')) return digits;
@@ -12,7 +34,7 @@ export function whatsappInviteLink(
   name: string,
   rsvpToken: string
 ): string {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://raga-lifnei.co.il';
+  const baseUrl = SITE_URL;
   const rsvpUrl = `${baseUrl}/rsvp/${rsvpToken}`;
   const message =
     `✨ *הזמנה רשמית* ✨\n\nמשפחה וחברים יקרים!\n\nאתם מוזמנים לחגוג איתנו 🎊\n\nלחצו על הקישור לפרטים מלאים ואישור הגעה:\n👇\n${rsvpUrl}\n\nנשמח לראותכם! 🤍`;
@@ -52,7 +74,7 @@ export function whatsappReminderLink(
   eventName: string
 ): string {
   const normalized = normalizePhone(phone);
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://raga-lifnei.co.il';
+  const baseUrl = SITE_URL;
   const rsvpUrl = `${baseUrl}/rsvp/${rsvpToken}`;
   const message =
     `🔔 *תזכורת* — ${eventName}\n\nשלום ${name}!\n\nעוד לא קיבלנו את אישור ההגעה שלכם 🙏\n\nלחצו על הקישור לאישור מהיר:\n👇\n${rsvpUrl}\n\nנשמח לדעת האם תוכלו להגיע 🤍`;
@@ -66,7 +88,7 @@ export function whatsappWelcomeLink(
   coupleToken: string,
 ): string {
   const normalized = normalizePhone(phone);
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://regalifnei.vercel.app';
+  const baseUrl = SITE_URL;
   const dashUrl = `${baseUrl}/couple/${coupleToken}`;
   const message =
     `💍 ${coupleName}, ברוכים הבאים לרגע לפני! 🎉\n\n` +
@@ -85,7 +107,7 @@ export function whatsappWeeklySummaryLink(
   coupleToken: string,
 ): string {
   const normalized = normalizePhone(phone);
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://regalifnei.vercel.app';
+  const baseUrl = SITE_URL;
   const dashUrl = `${baseUrl}/couple/${coupleToken}`;
   const message =
     `💍 ${coupleName}, עדכון שבועי מרגע לפני 📊\n\n` +
