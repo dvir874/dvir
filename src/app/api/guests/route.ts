@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
-import { normalizePhone } from '@/lib/phone';
+import { checkPhone } from '@/lib/phone-il';
+import { isPlausiblePhone } from '@/lib/phone-validate';
 import { requireAdmin } from '@/lib/auth-guard';
 
 export async function GET(request: NextRequest) {
@@ -36,10 +37,33 @@ export async function POST(request: NextRequest) {
   if (!event_id || !name)
     return NextResponse.json({ error: 'event_id and name required' }, { status: 400 });
 
-  // Normalize phone to international format if provided
-  const normalizedPhone = phone && phone.trim()
-    ? normalizePhone(phone.trim())
-    : '';
+  /* The database stores the LOCAL form (05X…) — see phone-il.ts. This route
+     used normalizePhone(), which converts the other way, so every guest added
+     by hand from the admin landed as 972… while every imported guest landed as
+     05…. Thirty-four rows were written that way before anyone noticed, and the
+     webhook only found their replies because it happens to try both spellings.
+
+     Validating here as well: a number that cannot be dialled is a guest who
+     silently never hears from us, and the add screen is the one place where a
+     typo can still be corrected by the person who made it. */
+  const trimmed = phone?.trim() ?? '';
+  let normalizedPhone = '';
+  if (trimmed) {
+    const chk = checkPhone(trimmed);
+    if (chk.valid && chk.local) {
+      normalizedPhone = chk.local;
+    } else if (isPlausiblePhone(trimmed)) {
+      /* Not Israeli, but reachable. סטיב ומריאן live abroad on +1 646 284 1932;
+         checkPhone only knows Israeli prefixes and would call that a typo. This
+         is the screen where a foreign guest actually gets typed in. */
+      normalizedPhone = trimmed.replace(/\D/g, '');
+    } else {
+      return NextResponse.json(
+        { error: `מספר הטלפון לא תקין — ${chk.reason ?? 'לא ניתן לחיוג'}` },
+        { status: 422 },
+      );
+    }
+  }
 
   const supabase = createServerClient();
   const { data, error } = await supabase
