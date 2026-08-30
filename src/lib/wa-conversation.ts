@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getWhatsAppConfig } from "@/lib/whatsapp";
 import { sendButtons, sendList, sendText, parseGuestCount } from "@/lib/wa-interactive";
 import { detectRideIntent } from "@/lib/rides";
+import { bareCount } from "@/lib/guest-count";
 
 /* Answering an invitation without leaving WhatsApp.
  *
@@ -34,6 +35,9 @@ interface Guest {
 
 const ASK_COUNT   = "awaiting_count";
 const ASK_DECLINE = "awaiting_decline_confirm";
+/* Stored as `awaiting_count_change:4` — the proposed number rides along in the
+   state, because there is nowhere else to keep it between two messages. */
+const ASK_CHANGE  = "awaiting_count_change";
 
 async function setState(sb: Sb, id: string, state: string | null) {
   await sb.from("guests")
@@ -117,6 +121,20 @@ export async function handleGuestReply(
     return true;
   }
 
+  if (guest.chat_state?.startsWith(`${ASK_CHANGE}:`)) {
+    const proposed = parseInt(guest.chat_state.split(":")[1] ?? "", 10);
+    if (/^(yes_change|כן)/.test(said) && Number.isFinite(proposed)) {
+      await record(sb, guest, "confirmed", proposed);
+      await sendText(cfg, to, `עודכן ל-${proposed} 🤍 מחכים לראותכם!`);
+      return true;
+    }
+    /* Anything that is not a clear yes leaves the existing answer alone. */
+    await setState(sb, guest.id, null);
+    await sendText(cfg, to,
+      `בסדר גמור — השארנו ${guest.guest_count ?? 1}.\nאם תרצו לשנות, כתבו לנו כאן 🙏`);
+    return true;
+  }
+
   if (guest.chat_state === ASK_DECLINE) {
     if (/^(yes_decline|כן)/.test(said)) {
       await record(sb, guest, "declined");
@@ -186,6 +204,46 @@ export async function handleGuestReply(
       await record(sb, guest, "confirmed", n);
       await sendText(cfg, to,
         `רשמנו ${n} 🤍 מחכים לראותכם!\nאם התכוונתם למשהו אחר — כתבו לנו כאן ונתקן.`);
+      return true;
+    }
+  }
+
+  /* A number from someone who has already answered.
+   *
+   * The message this system sends the moment it records a headcount ends with
+   * "רוצים לשנות? פשוט כתבו לנו כאן." — and then nothing here handled it. The
+   * branch above is gated on status === "pending", so a guest who had already
+   * been counted fell past it, past the ride detector, and out of the function.
+   *
+   * משה כץ was recorded as 1 on 20/08 and sent "2" on 27/08, doing exactly
+   * what he had been told to do. It was dropped in silence, and the number the
+   * caterer would have been given was short by one seat at a wedding eight
+   * days away. Inviting a correction and then discarding it is worse than
+   * never inviting it.
+   *
+   * Asked rather than applied. A bare number from someone mid-question is an
+   * answer; the same number from someone who finished answering a week ago
+   * could be anything — a table number, a reply to a relative, a stray tap.
+   * The decline path in this file already confirms before it acts, for the
+   * same reason, and this follows it. */
+  if (guest.status === "confirmed" || guest.status === "declined") {
+    const n = bareCount(said);
+    if (n !== null) {
+      const current = guest.guest_count ?? 1;
+      if (guest.status === "confirmed" && n === current) {
+        await sendText(cfg, to, `רשום אצלנו ${current} — הכול מעודכן 🤍`);
+        return true;
+      }
+      await setState(sb, guest.id, `${ASK_CHANGE}:${n}`);
+      const asked = await sendButtons(cfg, to,
+        guest.status === "declined"
+          ? `רשום אצלנו שלא תוכלו להגיע. לעדכן ל-${n} מגיעים?`
+          : `רשום אצלנו ${current}. לעדכן ל-${n}?`,
+        [{ id: "yes_change", title: "כן, עדכנו" },
+         { id: "no_change",  title: "לא, להשאיר" }]);
+      /* Same rollback as the decline path: a state that says "waiting for an
+         answer" is only true if the question actually left. */
+      if (!asked.ok) await setState(sb, guest.id, null);
       return true;
     }
   }
