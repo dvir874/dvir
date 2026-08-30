@@ -174,6 +174,34 @@ export async function DELETE(
   console.warn(`[DELETE /api/events/${id}] removing "${evRow?.name}" (${evRow?.date}) — ` +
     `${guestCount ?? 0} guests, ${answered} of them answered`);
 
+  /* And kept, not just described.
+   *
+   * /api/admin/backup already builds this bundle, but only when a human asks
+   * for one — and nobody asks before deleting something they mean to delete.
+   * Taking it here means the bundle exists whether or not anyone thought of it.
+   *
+   * Fails soft, deliberately. The table arrives with a migration, and until
+   * that migration runs this insert errors. A missing backup table must not
+   * block a delete the admin explicitly confirmed twice; it just means this
+   * one is not recoverable, and the log says so. */
+  try {
+    const [gs, msgs] = await Promise.all([
+      supabase.from('guests').select('*').eq('event_id', id),
+      supabase.from('wa_messages').select('*').eq('event_id', id).limit(10000),
+    ]);
+    const { error: backupErr } = await supabase.from('deleted_event_backups').insert({
+      event_id: id,
+      event_name: evRow?.name ?? null,
+      event_date: evRow?.date ?? null,
+      guest_count: guestCount ?? 0,
+      answered,
+      bundle: { event: evRow, guests: gs.data ?? [], wa_messages: msgs.data ?? [] },
+    });
+    if (backupErr) console.warn(`[DELETE /api/events/${id}] backup not stored: ${backupErr.message}`);
+  } catch (err) {
+    console.warn(`[DELETE /api/events/${id}] backup not stored:`, err);
+  }
+
   // Cascade delete all related data in correct FK order
   const tables = [
     'seating_assignments',
