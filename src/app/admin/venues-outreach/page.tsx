@@ -94,6 +94,39 @@ const VENUES: Venue[] = [
   { name: "ויה קסליו", city: "הזגג 19, חדרה",
     phones: ["077-8048129", "077-8048917"],
     source: "viacaselio.co.il (האתר שלהם)" },
+
+  /* The fifth hall that hosts a client of ours, and the one that was missing.
+     ירון ואיילת are at פאלאסיו on 14/10 — every warm venue but this one was
+     already here, so the single hall with a live event coming was the one
+     being approached as a stranger. */
+  { name: "אולמי פאלאסיו", city: "הבנאים 23, אופקים",
+    phones: ["053-7102333", "08-8600661", "*6723"],
+    source: "palacio.co.il + דפי זהב",
+    warm: "ירון ואיילת, 14/10" },
+
+  /* Cold, but each number below was read off the venue's own site. */
+  { name: "88 גן אירועים", city: "נחל אלכסנדר 26, עמק חפר",
+    phones: ["055-4539653"],
+    source: "8eighty.co.il (האתר שלהם) — נייד" },
+  { name: "WIDE OPEN", city: "אזור התעסוקה, רמת ישי",
+    phones: ["053-6130772"],
+    source: "wideopen-events.co.il (האתר שלהם) — נייד" },
+  { name: "חוות עמק איילון", city: "מבוא חורון",
+    phones: ["03-3818975", "03-3818958"],
+    source: "ayalonevent.co.il (האתר שלהם)" },
+  /* Their own site says 077-2305244; mit4mit prints 077-2305479 for the same
+     business. Two numbers for one venue across two sources is the signature of
+     a directory tracking line, so the one on their own site is the one kept. */
+  { name: "סרה — SERA", city: "עמק האלה, בית שמש",
+    phones: ["077-2305244"],
+    source: "sera-events.co.il (האתר שלהם)" },
+  /* עגור again, and possibly the same business as "ארץ — בית לאירועים" above
+     under a second name. Worth one look before dialling: approaching תהל's own
+     hall as a stranger, after already writing to it as a hall that hosted us,
+     is worse than not writing at all. */
+  { name: "ארץ קדם", city: "עגור, ד.נ האלה",
+    phones: ["02-9912450"],
+    source: "דפי זהב — ⚠ ייתכן שזה אותו עסק כמו \"ארץ — בית לאירועים\", לבדוק לפני שליחה" },
 ];
 
 /* Two messages, because a hall that hosted you is not a stranger. */
