@@ -118,8 +118,11 @@ export async function DELETE(
 
   // Safety: require explicit confirmation header for destructive operations.
   // This prevents accidental deletions from tests, scripts, or curl commands.
+  /* Two accepted words, not one. The second is the override for the case
+     below; requiring only 'delete-event' here made that override unreachable,
+     which the type checker noticed before it shipped. */
   const confirmHeader = req.headers.get('x-delete-confirm');
-  if (confirmHeader !== 'delete-event') {
+  if (confirmHeader !== 'delete-event' && confirmHeader !== 'delete-future-event-with-answers') {
     return NextResponse.json(
       {
         error: 'Missing delete confirmation header.',
@@ -136,6 +139,40 @@ export async function DELETE(
     .from('guests')
     .select('id', { count: 'exact', head: true })
     .eq('event_id', id);
+
+  /* The header above stops a script or a stray curl. It does not stop the row
+     below the one you meant, and that is the failure this cascade cannot
+     survive: it removes the guests, their answers and their personal RSVP
+     links, and there is no backup and no undo. מירב ודביר — 371 guests, 917
+     messages, the only record of what the first wedding cost — went this way
+     on 31/08. That one was over and deleting it was a choice. שחר ואורי sits
+     one row away with 333 guests and eight days to go.
+     
+     So a wedding that has not happened yet, and that people have already
+     answered for, is refused outright. Nothing about "delete this event" means
+     "delete a wedding that is still coming" — you would cancel that, not erase
+     it — and the caller has to say so in a second, different word. */
+  const { data: evRow } = await supabase
+    .from('events').select('name, date').eq('id', id).maybeSingle();
+  const answered = evRow
+    ? (await supabase.from('guests').select('id', { count: 'exact', head: true })
+        .eq('event_id', id).neq('status', 'pending')).count ?? 0
+    : 0;
+  const isFuture = !!evRow?.date && String(evRow.date) >= new Date().toISOString().slice(0, 10);
+
+  if (isFuture && answered > 0 && confirmHeader !== 'delete-future-event-with-answers') {
+    return NextResponse.json({
+      error: `"${evRow?.name}" עוד לא התקיימה ו-${answered} אורחים כבר ענו. מחיקה תמחק אותם ואת הקישורים האישיים שלהם, ואין דרך לשחזר.`,
+      hint: "If this is really intended: X-Delete-Confirm: delete-future-event-with-answers",
+      guestCount: guestCount ?? 0,
+      answered,
+    }, { status: 409 });
+  }
+
+  /* Written before anything is removed, because afterwards there is nothing
+     left to describe what was here. */
+  console.warn(`[DELETE /api/events/${id}] removing "${evRow?.name}" (${evRow?.date}) — ` +
+    `${guestCount ?? 0} guests, ${answered} of them answered`);
 
   // Cascade delete all related data in correct FK order
   const tables = [
