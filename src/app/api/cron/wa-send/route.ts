@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { shabbatBlock } from "@/lib/shabbat";
 import { coupleName, looksLikeCouple } from "@/lib/couple-name";
-import { isEligibleNow } from "@/lib/eligibility";
+import { isEligibleNow, dueWithin, type ContactState } from "@/lib/eligibility";
 import { eventTimes } from "@/lib/event-times";
 import { venueLine } from "@/lib/venue";
 import { weddingDateLine } from "@/lib/hebrew-date";
@@ -296,12 +296,53 @@ async function sendDailyDigest(
 
     if (!sentToday && !answeredToday) continue;   /* a quiet day is not news */
 
+    /* What is due tomorrow, which is the question this digest never answered.
+     *
+     * "מחר יישלחו הודעות? למי?" was asked four times in one week and worked
+     * out by hand each time — wrongly once, on 27/08, when the reply was
+     * "150-180 tomorrow" because it counted the quota still available instead
+     * of the guests actually due. Thirteen were due. Quota is what may be
+     * spent; this is what there is to spend it on.
+     *
+     * Built from the same three facts the sender itself uses, so the number in
+     * the message and the number of messages that go out cannot disagree. */
+    const pendingIds = real.filter(g => g.status === "pending").map(g => g.id as string);
+    let tomorrow = { now: 0, soon: 0, never: 0 };
+    if (pendingIds.length) {
+      const states: ContactState[] = [];
+      for (let i = 0; i < pendingIds.length; i += 150) {
+        const slice = pendingIds.slice(i, i + 150);
+        const { data: ms } = await sb.from("wa_messages")
+          .select("guest_id, body, status, created_at")
+          .eq("direction", "out").in("guest_id", slice);
+        const byGuest = new Map<string, { last: string | null; got: boolean; rem: number }>();
+        for (const id of slice) byGuest.set(id, { last: null, got: false, rem: 0 });
+        for (const m of ms ?? []) {
+          const row = byGuest.get(m.guest_id as string);
+          if (!row) continue;
+          const at = m.created_at as string;
+          if (!row.last || at > row.last) row.last = at;
+          if (m.status === "delivered" || m.status === "read") row.got = true;
+          if (/תזכורת|עוד לא קיבלנו/.test(String(m.body ?? ""))) row.rem++;
+        }
+        for (const r of byGuest.values())
+          states.push({ delivered: r.got, lastOutboundAt: r.last, remindersSent: r.rem });
+      }
+      tomorrow = dueWithin(states, Date.now() + 24 * 3_600_000);
+    }
+
+    const dueLine = tomorrow.now + tomorrow.soon > 0
+      ? `מחר: ${tomorrow.now + tomorrow.soon} מוכנים לקבל הודעה`
+      : tomorrow.never > 0
+        ? `מחר: אף אחד — ${tomorrow.never} מיצו את התזכורות`
+        : "מחר: אף אחד";
+
     await sendRunSummary(cfg, to, {
       event: `🤍 עדכון יומי — ${coupleName(ev) ?? ev.name}`,
       sent: String(sentToday ?? 0),
       failed: String(answeredToday ?? 0),
       left: String(pending),
-      attention: `אישרו עד כה: ${confirmed} מתוך ${real.length} · אפשר להעביר לזוג כמו שזה`,
+      attention: `אישרו עד כה: ${confirmed} מתוך ${real.length} · ${dueLine}`,
     });
   }
 }

@@ -92,3 +92,41 @@ export function isEligibleNow(c: ContactState, nowMs: number = Date.now()): bool
   const floor = new Date(nowMs - cooldownHours(c) * 3_600_000).toISOString();
   return c.lastOutboundAt < floor;
 }
+
+/**
+ * When does this guest become eligible? Null when never again.
+ *
+ * `isEligibleNow` answers "now", and every screen and every send has only ever
+ * needed that. But the question Dvir actually asks is the other one — "מחר
+ * יישלחו הודעות? למי?" — and it was answered by hand each time, wrongly at
+ * least once: on 27/08 the reply was "150-180 tomorrow", computed from the
+ * quota still available rather than from the guests actually due. Thirteen
+ * were due. Quota is what we may spend; this is what there is to spend it on,
+ * and only the second one is an answer.
+ */
+export function eligibleAt(c: ContactState): number | null {
+  if (c.delivered && (c.remindersSent ?? 0) >= MAX_REMINDERS_PER_GUEST) return null;
+  if (!c.lastOutboundAt) return 0;               /* due now, and always has been */
+  return new Date(c.lastOutboundAt).getTime() + cooldownHours(c) * 3_600_000;
+}
+
+/**
+ * How many of these guests come due inside a window.
+ *
+ * Counts the ones whose floor lifts before `untilMs` — including those already
+ * past it, because a guest who was due yesterday and did not get a message is
+ * still waiting today. That is the whole point: the number is a backlog, not a
+ * schedule.
+ */
+export function dueWithin(
+  guests: ContactState[], untilMs: number, nowMs: number = Date.now(),
+): { now: number; soon: number; never: number } {
+  let now = 0, soon = 0, never = 0;
+  for (const g of guests) {
+    const at = eligibleAt(g);
+    if (at === null) { never++; continue; }
+    if (at <= nowMs) now++;
+    else if (at <= untilMs) soon++;
+  }
+  return { now, soon, never };
+}
