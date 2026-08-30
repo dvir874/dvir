@@ -160,10 +160,26 @@ export async function GET() {
     const ids = new Set(pending.map(g => g.id as string));
     const per = new Map<string, { last: string | null; got: boolean; rem: number }>();
     for (const id of ids) per.set(id, { last: null, got: false, rem: 0 });
-    const { data: hist } = ids.size
-      ? await sb.from("wa_messages").select("guest_id, body, status, created_at")
-          .eq("direction", "out").eq("event_id", ev.id).limit(4000)
-      : { data: [] };
+
+    /* One read of this event's outbound history, serving both the "due
+       tomorrow" count below and the unreachable list further down. It was two
+       near-identical queries — eight per load across four weddings, on a phone,
+       over cellular — and the second added only error_code.
+
+       The count matters: a silently truncated page would leave guests with no
+       history at all, and a guest with no history reads as due right now. So
+       the ceiling is checked rather than assumed.
+       Unconditional, and that is the point: gating it on "are there pending
+       guests" would have been free in the common case and wrong in the rare
+       one, because the unreachable list below reads the same rows for guests
+       who are not pending at all. */
+    const HISTORY_CAP = 8000;
+    const { data: hist, count: histCount } = await sb.from("wa_messages")
+      .select("guest_id, body, status, created_at, error_code", { count: "exact" })
+      .eq("direction", "out").eq("event_id", ev.id).limit(HISTORY_CAP);
+    if ((histCount ?? 0) > HISTORY_CAP) {
+      console.warn(`[morning] ${ev.id}: ${histCount} messages exceeds ${HISTORY_CAP} — counts below are partial`);
+    }
     for (const m of hist ?? []) {
       const row = per.get(m.guest_id as string);
       if (!row) continue;
@@ -191,10 +207,7 @@ export async function GET() {
        that mixes them is one where the seven that need a phone call are lost
        among eighteen that need nothing. */
     const attempts = new Map<string, { ok: boolean; codes: Set<number> }>();
-    const { data: allMsgs } = await sb.from("wa_messages")
-      .select("guest_id, status, error_code").eq("direction", "out")
-      .eq("event_id", ev.id).limit(4000);
-    for (const m of allMsgs ?? []) {
+    for (const m of hist ?? []) {
       const id = m.guest_id as string;
       if (!id) continue;
       if (!attempts.has(id)) attempts.set(id, { ok: false, codes: new Set() });
