@@ -76,6 +76,24 @@ const VENUES: Venue[] = [
     phones: ["076-8017147"], source: "b144 (מספר מעקב)" },
   { name: "ארמונות אור", city: "אזור עגור",
     phones: ["076-8885493"], source: "b144 (מספר מעקב)" },
+
+  /* Found by reading the venues' own sites instead of the directories, 31/08.
+     The directories were the bottleneck: b144 and דפי זהב publish 076/072
+     tracking numbers by design, so ten searches produce ten switchboards.
+     A venue's own contact page has no reason to hide the number.
+
+     One trap worth naming: hafakot.co.il lists 03-3035060 as the phone for
+     both גוונא and היער. It is hafakot's own switchboard, not either venue's,
+     and a number that appears under two businesses is never either of them. */
+  { name: "בית הברכה", city: "צומת גוש עציון",
+    phones: ["050-2041212"],
+    source: "דפי זהב — נייד אמיתי, לא מספר מעקב" },
+  { name: "כרם תמר — יקב גוש עציון", city: "צומת גוש עציון",
+    phones: ["02-9309220"],
+    source: "gushetzion-winery.co.il (האתר שלהם)" },
+  { name: "ויה קסליו", city: "הזגג 19, חדרה",
+    phones: ["077-8048129", "077-8048917"],
+    source: "viacaselio.co.il (האתר שלהם)" },
 ];
 
 /* Two messages, because a hall that hosted you is not a stranger. */
