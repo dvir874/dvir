@@ -20,6 +20,40 @@ export default function ContactWarm() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const raw = `שלום דביר, הגעתי מהאתר רגע לפני.\n\nשם: ${name}\nטלפון: ${phone}\nסוג אירוע: ${type}\nתאריך: ${date}\nהערות: ${notes}`;
+
+    /* Record before handing off to WhatsApp.
+     *
+     * This form asks for a name, a phone, an event type and a date, and until
+     * now it threw all four away: submitting only opened wa.me with the fields
+     * pasted into a message. If the person then closed WhatsApp without
+     * pressing send — or the message simply scrolled away among a hundred other
+     * chats — the enquiry left no trace anywhere. Two arrived on 30/08 and
+     * existed only in Dvir's phone.
+     *
+     * Not awaited, and deliberately: window.open must run in the same tick as
+     * the click or the browser treats it as an unrequested popup and blocks it.
+     * keepalive lets the request outlive the tab losing focus. A lead that
+     * fails to record must still reach WhatsApp, so the catch stays silent. */
+    fetch("/api/leads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({
+        name: name.trim() || "(ללא שם)",
+        phone: phone.trim(),
+        event_type: type || null,
+        wedding_date: date || null,
+        /* lead_source is a closed enum — referral | instagram | facebook |
+           google | organic | unknown — with no member for "came from the
+           site". organic is the honest fit, and the exact CTA goes in
+           ref_code, which is free text. Sending "site:contact-form" here
+           returns a 22P02 the silent catch would have swallowed. */
+        source: "organic",
+        ref_code: "site:contact-form",
+        notes: notes.trim() || null,
+      }),
+    }).catch(() => {});
+
     window.open(`https://wa.me/${WA_PHONE}?text=${encodeURIComponent(raw)}`, "_blank", "noopener,noreferrer");
   };
 
