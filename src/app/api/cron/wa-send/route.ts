@@ -1620,6 +1620,21 @@ async function runSend(req: NextRequest) {
       if (targets.length >= budget) break;
       if (!d.guest_id || seen.has(d.guest_id)) continue;
       if (answered.has(d.guest_id)) continue;
+      /* The three guards every other group applies, and this one did not.
+       *
+       * A retry is chosen from wa_messages, so it knew about the failed row and
+       * nothing about the guest. A couple marking someone do_not_contact — the
+       * אורית case this file already documents — did not retire a retry already
+       * queued for them, and a guest whose LATEST failure is 131050 ("asked to
+       * stop") is held in `unreachable` while an OLDER retry_later row for the
+       * same person stays due and is picked here.
+       *
+       * Both send another wedding template to someone who was promised no more
+       * of them, which is the fastest route back to the 131048 restriction that
+       * stopped sending for all three weddings at once. */
+      if (doNotContact.has(d.guest_id)) continue;
+      if (unreachable.has(d.guest_id)) continue;
+      if (reserved.has(d.guest_id)) continue;
       if (policyFor(d.error_code, d.error).action !== "retry_later") continue;
       seen.add(d.guest_id);
       targets.push({ id: d.guest_id, row: d.id, count: (d.retry_count ?? 0) + 1 });
