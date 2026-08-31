@@ -1113,6 +1113,30 @@ async function sendOnce(
  * answer. UTILITY, so it does not touch the marketing cap; five variables, in
  * the order the approved body expects them.
  */
+/* Meta rejects a template parameter containing a newline, a tab, or four or
+ * more consecutive spaces — the whole message, not the parameter.
+ *
+ * That matters here because these alerts quote guests verbatim. Seven of the
+ * last four hundred inbound messages contain a line break, and they are the
+ * long ones: "שדה בוקר ⏎ מצפה רמון" is a lift request, and a multi-line
+ * blessing is somebody who wrote at length. So the alert saying "a guest wrote
+ * and nobody has answered" failed silently on precisely the messages most
+ * worth being told about, and Dvir was never told it had failed either.
+ *
+ * Collapsed rather than stripped: the line break carried meaning, and " · "
+ * keeps it readable in one line. */
+export function safeParam(text: string): string {
+  const out = String(text ?? "")
+    .replace(/[\r\n]+/g, " · ")
+    .replace(/\t+/g, " ")
+    .replace(/ {4,}/g, "   ")
+    .trim();
+  /* A string that was only line breaks collapses to a lone separator, which
+     says nothing. Meta also rejects an empty parameter outright, and an alert
+     that fails is an alert nobody knows was needed. */
+  return /[^\s·]/.test(out) ? out : "—";
+}
+
 export async function sendRunSummary(
   cfg: WhatsAppConfig,
   to: string,
@@ -1132,7 +1156,7 @@ export async function sendRunSummary(
         components: [{
           type: "body",
           parameters: [v.event, v.sent, v.failed, v.left, v.attention]
-            .map(text => ({ type: "text", text })),
+            .map(text => ({ type: "text", text: safeParam(text) })),
         }],
       },
     }),
