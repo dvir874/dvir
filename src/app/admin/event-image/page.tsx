@@ -18,6 +18,7 @@ function EventImage() {
   const [name, setName] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const load = useCallback(async () => {
     if (!eventId) return;
@@ -29,6 +30,25 @@ function EventImage() {
     setUrl(d.event.imageUrl ?? "");
   }, [eventId]);
   useEffect(() => { load(); }, [load]);
+
+  /* The card arrives on WhatsApp and lands in Downloads. Asking for an https
+     URL is right — Meta fetches the image itself on every send — but there was
+     nothing between that file and this field, so every event so far needed the
+     image hosted somewhere else first. */
+  async function upload(file: File) {
+    setUploading(true); setMsg(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("event_id", eventId);
+      const r = await fetch("/api/admin/event-image/upload", { method: "POST", body: fd });
+      const j = await r.json();
+      if (r.ok) { setUrl(j.url); setSaved(j.url); setMsg({ ok: true, text: "הועלה ונשמר ✓" }); }
+      else setMsg({ ok: false, text: j?.error ?? "ההעלאה נכשלה" });
+    } catch {
+      setMsg({ ok: false, text: "ההעלאה נכשלה" });
+    } finally { setUploading(false); }
+  }
 
   async function save() {
     setBusy(true); setMsg(null);
@@ -71,6 +91,25 @@ function EventImage() {
         <label style={{ display:"block", fontSize:13, color:C.muted, marginBottom:6 }}>
           כתובת התמונה (https)
         </label>
+        {/* The path people actually have: a file on this machine. */}
+        <label style={{ display:"block", border:`1.5px dashed ${C.gold}`, borderRadius:12,
+          padding:"18px 16px", textAlign:"center", cursor:uploading?"default":"pointer",
+          background:"rgba(197,164,109,0.06)", marginBottom:14 }}>
+          <input type="file" accept="image/jpeg,image/png" disabled={uploading}
+            onChange={e=>{ const f=e.target.files?.[0]; if (f) upload(f); e.target.value=""; }}
+            style={{ display:"none" }} />
+          <div style={{ fontSize:15, fontWeight:600, color:C.dark }}>
+            {uploading ? "מעלה…" : "בחרו את ההזמנה מהמחשב"}
+          </div>
+          <div style={{ fontSize:12, color:C.muted, marginTop:4 }}>
+            JPG או PNG, עד 5MB — נשמר ונקבע אוטומטית
+          </div>
+        </label>
+
+        <div style={{ textAlign:"center", fontSize:12, color:C.muted, margin:"0 0 14px" }}>
+          או הדביקו כתובת
+        </div>
+
         <input value={url} onChange={e=>setUrl(e.target.value)} dir="ltr"
           placeholder="https://regalifnei.vercel.app/wedding/…jpg"
           style={{ width:"100%", boxSizing:"border-box", padding:"12px 14px", borderRadius:11,
