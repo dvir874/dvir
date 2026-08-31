@@ -79,8 +79,22 @@ const GALLERY_RESERVE = 30;
    out, rather than being skipped entirely. Nothing may go later: past 22:00 an
    invitation reads as an intrusion, and an intrusion is what a spam report is
    made of. */
-const HOUR_START_UTC = 6;
-const HOUR_END_UTC = 18;
+/* Israel local, not UTC. Every sentence of the comment above is about the hour
+   it is for the guest — "an on-time run at 19:00 is still a good hour to reach
+   people", "past 22:00 an invitation reads as an intrusion". The constants were
+   UTC and assumed UTC+3, which is only true while Israel is on summer time.
+   Israel returns to UTC+2 between 20/10 and 25/10 2026, and on that morning the
+   same two numbers would have meant 08:00 to 20:00: an hour too early to be
+   welcome, and the productive evening hour gone. */
+const HOUR_START_IL = 9;
+const HOUR_END_IL = 21;
+
+/** The hour in Israel, whatever the server thinks the time is. */
+function israelHour(now: Date = new Date()): number {
+  return Number(new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Jerusalem", hour: "2-digit", hour12: false,
+  }).format(now));
+}
 
 /* Two runs cannot land inside this window. The scheduled runs are nine hours
    apart, so this only ever catches an overlap nobody intended. */
@@ -803,8 +817,8 @@ async function runSend(req: NextRequest) {
   if (shabbat.blocked)
     return record(sb, { sent: 0, reason: shabbat.reason, healed, statusesApplied });
 
-  const hour = new Date().getUTCHours();
-  if (hour < HOUR_START_UTC || hour > HOUR_END_UTC)
+  const hour = israelHour();
+  if (hour < HOUR_START_IL || hour > HOUR_END_IL)
     return record(sb, { sent: 0, reason: "outside_sending_hours", healed, statusesApplied });
 
   /* Refuse to start if a run that actually sent has just been here.
