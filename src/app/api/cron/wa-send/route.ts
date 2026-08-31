@@ -1756,14 +1756,28 @@ async function runSend(req: NextRequest) {
       const arrived = new Set<string>();
       const firstAt = new Map<string, string>();
       const latest = new Map<string, { at: string; code: number | null; err: string | null }>();
+      /* Reminders already sent, which this block never counted.
+       *
+       * The selected wedding passes remindersSent into isEligibleNow and its
+       * guests stop at three. This one did not, so MAX_REMINDERS_PER_GUEST
+       * simply did not exist here: a guest was capped while their wedding was
+       * the one the run picked and uncapped the moment it picked another.
+       *
+       * תהל ואביב and לאל וטל are both on 22/09, so one of them is the
+       * secondary wedding on most runs, and 87 pending guests are sitting on
+       * exactly three reminders today — every one of them a fourth away. */
+      const remCount = new Map<string, number>();
       for (let i = 0; i < oIds.length; i += 100) {
         const { data } = await sb.from("wa_messages")
-          .select("guest_id, status, error_code, error, created_at")
+          .select("guest_id, status, error_code, error, created_at, body")
           .eq("direction", "out").in("guest_id", oIds.slice(i, i + 100));
         for (const m of data ?? []) {
           const id = m.guest_id as string;
           if (!id) continue;
           const at = m.created_at as string;
+          if (String(m.body ?? "").includes("תזכורת")) {
+            remCount.set(id, (remCount.get(id) ?? 0) + 1);
+          }
           if (["delivered", "read"].includes(m.status as string)) {
             arrived.add(id);
             const f = firstAt.get(id);
@@ -1784,7 +1798,10 @@ async function runSend(req: NextRequest) {
         .filter(id => {
           const l = latest.get(id);
           if (l && ["never", "wait_for_inbound"].includes(policyFor(l.code, l.err).action)) return false;
-          return isEligibleNow({ delivered: true, lastOutboundAt: l?.at ?? null });
+          return isEligibleNow({
+            delivered: true, lastOutboundAt: l?.at ?? null,
+            remindersSent: remCount.get(id) ?? 0,
+          });
         })
         .sort((a, b) => (firstAt.get(a) ?? "9999").localeCompare(firstAt.get(b) ?? "9999"))
         .slice(0, budget - targets.length)
