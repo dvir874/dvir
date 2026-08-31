@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkPhone } from "@/lib/phone-il";
 import { createServerClient } from "@/lib/supabase-server";
 import { checkRateLimit, getClientIp, LIMITS } from "@/lib/rate-limit";
 import { z } from "zod";
@@ -48,18 +49,28 @@ export async function POST(req: NextRequest, { params }: Params) {
     .maybeSingle();
   if (!event) return NextResponse.json({ error: "not found" }, { status: 404 });
 
-  const cleanPhone = phone.replace(/\D/g, "").slice(0, 20);
+  /* The canonical stored form, not "digits only". A visitor typing
+     +972-50-123-4567 produced 972501234567, which never matched the 0501234567
+     already on the list — so the dedupe below missed and a second guest row was
+     created for a person already invited. */
+  const cleanPhone = checkPhone(phone).local ?? phone.replace(/\D/g, "").slice(0, 20);
   const coming = attending !== "no";
   const status = coming ? "confirmed" : "declined";
   const groupPatch = { source_group: group?.trim() || "קישור פתוח", chuppah_only: attending === "chuppah" };
 
   /* Dedupe: same phone already registered for this event → update the answer */
-  const { data: existing } = await sb
+  /* limit(1), not maybeSingle. phone is not unique on this table — nine numbers
+     across the live lists belong to more than one guest — and maybeSingle
+     errors rather than choosing when it finds two, which fails the visitor
+     with "שגיאה בשמירה" on a form that was working correctly. */
+  const { data: existingRows } = await sb
     .from("guests")
     .select("id, rsvp_token")
     .eq("event_id", event.id)
     .eq("phone", cleanPhone)
-    .maybeSingle();
+    .order("created_at")
+    .limit(1);
+  const existing = existingRows?.[0] ?? null;
 
   if (existing) {
     let { error } = await sb
