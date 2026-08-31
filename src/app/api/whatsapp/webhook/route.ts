@@ -178,13 +178,50 @@ export async function POST(req: NextRequest) {
       ? await sb.from("guests").select("id, event_id, phone").in("phone", [...new Set(phones)])
       : { data: [] };
     /* Indexed under every spelling of the number it was found by, so the
-       lookups below can keep asking with one. */
-    const byPhone = new Map<string, { id: string; event_id: string; phone: string }>();
+       lookups below can keep asking with one.
+     *
+     * Every candidate, not the last one written. A Map keyed by phone kept
+     * exactly one guest per number, and nine numbers on the live lists belong
+     * to a guest at two different weddings — the same friends invited to both
+     * שחר ואורי and לאל וטל. Whichever row happened to be written last won every
+     * reply from that handset: five of those nine people have replied, and all
+     * of their replies landed on the שחר row and none on the לאל וטל one.
+     *
+     * The cost is not a lost message, it is a message credited to the wrong
+     * wedding. סבתא רחל answering "2" for one couple sets the headcount for the
+     * other, and both numbers going to both caterers are then wrong. */
+    const byPhone = new Map<string, { id: string; event_id: string; phone: string }[]>();
     for (const g of guests ?? []) {
       for (const v of phoneVariants(g.phone as string)) {
-        byPhone.set(v, g as { id: string; event_id: string; phone: string });
+        const list = byPhone.get(v) ?? [];
+        list.push(g as { id: string; event_id: string; phone: string });
+        byPhone.set(v, list);
       }
     }
+
+    /* When a handset is shared, the reply belongs to whichever wedding we most
+       recently wrote to them about. That is the only signal available — Meta
+       sends no thread identity for a template reply — and it is the right one:
+       a person answers the message they just received. */
+    const contested = [...byPhone.values()].some(l => l.length > 1);
+    const lastOut = new Map<string, string>();
+    if (contested) {
+      const ids = [...new Set((guests ?? []).map(g => g.id as string))];
+      const { data: outs } = await sb.from("wa_messages")
+        .select("guest_id, created_at").eq("direction", "out").in("guest_id", ids)
+        .order("created_at", { ascending: false });
+      for (const r of outs ?? []) {
+        const id = r.guest_id as string;
+        if (id && !lastOut.has(id)) lastOut.set(id, r.created_at as string);
+      }
+    }
+    const guestFor = (raw: string) => {
+      const list = byPhone.get(localise(raw));
+      if (!list?.length) return undefined;
+      if (list.length === 1) return list[0];
+      return [...list].sort((a, b) =>
+        (lastOut.get(b.id) ?? "").localeCompare(lastOut.get(a.id) ?? ""))[0];
+    };
 
     /* ---- delivery status on messages we sent ---- */
     for (const s of statuses) {
@@ -248,7 +285,7 @@ export async function POST(req: NextRequest) {
 
     /* ---- inbound replies ---- */
     const inbound = messages.map(m => {
-      const g = byPhone.get(localise(m.from ?? ""));
+      const g = guestFor(m.from ?? "");
       const media = mediaOf(m);
       return {
         event_id: g?.event_id ?? null,
@@ -309,7 +346,7 @@ export async function POST(req: NextRequest) {
     const w = failureWriter(sb);
 
     for (const m of messages) {
-      const g = byPhone.get(localise(m.from ?? ""));
+      const g = guestFor(m.from ?? "");
       if (!m.from) continue;
       if (!g?.id) {
         /* Answered from a number that is not on the list. Previously a silent
