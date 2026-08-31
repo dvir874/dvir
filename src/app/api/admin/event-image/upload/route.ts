@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { requireAdmin } from "@/lib/auth-guard";
+import sharp from "sharp";
+import { washFrom } from "@/lib/invitation-wash";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +56,7 @@ export async function POST(req: NextRequest) {
      event is what stops one couple's invitation reaching another's guests —
      the failure the field's own comment names. */
   const { data: ev } = await sb.from("events")
-    .select("id, name").eq("id", eventId).maybeSingle();
+    .select("id, name, rsvp_bg").eq("id", eventId).maybeSingle();
   if (!ev) return NextResponse.json({ error: "האירוע לא נמצא" }, { status: 404 });
 
   const ext = file.type === "image/png" ? "png" : "jpg";
@@ -75,9 +77,41 @@ export async function POST(req: NextRequest) {
   const url = signed?.signedUrl;
   if (!url) return NextResponse.json({ error: "לא הופקה כתובת לתמונה" }, { status: 500 });
 
+  /* The page behind the card, taken from the card.
+   *
+   * events.rsvp_bg exists so the RSVP page looks like it belongs to the
+   * invitation above it — שחר's blue sky, תהל's autumn beige. It was chosen by
+   * hand per wedding, which made it a step that gets forgotten: שלמה's page
+   * opened in the default cool blue under an ivory card bordered in green vine,
+   * and read as a different event.
+   *
+   * Nothing about the right colour is a judgement call — it is in the image,
+   * and the image is being uploaded anyway. Sampled from the top eighth, which
+   * is the card's own background rather than its text or its centrepiece.
+   *
+   * Only when it has not been set. A wash somebody chose deliberately is not
+   * overwritten by a replacement card. */
+  let wash: string | null = null;
+  if (!ev.rsvp_bg) {
+    try {
+      const meta = await sharp(bytes).metadata();
+      const strip = Math.max(1, Math.floor((meta.height ?? 8) / 8));
+      const { data: px } = await sharp(bytes)
+        .extract({ left: 0, top: 0, width: meta.width ?? 1, height: strip })
+        .resize(1, 1, { fit: "fill" })
+        .raw().toBuffer({ resolveWithObject: true });
+      wash = washFrom({ r: px[0], g: px[1], b: px[2] });
+    } catch (err) {
+      /* A card that cannot be sampled still has to become the header image.
+         The wash is a nicety; the image is what unblocks sending. */
+      console.warn("[event-image:wash]", err);
+    }
+  }
+
   const { error } = await sb.from("events")
-    .update({ wa_header_image_url: url }).eq("id", eventId);
+    .update({ wa_header_image_url: url, ...(wash ? { rsvp_bg: wash } : {}) })
+    .eq("id", eventId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ url, event: ev.name });
+  return NextResponse.json({ url, event: ev.name, wash });
 }
