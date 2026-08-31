@@ -86,3 +86,100 @@ export const BASE_LABEL = "אישורי הגעה דיגיטליים — עד 2 �
 export function digitalAddonEntries() {
   return Object.entries(ADDONS).filter(([, a]) => !a.physical);
 }
+
+/* ── Per record, which is what is actually billed ──────────────────────── */
+
+/* The old model above prices by "guests" and asks the couple how many they
+ * have. Every number in this system is a RECORD — one phone number, which may
+ * carry a family of six — and a record is what the sender spends, what Meta's
+ * 250-a-day ceiling counts, and what appears on the bill. Asking for guests and
+ * charging for records meant translating in his head on every call.
+ *
+ * Kept beside the old constants rather than replacing them: /pricing and /quote
+ * are live and read those, and a couple mid-decision must not see the page
+ * change under them.
+ *
+ * The three numbers are measured, not chosen:
+ *
+ *   Message cost per record        0.188₪ basic · 0.319₪ with the rides group
+ *   Guests still silent after all
+ *   three reminders                33%  (922 records: שחר 22%, תהל 34%,
+ *                                        לאל וטל 44%)
+ *
+ * BASIC at 1₪ sits just under DigiNet's automated tier (₪519 for 500 records,
+ * 1.04₪ each) with no human in it at all. FULL at 2₪ is exactly what
+ * "מגיעים או לא" charges — except theirs is a call centre and this is Dvir on
+ * the phone, which is the thing being sold.
+ *
+ * And it is close to what he already charges without a model: אמיר landed on
+ * 0.98₪ a record, שחר on 0.78₪, שלמה on 1.28₪. */
+
+/** Automated end to end: invitation, three reminders, day-before, thank-you + gallery. */
+export const PER_RECORD_BASIC = 1;
+
+/** Everything in BASIC, plus Dvir calling every guest still silent after the
+    reminders — about a third of the list. */
+export const PER_RECORD_FULL = 2;
+
+/** He opens a WhatsApp group and sends every record a rides message of its own.
+    The message alone is 0.131₪ a record; the rest is running the group. */
+export const PER_RECORD_RIDES = 0.5;
+
+/** Setup costs the same whether the list is 90 records or 250, so below this
+    the per-record price stops describing the work. Quoted out loud with the
+    rate — a couple told "1₪ a record" who receives a bill for 290 is right to
+    feel misled. */
+export const MIN_CHARGE_BASIC = 290;
+export const MIN_CHARGE_FULL  = 490;
+export const MIN_CHARGE_RIDES = 100;
+
+/** Share of records still unanswered once every reminder has been sent — the
+    call list the FULL package exists to work through. */
+export const SILENT_SHARE = 0.33;
+
+export type PackageId = "basic" | "full";
+
+export interface Quote {
+  records: number;
+  pkg: PackageId;
+  rides: boolean;
+  /** What each line contributes, before the minimum is applied. */
+  lines: { label: string; amount: number }[];
+  /** True when the minimum, rather than the rate, set the price. */
+  atMinimum: boolean;
+  total: number;
+  /** Roughly how many guests he will have to phone. FULL only. */
+  calls: number;
+}
+
+export function quoteFor(records: number, pkg: PackageId, rides = false): Quote {
+  const n = Math.max(0, Math.floor(records) || 0);
+  const rate = pkg === "full" ? PER_RECORD_FULL : PER_RECORD_BASIC;
+  const floor = pkg === "full" ? MIN_CHARGE_FULL : MIN_CHARGE_BASIC;
+
+  const base = Math.max(floor, n * rate);
+  const lines = [{
+    label: pkg === "full" ? "אישורי הגעה + ליווי אישי" : "אישורי הגעה דיגיטליים",
+    amount: base,
+  }];
+
+  if (rides) {
+    lines.push({
+      label: "קבוצת טרמפים",
+      amount: Math.max(MIN_CHARGE_RIDES, n * PER_RECORD_RIDES),
+    });
+  }
+
+  return {
+    records: n, pkg, rides, lines,
+    atMinimum: n * rate < floor,
+    total: lines.reduce((s, l) => s + l.amount, 0),
+    calls: pkg === "full" ? Math.round(n * SILENT_SHARE) : 0,
+  };
+}
+
+/** What the messages cost us for this quote — internal, never shown to a couple. */
+export function costFor(records: number, rides = false): number {
+  const n = Math.max(0, Math.floor(records) || 0);
+  return n * (rides ? 0.319 : 0.188);
+}
