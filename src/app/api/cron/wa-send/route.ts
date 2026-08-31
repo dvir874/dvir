@@ -556,9 +556,22 @@ async function notifyGallery(
   const couple = coupleName(ev);
   if (!vault?.token || !couple) return { sent: 0 };
 
+  /* Confirmed guests only, and the status filter is not a nicety.
+   *
+   * wants_photos is written by the RSVP form and only on a "confirmed" answer,
+   * so on two of the three live weddings every non-attending guest carries
+   * false and this query happened to be right. לאל וטל was imported down a
+   * path that defaults the column to true, and there 158 guests who never
+   * attended are flagged: 149 who never answered at all and 9 who said
+   * explicitly that they were not coming.
+   *
+   * Without this filter every one of them is asked to share the photos they
+   * took at a wedding they did not attend — 158 marketing messages, 158 slots
+   * out of a 250-a-day ceiling, and nine of them to people who had already
+   * said no. */
   const { data: guests } = await sb.from("guests")
-    .select("id, phone, wants_photos, category")
-    .eq("event_id", ev.id).eq("wants_photos", true);
+    .select("id, phone, wants_photos, category, status")
+    .eq("event_id", ev.id).eq("wants_photos", true).eq("status", "confirmed");
   const targets = (guests ?? []).filter(g => g.category !== "demo" && g.phone);
   if (!targets.length) return { sent: 0 };
 
