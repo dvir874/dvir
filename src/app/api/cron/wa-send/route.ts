@@ -1390,6 +1390,28 @@ async function runSend(req: NextRequest) {
       }
     });
 
+    /* A guest who wrote to us has demonstrably received something.
+     *
+     * `contacted` was built from delivery reports alone, and Meta does not
+     * always send one — which is the same gap the first-contact ceiling in
+     * lib/eligibility now closes from the other side. Between the two, a guest
+     * whose reports never arrive but who is actively replying would be silenced
+     * at four attempts while mid-conversation. An inbound message is stronger
+     * evidence than a delivery report, not weaker: the report says Meta thinks
+     * it arrived, the reply says a person read it.
+     *
+     * Nobody is in that state today — every guest who has ever written also has
+     * a delivery report — so this changes nothing now and closes the case
+     * before it happens. */
+    const { data: spoke } = await sb.from("wa_messages")
+      .select("guest_id, created_at").eq("direction", "in").in("guest_id", slice);
+    (spoke ?? []).forEach(r => {
+      if (!r.guest_id) return;
+      contacted.add(r.guest_id);
+      const prev = firstArrival.get(r.guest_id);
+      if (!prev || r.created_at < prev) firstArrival.set(r.guest_id, r.created_at);
+    });
+
     /* A send made by hand from a personal phone leaves no wa_messages row, so
        without this the couple messages someone at 11:00 and the business number
        messages them again at 13:00. */
