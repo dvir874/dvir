@@ -53,6 +53,8 @@ export default function GuestCenterPage() {
   const [detail, setDetail] = useState<Guest | null>(null);
   const [detailNotes, setDetailNotes] = useState("");
   const [detailSide, setDetailSide] = useState("");
+  const [detailStatus, setDetailStatus] = useState("");
+  const [detailCount, setDetailCount]   = useState(1);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -67,6 +69,8 @@ export default function GuestCenterPage() {
     setDetail(g);
     setDetailNotes(g.notes ?? "");
     setDetailSide(g.side ?? "");
+    setDetailStatus(g.status ?? "pending");
+    setDetailCount(g.guest_count || 1);
   };
 
   const saveDetail = async () => {
@@ -74,7 +78,11 @@ export default function GuestCenterPage() {
     setSaving(true);
     const r = await fetch(`/api/couple/${token}/guests`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: detail.id, side: detailSide || null, notes: detailNotes || null }),
+      body: JSON.stringify({
+        id: detail.id, side: detailSide || null, notes: detailNotes || null,
+        ...(detailStatus && detailStatus !== detail.status ? { status: detailStatus } : {}),
+        ...(detailStatus === "confirmed" && detailCount !== detail.guest_count ? { guest_count: detailCount } : {}),
+      }),
     });
     if (r.ok) {
       const updated = await r.json();
@@ -287,7 +295,6 @@ export default function GuestCenterPage() {
             </div>
             <div style={{ display:"flex", flexDirection:"column", gap:"0.85rem" }}>
               {[
-                { label:"סטטוס", value: STATUS_LABEL[detail.status]?.label ?? detail.status },
                 { label:"טלפון", value: detail.phone ?? "—" },
                 { label:"שולחן", value: detail.table_number ? `שולחן ${detail.table_number}` : "לא שובץ" },
               ].map(row => (
@@ -296,6 +303,39 @@ export default function GuestCenterPage() {
                   <span style={{ fontFamily:"Heebo,sans-serif", fontSize:13, fontWeight:600, color:C.dark }}>{row.value}</span>
                 </div>
               ))}
+              {/* Answering for a guest who told them by phone.
+                  The couple could see the status and not change it, so an aunt
+                  who said yes at a family dinner stayed "ממתין" and kept being
+                  reminded. Same shape as the side selector below it — this is
+                  the row people came to this panel to press. */}
+              <div>
+                <label style={{ fontFamily:"Heebo,sans-serif", fontSize:12, color:C.muted, display:"block", marginBottom:6 }}>מגיעים?</label>
+                <div style={{ display:"flex", gap:"0.5rem" }}>
+                  {[{ v:"confirmed", l:"מגיע", c:"#059669" },
+                    { v:"pending",   l:"ממתין", c:"#D97706" },
+                    { v:"declined",  l:"לא מגיע", c:"#DC2626" }].map(opt => {
+                    const on = detailStatus === opt.v;
+                    return (
+                      <button key={opt.v} onClick={() => setDetailStatus(opt.v)}
+                        style={{ flex:1, padding:"0.6rem 0.4rem", borderRadius:10, minHeight:44,
+                          border:`1px solid ${on ? opt.c : C.border}`,
+                          background:on ? `${opt.c}1A` : C.cream,
+                          color:on ? opt.c : C.muted,
+                          fontSize:13, fontWeight:on?700:400, cursor:"pointer", fontFamily:"Heebo,sans-serif" }}>
+                        {opt.l}
+                      </button>
+                    );
+                  })}
+                </div>
+                {detailStatus === "confirmed" && (
+                  <div style={{ marginTop:"0.6rem" }}>
+                    <label style={{ fontFamily:"Heebo,sans-serif", fontSize:12, color:C.muted, display:"block", marginBottom:4 }}>כמה מגיעים</label>
+                    <input type="number" min={1} max={50} value={detailCount}
+                      onChange={e => setDetailCount(Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
+                      style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:10, padding:"0.6rem 0.8rem", fontSize:14, fontFamily:"Heebo,sans-serif", background:"white", color:C.dark, outline:"none", boxSizing:"border-box", minHeight:44 }} />
+                  </div>
+                )}
+              </div>
               <div>
                 <label style={{ fontFamily:"Heebo,sans-serif", fontSize:12, color:C.muted, display:"block", marginBottom:6 }}>צד</label>
                 <div style={{ display:"flex", gap:"0.5rem" }}>
