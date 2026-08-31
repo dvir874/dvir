@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { coupleName } from "@/lib/couple-name";
 import { hebrewDate } from "@/lib/hebrew-date";
 
 /* ─── Types ───────────────────────────────────────────────────── */
@@ -44,8 +45,20 @@ interface GuestInfo {
   opened_at?: string | null;
   category?: string | null;
 }
+/* What the guest is told the couple is called.
+ *
+ * events.name is the label on the couple's dashboard — "חתונת שחר ואורי" — and
+ * the WhatsApp invitation uses couple_names, the field that exists for exactly
+ * this. They disagree today on two live weddings: שחר's message says
+ * "אורי ושחר" and this page said "חתונת שחר ואורי", the same two names in the
+ * opposite order; שלמה's message says "שלמה ואבישג" and this page said
+ * "החתונה של שלמה גור ואבישג בן שוהם".
+ *
+ * A guest reads the message and taps within seconds, so the two are seen
+ * together. Same source as the sender, same helper, no third answer. */
 interface EventInfo {
   name: string;
+  couple_names?: string | null;
   date: string;
   address?: string | null;
   venue_name?: string | null;
@@ -311,6 +324,19 @@ export default function RsvpClient({
   const [guest,      setGuest]      = useState<GuestInfo | null>(seed ?? null);
   const [event,      setEvent]      = useState<EventInfo | null>(
     (initialData?.event as EventInfo | null) ?? null);
+
+  /* What this page calls the couple, and the same answer the invitation gave.
+   *
+   * events.name is the label on the couple's dashboard; the WhatsApp message
+   * uses couple_names. They disagree on two live weddings — שחר's message says
+   * "אורי ושחר" while this page said "חתונת שחר ואורי", the same two names
+   * reversed, and שלמה's says "שלמה ואבישג" while this said "החתונה של שלמה גור
+   * ואבישג בן שוהם". A guest reads the message and taps within seconds, so the
+   * two are read together.
+   *
+   * Same helper the sender uses. Falls back to event.name, so an event without
+   * couple_names looks exactly as it did. */
+  const displayName = coupleName(event) ?? event?.name ?? "";
   /* The page takes its colour from the couple's own card.
    *
    * Every non-Dvir guest saw the same flat ivory. שחר painted a pale blue sky
@@ -769,7 +795,7 @@ export default function RsvpClient({
                 {/* Text side */}
                 <div style={{ flex: 1 }}>
                   <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "17px", fontWeight: 700, color: T.dark, margin: "0 0 6px" }}>
-                    {event.name}
+                    {displayName}
                   </p>
                   <p style={{ color: T.muted, fontSize: "13px", margin: "0 0 4px" }}>{ddmmyyyy}</p>
                   {event.address && (
@@ -956,7 +982,7 @@ export default function RsvpClient({
               <WarmCard style={{ marginBottom: "16px", animation: "fadeUp 0.5s ease 0.25s both" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                   <div>
-                    <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "18px", fontWeight: 700, color: T.dark, marginBottom: "4px" }}>{event.name}</p>
+                    <p style={{ fontFamily: "'Frank Ruhl Libre', serif", fontSize: "18px", fontWeight: 700, color: T.dark, marginBottom: "4px" }}>{displayName}</p>
                     <p style={{ color: T.muted, fontSize: "13px" }}>{formattedDate}</p>
                   </div>
                   {daysLeft > 0 && (
