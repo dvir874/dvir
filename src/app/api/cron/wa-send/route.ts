@@ -981,6 +981,28 @@ async function runSend(req: NextRequest) {
   }
 
   const dayBefore = await notifyDayBefore(sb, cfg, budget);
+
+  /* A skipped day-before is not a routine line in a run record.
+   *
+   * notifyDayBefore refuses an event missing the couple's names, the venue or
+   * the times — correctly, because a "מחר זה קורה" with a blank address is
+   * worse than silence. The refusal was recorded and nothing else: the reason
+   * landed in a run record nobody reads, on the one evening it could still be
+   * fixed. ירון ואיילת is missing names and both times today; a wedding in that
+   * state on its eve means every confirmed guest gets no directions at all and
+   * the first anyone hears of it is the phone ringing on the day.
+   *
+   * Once, and only when something was actually skipped. */
+  if (dayBefore.skipped && process.env.ADMIN_ALERT_PHONE) {
+    try {
+      await sendRunSummary(cfg, process.env.ADMIN_ALERT_PHONE, {
+        event: "⚠️ הודעת \"מחר זה קורה\" לא יצאה",
+        sent: "0", failed: "—", left: "—",
+        attention: `${dayBefore.skipped} · החתונה מחר. השלימו ב-/admin ותוך שעה זה יוצא לבד.`,
+      });
+    } catch { /* an alert must never cost a send */ }
+  }
+
   budget = Math.max(0, budget - dayBefore.sent);
   if (!budget) return record(sb, { sent: dayBefore.sent, reason: dayBefore.sent ? "day_before_only" : "budget_exhausted", cap, healed, dayBefore },
     { cap, tier: health.tier, quality: health.quality, posture: health.posture,
