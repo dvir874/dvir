@@ -1688,7 +1688,13 @@ async function runSend(req: NextRequest) {
 
       /* A helper may already be holding this guest — same reason as above. */
       const { data: held } = await sb.from("guests")
-        .select("id").eq("event_id", other.id).not("assigned_to", "is", null);
+        /* assigned_helper. There is no assigned_to column on guests, so this
+           query errored, `held` came back null, the set was empty, and every
+           guest a helper is currently working through at a secondary wedding
+           was messaged by the sender as well — the "family messages them at
+           14:50 and the business number at 15:00" failure the selected-wedding
+           path above exists to prevent, live on every other wedding. */
+        .select("id").eq("event_id", other.id).not("assigned_helper", "is", null);
       const reservedHere = new Set((held ?? []).map(r => r.id as string));
 
       const seen = new Set(targets.map(t => t.id));
@@ -1804,7 +1810,13 @@ async function runSend(req: NextRequest) {
       }
 
       const { data: held } = await sb.from("guests")
-        .select("id").eq("event_id", other.id).not("assigned_to", "is", null);
+        /* assigned_helper. There is no assigned_to column on guests, so this
+           query errored, `held` came back null, the set was empty, and every
+           guest a helper is currently working through at a secondary wedding
+           was messaged by the sender as well — the "family messages them at
+           14:50 and the business number at 15:00" failure the selected-wedding
+           path above exists to prevent, live on every other wedding. */
+        .select("id").eq("event_id", other.id).not("assigned_helper", "is", null);
       const reservedHere = new Set((held ?? []).map(r => r.id as string));
 
       const seen = new Set(targets.map(t => t.id));
