@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getWhatsAppConfig } from "@/lib/whatsapp";
 import { sendButtons, sendList, sendText, parseGuestCount } from "@/lib/wa-interactive";
 import { detectRideIntent } from "@/lib/rides";
+import { stateIsLive } from "@/lib/chat-state";
 import { bareCount } from "@/lib/guest-count";
 
 /* Answering an invitation without leaving WhatsApp.
@@ -30,7 +31,8 @@ type Sb = SupabaseClient;
 
 interface Guest {
   id: string; name: string; phone: string;
-  status: string; guest_count: number | null; chat_state: string | null;
+  status: string; guest_count: number | null;
+  chat_state: string | null; chat_state_at: string | null;
 }
 
 const ASK_COUNT   = "awaiting_count";
@@ -70,7 +72,7 @@ export async function handleGuestReply(
   if (!cfg) return false;
 
   const { data: g } = await sb.from("guests")
-    .select("id, name, phone, status, guest_count, chat_state")
+    .select("id, name, phone, status, guest_count, chat_state, chat_state_at")
     .eq("id", guestId).maybeSingle();
   if (!g) return false;
 
@@ -79,7 +81,8 @@ export async function handleGuestReply(
   const said = (buttonId ?? text ?? "").trim();
 
   /* ── mid-exchange ────────────────────────────────────────────── */
-  if (guest.chat_state === ASK_COUNT) {
+  const live = stateIsLive(guest);
+  if (live && guest.chat_state === ASK_COUNT) {
     /* Changing their mind while the headcount question is open.
        דור ענף tapped מגיע and לא מגיע in the same second on 12/08. The second
        tap arrived here, was handed to the number parser, and came back as
@@ -121,7 +124,7 @@ export async function handleGuestReply(
     return true;
   }
 
-  if (guest.chat_state?.startsWith(`${ASK_CHANGE}:`)) {
+  if (live && guest.chat_state?.startsWith(`${ASK_CHANGE}:`)) {
     const proposed = parseInt(guest.chat_state.split(":")[1] ?? "", 10);
     if (/^(yes_change|כן)/.test(said) && Number.isFinite(proposed)) {
       await record(sb, guest, "confirmed", proposed);
@@ -135,7 +138,7 @@ export async function handleGuestReply(
     return true;
   }
 
-  if (guest.chat_state === ASK_DECLINE) {
+  if (live && guest.chat_state === ASK_DECLINE) {
     if (/^(yes_decline|כן)/.test(said)) {
       await record(sb, guest, "declined");
       await sendText(cfg, to, "תודה שעדכנתם 🤍 נתגעגע!\nאם משהו ישתנה — כתבו לנו כאן.");
