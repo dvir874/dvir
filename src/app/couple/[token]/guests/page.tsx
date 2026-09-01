@@ -329,10 +329,45 @@ export default function GuestCenterPage() {
                 </div>
                 {detailStatus === "confirmed" && (
                   <div style={{ marginTop:"0.6rem" }}>
-                    <label style={{ fontFamily:"Heebo,sans-serif", fontSize:12, color:C.muted, display:"block", marginBottom:4 }}>כמה מגיעים</label>
-                    <input type="number" min={1} max={50} value={detailCount}
-                      onChange={e => setDetailCount(Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
-                      style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:10, padding:"0.6rem 0.8rem", fontSize:14, fontFamily:"Heebo,sans-serif", background:"white", color:C.dark, outline:"none", boxSizing:"border-box", minHeight:44 }} />
+                    <label style={{ fontFamily:"Heebo,sans-serif", fontSize:12, color:C.muted, display:"block", marginBottom:6 }}>כמה מגיעים</label>
+                    {/* Taps, not typing.
+                        This was <input type="number">, and אבא של לאל reported
+                        on 01/09 that changing 1 to 2 was very hard on his
+                        phone — which it is: the field has to be selected and
+                        the existing digit deleted before a new one can be
+                        typed, and the spinner arrows are a few pixels wide.
+                        The RSVP page has asked guests this same question with
+                        circles since it was built, and hundreds have answered
+                        it without trouble. Same control here. */}
+                    <div style={{ display:"flex", gap:"0.4rem", flexWrap:"wrap" }}>
+                      {[1,2,3,4,5,6,7,8].map(n => {
+                        const on = detailCount === n;
+                        return (
+                          <button key={n} type="button" onClick={() => setDetailCount(n)}
+                            aria-pressed={on}
+                            style={{
+                              width:44, height:44, borderRadius:"50%",
+                              border:`2px solid ${on ? C.gold : C.border}`,
+                              background:on ? C.gold : C.cream,
+                              color:on ? "#fff" : C.dark,
+                              fontFamily:"'Frank Ruhl Libre',serif", fontSize:16, fontWeight:700,
+                              cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+                            }}>{n}</button>
+                        );
+                      })}
+                      {/* A family larger than eight is rare and real — לאל וטל
+                          has one at 7 — so the ladder keeps going rather than
+                          stopping at a round number. */}
+                      <button type="button" onClick={() => setDetailCount(Math.min(50, detailCount + 1))}
+                        aria-label="עוד אחד"
+                        style={{
+                          height:44, padding:"0 14px", borderRadius:22,
+                          border:`2px solid ${detailCount > 8 ? C.gold : C.border}`,
+                          background:detailCount > 8 ? C.gold : C.cream,
+                          color:detailCount > 8 ? "#fff" : C.muted,
+                          fontFamily:"Heebo,sans-serif", fontSize:14, fontWeight:600, cursor:"pointer",
+                        }}>{detailCount > 8 ? detailCount : "עוד +"}</button>
+                    </div>
                   </div>
                 )}
               </div>
