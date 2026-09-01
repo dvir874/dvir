@@ -59,8 +59,6 @@ interface GuestInfo {
 interface EventInfo {
   name: string;
   couple_names?: string | null;
-  /** Set only when this wedding actually runs a rides group. */
-  rides_group_url?: string | null;
   date: string;
   address?: string | null;
   venue_name?: string | null;
@@ -363,8 +361,6 @@ export default function RsvpClient({
   const [blessingSaved, setBlessingSaved] = useState(false);
   const [meal,       setMeal]       = useState<MealOption | null>(null);
   const [mealCounts, setMealCounts] = useState<Partial<Record<MealOption, number>>>({});
-  const [rideFrom,   setRideFrom]   = useState("");
-  const [rideRole,   setRideRole]   = useState<"offer" | "seek" | null>(null);
   const [shuttle,    setShuttle]    = useState<"yes" | "no" | null>(null);  // horim_list: Tiberias shuttle
   const [mealNote,   setMealNote]   = useState(seed?.meal_note ?? "");
   const [zoomInvite, setZoomInvite] = useState(false);   // dvir_list: tap invitation → full-screen
@@ -563,9 +559,6 @@ export default function RsvpClient({
             ? { meal_counts: mealCounts }
             : newChoice === "confirmed" && meal
             ? { meal_counts: { [meal]: 1 } }
-            : {}),
-          ...(newChoice === "confirmed" && rideRole && rideFrom.trim()
-            ? { ride_from: rideFrom.trim(), ride_role: rideRole }
             : {}),
           ...(newChoice === "confirmed" ? { wants_photos: wantsPhotos } : {}),
           /* horim_list shuttle: stored via the existing ride fields (no schema change) */
@@ -1714,69 +1707,24 @@ export default function RsvpClient({
               </div>
             )}
 
-            {/* Ride sharing — only where a rides group actually exists.
+            {/* The rides question was here, and the group replaced it.
               *
-              * This was asked at every wedding and answered at 7%, 14% and
-              * 10% — the least-answered thing on the page, against 44-73% for
-              * the meal. What it feeds is a board of possible pairs somebody
-              * has to work through by hand, and the WhatsApp group replaced
-              * that: 74 of 290 guests joined שחר's in a day, with no matching
-              * from anyone.
+              * It asked the guest to declare a seat or a need so a board could
+              * pair them up by hand. Answered at 7%, 14% and 10% — the least
+              * answered thing on the page against 44-73% for the meal — and
+              * the pairing was never automated, so somebody had to work
+              * through the possible matches one at a time.
               *
-              * Gated rather than deleted, and gated on the group rather than
-              * on a date. שחר's guests have been seeing this question for three
-              * weeks and her wedding is in seven days; removing it from under
-              * them mid-flight is a change they did not ask for. She has a
-              * group, so hers keeps it. The four weddings with no group never
-              * see it again. */}
-            {attending && event?.rides_group_url && (
-              <div style={{ marginBottom: "24px", animation: "fadeUp 0.3s ease 0.08s both" }}>
-                {/* "לא חובה" is the reason 7% answered this. The question was
-                    also asked as though it were about the guest's own car,
-                    when what the board needs is where they set off from — and
-                    a guest living in the venue's own town without a car is
-                    exactly who a local driver can help. */}
-                <p style={{ fontSize: "15px", fontWeight: 600, color: T.dark, marginBottom: "4px", textAlign: "center" }}>
-                  🚗 צריכים טרמפ, או שיש לכם מקום ברכב?
-                </p>
-                <p style={{ fontSize: "13px", fontWeight: 300, color: T.muted, marginBottom: "12px", textAlign: "center", lineHeight: 1.6 }}>
-                  כתבו מאיפה אתם יוצאים — ונחבר בין מי שיש לו מקום למי שצריך
-                </p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: rideRole ? "12px" : 0 }}>
-                  {([["offer", "🚙 יש לי מקום ברכב"], ["seek", "🙋 מחפש/ת טרמפ"]] as const).map(([role, label]) => (
-                    <button
-                      key={role}
-                      type="button"
-                      onClick={() => setRideRole(r => r === role ? null : role)}
-                      aria-pressed={rideRole === role}
-                      style={{
-                        padding: "13px 8px", borderRadius: "12px", cursor: "pointer", textAlign: "center",
-                        border: `2px solid ${rideRole === role ? T.gold : T.border}`,
-                        background: rideRole === role ? "rgba(197,164,109,0.12)" : T.cream,
-                        fontFamily: "'Heebo', sans-serif", fontSize: "13px",
-                        fontWeight: rideRole === role ? 600 : 400,
-                        color: rideRole === role ? T.goldText : T.dark,
-                      }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                {rideRole && (
-                  <input
-                    value={rideFrom}
-                    onChange={e => setRideFrom(e.target.value)}
-                    placeholder="מאיזה עיר / אזור? (למשל: תל אביב)"
-                    style={{
-                      width: "100%", boxSizing: "border-box", padding: "13px 14px",
-                      border: `1.5px solid ${T.border}`, borderRadius: "12px",
-                      fontSize: "15px", fontFamily: "'Heebo', sans-serif",
-                      background: "#fff", color: T.dark, animation: "fadeUp 0.25s ease both",
-                    }}
-                  />
-                )}
-              </div>
-            )}
+              * The WhatsApp group does that job without anybody in the middle:
+              * 74 of 290 of שחר's guests joined hers within a day and arranged
+              * lifts among themselves. A wedding WITH a group is the strongest
+              * case for not asking, not the weakest — which is the wrong way
+              * round from how this was first gated on 01/09.
+              *
+              * The answers already collected are untouched; ride_from and
+              * ride_role still reach the board from the WhatsApp conversation
+              * handler, which reads "אני נוסע מחדרה ויש לי מקום" out of
+              * ordinary sentences. */}
 
             {/* A blessing, at the moment they said yes.
               *
