@@ -1643,10 +1643,15 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
         {/* The numbers, quieter — a ratio where there is one, because "245"
             answers nothing without "of 300". */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"16px" }}>
-          {/* People. stats.confirmed is households — the number a couple orders meals
-              from, and it is roughly half the room. stats.attendees is already the
-              sum of guest_count for everyone confirmed. */}
-          <StatCard icon="👥" label="אורחים שאישרו" value={stats.attendees} of={stats.total} href={`/couple/${token}/guests`} />
+          {/* People, with no denominator — deliberately.
+              It read "420 /335" for שחר: attendees over records, people over phone
+              numbers, more confirmed than exist on the list. She quoted 420 to
+              Dvir, he quoted 335 back, and both were reading this one card.
+              There is no honest denominator here: a record nobody has answered
+              carries no headcount, so the total number of people is not a number
+              we hold. The ratio that IS true — answered out of records, and the
+              headcount beside it — is in the counter directly below. */}
+          <StatCard icon="👥" label="אורחים שאישרו" value={stats.attendees} href={`/couple/${token}/guests`} />
           <StatCard icon="🪑" label="הושבו"      value={seating.assignedSeats} of={stats.attendees} href={`/couple/${token}/seating`} />
           <StatCard icon="💰" label="נותר בתקציב" value={`₪${(budget.remaining > 0 ? budget.remaining : 0).toLocaleString("he-IL")}`} href={`/couple/${token}/budget`} />
           <StatCard icon="📋" label="משימות פתוחות" value={tasks.filter(t => !t.completed).length} href={`/couple/${token}/checklist`} />
