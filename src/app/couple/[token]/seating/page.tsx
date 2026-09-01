@@ -18,7 +18,7 @@ const TABLE_TYPES = [
 
 interface SeatingTable      { id: string; name: string; capacity: number; type: string; sort_order: number }
 interface SeatingAssignment { id: string; guest_id: string; table_id: string }
-interface Guest             { id: string; name: string; guest_count: number; status?: string; phone?: string | null }
+interface Guest             { id: string; name: string; guest_count: number; status?: string; phone?: string | null; source_group?: string | null; side?: string | null }
 interface SeatingData { tables: SeatingTable[]; assignments: SeatingAssignment[]; guests: Guest[] }
 
 function getInitials(name: string): string {
@@ -331,7 +331,33 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
               <p style={{ fontSize: 12, color: "rgba(28,16,8,0.4)", marginBottom: "0.6rem" }}>גרור לשולחן או לחץ לבחירה</p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 480, overflowY: "auto" }}>
-                {unassigned.map(g => (
+                {/* Grouped, because seating is done by group.
+                    The unassigned list was a flat alphabetical column of two
+                    hundred names, so a couple placing "חברים לאל" at adjacent
+                    tables had to hold the membership in their head. The groups
+                    arrive with the imported list — לאל וטל has eight of them,
+                    the largest 159 people — and were shown on no screen at all.
+                    A wedding with no groups still renders one unnamed run, so
+                    nothing changes for a list that does not use them. */}
+                {Object.entries(
+                  unassigned.reduce<Record<string, Guest[]>>((acc, g) => {
+                    const k = (g.source_group ?? "").trim() || "";
+                    (acc[k] = acc[k] ?? []).push(g);
+                    return acc;
+                  }, {}),
+                ).sort((a, b) => (a[0] ? 0 : 1) - (b[0] ? 0 : 1) || b[1].length - a[1].length)
+                 .map(([group, members]) => (
+                  <div key={group || "_none"} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {group && (
+                      <div style={{
+                        fontSize: 11, fontWeight: 700, color: GOLD, padding: "8px 4px 2px",
+                        fontFamily: "Heebo, sans-serif", display: "flex", justifyContent: "space-between",
+                      }}>
+                        <span>{group}</span>
+                        <span style={{ opacity: 0.7 }}>{members.length}</span>
+                      </div>
+                    )}
+                    {members.map(g => (
                   <button key={g.id}
                     draggable={true}
                     onDragStart={e => e.dataTransfer.setData("guestId", g.id)}
@@ -346,6 +372,8 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
                     <span style={{ fontSize: 12, color: "rgba(28,16,8,0.25)" }}>⠿</span>
                     <span>{g.name}</span>
                   </button>
+                    ))}
+                  </div>
                 ))}
                 {unassigned.length === 0 && (
                   <p style={{ fontSize: 13, color: "rgba(28,16,8,0.35)", textAlign: "center", padding: "1rem 0" }}>

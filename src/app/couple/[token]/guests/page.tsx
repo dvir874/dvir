@@ -38,6 +38,7 @@ interface Guest {
   guest_count: number;
   status: string;
   side: string | null;
+  source_group?: string | null;
   table_number: number | null;
   notes: string | null;
 }
@@ -50,10 +51,22 @@ export default function GuestCenterPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterSide, setFilterSide] = useState("all");
+  const [filterGroup, setFilterGroup] = useState("all");
+  /* The groups that actually exist on this wedding, biggest first. Read from
+     the list rather than configured anywhere: they arrive with the import, and
+     a couple has between two and ten of them. */
+  const groups = Array.from(
+    guests.reduce((m, g) => {
+      const k = (g.source_group ?? "").trim();
+      if (k) m.set(k, (m.get(k) ?? 0) + 1);
+      return m;
+    }, new Map<string, number>()),
+  ).sort((a, b) => b[1] - a[1]);
   const [detail, setDetail] = useState<Guest | null>(null);
   const [detailNotes, setDetailNotes] = useState("");
   const [detailSide, setDetailSide] = useState("");
   const [detailStatus, setDetailStatus] = useState("");
+  const [detailGroup,  setDetailGroup]  = useState("");
   const [detailCount, setDetailCount]   = useState(1);
   const [saving, setSaving] = useState(false);
 
@@ -70,6 +83,7 @@ export default function GuestCenterPage() {
     setDetailNotes(g.notes ?? "");
     setDetailSide(g.side ?? "");
     setDetailStatus(g.status ?? "pending");
+    setDetailGroup(g.source_group ?? "");
     setDetailCount(g.guest_count || 1);
   };
 
@@ -81,6 +95,7 @@ export default function GuestCenterPage() {
       body: JSON.stringify({
         id: detail.id, side: detailSide || null, notes: detailNotes || null,
         ...(detailStatus && detailStatus !== detail.status ? { status: detailStatus } : {}),
+        ...(detailGroup !== (detail.source_group ?? "") ? { source_group: detailGroup } : {}),
         ...(detailStatus === "confirmed" && detailCount !== detail.guest_count ? { guest_count: detailCount } : {}),
       }),
     });
@@ -109,7 +124,8 @@ export default function GuestCenterPage() {
     else if (filterStatus === "declined")  matchStatus = g.status === "declined";
     else if (filterStatus === "unseated")  matchStatus = !g.table_number && g.status === "confirmed";
     const matchSide = filterSide === "all" || g.side === filterSide;
-    return matchSearch && matchStatus && matchSide;
+    const matchGroup = filterGroup === "all" || (g.source_group ?? "") === filterGroup;
+    return matchSearch && matchStatus && matchSide && matchGroup;
   });
 
   const CHIPS = [
@@ -162,6 +178,27 @@ export default function GuestCenterPage() {
           );
         })}
       </div>
+
+      {/* Groups, in the same chips as the row above. Hidden entirely when the
+          list has none, so a wedding without groups sees no empty control. */}
+      {groups.length > 0 && (
+        <div role="group" aria-label="סנן לפי קבוצה" className="guest-chip-scroll"
+          style={{ display:"flex", gap:"8px", padding:"0 16px 12px", overflowX:"auto", scrollbarWidth:"none" }}>
+          {[["all", `כל הקבוצות (${guests.length})`] as const,
+            ...groups.map(([g, n]) => [g, `${g} (${n})`] as const)].map(([key, label]) => {
+            const active = filterGroup === key;
+            return (
+              <button key={key} onClick={() => setFilterGroup(key)}
+                style={{ flexShrink:0, padding:"6px 14px", borderRadius:20, border:`1px solid ${active?C.gold:C.border}`,
+                  background:active?"rgba(197,164,109,0.14)":"transparent", color:active?C.goldText:C.muted,
+                  fontFamily:"Heebo,sans-serif", fontSize:13, fontWeight:active?600:400, cursor:"pointer",
+                  minHeight:36, whiteSpace:"nowrap" }}>
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Search input */}
       <div style={{ padding:"0 16px 12px" }}>
@@ -382,6 +419,34 @@ export default function GuestCenterPage() {
                   ))}
                 </div>
               </div>
+              {/* Which group this guest belongs to. Free text with the groups
+                  already on this wedding offered as taps, because the set is
+                  the couple's own vocabulary and nobody can enumerate it in
+                  advance — "חברים לאל" and "חברות טל" came from their list. */}
+              <div>
+                <label style={{ fontFamily:"Heebo,sans-serif", fontSize:12, color:C.muted, display:"block", marginBottom:6 }}>קבוצה</label>
+                {groups.length > 0 && (
+                  <div style={{ display:"flex", gap:"0.4rem", flexWrap:"wrap", marginBottom:8 }}>
+                    {groups.map(([g]) => {
+                      const on = detailGroup === g;
+                      return (
+                        <button key={g} type="button" onClick={() => setDetailGroup(on ? "" : g)}
+                          style={{ padding:"6px 12px", borderRadius:16, minHeight:36,
+                            border:`1px solid ${on?C.gold:C.border}`,
+                            background:on?"rgba(197,164,109,0.14)":C.cream,
+                            color:on?C.goldText:C.muted, fontSize:12,
+                            fontFamily:"Heebo,sans-serif", cursor:"pointer" }}>
+                          {g}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <input value={detailGroup} onChange={e => setDetailGroup(e.target.value.slice(0, 60))}
+                  placeholder="או כתבו קבוצה חדשה…"
+                  style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:10, padding:"0.6rem 0.8rem", fontSize:14, fontFamily:"Heebo,sans-serif", background:"white", color:C.dark, outline:"none", boxSizing:"border-box", minHeight:44 }} />
+              </div>
+
               <div>
                 <label style={{ fontFamily:"Heebo,sans-serif", fontSize:12, color:C.muted, display:"block", marginBottom:4 }}>הערות</label>
                 <textarea value={detailNotes} onChange={e => setDetailNotes(e.target.value)} rows={2} placeholder="הערה אישית..."
