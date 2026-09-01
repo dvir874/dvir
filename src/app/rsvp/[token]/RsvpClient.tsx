@@ -1,5 +1,7 @@
 "use client";
 
+import { eventDay } from "@/lib/event-times";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { coupleName } from "@/lib/couple-name";
 import { hebrewDate } from "@/lib/hebrew-date";
@@ -609,13 +611,18 @@ export default function RsvpClient({
     }
   }
 
-  const formattedDate = event?.date
-    ? new Date(event.date).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })
+  /* eventDay, not new Date(event.date): a bare "2026-09-08" parses as midnight
+     UTC and renders in the DEVICE's timezone, so this printed "7 בספטמבר" to a
+     guest whose phone was west of UTC. Israel is UTC+3, so it never showed up
+     here. */
+  const evDay = eventDay(event?.date);
+  const formattedDate = evDay
+    ? evDay.toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })
     : "";
 
   const calUrl = (() => {
-    if (!event?.date) return null;
-    const d = new Date(event.date);
+    const d = evDay;
+    if (!d || !event) return null;
     /* Local wall-clock plus ctz, rather than converting to UTC here. Building
        the instant with new Date(y, m, d, 19, ...) used the GUEST's timezone, so
        a guest abroad got 19:00 in their own city rather than in Israel. */

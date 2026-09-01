@@ -1,5 +1,7 @@
 "use client";
 
+import { eventDay } from "@/lib/event-times";
+
 import { shrinkImage } from "@/lib/shrink-image";
 import { use, useEffect, useState, useRef } from "react";
 import { Upload, Loader2, Lock, X } from "lucide-react";
@@ -221,7 +223,7 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
   })();
 
   const formattedDate = event?.date
-    ? new Date(event.date).toLocaleDateString("he-IL", { day:"numeric", month:"long", year:"numeric" })
+    ? (eventDay(event.date) ?? new Date(event.date)).toLocaleDateString("he-IL", { day:"numeric", month:"long", year:"numeric" })
     : "";
 
   // ──── Loading ────

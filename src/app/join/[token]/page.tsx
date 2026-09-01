@@ -1,5 +1,7 @@
 "use client";
 
+import { eventDay } from "@/lib/event-times";
+
 import { useState, useEffect, use, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -59,7 +61,7 @@ function JoinInner({ params }: { params: Promise<{ token: string }> }) {
   }
 
   const dateStr = event?.date
-    ? new Date(event.date).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    ? (eventDay(event.date) ?? new Date(event.date)).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
     : "";
 
   return (
