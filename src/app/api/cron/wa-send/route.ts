@@ -7,9 +7,7 @@ import { eventTimes } from "@/lib/event-times";
 import { venueLine } from "@/lib/venue";
 import { weddingDateLine } from "@/lib/hebrew-date";
 import {
-  getWhatsAppConfig, sendInvitation, toE164, policyFor,
-  rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY,
-  fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendDayBefore, sendRunSummary, sendRidesGroup } from "@/lib/whatsapp";
+  getWhatsAppConfig, sendInvitation, toE164, policyFor, rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY, fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendDayBefore, sendRunSummary, sendRidesGroup, nextRetryAt } from "@/lib/whatsapp";
 import { checkEventLinks, brokenSummary } from "@/lib/link-health";
 
 export const dynamic = "force-dynamic";
@@ -2044,12 +2042,17 @@ async function runSend(req: NextRequest) {
         /* A retry that failed is either rescheduled or retired on purpose —
            never silently dropped. */
         if (t.row) {
-          const again = pol.action === "retry_later";
+          /* nextRetryAt, not the action alone. Both of these sites decided on
+             pol.action === "retry_later" and scheduled another attempt without
+             ever reading pol.maxAttempts — so a failure whose policy allows two
+             tries was retried on the third, and the fourth, every 26 hours, each
+             one costing a slot out of a 250-a-day cap. nextRetryAt already
+             encodes the ceiling and the delay; duplicating half of it here was
+             what let the other half go missing. */
+          const when = nextRetryAt(t.count ?? 0, null, res.error);
           await sb.from("wa_messages").update({
             retry_count: t.count,
-            retry_after: again
-              ? new Date(Date.now() + (pol.delayH ?? 24) * 3_600_000).toISOString()
-              : null,
+            retry_after: when ? when.toISOString() : null,
           }).eq("id", t.row);
         } else {
           /* A first contact that Meta rejected outright left no trace at all.
@@ -2075,9 +2078,7 @@ async function runSend(req: NextRequest) {
             status: "failed",
             error: res.error ?? "unknown",
             retry_count: 0,
-            retry_after: pol.action === "retry_later"
-              ? new Date(Date.now() + (pol.delayH ?? 24) * 3_600_000).toISOString()
-              : null,
+            retry_after: nextRetryAt(0, null, res.error)?.toISOString() ?? null,
           });
         }
 
