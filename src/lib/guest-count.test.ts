@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { bareCount, changeIntent } from "./guest-count.ts";
+import { bareCount, changeIntent, unpromptedCount} from "./guest-count.ts";
 
 /* Every string below is one this system actually received. The corpus is 306
    inbound messages across four weddings, replayed on 31/08. */
@@ -72,4 +72,51 @@ test("a sentence with no change verb is left to bareCount", () => {
 test("a number outside a plausible headcount is refused", () => {
   assert.equal(changeIntent("לעדכן ל-40"), null);
   assert.equal(changeIntent("לעדכן ל-0"), null);
+});
+
+/* ── unprompted messages ─────────────────────────────────────────────────── */
+
+test("a congratulation is not a headcount", () => {
+  /* "מזל טוב לזוג המאושר" contains "זוג", which parseGuestCount's word table
+     reads as two — so the guest was marked confirmed for two and told
+     "רשמנו 2 🤍" for wishing the couple well. */
+  for (const m of [
+    "מזל טוב לזוג המאושר!",
+    "שיהיה במזל טוב, שנינו מאחלים",
+    "מזל טוב!! מאחלים לכם 2 חיים מאושרים",
+    "בשעה טובה 🤍",
+  ]) {
+    assert.equal(unpromptedCount(m), null, `booked seats: ${m}`);
+  }
+});
+
+test("a refusal is not an acceptance", () => {
+  for (const m of [
+    "לצערי לא נוכל להגיע, אנחנו 2 בחו\"ל",
+    "מצטערים, לא מגיעים",
+    "לא נוכל להגיע",
+  ]) {
+    assert.equal(unpromptedCount(m), null, `confirmed a decline: ${m}`);
+  }
+});
+
+test("the answers this exists to keep still get through", () => {
+  /* אמא של שחר answered from a second handset with no chat_state: the message
+     was "תודה רבה\n1" and dropping it sent her a reminder for an answer she
+     had already given. */
+  assert.equal(unpromptedCount("תודה רבה\n1"), 1);
+  assert.equal(unpromptedCount("3"), 3);
+  assert.equal(unpromptedCount("אנחנו 4 מגיעים"), 4);
+  assert.equal(unpromptedCount("  2  "), 2);
+});
+
+test("nothing is guessed from a bare word", () => {
+  /* No word table here at all — unprompted, "שנינו" is as likely to be part of
+     a blessing as an answer, and a wrong headcount reaches the caterer. */
+  assert.equal(unpromptedCount("שנינו"), null);
+  assert.equal(unpromptedCount("זוג"), null);
+});
+
+test("two numbers are still refused", () => {
+  assert.equal(unpromptedCount("אני ועוד 2, סה\"כ 3"), null);
 });

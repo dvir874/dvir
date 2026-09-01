@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { checkRateLimit, getClientIp, LIMITS } from "@/lib/rate-limit";
@@ -51,13 +52,38 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
      real and must never reach a real wall. */
   if (guest.category === "demo") return NextResponse.json({ ok: true, demo: true });
 
+  /* The vault, created here if the event has none.
+   *
+   * Every event created through /admin/intake since 13/08 gets one, and this
+   * used to give up when it found none — throwing the blessing away and
+   * telling the guest it was saved. שלמה גור was created without one, so
+   * every blessing on the page Dvir is currently showing prospects would have
+   * been silently discarded.
+   *
+   * There is nothing to decide here: a vault is two random UUIDs, the guest
+   * has already written the words, and dropping them is the worst of the
+   * available outcomes. */
+  let vaultToken: string | null = null;
   const { data: vault } = await sb.from("vault_tokens")
     .select("token").eq("event_id", guest.event_id).maybeSingle();
-  if (!vault?.token) {
-    /* Every event created since 13/08 gets a vault at creation. An older one
-       without a vault has nowhere to put this, and losing the blessing is
-       better than 500-ing a guest who has already confirmed. */
-    console.warn(`[rsvp:blessing] event ${guest.event_id} has no vault token`);
+  vaultToken = vault?.token ?? null;
+
+  if (!vaultToken) {
+    const fresh = randomUUID();
+    const { error: vErr } = await sb.from("vault_tokens")
+      .insert({ event_id: guest.event_id, token: fresh, owner_token: randomUUID() });
+    if (vErr) {
+      /* A racing request may have created it between the read and the write. */
+      const { data: again } = await sb.from("vault_tokens")
+        .select("token").eq("event_id", guest.event_id).maybeSingle();
+      vaultToken = again?.token ?? null;
+    } else {
+      vaultToken = fresh;
+    }
+  }
+
+  if (!vaultToken) {
+    console.error(`[rsvp:blessing] event ${guest.event_id} has no vault and one could not be made`);
     return NextResponse.json({ ok: false, stored: false });
   }
 
@@ -68,7 +94,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
   const row = {
     event_id: guest.event_id,
-    vault_token: vault.token,
+    vault_token: vaultToken,
     guest_id: guest.id,
     guest_name: guest.name,
     type: "blessing",

@@ -70,3 +70,43 @@ export function changeIntent(raw: string): number | null {
   const n = parseInt(digits[0], 10);
   return n >= 1 && n <= 20 ? n : null;
 }
+
+/* ── a number in a message nobody asked for ──────────────────────────────── */
+
+/* Congratulation, not attendance. A guest who has not been asked anything
+   writes these unprompted, and every one of them used to be read as an answer. */
+const BLESSING = /(מזל טוב|מז\"ט|בשעה טובה|במזל טוב|מאחל|מאחלת|מאחלים|ברכות|איחולים|שנה טובה|בהצלחה|כל הכבוד|באהבה|מתרגש|מתרגשת|מתרגשים|כל טוב)/;
+
+/* Not coming. Written out rather than using \b, which in JavaScript is defined
+   against [A-Za-z0-9_] and therefore matches between every pair of Hebrew
+   letters. */
+const DECLINE_FREE = /(^|[\s\-–:(,.!])(לא\s*(נוכל|נגיע|מגיעים|מגיעה|מגיע|באים|באה|בא|יגיעו|יגיע|מצליחים)|לצערי|לצערנו|מצטער|מצטערת|מצטערים|בחו"?ל|בחול)/;
+
+/**
+ * A headcount from a guest who was never asked for one.
+ *
+ * parseGuestCount is right for a guest mid-question: it is generous because
+ * the question has already narrowed what the message can mean. It is wrong for
+ * an unprompted message, where it reads any lone number as a headcount and
+ * substring-matches its word table — "מזל טוב לזוג המאושר" contains "זוג", so
+ * a congratulation booked two seats and the guest was told "רשמנו 2 🤍".
+ *
+ * The same generosity turns a refusal into an acceptance: "לצערי לא נוכל
+ * להגיע, אנחנו 2 בחו״ל" was recorded as confirmed for two.
+ *
+ * So: no word table at all here, and a message that is congratulating or
+ * refusing is not a headcount whatever digits it contains. A guest whose
+ * genuine answer is rejected is asked again, which is the failure this is
+ * supposed to have — a wrong headcount reaches the caterer.
+ */
+export function unpromptedCount(raw: string): number | null {
+  const t = String(raw ?? "").trim();
+  if (!t) return null;
+  if (BLESSING.test(t)) return null;
+  if (DECLINE_FREE.test(t)) return null;
+
+  const digits = t.match(/\d+/g);
+  if (!digits || digits.length > 1) return null;
+  const n = parseInt(digits[0], 10);
+  return n >= 1 && n <= 20 ? n : null;
+}

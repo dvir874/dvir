@@ -593,7 +593,13 @@ export default function RsvpClient({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ blessing: blessing.trim() }),
           keepalive: true,
-        }).then(r => r.ok && setBlessingSaved(true)).catch(() => {});
+        })
+          /* stored, not r.ok. The route answers 200 with { stored: false }
+             when it could not write — a guest was being shown "הברכה נשמרה"
+             at the exact moment the blessing was thrown away. */
+          .then(r => r.json())
+          .then(d => { if (d?.stored) setBlessingSaved(true); })
+          .catch(() => {});
       }
     } catch {
       setErrorMsg("לא הצלחנו לשמור — ייתכן שהחיבור נקטע. נסו שוב.");

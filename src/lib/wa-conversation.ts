@@ -3,7 +3,7 @@ import { getWhatsAppConfig } from "@/lib/whatsapp";
 import { sendButtons, sendList, sendText, parseGuestCount } from "@/lib/wa-interactive";
 import { detectRideIntent } from "@/lib/rides";
 import { stateIsLive } from "@/lib/chat-state";
-import { bareCount, changeIntent } from "@/lib/guest-count";
+import { bareCount, changeIntent, unpromptedCount} from "@/lib/guest-count";
 
 /* Answering an invitation without leaving WhatsApp.
  *
@@ -202,7 +202,12 @@ export async function handleGuestReply(
      Only for guests still pending, and the reply below is worded so a
      misreading is easy to correct. */
   if (guest.status === "pending") {
-    const n = parseGuestCount(said);
+    /* unpromptedCount, not parseGuestCount. Nothing was asked, so nothing has
+       narrowed what this message can mean: parseGuestCount substring-matches
+       its word table, and "מזל טוב לזוג המאושר" contains "זוג" — a
+       congratulation booked two seats and answered "רשמנו 2 🤍". A refusal
+       carrying a number did the same in the other direction. */
+    const n = unpromptedCount(said);
     if (n !== null) {
       await record(sb, guest, "confirmed", n);
       await sendText(cfg, to,

@@ -473,7 +473,7 @@ async function notifyDayBefore(
    * told what time to arrive and the other would have heard nothing at all.
    * Two Saturdays in an Israeli September is not an edge case. */
   const { data: evs } = await sb.from("events")
-    .select("id, name, couple_names, date, address, venue_name, reception_time, chuppah_time")
+    .select("id, name, couple_names, date, address, venue_name, reception_time, chuppah_time, send_paused_until")
     .eq("date", tomorrow).limit(5);
   if (!(evs ?? []).length) return { sent: 0 };
 
@@ -481,8 +481,26 @@ async function notifyDayBefore(
   const names: string[] = [];
   const skips: string[] = [];
 
+  /* The pause switch, which this function alone did not read.
+   *
+   * send_paused_until is the one control that stops a single wedding, and the
+   * main run at the bottom of this file honours it. This block runs BEFORE
+   * that selection and returns its own events, so a paused wedding still sent
+   * every day-before message it had — 224 of them for שחר. The switch was
+   * being trusted for exactly the burst it did not cover.
+   *
+   * Read before the loop rather than inside dayBeforeForEvent, because a
+   * skipped wedding must still be reported: a run that quietly sends nothing
+   * looks identical to one that had nothing to send. */
+  const nowMs = Date.now();
+
   for (const ev of evs ?? []) {
     if (sentTotal >= budget) break;
+    if (ev.send_paused_until && new Date(ev.send_paused_until as string).getTime() > nowMs) {
+      skips.push(`${ev.name}: מושהה עד ${new Date(ev.send_paused_until as string)
+        .toLocaleString("he-IL", { timeZone: "Asia/Jerusalem", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}`);
+      continue;
+    }
     const one = await dayBeforeForEvent(sb, cfg, ev, budget - sentTotal);
     sentTotal += one.sent;
     if (one.sent) names.push(ev.name as string);
