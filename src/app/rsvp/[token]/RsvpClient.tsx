@@ -59,6 +59,8 @@ interface GuestInfo {
 interface EventInfo {
   name: string;
   couple_names?: string | null;
+  /** Set only when this wedding actually runs a rides group. */
+  rides_group_url?: string | null;
   date: string;
   address?: string | null;
   venue_name?: string | null;
@@ -1683,8 +1685,22 @@ export default function RsvpClient({
               </div>
             )}
 
-            {/* Ride sharing (optional, shown when attending) */}
-            {attending && (
+            {/* Ride sharing — only where a rides group actually exists.
+              *
+              * This was asked at every wedding and answered at 7%, 14% and
+              * 10% — the least-answered thing on the page, against 44-73% for
+              * the meal. What it feeds is a board of possible pairs somebody
+              * has to work through by hand, and the WhatsApp group replaced
+              * that: 74 of 290 guests joined שחר's in a day, with no matching
+              * from anyone.
+              *
+              * Gated rather than deleted, and gated on the group rather than
+              * on a date. שחר's guests have been seeing this question for three
+              * weeks and her wedding is in seven days; removing it from under
+              * them mid-flight is a change they did not ask for. She has a
+              * group, so hers keeps it. The four weddings with no group never
+              * see it again. */}
+            {attending && event?.rides_group_url && (
               <div style={{ marginBottom: "24px", animation: "fadeUp 0.3s ease 0.08s both" }}>
                 {/* "לא חובה" is the reason 7% answered this. The question was
                     also asked as though it were about the guest's own car,

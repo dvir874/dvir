@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { bareCount } from "./guest-count.ts";
+import { bareCount, changeIntent } from "./guest-count.ts";
 
 /* Every string below is one this system actually received. The corpus is 306
    inbound messages across four weddings, replayed on 31/08. */
@@ -40,4 +40,36 @@ test("a number outside any plausible headcount is refused", () => {
   assert.equal(bareCount("40"), null);
   assert.equal(bareCount("0"), null);
   assert.equal(bareCount(""), null);
+});
+
+/* ── a sentence that asks for the change in words ─────────────────────── */
+
+test("the sentence that waited nine and a half hours is heard", () => {
+  /* דליה ואלי רוזנברג, 01/09 05:34. She wrote this, nothing happened, and she
+     tried again at 15:07 with a bare "5" — which is what finally worked. */
+  assert.equal(changeIntent("אשמח לשנות את המספר ל- 5 שמגיעים"), 5);
+  assert.equal(changeIntent("אפשר לעדכן ל-3?"), 3);
+  assert.equal(changeIntent("תוסיף עוד 1 בבקשה"), 1);
+  assert.equal(changeIntent("במקום 2 נהיה 4"), null);   // two numbers, refused
+});
+
+test("a negated sentence is not a request for the number it negates", () => {
+  /* Both of these are real. Reading them as 5 confirms back the exact number
+     the guest was objecting to. */
+  assert.equal(changeIntent("אבל לא צריך חמש מנות."), null);
+  assert.equal(changeIntent("לא צריך לעדכן ל-5"), null);
+  assert.equal(changeIntent("בלי להוסיף 2"), null);
+  assert.equal(changeIntent("אל תעדכן ל-3"), null);
+});
+
+test("a sentence with no change verb is left to bareCount", () => {
+  /* A blessing, a lift request, a number inside an address. */
+  assert.equal(changeIntent("המון מזל טוב לזוג הצעיר"), null);
+  assert.equal(changeIntent("אשמח לטרמפ מאזור רחובות. מקום 1."), null);
+  assert.equal(changeIntent("5"), null);
+});
+
+test("a number outside a plausible headcount is refused", () => {
+  assert.equal(changeIntent("לעדכן ל-40"), null);
+  assert.equal(changeIntent("לעדכן ל-0"), null);
 });

@@ -3,7 +3,7 @@ import { getWhatsAppConfig } from "@/lib/whatsapp";
 import { sendButtons, sendList, sendText, parseGuestCount } from "@/lib/wa-interactive";
 import { detectRideIntent } from "@/lib/rides";
 import { stateIsLive } from "@/lib/chat-state";
-import { bareCount } from "@/lib/guest-count";
+import { bareCount, changeIntent } from "@/lib/guest-count";
 
 /* Answering an invitation without leaving WhatsApp.
  *
@@ -230,7 +230,12 @@ export async function handleGuestReply(
    * The decline path in this file already confirms before it acts, for the
    * same reason, and this follows it. */
   if (guest.status === "confirmed" || guest.status === "declined") {
-    const n = bareCount(said);
+    /* A bare number, or a sentence that says in words to change it. The second
+       exists because the first is strict enough to have cost a real guest ten
+       hours: דליה wrote "אשמח לשנות את המספר ל-5 שמגיעים" at 05:34, was not
+       heard, and tried again at 15:07 with a bare "5". Both routes only ever
+       propose — the confirmation below is unchanged. */
+    const n = bareCount(said) ?? changeIntent(said);
     if (n !== null) {
       const current = guest.guest_count ?? 1;
       if (guest.status === "confirmed" && n === current) {

@@ -31,3 +31,42 @@ export function bareCount(raw: string): number | null {
   const n = parseInt(stripped, 10);
   return n >= 1 && n <= 20 ? n : null;
 }
+
+/* A sentence that says, in words, to change the number.
+ *
+ * bareCount above is deliberately strict: the message must be a number and
+ * nothing else, because "אבל לא צריך חמש מנות" means the opposite of the 5 a
+ * looser parser reads out of it.
+ *
+ * That strictness has a cost, and דליה ואלי רוזנברג paid it on 01/09. At 05:34
+ * she wrote "אשמח לשנות את המספר ל- 5 שמגיעים" — as clear as a sentence gets —
+ * and nothing happened. She tried again nine and a half hours later with a bare
+ * "5", and only then was she asked and updated. Ten hours of silence for a
+ * message that said exactly what she wanted.
+ *
+ * So: an explicit change verb, exactly one number, and no negation. Every one
+ * of those three is load-bearing. Replayed over the 306 real free-text messages
+ * received so far it fires on zero of them — it adds no new way to be wrong —
+ * and it catches her sentence.
+ *
+ * Still only ever proposes. The caller asks "רשום אצלנו 4. לעדכן ל-5?" exactly
+ * as it does for a bare number, because a sentence can be misread and a
+ * headcount reaches a caterer. */
+const CHANGE_VERB =
+  /(לשנות|לעדכן|עדכנו|תעדכן|תעדכני|לתקן|במקום|להוסיף|נוסיף|מוסיף|מוסיפים|תוסיף|תוסיפי)/;
+
+/* "לא צריך", "בלי", "לבטל" invert the sentence. Without this, "לא צריך לעדכן
+   ל-5" reads as a request for five. */
+const NEGATION = /(לא צריך|לא צריכים|לא רוצה|לא רוצים|בלי|לבטל|אל תוסיף|אל תעדכן)/;
+
+export function changeIntent(raw: string): number | null {
+  const s = String(raw ?? "");
+  if (!CHANGE_VERB.test(s)) return null;
+  if (NEGATION.test(s)) return null;
+  const digits = s.match(/\d+/g);
+  /* One number only. "לשנות מ-4 ל-5" is unambiguous to a person and ambiguous
+     to this, and guessing which is which is how a caterer gets a wrong count. */
+  if (!digits || digits.length !== 1) return null;
+  const n = parseInt(digits[0], 10);
+  return n >= 1 && n <= 20 ? n : null;
+}
