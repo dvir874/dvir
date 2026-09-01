@@ -87,6 +87,12 @@ const GALLERY_RESERVE = 30;
 const HOUR_START_IL = 9;
 const HOUR_END_IL = 21;
 
+/** Today's date in Israel. UTC is a different day for three hours every night,
+ *  and a wedding is a date in Israel, never a date in UTC. */
+function israelToday(now: Date = new Date()): string {
+  return now.toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+}
+
 /** The hour in Israel, whatever the server thinks the time is. */
 function israelHour(now: Date = new Date()): number {
   return Number(new Intl.DateTimeFormat("en-GB", {
@@ -379,12 +385,17 @@ async function notifyRidesGroup(
   budget: number,
 ): Promise<{ sent: number; event?: string }> {
   if (budget <= 0) return { sent: 0 };
-  const today = new Date().toISOString().slice(0, 10);
+  /* Same rule as the event selection: a wedding leaves the sending pool the
+     moment its own day starts in Israel. Lower risk here because this send is
+     deduplicated through guest_events, so only a guest added in the final days
+     could still be reached — but that guest would be reached during the
+     wedding itself. */
+  const today = israelToday();
   const nowMs = Date.now();
 
   const { data: evs } = await sb.from("events")
     .select("id, name, couple_names, rides_group_url, send_paused_until")
-    .gte("date", today).not("rides_group_url", "is", null).order("date").limit(5);
+    .gt("date", today).not("rides_group_url", "is", null).order("date").limit(5);
 
   for (const ev of evs ?? []) {
     if (!(ev.rides_group_url as string | null)?.trim()) continue;
@@ -1151,10 +1162,27 @@ async function runSend(req: NextRequest) {
   /* An event with no card of its own is skipped, never sent with someone
      else's. Reported, so a missing image surfaces instead of looking like a
      quiet day. */
-  const today = new Date().toISOString().slice(0, 10);
+  /* Strictly after today, and today measured in Israel.
+   *
+   * This was .gte on a UTC date, so a wedding stayed in the sending pool
+   * throughout its own day. שחר ואורי is on 08/09 with 67 guests still pending
+   * and a 120-hour reminder floor that most of them clear: every cron run
+   * between 09:00 and 21:59 Israel on the day of her wedding would have
+   * selected her event and messaged them. Guests standing at the חופה would
+   * receive an invitation to it, or a reminder to confirm they are coming.
+   *
+   * And the invitation is the likelier of the two. The selection prefers an
+   * event with anyone never reached, and "reached" means a delivery report
+   * arrived — Meta does not always send one, so a guest whose message sits at
+   * "sent" reads as uninvited and pulls the whole run into first-contact mode.
+   *
+   * The date is Israel's because a wedding is a date in Israel; UTC is a
+   * different day for three hours every night, and those three hours are
+   * 21:00-23:59 on the eve — the last runs before the wedding. */
+  const today = israelToday();
   const { data: events } = await sb.from("events")
     .select("id, name, couple_names, date, address, venue_name, wa_header_image_url, send_paused_until, reception_time, chuppah_time")
-    .gte("date", today).order("date").limit(MAX_EVENTS_PER_RUN);
+    .gt("date", today).order("date").limit(MAX_EVENTS_PER_RUN);
 
   /* A wedding can be held back without disturbing the order of the others.
    *
