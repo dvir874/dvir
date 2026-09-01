@@ -584,14 +584,36 @@ async function notifyGallery(
    * out of a 250-a-day ceiling, and nine of them to people who had already
    * said no. */
   const { data: guests } = await sb.from("guests")
-    .select("id, phone, wants_photos, category, status")
+    .select("id, phone, wants_photos, category, status, do_not_contact")
     .eq("event_id", ev.id).eq("wants_photos", true).eq("status", "confirmed");
-  const targets = (guests ?? []).filter(g => g.category !== "demo" && g.phone);
+  /* do_not_contact, which every other send in this file honours and this one
+     did not. A couple saying "never message this person again" does not stop
+     applying because the wedding is over — if anything the opposite. */
+  const targets = (guests ?? []).filter(g =>
+    g.category !== "demo" && g.phone && !g.do_not_contact);
   if (!targets.length) return { sent: 0 };
 
-  const { data: done } = await sb.from("guest_events").select("guest_id")
-    .eq("event_type", "gallery_sent").in("guest_id", targets.map(g => g.id as string));
-  const already = new Set((done ?? []).map(r => r.guest_id as string));
+  /* Chunked, and it refuses rather than fails open.
+   *
+   * One .in() with every target id builds a URL that grows with the guest
+   * list. At 555 guests that request is long enough for PostgREST to reject,
+   * and the failure mode is the worst available: `done` comes back null, the
+   * set is empty, nobody looks like they have been sent to, and the entire
+   * wedding is messaged a second time — a photo request the couple's guests
+   * already received, at 0.13₪ and one 250-cap slot each.
+   *
+   * A dedup query that failed must stop the send, not wave it through. */
+  const already = new Set<string>();
+  const ids = targets.map(g => g.id as string);
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data: done, error } = await sb.from("guest_events").select("guest_id")
+      .eq("event_type", "gallery_sent").in("guest_id", ids.slice(i, i + 100));
+    if (error) {
+      console.error("[gallery:dedupe]", error.message);
+      return { sent: 0, event: ev.name as string };
+    }
+    (done ?? []).forEach(r => r.guest_id && already.add(r.guest_id as string));
+  }
 
   const todo = targets.filter(g => !already.has(g.id as string)).slice(0, budget);
   if (!todo.length) {
@@ -1067,8 +1089,18 @@ async function runSend(req: NextRequest) {
    *
    * Gated on gallery_ready, which only Dvir can set, so this sends nothing
    * until he says the photos are actually up. */
-  const gallery = await notifyGallery(sb, cfg,
-    Math.max(1, Math.min(GALLERY_PER_RUN, budget - GALLERY_RESERVE)));
+  /* Nothing when the reserve cannot be honoured, rather than one.
+   *
+   * This was Math.max(1, …), so a budget below the reserve still sent a single
+   * gallery message — and the block below returns the whole run the moment
+   * gallery.sent is non-zero. At a budget of 25 that meant one photo request
+   * went out and twenty-four slots that were being held for invitations were
+   * simply not used. The reserve exists for exactly the runs where the budget
+   * is tight, which is the one case where it leaked. */
+  const galleryRoom = Math.min(GALLERY_PER_RUN, Math.max(0, budget - GALLERY_RESERVE));
+  const gallery = galleryRoom > 0
+    ? await notifyGallery(sb, cfg, galleryRoom)
+    : { sent: 0 as number, event: undefined as string | undefined };
   if (gallery.sent) {
     budget = Math.max(0, budget - gallery.sent);
     try {
