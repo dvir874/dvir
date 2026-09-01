@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   quoteFor, costFor, PER_RECORD_BASIC, PER_RECORD_FULL,
   MIN_CHARGE_BASIC, MIN_CHARGE_FULL, SILENT_SHARE,
+  recordsFromGuests,
 } from "./pricing.ts";
 
 /* The rates are measured, not chosen — see the comment in pricing.ts. These
@@ -64,4 +65,33 @@ test("nonsense input does not produce a nonsense price", () => {
   assert.equal(quoteFor(-50, "basic").total, MIN_CHARGE_BASIC);
   assert.equal(quoteFor(NaN, "basic").total, MIN_CHARGE_BASIC);
   assert.equal(PER_RECORD_BASIC * 250, 250);
+});
+
+/* ── quoting from a guest count ───────────────────────────────────────────── */
+
+test("a guest count is converted to records before it is priced", () => {
+  /* The mistake this exists to stop: אמיר said "430 מוזמנים" and was quoted
+     420 ₪, the price of 430 records — an 800-person wedding. */
+  const records = recordsFromGuests(430);
+  assert.ok(records > 200 && records < 260, `${records} records for 430 people`);
+  assert.equal(quoteFor(records, "basic", false).total, 290);
+});
+
+test("the floor covers every wedding until about six hundred people", () => {
+  /* Worth knowing before negotiating: below this, the price is the same
+     number whatever the couple answers, so the question barely matters. */
+  for (const people of [150, 200, 300, 430, 500]) {
+    assert.equal(quoteFor(recordsFromGuests(people), "basic", false).total, 290,
+      `${people} people should still be at the floor`);
+  }
+  assert.ok(quoteFor(recordsFromGuests(800), "basic", false).total > 290);
+});
+
+test("a quote still clears its own message cost", () => {
+  /* 290 ₪ is a floor, not a loss-leader — it has to beat what Meta charges. */
+  for (const people of [150, 430, 800]) {
+    const r = recordsFromGuests(people);
+    assert.ok(quoteFor(r, "basic", false).total > costFor(r) * 1.5,
+      `${people} people: ${quoteFor(r, "basic", false).total} vs cost ${costFor(r).toFixed(0)}`);
+  }
 });

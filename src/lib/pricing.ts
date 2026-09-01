@@ -183,3 +183,34 @@ export function costFor(records: number, rides = false): number {
   const n = Math.max(0, Math.floor(records) || 0);
   return n * (rides ? 0.319 : 0.188);
 }
+
+/* ── from what a couple says to what we actually bill ─────────────────────── */
+
+/**
+ * People per phone number, measured on the three weddings that have a list.
+ *
+ *   שחר      225 records → 421 people   1.87
+ *   לאל וטל  146 records → 301 people   2.06
+ *   תהל      182 records → 302 people   1.66
+ *
+ * A household gets one message, not one per person: "משפחת ביטון" is a single
+ * record and ten people at the wedding.
+ */
+export const PEOPLE_PER_RECORD = 1.86;
+
+/**
+ * A couple answering "כמה מוזמנים?" is counting people, and this system bills
+ * phone numbers.
+ *
+ * אמיר said "כ־430 מוזמנים" on 31/08 and was quoted 420 ₪ — the price of 430
+ * records, which is an eight-hundred-person wedding. His actual list is around
+ * 230 numbers and his actual price is the 290 ₪ floor. He answered "לצערי זה
+ * יקר לי מידי", and he was right: he had been quoted roughly double.
+ *
+ * An estimate and only that. It is the opening number, to be replaced the
+ * moment the real list arrives and can be counted.
+ */
+export function recordsFromGuests(people: number): number {
+  const n = Math.max(0, Math.floor(people) || 0);
+  return Math.round(n / PEOPLE_PER_RECORD);
+}
