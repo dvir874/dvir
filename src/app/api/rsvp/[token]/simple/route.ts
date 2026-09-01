@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       status,
       /* Only the count they chose, and only when they are coming. A decline
          must not overwrite the headcount the couple already has. */
-      ...(answer === "yes" ? { guest_count: count } : {}),
+      ...(answer === "yes" ? { guest_count: count, wants_photos: true } : {}),
       response_time: new Date().toISOString(),
       opened_at: new Date().toISOString(),
       chat_state: null, chat_state_at: null,

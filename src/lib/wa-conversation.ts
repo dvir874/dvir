@@ -51,6 +51,13 @@ async function record(sb: Sb, g: Guest, status: "confirmed" | "declined", count?
   await sb.from("guests").update({
     status,
     ...(count !== undefined ? { guest_count: count } : {}),
+    /* The web form sets this on every confirmation — unconditionally, since
+       there is no checkbox behind it and never was. Answering here instead
+       left it false, and the after-the-wedding photo request is gated on it:
+       98 of שחר's 225 confirmed guests would never have been asked for their
+       photos, for the sole reason that they tapped a WhatsApp button rather
+       than opening the page. */
+    ...(status === "confirmed" ? { wants_photos: true } : {}),
     response_time: new Date().toISOString(),
     chat_state: null, chat_state_at: null,
   }).eq("id", g.id);

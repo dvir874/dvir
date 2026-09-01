@@ -957,73 +957,17 @@ async function runSend(req: NextRequest) {
      ceiling with 141015. Reading it first is the difference between pausing
      and reproducing the run that failed 90%. */
   const usage = await rollingWindowUsage(sb, cap);
-  if (usage.blocked) {
-    return record(sb, {
-      sent: 0, reason: "window_full", healed,
-      recipients: usage.recipients, cap, quality: health.quality,
-    }, { cap, tier: health.tier, quality: health.quality, posture: health.posture,
-         window_used: usage.recipients });
-  }
-
-  /* Time is now the only per-run ceiling that matters. At six in flight and
-     ~1.2s each, a 48-second working window holds far more than any day's cap,
-     so the run is bounded by the rolling window rather than by the clock —
-     which is the whole point of the change. */
-  const timeCap = Math.floor(((maxDuration - 12) / SECONDS_PER_MESSAGE) * SEND_CONCURRENCY);
-  let budget = Math.max(0, Math.min(usage.remaining, timeCap));
-
-  /* The day before, first — see notifyDayBefore.
+  /* The evening report runs BEFORE the window-full return, not after it.
    *
-   * Before the event selection and before every group, because this is the one
-   * message with no second chance: a guest told at 22:00 what time to arrive
-   * tomorrow was told too late, and one told after the חופה was not told at
-   * all. Everything else in this file can wait a run.
+   * It used to sit further down, past `if (usage.blocked) return`. That return
+   * fires on exactly the days the 250-recipient window filled — the days the
+   * most messages went out and the most could have gone wrong — so the digest
+   * and the broken-link check went silent precisely when they were worth
+   * reading, and a quiet evening looked the same as a busy one.
    *
-   * What it takes comes off the budget the rest of the run then shares, so a
-   * day with 196 of these simply has fewer reminders — which is the correct
-   * trade and not an accident. */
-  try {
-  /* The one alert that prevents damage instead of reporting it.
-   *
-   * On 9/8 Meta restricted this number with 131048 and sending stopped for
-   * ALL THREE weddings for days. Dvir found out by looking. Quality moves
-   * GREEN → YELLOW → RED before a restriction lands, so a message the
-   * moment it slips is the difference between slowing down in time and
-   * discovering it afterwards.
-   *
-   * The previous value is read from wa_runs, which has recorded quality on
-   * every run since it existed — no new column, and the comparison is
-   * against what actually happened rather than something held in memory
-   * that a cold start would lose.
-   *
-   * Deliberately unconditional on posture: this fires even on a run that
-   * sends nothing, because a number can degrade on a quiet day too. */
-  if (process.env.ADMIN_ALERT_PHONE && health.quality && health.quality !== "UNKNOWN") {
-    const RANK: Record<string, number> = { GREEN: 3, YELLOW: 2, RED: 1 };
-    const now = RANK[health.quality] ?? 0;
-    const { data: prevRows } = await sb.from("wa_runs")
-      .select("quality, created_at").not("quality", "is", null)
-      .neq("quality", "UNKNOWN")
-      .order("created_at", { ascending: false }).limit(2);
-    const prev = (prevRows ?? []).map(r => r.quality as string).find(q => RANK[q]);
-    const was = prev ? RANK[prev] ?? 0 : 0;
-
-    if (was && now && now < was) {
-      /* Once per drop, not once per run — the check above reads the last
-         recorded value, so the next run compares against the new low and
-         stays quiet. */
-      await sendRunSummary(cfg, process.env.ADMIN_ALERT_PHONE, {
-        event: `⚠️ דירוג האיכות ירד: ${prev} → ${health.quality}`,
-        sent: "0", failed: "0", left: String(usage.remaining ?? 0),
-        attention: health.quality === "RED"
-          ? "🔴 אדום — מטא עלולה להגביל את המספר בקרוב. לעצור שליחות ולבדוק דיווחי ספאם."
-          : "🟡 צהוב — התקרה תרד לחצי אוטומטית. כדאי להאט ולבדוק למי נשלח לאחרונה.",
-      });
-    }
-  }
-
-  } catch { /* a notification must never cost a send */ }
-
+   * It self-gates on the run-claim count below, so running it earlier cannot
+   * make it run twice. It costs one message to Dvir, who is already a
+   * recipient in the window on any day this matters. */
   /* Once an evening, and only once.
    *
    * This was `getUTCHours() >= 18`, which matches BOTH of the day's last two
@@ -1094,6 +1038,74 @@ async function runSend(req: NextRequest) {
       }
     } catch { /* a check must never cost a send */ }
   }
+
+
+  if (usage.blocked) {
+    return record(sb, {
+      sent: 0, reason: "window_full", healed,
+      recipients: usage.recipients, cap, quality: health.quality,
+    }, { cap, tier: health.tier, quality: health.quality, posture: health.posture,
+         window_used: usage.recipients });
+  }
+
+  /* Time is now the only per-run ceiling that matters. At six in flight and
+     ~1.2s each, a 48-second working window holds far more than any day's cap,
+     so the run is bounded by the rolling window rather than by the clock —
+     which is the whole point of the change. */
+  const timeCap = Math.floor(((maxDuration - 12) / SECONDS_PER_MESSAGE) * SEND_CONCURRENCY);
+  let budget = Math.max(0, Math.min(usage.remaining, timeCap));
+
+  /* The day before, first — see notifyDayBefore.
+   *
+   * Before the event selection and before every group, because this is the one
+   * message with no second chance: a guest told at 22:00 what time to arrive
+   * tomorrow was told too late, and one told after the חופה was not told at
+   * all. Everything else in this file can wait a run.
+   *
+   * What it takes comes off the budget the rest of the run then shares, so a
+   * day with 196 of these simply has fewer reminders — which is the correct
+   * trade and not an accident. */
+  try {
+  /* The one alert that prevents damage instead of reporting it.
+   *
+   * On 9/8 Meta restricted this number with 131048 and sending stopped for
+   * ALL THREE weddings for days. Dvir found out by looking. Quality moves
+   * GREEN → YELLOW → RED before a restriction lands, so a message the
+   * moment it slips is the difference between slowing down in time and
+   * discovering it afterwards.
+   *
+   * The previous value is read from wa_runs, which has recorded quality on
+   * every run since it existed — no new column, and the comparison is
+   * against what actually happened rather than something held in memory
+   * that a cold start would lose.
+   *
+   * Deliberately unconditional on posture: this fires even on a run that
+   * sends nothing, because a number can degrade on a quiet day too. */
+  if (process.env.ADMIN_ALERT_PHONE && health.quality && health.quality !== "UNKNOWN") {
+    const RANK: Record<string, number> = { GREEN: 3, YELLOW: 2, RED: 1 };
+    const now = RANK[health.quality] ?? 0;
+    const { data: prevRows } = await sb.from("wa_runs")
+      .select("quality, created_at").not("quality", "is", null)
+      .neq("quality", "UNKNOWN")
+      .order("created_at", { ascending: false }).limit(2);
+    const prev = (prevRows ?? []).map(r => r.quality as string).find(q => RANK[q]);
+    const was = prev ? RANK[prev] ?? 0 : 0;
+
+    if (was && now && now < was) {
+      /* Once per drop, not once per run — the check above reads the last
+         recorded value, so the next run compares against the new low and
+         stays quiet. */
+      await sendRunSummary(cfg, process.env.ADMIN_ALERT_PHONE, {
+        event: `⚠️ דירוג האיכות ירד: ${prev} → ${health.quality}`,
+        sent: "0", failed: "0", left: String(usage.remaining ?? 0),
+        attention: health.quality === "RED"
+          ? "🔴 אדום — מטא עלולה להגביל את המספר בקרוב. לעצור שליחות ולבדוק דיווחי ספאם."
+          : "🟡 צהוב — התקרה תרד לחצי אוטומטית. כדאי להאט ולבדוק למי נשלח לאחרונה.",
+      });
+    }
+  }
+
+  } catch { /* a notification must never cost a send */ }
 
   const dayBefore = await notifyDayBefore(sb, cfg, budget);
 
