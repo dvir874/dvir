@@ -87,7 +87,15 @@ async function loadRsvpInner(token: string): Promise<RsvpLoad> {
        refusing to show it. Only the guest lookup can make this unavailable. */
     const [{ data: event }, { data: vault }, { data: assignment }] = await Promise.all([
       sb.from("events")
-        .select("name, date, address, venue_name, theme, mini_site_hero_path, wa_header_image_url, rsvp_bg, reception_time, chuppah_time, bit_phone, paybox_link")
+        /* couple_names and rides_group_url belong here, not only on the API route.
+         When the server renders the page RsvpClient discards the API response
+         entirely — deliberately, so a slow GET cannot overwrite a fresh answer
+         — so this select is the ONLY source of `event` in production. Adding a
+         field to the route alone changes nothing a guest ever sees, which is
+         exactly what happened: the couple name stayed the dashboard title, and
+         the rides question vanished from שחר's page too, seven days before her
+         wedding, because the flag it is gated on was never loaded. */
+      .select("name, couple_names, rides_group_url, date, address, venue_name, theme, mini_site_hero_path, wa_header_image_url, rsvp_bg, reception_time, chuppah_time, bit_phone, paybox_link")
         .eq("id", guest.event_id).maybeSingle(),
       sb.from("vault_tokens").select("token").eq("event_id", guest.event_id).maybeSingle(),
       sb.from("seating_assignments").select("table_id").eq("guest_id", guest.id).maybeSingle(),

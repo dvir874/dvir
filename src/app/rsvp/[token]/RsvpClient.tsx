@@ -1376,7 +1376,7 @@ export default function RsvpClient({
             {!isDvir && (
               <>
                 <h1 style={{ fontFamily: "'Frank Ruhl Libre', serif", fontWeight: 700, fontSize: "28px", color: T.dark, textAlign: "center", margin: "0 0 6px", animation: "fadeUp 0.4s ease both" }}>
-                  {event?.name ?? ""}
+                  {displayName}
                 </h1>
                 {event && (
                   <p style={{ textAlign: "center", color: T.muted, fontSize: "14px", marginBottom: "24px", animation: "fadeUp 0.4s ease 0.06s both" }}>
