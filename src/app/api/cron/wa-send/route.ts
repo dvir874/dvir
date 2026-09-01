@@ -512,6 +512,21 @@ async function dayBeforeForEvent(
   if (!couple || !venue || !rec || !chu)
     return { sent: 0, skipped: "חסרים שמות, מקום או שעות" };
 
+  /* The couple's own line, fetched on its own and allowed to fail.
+   *
+   * day_before_note is added by 20260901_day_before_note.sql, and this code
+   * ships before that migration runs. Selecting a column that does not exist
+   * makes PostgREST fail the WHOLE query with 42703 — put in the select above
+   * and it would take the guest list with it, which is this file's one send
+   * with no second chance. A separate query that fails soft degrades to
+   * exactly today's behaviour: no note, four parameters, original template. */
+  let note: string | null = null;
+  try {
+    const { data: n } = await sb.from("events")
+      .select("day_before_note").eq("id", ev.id).maybeSingle();
+    note = (n as { day_before_note?: string | null } | null)?.day_before_note ?? null;
+  } catch { /* column not there yet */ }
+
   const { data: guests } = await sb.from("guests")
     .select("id, name, phone, category, do_not_contact")
     .eq("event_id", ev.id).eq("status", "confirmed");
@@ -535,7 +550,7 @@ async function dayBeforeForEvent(
   for (let i = 0; i < todo.length; i += SEND_CONCURRENCY) {
     const batch = await Promise.all(
       todo.slice(i, i + SEND_CONCURRENCY).map(async g => ({
-        g, res: await sendDayBefore(cfg, g.phone as string, couple, rec, chu, venue),
+        g, res: await sendDayBefore(cfg, g.phone as string, couple, rec, chu, venue, note),
       })),
     );
     for (const { g, res } of batch) {

@@ -370,11 +370,33 @@ export async function sendRidesGroup(
 export async function sendDayBefore(
   cfg: WhatsAppConfig, phone: string,
   couple: string, reception: string, chuppah: string, venue: string,
+  note?: string | null,
 ): Promise<SendResult> {
   const to = toE164(phone);
   if (!to) return { ok: false, error: "מספר לא תקין" };
   if (![couple, reception, chuppah, venue].every(v => v?.trim()))
     return { ok: false, error: "חסרים פרטי אירוע" };
+
+  /* The couple's own line, and the reason there are two templates.
+   *
+   * שחר asked on 01/09 to tell her guests to bring something warm — ארץ
+   * האיילים is outdoors in גוש עציון and a September night there is cold. A
+   * Meta template is fixed text, so nothing can be appended to the message;
+   * the note has to be a parameter, and a parameter cannot be empty. A
+   * wedding with nothing to say therefore cannot use the five-slot template
+   * at all, and keeps the four-slot one it has always used.
+   *
+   * safeParam because this is the first free-text parameter in the system.
+   * Every other one is a controlled admin field; this one is pasted out of
+   * WhatsApp, and a newline in it is #132000 for the whole run. */
+  const cleaned = note?.trim() ? safeParam(note) : null;
+  const withNote = cleaned && cleaned !== "—" ? cleaned : null;
+  const params = withNote
+    ? [couple, reception, chuppah, venue, withNote]
+    : [couple, reception, chuppah, venue];
+  const templateName = withNote
+    ? cfg.dayBeforeNoteTemplateName
+    : cfg.dayBeforeTemplateName;
 
   await pace();
   try {
@@ -392,11 +414,11 @@ export async function sendDayBefore(
           to,
           type: "template",
           template: {
-            name: cfg.dayBeforeTemplateName,
+            name: templateName,
             language: { code: cfg.templateLang },
             components: [{
               type: "body",
-              parameters: [couple, reception, chuppah, venue]
+              parameters: params
                 .map(text => ({ type: "text", text })),
             }],
           },
@@ -885,6 +907,8 @@ export interface WhatsAppConfig {
   photosUploadTemplateName: string;
   ridesGroupTemplateName: string;
   dayBeforeTemplateName: string;
+  /** Same message with a fifth slot for the couple's own line. */
+  dayBeforeNoteTemplateName: string;
 }
 
 /** The four body variables of the generic invitation template */
@@ -945,6 +969,8 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
       process.env.WHATSAPP_TEMPLATE_RIDES_GROUP ?? "wedding_rides_group_v1",
     dayBeforeTemplateName:
       process.env.WHATSAPP_TEMPLATE_DAY_BEFORE ?? "wedding_tomorrow_reminder",
+    dayBeforeNoteTemplateName:
+      process.env.WHATSAPP_TEMPLATE_DAY_BEFORE_NOTE ?? "wedding_tomorrow_reminder_v2",
     templateLang: process.env.WHATSAPP_TEMPLATE_LANG ?? "he",
     /* Kept only so existing callers still typecheck; nothing reads it as a
        fallback any more. The comment used to say there was deliberately no
