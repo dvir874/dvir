@@ -982,8 +982,32 @@ async function runSend(req: NextRequest) {
 
   } catch { /* a notification must never cost a send */ }
 
-  /* Last run of the day only — 18:50 UTC is 21:50 in Israel. */
-  if (new Date().getUTCHours() >= 18) {
+  /* Once an evening, and only once.
+   *
+   * This was `getUTCHours() >= 18`, which matches BOTH of the day's last two
+   * crons — 18:30 and 18:50 — so the digest and the link check ran twice every
+   * night. The money is nothing; the cost is that Dvir receives the same
+   * summary twice, and a message that repeats is one you stop opening.
+   *
+   * Gating on hour AND minute would work until a run is delayed, which Vercel
+   * crons routinely are, and an 18:30 landing at 18:45 would qualify again.
+   *
+   * So it counts run claims instead. Every run inserts exactly one RUN_CLAIM
+   * near the top — well before this line — so the current run always accounts
+   * for one, and a second means an earlier evening run already came through
+   * here. Counting all wa_runs rows would not work: a run writes several, and
+   * the first version of this check found the current run's own claim and
+   * skipped the digest every night. */
+  const evening = new Date();
+  const eveningStart = new Date(Date.UTC(
+    evening.getUTCFullYear(), evening.getUTCMonth(), evening.getUTCDate(), 18, 0,
+  )).toISOString();
+  const { count: claimsTonight } = evening.getUTCHours() >= 18
+    ? await sb.from("wa_runs").select("id", { count: "exact", head: true })
+        .eq("reason", RUN_CLAIM).gte("created_at", eveningStart)
+    : { count: 99 };
+
+  if (evening.getUTCHours() >= 18 && (claimsTonight ?? 99) <= 1) {
     try { await sendDailyDigest(sb, cfg); }
     catch { /* a notification must never cost a send */ }
 
