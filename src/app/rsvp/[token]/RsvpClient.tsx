@@ -359,6 +359,8 @@ export default function RsvpClient({
   const [choice,     setChoice]     = useState<"confirmed" | "declined" | null>(
     seed && seed.status !== "pending" ? (seed.status as "confirmed" | "declined") : null);
   const [guestCount, setGuestCount] = useState(seed?.guest_count ?? 1);
+  const [blessing,   setBlessing]   = useState("");
+  const [blessingSaved, setBlessingSaved] = useState(false);
   const [meal,       setMeal]       = useState<MealOption | null>(null);
   const [mealCounts, setMealCounts] = useState<Partial<Record<MealOption, number>>>({});
   const [rideFrom,   setRideFrom]   = useState("");
@@ -587,6 +589,19 @@ export default function RsvpClient({
       if (!res.ok) throw new Error("server error");
       setGuest(g => g ? { ...g, status: newChoice, guest_count: guestCount } : g);
       setScreen("done");
+
+      /* After the answer is saved, never before, and never awaited into the
+         same try. The RSVP is the product's job: a blessing that fails to
+         store must leave a confirmed guest without a blessing, not something
+         that reads like an answer that failed. */
+      if (newChoice === "confirmed" && blessing.trim()) {
+        fetch(`/api/rsvp/${token}/blessing`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ blessing: blessing.trim() }),
+          keepalive: true,
+        }).then(r => r.ok && setBlessingSaved(true)).catch(() => {});
+      }
     } catch {
       setErrorMsg("לא הצלחנו לשמור — ייתכן שהחיבור נקטע. נסו שוב.");
     } finally {
@@ -1005,6 +1020,20 @@ export default function RsvpClient({
                 שולחן {tableName}
               </p>
             </WarmCard>
+          )}
+
+          {/* One line, above the actions, exactly as designed — no new screen
+              and no celebration. The blessing was a small thing the guest chose
+              to give; acknowledging it loudly would make it feel like a task
+              they completed. */}
+          {blessingSaved && (
+            <p style={{
+              textAlign: "center", fontFamily: "'Heebo', sans-serif",
+              fontSize: "14px", color: T.olive, margin: "0 0 8px",
+              animation: "fadeUp 0.4s ease 0.3s both",
+            }}>
+              הברכה שלכם נשמרה 🤍
+            </p>
           )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", animation: "fadeUp 0.5s ease 0.35s both" }}>
@@ -1746,6 +1775,56 @@ export default function RsvpClient({
                     }}
                   />
                 )}
+              </div>
+            )}
+
+            {/* A blessing, at the moment they said yes.
+              *
+              * Stitch, 01/09 — "RSVP - עם שדה ברכה". Sits directly above the
+              * button because that is where it was designed to sit: the RSVP
+              * answer is already chosen by the time this renders, so nothing
+              * about it can stand between the guest and finishing.
+              *
+              * Optional with no asterisk, no validation and no error state.
+              * Five guests at תהל ואביב wrote a blessing on a page nobody sent
+              * them to; the ask has to feel like an invitation, not a field. */}
+            {attending && (
+              <div style={{ marginBottom: "20px", animation: "fadeUp 0.3s ease 0.1s both" }}>
+                <label style={{
+                  display: "block", fontFamily: "'Frank Ruhl Libre', serif",
+                  fontSize: "18px", fontWeight: 700, color: T.dark, marginBottom: "2px",
+                }}>
+                  רוצים לאחל להם משהו?
+                </label>
+                <p style={{
+                  fontFamily: "'Heebo', sans-serif", fontSize: "13px",
+                  fontWeight: 300, color: T.muted, margin: "0 0 10px",
+                }}>
+                  הם יראו את זה בדף שלהם
+                </p>
+                <div style={{ position: "relative" }}>
+                  <textarea
+                    value={blessing}
+                    onChange={e => setBlessing(e.target.value.slice(0, 500))}
+                    rows={Math.min(Math.max(blessing.split("\n").length, 2), 4)}
+                    placeholder="שיהיה לכם בית מלא אהבה…"
+                    style={{
+                      width: "100%", boxSizing: "border-box", padding: "16px",
+                      border: `1px solid ${T.border}`, borderRadius: "12px",
+                      fontSize: "15px", fontFamily: "'Heebo', sans-serif", lineHeight: 1.6,
+                      background: T.cream, color: T.dark, outline: "none", resize: "none",
+                    }}
+                  />
+                  {/* Only once they are near the ceiling — a counter on an
+                      empty optional field reads as a requirement. */}
+                  {blessing.length > 400 && (
+                    <span style={{
+                      position: "absolute", bottom: "10px", left: "12px",
+                      fontSize: "12px", color: T.muted, opacity: 0.7,
+                      fontFamily: "'Heebo', sans-serif",
+                    }}>{blessing.length}/500</span>
+                  )}
+                </div>
               </div>
             )}
 
