@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { Copy, Check, Calculator } from "lucide-react";
+import { recordsFromGuests, PEOPLE_PER_RECORD, PER_RECORD_BASIC, MIN_CHARGE_BASIC } from "@/lib/pricing";
 
 /* Internal quoting tool — builds a ready-to-send price proposal for a couple.
    Not linked from the public site; this is Dvir's own sales aid.
@@ -28,14 +29,26 @@ const C = {
 };
 
 const PRICE_LIST     = 1.6;
-const PRICE_LAUNCH   = 1.2;
-const MIN_CHARGE     = 250;
-/* Covers the full lifecycle per guest: invitation, reminder to non-responders,
+/* From pricing.ts, which the header of that file already calls the single
+   source of truth and which this screen was quietly contradicting: it carried
+   1.20 and a 250 floor while the approved per-record model is 1.00 and 290.
+   Two floors in one business is not a choice, it is a bug — a couple quoted
+   from here and a couple quoted from /pricing were being told different
+   numbers for the same wedding. */
+const PRICE_LAUNCH   = PER_RECORD_BASIC;
+const MIN_CHARGE     = MIN_CHARGE_BASIC;
+/* Per RECORD — per phone number, which is what actually receives a message.
+   Measured at 3.45 outbound per record on שחר before her day-before had even
+   gone out, at the MARKETING rate; 0.42 leaves room for resends and bad
+   numbers. It was named COST_PER_GUEST and multiplied by the guest count,
+   which double-counted every household.
+
+   Covers the full lifecycle per record: invitation, reminder to non-responders,
    day-before (Utility), gallery to opt-ins, and — from the next couple on — a
    thank-you to everyone who attended. That last one is the message that
    carries the referral line to every guest the morning after, which is worth
    more than the ~5 agorot per guest it costs. */
-const COST_PER_GUEST = 0.42;
+const COST_PER_RECORD = 0.42;
 
 const DESIGN_LIST    = 450;
 const DESIGN_LAUNCH  = 350;
@@ -63,6 +76,18 @@ export default function QuoteBuilder() {
   const [pack, setPack]     = useState<Pack>("rsvp");
   const [names, setNames]   = useState("");
   const [guests, setGuests] = useState(300);
+  /* What Dvir is typing into the box above.
+   *
+   * A couple asked "כמה מוזמנים?" answers in people, and this system bills
+   * phone numbers — a household is one message and several guests. The screen
+   * multiplied the answer straight by the rate, so אמיר's "כ־430 מוזמנים" was
+   * quoted 420 ₪, the price of an eight-hundred-person wedding, and he replied
+   * "לצערי זה יקר לי מידי".
+   *
+   * Two modes because both numbers are real: before the list arrives all we
+   * have is the couple's estimate in people, and after it arrives we can count
+   * the numbers exactly. */
+  const [unit, setUnit] = useState<"guests" | "records">("guests");
   const [date, setDate]     = useState("");
   const [launch, setLaunch] = useState(true);
   const [print, setPrint]   = useState(false);
@@ -76,9 +101,12 @@ export default function QuoteBuilder() {
 
   const withDesign = pack === "design";
 
+  /* The number every price on this screen is built from. */
+  const records = unit === "guests" ? recordsFromGuests(guests) : guests;
+
   const q = useMemo(() => {
     const rate = launch ? PRICE_LAUNCH : PRICE_LIST;
-    const base = guests * rate;
+    const base = records * rate;
     /* Small weddings don't cover setup time — the minimum protects that */
     const belowMin = base < MIN_CHARGE;
     const guestTotal = belowMin ? MIN_CHARGE : base;
@@ -88,7 +116,7 @@ export default function QuoteBuilder() {
     const callTotal   = calls * CALL_PRICE;
     const total = guestTotal + designTotal + printTotal + callTotal;
 
-    const cost = guests * COST_PER_GUEST
+    const cost = records * COST_PER_RECORD
                + (withDesign ? DESIGN_COST : 0)
                + (withDesign && print ? PRINT_COST : 0)
                + calls * CALL_COST;
@@ -96,7 +124,7 @@ export default function QuoteBuilder() {
     const profit = total - cost;
     return { rate, base, belowMin, guestTotal, designTotal, printTotal, callTotal,
              total, cost, profit, margin: total > 0 ? (profit / total) * 100 : 0 };
-  }, [guests, launch, calls, withDesign, print]);
+  }, [records, launch, calls, withDesign, print]);
 
   const message = useMemo(() => {
     const who  = names.trim() || "[שמות]";
@@ -104,9 +132,14 @@ export default function QuoteBuilder() {
 
     const designBlock = withDesign ? `🎨 *עיצוב ההזמנה שלכם* — הזמנה מקורית שנבנית מאפס סביב הסיפור שלכם, עם סבבי תיקונים עד שאתם מאושרים${print ? "\n🖨 *קבצים מוכנים לדפוס* — 300dpi, שוליים וחיתוך, מוכנים להעברה לבית הדפוס" : ""}\n` : "";
 
+    /* Priced per phone number, and it says so. A couple reading "430 מוזמנים
+       × 1.20" and a couple reading "230 מספרים × 1.20" are being told two
+       different things about what they are buying, and only the second is
+       true. The unit is explained rather than assumed — nobody outside this
+       business thinks in records. */
     const rateLine = q.belowMin
       ? `אישורי הגעה — מחיר מינימום לאירוע: ${ils(MIN_CHARGE)}`
-      : `אישורי הגעה — ${guests} מוזמנים × ${q.rate.toFixed(2)} ₪ = ${ils(q.base)}`;
+      : `אישורי הגעה — ${records} מספרי טלפון × ${q.rate.toFixed(2)} ₪ = ${ils(q.base)}`;
 
     const lines = [rateLine];
     if (q.designTotal) lines.push(`עיצוב ההזמנה: ${ils(q.designTotal)}`);
@@ -133,7 +166,9 @@ ${timing}מה שאתה מקבל ממני:
 ${designBlock}
 אתה בעצם לא נוגע בשום דבר מזה. רק מסתכל על המספרים — מי אישר ומי עדיין לא.
 
-את כל זה אתה מקבל ב-*${priced}* ל-${guests} מוזמנים.
+את כל זה אתה מקבל ב-*${priced}*.
+
+אני מתמחר לפי מספרי טלפון ולא לפי אורחים — משפחה שלמה מקבלת הודעה אחת, לא אחת לכל אדם.${unit === "guests" ? ` אצל ${guests} מוזמנים זה יוצא בערך ${records} מספרים.` : ` אצלכם זה ${records} מספרים.`}
 
 רוצה לראות בדיוק איך זה נראה? הנה חתונה אמיתית שאני מנהל עכשיו — לחץ ותראה מה האורח מקבל:
 ${DEMO_LINK}
@@ -143,7 +178,7 @@ ${DEMO_LINK}
 במידה ואתה מעוניין, בשמחה. מה שנשאר: תשלח לי את רשימת המוזמנים, שם האולם והכתובת, ושעת החופה. משם אני מתחיל לעבוד 🙏
 
 דביר · רגע לפני`;
-  }, [names, date, guests, override, withDesign, print, q]);
+  }, [names, date, guests, records, unit, override, withDesign, print, q]);
 
   const copy = () => {
     navigator.clipboard.writeText(message);
@@ -231,9 +266,31 @@ ${DEMO_LINK}
             </div>
 
             <div>
-              <label style={label}>מספר מוזמנים</label>
+              <label style={label}>
+                {unit === "guests" ? "מספר מוזמנים (מה שהלקוח אמר)" : "מספר רשומות (מהרשימה)"}
+              </label>
               <input style={input} type="number" min={0} value={guests}
                 onChange={e => setGuests(Math.max(0, Number(e.target.value) || 0))} />
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                {([["guests", "מוזמנים"], ["records", "רשומות"]] as const).map(([u, l]) => (
+                  <button key={u} onClick={() => setUnit(u)} style={{
+                    flex: 1, padding: "7px 0", borderRadius: 10, cursor: "pointer",
+                    fontFamily: "Heebo, sans-serif", fontSize: 13,
+                    border: `1px solid ${unit === u ? C.gold : C.border}`,
+                    background: unit === u ? "rgba(197,164,109,0.14)" : "#fff",
+                    color: unit === u ? C.goldT : C.muted,
+                    fontWeight: unit === u ? 600 : 400,
+                  }}>{l}</button>
+                ))}
+              </div>
+              {unit === "guests" && (
+                <div style={{ marginTop: 8, fontSize: 13, color: C.goldT }}>
+                  {guests} מוזמנים ≈ <b>{records} מספרי טלפון</b> — וזה מה שמתומחר
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                    {PEOPLE_PER_RECORD} אנשים למספר, נמדד על שחר, לאל ותהל. הרשימה עצמה מדויקת יותר.
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
@@ -290,7 +347,7 @@ ${DEMO_LINK}
               </div>
               {q.belowMin && (
                 <div style={{ marginTop: 12, fontSize: 13, color: C.goldT }}>
-                  ⚠️ {guests} מוזמנים = {ils(q.base)} בלבד — הוחל מינימום של {ils(MIN_CHARGE)}.
+                  ⚠️ {records} רשומות = {ils(q.base)} בלבד — הוחל מינימום של {ils(MIN_CHARGE)}.
                 </div>
               )}
               {withDesign && (
