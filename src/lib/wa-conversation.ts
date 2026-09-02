@@ -3,7 +3,7 @@ import { getWhatsAppConfig } from "@/lib/whatsapp";
 import { sendButtons, sendList, sendText, parseGuestCount } from "@/lib/wa-interactive";
 import { detectRideIntent } from "@/lib/rides";
 import { stateIsLive } from "@/lib/chat-state";
-import { bareCount, changeIntent, unpromptedCount} from "@/lib/guest-count";
+import { bareCount, changeIntent, unpromptedCount, compositeCount} from "@/lib/guest-count";
 
 /* Answering an invitation without leaving WhatsApp.
  *
@@ -47,10 +47,17 @@ async function setState(sb: Sb, id: string, state: string | null) {
     .eq("id", id);
 }
 
-async function record(sb: Sb, g: Guest, status: "confirmed" | "declined", count?: number) {
+async function record(
+  sb: Sb, g: Guest, status: "confirmed" | "declined", count?: number, kids?: number,
+) {
   await sb.from("guests").update({
     status,
     ...(count !== undefined ? { guest_count: count } : {}),
+    /* The adult/child split, when the guest volunteered it. Same shape the
+       admin field writes, so the venue report and the Excel already read it. */
+    ...(kids !== undefined && count !== undefined && kids > 0
+      ? { meal_counts: { regular: Math.max(0, count - kids), kids } }
+      : {}),
     /* The web form sets this on every confirmation — unconditionally, since
        there is no checkbox behind it and never was. Answering here instead
        left it false, and the after-the-wedding photo request is gated on it:
@@ -79,7 +86,7 @@ export async function handleGuestReply(
   if (!cfg) return false;
 
   const { data: g } = await sb.from("guests")
-    .select("id, name, phone, status, guest_count, chat_state, chat_state_at, event_id")
+    .select("id, name, phone, status, guest_count, chat_state, chat_state_at, event_id, rsvp_token")
     .eq("id", guestId).maybeSingle();
   if (!g) return false;
 
@@ -147,6 +154,18 @@ export async function handleGuestReply(
       await logOut(`${guest.name}, כמה אתם מגיעים?`);
       await sendList(cfg, to, `${guest.name}, כמה אתם מגיעים?`, "בחרו מספר",
         [1, 2, 3, 4, 5, 6, 7, 8].map(n => ({ id: `count_${n}`, title: String(n) })));
+      return true;
+    }
+
+    /* "1+ 2 ילדים" before a plain number, because a guest who answers in parts
+       is telling us more than the total: the split is what the caterer bills
+       on, and it used to fall through to Dvir and be typed in by hand. */
+    const parts = compositeCount(said);
+    if (parts) {
+      await record(sb, guest, "confirmed", parts.total, parts.kids);
+      await sayText(cfg, to,
+        `מעולה, רשמנו ${parts.total} 🤍 מתוכם ${parts.kids} ילדים.\n` +
+        `מחכים לראותכם בשמחה!\n\nרוצים לשנות? פשוט כתבו לנו כאן.`);
       return true;
     }
 
@@ -295,6 +314,32 @@ export async function handleGuestReply(
       /* Same rollback as the decline path: a state that says "waiting for an
          answer" is only true if the question actually left. */
       if (!asked.ok) await setState(sb, guest.id, null);
+      return true;
+    }
+  }
+
+  /* "הקישור לא עובד".
+   *
+   * Four guests wrote this and every one of them waited for Dvir — one for
+   * fifteen hours. They are the guests who are actively trying to answer and
+   * cannot, which makes them the most expensive message in the inbox: a lost
+   * RSVP that wanted to be given.
+   *
+   * The link is per-guest and never changes, so re-sending it costs nothing
+   * and cannot be wrong. Plain text inside the 24h window they opened by
+   * writing to us, so no template and no quota.
+   *
+   * Deliberately last, after every parse above: "לא עובד" appears inside
+   * answers that are not about the link at all, and a guest who said something
+   * we understood must not be answered with a link instead. */
+  if (/(קישור|לינק|כפתור)/.test(said)
+      && /(לא עובד|לא נפתח|נכשל|לא מגיב|לא עובדים|לא מגיבים|שוב|מחדש|שולח)/.test(said)) {
+    const token = (guest as { rsvp_token?: string }).rsvp_token;
+    if (token) {
+      const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app";
+      await sayText(cfg, to,
+        `הנה הקישור האישי שלכם שוב 🤍\n${base}/rsvp/${token}\n\n` +
+        `אם הוא עדיין לא נפתח — אפשר פשוט לכתוב לנו כאן כמה אתם ונרשום ידנית.`);
       return true;
     }
   }

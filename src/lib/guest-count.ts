@@ -110,3 +110,68 @@ export function unpromptedCount(raw: string): number | null {
   const n = parseInt(digits[0], 10);
   return n >= 1 && n <= 20 ? n : null;
 }
+
+/* ── a household described in parts ──────────────────────────────────────── */
+
+export interface Composite { total: number; kids: number }
+
+const KID_WORD = /(ילד(?:ים|ה)?|פעוט(?:ה|ות|ים)?|תינוק(?:ת|ות|ים)?|קטן|קטנה|בייבי)/;
+
+/**
+ * "1 + 2 ילדים", "זוג+פעוטה", "2 מבוגרים ו-3 ילדים".
+ *
+ * Guests answer the headcount question in parts as often as with a number,
+ * and every one of those answers used to fall through to Dvir: שירה ואייל
+ * wrote "3" and then "1+ 2 ילדים", and אילת ונתן wrote "2 מנות. 4 מקומות".
+ * A composite answer is not a hard parse and it carries the most useful
+ * information a guest ever volunteers — the split the caterer bills on.
+ *
+ * Returns the total and how many of it are children, in the same shape the
+ * admin's own field writes. Null when the message is not of this form; a
+ * misread here reaches a caterer as real meals, so anything ambiguous is
+ * refused rather than guessed.
+ */
+export function compositeCount(raw: string): Composite | null {
+  const t = String(raw ?? "")
+    .replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!t) return null;
+  /* A refusal that happens to contain numbers is not a headcount. */
+  if (/(לא\s*(נוכל|נגיע|מגיע|מגיעים|באים)|לצערי|לצערנו)/.test(t)) return null;
+
+  /* "זוג" and "אני" carry a count of their own. */
+  const adultsFromWord = /(^|[\s+ו])זוג([\s+ו]|$)/.test(t) ? 2
+    : /(^|[\s+ו])(אני|לבד|רק אני)([\s+ו]|$)/.test(t) ? 1
+    : null;
+
+  const nums = [...t.matchAll(/\d{1,2}/g)]
+    .map(m => ({ n: parseInt(m[0], 10), at: m.index ?? 0, len: m[0].length }))
+    .filter(x => x.n >= 0 && x.n <= 20);
+
+  /* The child word has to sit immediately after the number, separated by
+     nothing but spaces or a hyphen. A wider window reaches past the NEXT
+     number: in "1+ 2 ילדים" the fourteen characters after the 1 contain
+     "ילדים", so one adult was read as one child and the household came out
+     wrong in both halves. */
+  const kidsAfter = (x: { at: number; len: number }) =>
+    /^[\s\-־ו]*(ילד(?:ים|ה)?|פעוט(?:ה|ות|ים)?|תינוק(?:ת|ות|ים)?|קטן|קטנה|בייבי)/
+      .test(t.slice(x.at + x.len));
+
+  const kidNum = nums.find(kidsAfter) ?? null;
+  let kids = kidNum ? kidNum.n : null;
+
+  /* "זוג+פעוטה" — the child is named without a number of its own. */
+  if (kids === null && !nums.length && adultsFromWord !== null && KID_WORD.test(t)) kids = 1;
+  if (kids === null) return null;
+
+  /* Whoever is left. A number that is not the child number, or the word. */
+  const adults = adultsFromWord !== null
+    ? adultsFromWord
+    : nums.find(x => x !== kidNum)?.n ?? null;
+  if (adults === null) return null;
+
+  const total = adults + kids;
+  if (total < 1 || total > 20 || kids > total) return null;
+  return { total, kids };
+}

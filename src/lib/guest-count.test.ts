@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { bareCount, changeIntent, unpromptedCount} from "./guest-count.ts";
+import { bareCount, changeIntent, unpromptedCount, compositeCount} from "./guest-count.ts";
 
 /* Every string below is one this system actually received. The corpus is 306
    inbound messages across four weddings, replayed on 31/08. */
@@ -119,4 +119,35 @@ test("nothing is guessed from a bare word", () => {
 
 test("two numbers are still refused", () => {
   assert.equal(unpromptedCount("אני ועוד 2, סה\"כ 3"), null);
+});
+
+/* ── households described in parts ───────────────────────────────────────── */
+
+test("the shapes guests actually wrote", () => {
+  /* Every one of these reached Dvir's inbox and was typed in by hand. */
+  assert.deepEqual(compositeCount("1+ 2 ילדים"), { total: 3, kids: 2 });
+  assert.deepEqual(compositeCount("זוג+פעוטה"), { total: 3, kids: 1 });
+  assert.deepEqual(compositeCount("2 מבוגרים ו-3 ילדים"), { total: 5, kids: 3 });
+  assert.deepEqual(compositeCount("אני + ילד"), { total: 2, kids: 1 });
+});
+
+test("a plain number is not a composite", () => {
+  /* bareCount owns those, and two parsers claiming the same message is how a
+     headcount ends up being written twice. */
+  for (const m of ["3", "  2 ", "מגיע"]) assert.equal(compositeCount(m), null);
+});
+
+test("a refusal carrying numbers is refused", () => {
+  assert.equal(compositeCount("לא נוכל להגיע, יש לנו 2 ילדים קטנים"), null);
+});
+
+test("children can never exceed the household", () => {
+  assert.equal(compositeCount("1 + 5 ילדים")?.total, 6);
+  assert.equal(compositeCount("0 + 25 ילדים"), null);
+});
+
+test("nothing is guessed from a bare mention of children", () => {
+  /* "באים עם הילדים" says nothing about how many, and a caterer cannot be
+     handed a guess. */
+  assert.equal(compositeCount("באים עם הילדים"), null);
 });
