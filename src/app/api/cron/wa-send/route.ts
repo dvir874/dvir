@@ -3,11 +3,11 @@ import { createServerClient } from "@/lib/supabase-server";
 import { shabbatBlock } from "@/lib/shabbat";
 import { coupleName, looksLikeCouple } from "@/lib/couple-name";
 import { isEligibleNow, dueWithin, type ContactState } from "@/lib/eligibility";
-import { eventTimes } from "@/lib/event-times";
+import { eventTimes, eventDay} from "@/lib/event-times";
 import { venueLine } from "@/lib/venue";
 import { weddingDateLine } from "@/lib/hebrew-date";
 import {
-  getWhatsAppConfig, sendInvitation, toE164, policyFor, rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY, fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendDayBefore, sendRunSummary, sendRidesGroup, nextRetryAt, sendCoupleCheck} from "@/lib/whatsapp";
+  getWhatsAppConfig, sendInvitation, toE164, policyFor, rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY, fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendDayBefore, sendRunSummary, sendRidesGroup, nextRetryAt, sendCoupleCheck, sendTableNumber} from "@/lib/whatsapp";
 import { checkEventLinks, brokenSummary } from "@/lib/link-health";
 
 export const dynamic = "force-dynamic";
@@ -934,6 +934,115 @@ async function remindGalleryReady(
   }
 }
 
+
+/* Table numbers, sent the way every other message is sent.
+ *
+ * wedding_day_details_utility carries a 🪑 שולחן slot and has been approved
+ * for weeks with nothing calling it. The only route to a table number was a
+ * button on the couple's screen that opened one wa.me tab per guest: 229 of
+ * them for שחר, each needing a click, from the couple's own WhatsApp, with
+ * every emoji arriving broken because it never passed through waPrefill.
+ *
+ * שחר asked for this on 02/09 and was told no, correctly — she had no seating
+ * in the system to send. Now the room plans itself, so she can.
+ *
+ * Through the cron rather than inline, for the reason everything else is:
+ * 229 messages do not fit in one request or in one day's window, and a guest
+ * told nothing because a browser tab was closed is a guest standing in a room
+ * looking for their name.
+ */
+const TABLES_PER_RUN = 60;
+
+async function sendTableNumbers(
+  sb: ReturnType<typeof createServerClient>,
+  cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+  budget: number,
+): Promise<{ sent: number; event?: string }> {
+  if (budget <= 0) return { sent: 0 };
+
+  let evs: Record<string, unknown>[] = [];
+  try {
+    const { data } = await sb.from("events")
+      .select("id, name, couple_names, date, venue_name, address, reception_time, send_paused_until, tables_send_requested_at")
+      .not("tables_send_requested_at", "is", null)
+      .gte("date", israelToday()).order("date").limit(3);
+    evs = (data ?? []) as Record<string, unknown>[];
+  } catch {
+    /* Column arrives with 20260902_table_numbers.sql. */
+    return { sent: 0 };
+  }
+
+  const nowMs = Date.now();
+  for (const ev of evs) {
+    const paused = ev.send_paused_until as string | null;
+    if (paused && new Date(paused).getTime() > nowMs) continue;
+
+    const couple = coupleName(ev as Parameters<typeof coupleName>[0]);
+    const venue = venueLine(ev as Parameters<typeof venueLine>[0]);
+    const reception = String(ev.reception_time ?? "").trim();
+    const day = eventDay(String(ev.date ?? ""));
+    if (!couple || !venue || !reception || !day) continue;
+    const dateText = day.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
+
+    /* Only guests who are actually at a table. */
+    const { data: seats } = await sb.from("seating_assignments")
+      .select("guest_id, table_id").eq("event_id", ev.id as string);
+    if (!(seats ?? []).length) continue;
+
+    const { data: tables } = await sb.from("seating_tables")
+      .select("id, name").eq("event_id", ev.id as string);
+    const tableName = new Map<string, string>(
+      (tables ?? []).map(t => [t.id as string, String(t.name ?? "")]));
+
+    const ids = [...new Set((seats ?? []).map(a => a.guest_id as string))];
+    const already = new Set<string>();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data } = await sb.from("guest_events")
+        .select("guest_id").eq("event_type", "table_number_sent")
+        .in("guest_id", ids.slice(i, i + 100));
+      (data ?? []).forEach(r => r.guest_id && already.add(r.guest_id as string));
+    }
+
+    const { data: gs } = await sb.from("guests")
+      .select("id, phone, category, do_not_contact, status")
+      .eq("event_id", ev.id as string).eq("status", "confirmed");
+    const byId = new Map((gs ?? []).map(g => [g.id as string, g]));
+
+    const todo = (seats ?? [])
+      .filter(a => !already.has(a.guest_id as string))
+      .map(a => ({ a, g: byId.get(a.guest_id as string) }))
+      .filter(x => x.g && x.g.category !== "demo"
+        && String(x.g.phone ?? "").trim() && !x.g.do_not_contact
+        && tableName.get(x.a.table_id as string))
+      .slice(0, Math.min(budget, TABLES_PER_RUN));
+    if (!todo.length) continue;
+
+    let sent = 0;
+    for (let i = 0; i < todo.length; i += SEND_CONCURRENCY) {
+      const batch = await Promise.all(todo.slice(i, i + SEND_CONCURRENCY).map(async x => ({
+        x,
+        res: await sendTableNumber(cfg, String(x.g!.phone), couple, dateText, venue,
+          reception, tableName.get(x.a.table_id as string)!),
+      })));
+      for (const { x, res } of batch) {
+        if (!res.ok) continue;
+        sent++;
+        await sb.from("guest_events")
+          .insert({ guest_id: x.g!.id, event_type: "table_number_sent" });
+        if (res.messageId) {
+          await sb.from("wa_messages").insert({
+            event_id: ev.id, guest_id: x.g!.id, wa_phone: toE164(String(x.g!.phone)) ?? "",
+            direction: "out", body: "מספר שולחן (תבנית)",
+            wamid: res.messageId, status: "accepted",
+          });
+        }
+      }
+    }
+    if (sent) return { sent, event: String(ev.name ?? "") };
+  }
+  return { sent: 0 };
+}
+
 async function notifyGallery(
   sb: ReturnType<typeof createServerClient>,
   cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
@@ -1506,6 +1615,12 @@ async function runSend(req: NextRequest) {
      spare every send after it from going to a number that does not exist. */
   const coupleAsk = await askCoupleAboutUnreachable(sb, cfg, budget);
   budget = Math.max(0, budget - coupleAsk.sent);
+
+  /* Table numbers the couple asked us to send — see sendTableNumbers. Ahead of
+     the invitations because a guest who already answered and is already seated
+     is closer to the door than one still deciding. */
+  const tableNums = await sendTableNumbers(sb, cfg, budget);
+  budget = Math.max(0, budget - tableNums.sent);
 
   if (!budget) return record(sb, { sent: dayBefore.sent, reason: dayBefore.sent ? "day_before_only" : "budget_exhausted", cap, healed, dayBefore },
     { cap, tier: health.tier, quality: health.quality, posture: health.posture,

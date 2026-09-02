@@ -152,19 +152,26 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
   const tableByGuestId = new Map(data.assignments.map(a => [a.guest_id, data.tables.find(t => t.id === a.table_id)?.name ?? ""]));
   const notifiable = data.guests.filter(g => g.phone && tableByGuestId.get(g.id));
 
-  function sendTableNumbers() {
+  /* Ask the system to tell every seated guest where they sit.
+   *
+   * This used to open one wa.me tab per guest and let the couple click send on
+   * each: 229 tabs for שחר, from their own WhatsApp, and — because the URL was
+   * built inline rather than through waPrefill — with 💍 🎉 🪑 🤍 all arriving
+   * as replacement characters.
+   *
+   * Now it records the request and the sender does the work, through the
+   * business number, on the approved template, with delivery reports. */
+  async function sendTableNumbers() {
     if (notifiable.length === 0) return;
-    if (!confirm(`ייפתחו ${notifiable.length} הודעות וואטסאפ — אחת לכל אורח משובץ. להמשיך?`)) return;
-    notifiable.forEach((g, i) => {
-      const tableName = tableByGuestId.get(g.id)!;
-      const msg =
-        `💍 משפחה וחברים יקרים!\n\n` +
-        `${g.name}, מחכים לראותכם! 🎉\n\n` +
-        `🪑 השולחן שלכם: ${tableName}\n\n` +
-        `נתראה בשמחות! 🤍`;
-      const phone = (g.phone ?? "").replace(/\D/g, "").replace(/^0/, "972");
-      setTimeout(() => window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank"), i * 600);
-    });
+    if (!confirm(
+      `נשלח לכל ${notifiable.length} האורחים המשובצים הודעה עם מספר השולחן שלהם.\n\n` +
+      `ההודעות יוצאות מהמערכת בהדרגה — לא צריך לעשות כלום.\n\n` +
+      `כדאי לוודא שהסידור סופי: מי שיוזז אחר כך יקבל עדכון רק אם תלחצו שוב.`)) return;
+
+    const res = await fetch(`/api/couple/${token}/seating/notify`, { method: "POST" });
+    const d = await res.json().catch(() => null);
+    if (!res.ok) { alert(d?.error ?? "לא הצלחנו לשלוח"); return; }
+    alert(`מעולה ✨\n${d.seated} אורחים יקבלו את מספר השולחן שלהם בשעות הקרובות.`);
   }
 
   return (

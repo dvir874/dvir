@@ -911,6 +911,8 @@ export interface WhatsAppConfig {
   dayBeforeNoteTemplateName: string;
   /** Asking the couple to check numbers we cannot reach. */
   coupleCheckTemplateName: string;
+  /** Event details with the guest's table number. */
+  tableNumberTemplateName: string;
 }
 
 /** The four body variables of the generic invitation template */
@@ -975,6 +977,8 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
       process.env.WHATSAPP_TEMPLATE_DAY_BEFORE_NOTE ?? "wedding_tomorrow_reminder_v2",
     coupleCheckTemplateName:
       process.env.WHATSAPP_TEMPLATE_COUPLE_CHECK ?? "couple_check_numbers_v1",
+    tableNumberTemplateName:
+      process.env.WHATSAPP_TEMPLATE_TABLE_NUMBER ?? "wedding_day_details_utility",
     templateLang: process.env.WHATSAPP_TEMPLATE_LANG ?? "he",
     /* Kept only so existing callers still typecheck; nothing reads it as a
        fallback any more. The comment used to say there was deliberately no
@@ -1245,6 +1249,65 @@ export async function sendCoupleCheck(
     if (!res.ok) {
       return { ok: false, error: data?.error?.message ?? "שליחה נכשלה" };
     }
+    return { ok: true, messageId: data?.messages?.[0]?.id ?? null };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "שגיאת רשת" };
+  }
+}
+
+
+/**
+ * The guest's table number, through the business number.
+ *
+ * wedding_day_details_utility has been approved for weeks and wired to
+ * nothing. The only way to send a table number was a button that opened one
+ * wa.me tab per guest — 229 of them for שחר, each needing a click, sent from
+ * the couple's own WhatsApp, with every emoji arriving as a replacement
+ * character because it never went through waPrefill.
+ *
+ * UTILITY, and correctly so: it goes only to a guest who confirmed, about the
+ * event they confirmed to, and it is the detail they need to walk into the
+ * room. That also keeps it clear of the marketing frequency cap that has
+ * blocked thirty-five of these guests at one point or another.
+ */
+export async function sendTableNumber(
+  cfg: WhatsAppConfig, phone: string,
+  couple: string, date: string, venue: string, reception: string, table: string,
+): Promise<SendResult> {
+  const to = toE164(phone);
+  if (!to) return { ok: false, error: "מספר לא תקין" };
+  if (![couple, date, venue, reception, table].every(v => v?.trim()))
+    return { ok: false, error: "חסרים פרטי אירוע" };
+
+  await pace();
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/${API_VERSION}/${cfg.phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${cfg.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(20_000),
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to,
+          type: "template",
+          template: {
+            name: cfg.tableNumberTemplateName,
+            language: { code: cfg.templateLang },
+            components: [{
+              type: "body",
+              parameters: [couple, date, venue, reception, table]
+                .map(text => ({ type: "text", text: safeParam(text) })),
+            }],
+          },
+        }),
+      },
+    );
+    const data = await res.json();
+    if (!res.ok) return { ok: false, error: data?.error?.message ?? "שליחה נכשלה" };
     return { ok: true, messageId: data?.messages?.[0]?.id ?? null };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "שגיאת רשת" };
