@@ -3233,6 +3233,22 @@ export default function AdminPage() {
                               }}
                             />
                           )}
+                          {/* The split, spelled out.
+                              Two numbers beside each other — 3 and 2 — read as
+                              either "three plus two children" or "two of the
+                              three". Dvir asked which, which means the next
+                              person would have too, and a wrong reading here
+                              reaches a caterer as five meals instead of three. */}
+                          {(() => {
+                            const kids = (g.meal_counts as Record<string, number> | null)?.kids ?? 0;
+                            if (!kids) return null;
+                            const adults = Math.max(0, (g.guest_count ?? 1) - kids);
+                            return (
+                              <div style={{ fontSize: 10, color: C.muted, marginTop: 3, whiteSpace: "nowrap" }}>
+                                {adults} {adults === 1 ? "מבוגר" : "מבוגרים"} · {kids} {kids === 1 ? "ילד" : "ילדים"}
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="px-4 py-3 text-xs" style={{ color: C.muted }}>
                           {g.meal_preference
