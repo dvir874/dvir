@@ -863,6 +863,77 @@ async function alertIncompleteEvents(
   }
 }
 
+
+/* The morning after, which no report covers.
+ *
+ * Every alert in this file looks forward: the digest selects gte("date",
+ * today), so does the setup check, and the day-before alert fires at T-1. The
+ * moment a wedding is over it disappears from the system's entire reporting
+ * surface — on the one morning when something still has to happen.
+ *
+ * What has to happen is gallery_ready. The gate itself is right and is not
+ * being removed: no machine can know whether the photos are actually up, and
+ * "the gallery is ready" sent to an empty gallery is worse than silence. But
+ * the switch is a thing Dvir has to REMEMBER, and remembering is exactly what
+ * he is about to stop having time for. 227 of שחר's guests are waiting behind
+ * it.
+ *
+ * Once a day for a week after the date, then it stops asking. A wedding whose
+ * couple never uploads anything should not become a permanent alarm.
+ */
+const GALLERY_NAG_DAYS = 7;
+
+async function remindGalleryReady(
+  sb: ReturnType<typeof createServerClient>,
+  cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+): Promise<void> {
+  const to = process.env.ADMIN_ALERT_PHONE;
+  if (!to) return;
+
+  const today = israelToday();
+  const since = new Date(Date.now() - GALLERY_NAG_DAYS * 86_400_000)
+    .toISOString().slice(0, 10);
+
+  let evs: Record<string, unknown>[] = [];
+  try {
+    const { data } = await sb.from("events")
+      .select("id, name, couple_names, date, gallery_ready, gallery_notified_at, setup_alert_at")
+      .lt("date", today).gte("date", since)
+      .order("date", { ascending: false }).limit(3);
+    evs = (data ?? []) as Record<string, unknown>[];
+  } catch { return; }
+
+  const nowMs = Date.now();
+  for (const ev of evs) {
+    if (ev.gallery_ready || ev.gallery_notified_at) continue;
+
+    /* Shares setup_alert_at with the pre-wedding check. They can never
+       overlap — one only looks at future dates and this one only at past —
+       so a second column would hold the same fact under a different name. */
+    const last = ev.setup_alert_at as string | null;
+    if (last && nowMs - new Date(last).getTime() < 20 * 3_600_000) continue;
+
+    const { count } = await sb.from("guests")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", ev.id as string).eq("status", "confirmed")
+      .eq("wants_photos", true).neq("category", "demo");
+    if (!count) continue;
+
+    const daysAgo = Math.max(1, Math.round(
+      (nowMs - new Date(String(ev.date)).getTime()) / 86_400_000));
+
+    await sendRunSummary(cfg, to, {
+      event: `📸 ${coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name)} — הגלריה`,
+      sent: "0", failed: "—", left: String(count),
+      attention: `החתונה הייתה לפני ${daysAgo} ${daysAgo === 1 ? "יום" : "ימים"}. `
+        + `${count} אורחים ביקשו לשתף תמונות ומחכים לקישור. `
+        + `כשהאלבום מוכן — /admin, כפתור "התמונות עלו".`,
+    });
+    await sb.from("events")
+      .update({ setup_alert_at: new Date().toISOString() }).eq("id", ev.id as string);
+  }
+}
+
 async function notifyGallery(
   sb: ReturnType<typeof createServerClient>,
   cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
@@ -1286,6 +1357,12 @@ async function runSend(req: NextRequest) {
        Beside the digest rather than inside it, because the digest is driven by
        guest activity and the events this catches have none. */
     try { await alertIncompleteEvents(sb, cfg); }
+    catch { /* a notification must never cost a send */ }
+
+    /* And the one thing a finished wedding still needs — see
+       remindGalleryReady. Every other report in this file looks forward, so
+       the morning after a wedding is the one morning nothing is watching. */
+    try { await remindGalleryReady(sb, cfg); }
     catch { /* a notification must never cost a send */ }
 
     /* And once a day, whether the links still work.
