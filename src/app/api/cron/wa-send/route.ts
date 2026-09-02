@@ -7,7 +7,7 @@ import { eventTimes } from "@/lib/event-times";
 import { venueLine } from "@/lib/venue";
 import { weddingDateLine } from "@/lib/hebrew-date";
 import {
-  getWhatsAppConfig, sendInvitation, toE164, policyFor, rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY, fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendDayBefore, sendRunSummary, sendRidesGroup, nextRetryAt } from "@/lib/whatsapp";
+  getWhatsAppConfig, sendInvitation, toE164, policyFor, rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY, fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendDayBefore, sendRunSummary, sendRidesGroup, nextRetryAt, sendCoupleCheck} from "@/lib/whatsapp";
 import { checkEventLinks, brokenSummary } from "@/lib/link-health";
 
 export const dynamic = "force-dynamic";
@@ -293,7 +293,7 @@ async function sendDailyDigest(
   const today = new Date().toISOString().slice(0, 10);
 
   const { data: evs } = await sb.from("events")
-    .select("id, name, couple_names, date").gte("date", today).order("date").limit(4);
+    .select("id, name, couple_names, date, unreachable_asked_at").gte("date", today).order("date").limit(4);
 
   for (const ev of evs ?? []) {
     const { data: gs } = await sb.from("guests")
@@ -391,11 +391,26 @@ async function sendDailyDigest(
     /* Quiet is only not-news when nothing is wrong. */
     if (!sentToday && !answeredToday && !neverGot.length) continue;
 
+    /* Whether the couple has already been asked about these, and when.
+     *
+     * The answer to "how do I know the message went out" is that this line
+     * says so, every evening, until the list is empty — and the ask itself is
+     * written to wa_messages like every other outbound, so it carries a
+     * delivery report of its own. */
+    const asked = ev.unreachable_asked_at as string | null;
+    const askedAgo = asked
+      ? Math.floor((Date.now() - new Date(asked).getTime()) / 86_400_000)
+      : null;
+    const askedNote = askedAgo === null ? ""
+      : askedAgo === 0 ? " · ביקשתי מהזוג לבדוק היום"
+      : askedAgo === 1 ? " · ביקשתי מהזוג אתמול"
+      : ` · ביקשתי מהזוג לפני ${askedAgo} ימים`;
+
     const attention = neverGot.length
       ? `❗ ${neverGot.length} לא קיבלו כלום (${daysOut} ימים לחתונה): `
         + neverGot.slice(0, 6).join(" · ")
         + (neverGot.length > 6 ? ` ועוד ${neverGot.length - 6}` : "")
-        + " — רק הודעה אישית ממך תגיע אליהם"
+        + askedNote
       : `אישרו עד כה: ${confirmed} מתוך ${real.length} · ${dueLine}`;
 
     await sendRunSummary(cfg, to, {
@@ -641,6 +656,129 @@ async function dayBeforeForEvent(
     }
   }
   return { sent };
+}
+
+
+/* Asking the couple about the guests we cannot reach.
+ *
+ * פוריה בן שמעון's number was simply wrong. Dvir tried WhatsApp, tried the
+ * phone, and both failed; he then asked תהל, who knew in one message and sent
+ * a correct number. That exchange is the whole solution and nothing in the
+ * system had ever thought to send it — the couple has been treated as a
+ * dashboard viewer when they are the only party who can tell a wrong number
+ * from an unreachable one.
+ *
+ * One message per wedding, never a stream. It goes only where there is
+ * something a person can act on and something new to say.
+ */
+const COUPLE_ASK_COOLDOWN_H = 7 * 24;
+const COUPLE_ASK_WINDOW_DAYS = 45;
+
+async function askCoupleAboutUnreachable(
+  sb: ReturnType<typeof createServerClient>,
+  cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+  budget: number,
+): Promise<{ sent: number; event?: string }> {
+  if (budget <= 0) return { sent: 0 };
+
+  const today = israelToday();
+  const horizon = new Date(Date.now() + COUPLE_ASK_WINDOW_DAYS * 86_400_000)
+    .toISOString().slice(0, 10);
+
+  /* Far-off weddings are still collecting answers and a number that has not
+     worked yet is not news. Inside the window it is the couple's problem too. */
+  let evs: Record<string, unknown>[] = [];
+  try {
+    const { data } = await sb.from("events")
+      .select("id, name, couple_names, date, client_phone, couple_token, send_paused_until, unreachable_asked_at, unreachable_asked_ids")
+      .gt("date", today).lte("date", horizon).order("date").limit(5);
+    evs = (data ?? []) as Record<string, unknown>[];
+  } catch {
+    /* The columns arrive with 20260902_couple_unreachable_ask.sql. Until it
+       runs this does nothing at all, which is exactly today's behaviour. */
+    return { sent: 0 };
+  }
+
+  const nowMs = Date.now();
+  for (const ev of evs) {
+    if (budget <= 0) break;
+    const phone = String(ev.client_phone ?? "").trim();
+    const token = String(ev.couple_token ?? "").trim();
+    const couple = coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name ?? "");
+    if (!phone || !token || !couple) continue;
+
+    const paused = ev.send_paused_until as string | null;
+    if (paused && new Date(paused).getTime() > nowMs) continue;
+
+    /* Received nothing at all: no delivery report, never opened the link, and
+       still waiting. A "sent" that Meta accepted and never delivered is not
+       evidence of arrival — אריה זאבי has six of those. */
+    const { data: gs } = await sb.from("guests")
+      .select("id, name, phone, category, opened_at, do_not_contact")
+      .eq("event_id", ev.id as string).eq("status", "pending");
+    const candidates = (gs ?? []).filter(g =>
+      g.category !== "demo" && String(g.phone ?? "").trim()
+      && !g.opened_at && !g.do_not_contact);
+    if (!candidates.length) continue;
+
+    const ids = candidates.map(g => g.id as string);
+    const got = new Set<string>();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data: ms } = await sb.from("wa_messages")
+        .select("guest_id, status").eq("direction", "out")
+        .in("guest_id", ids.slice(i, i + 100));
+      (ms ?? []).forEach(m => {
+        if (["delivered", "read"].includes(m.status as string) && m.guest_id) {
+          got.add(m.guest_id as string);
+        }
+      });
+    }
+    const stuck = candidates.filter(g => !got.has(g.id as string));
+    if (!stuck.length) continue;
+
+    /* Nothing new to say, and asked recently: stay quiet. A guest who becomes
+       stuck AFTER the last ask reopens it immediately, because waiting out a
+       week on a wedding that is nine days away is the failure this exists to
+       prevent. */
+    const askedAt = ev.unreachable_asked_at as string | null;
+    const askedIds = new Set(
+      Array.isArray(ev.unreachable_asked_ids) ? ev.unreachable_asked_ids as string[] : []);
+    const fresh = stuck.filter(g => !askedIds.has(g.id as string));
+    const withinCooldown = askedAt
+      && nowMs - new Date(askedAt).getTime() < COUPLE_ASK_COOLDOWN_H * 3_600_000;
+    if (withinCooldown && !fresh.length) continue;
+
+    const names = stuck.map(g => String(g.name ?? "").trim()).filter(Boolean);
+    const shown = names.slice(0, 8).join(" · ")
+      + (names.length > 8 ? ` ועוד ${names.length - 8}` : "");
+    const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app";
+
+    const res = await sendCoupleCheck(
+      cfg, phone, couple, String(stuck.length), shown, `${base}/couple/${token}/guests`);
+    if (!res.ok) {
+      console.warn(`[couple-check] ${ev.name}: ${res.error}`);
+      continue;
+    }
+
+    await sb.from("events").update({
+      unreachable_asked_at: new Date().toISOString(),
+      unreachable_asked_ids: stuck.map(g => g.id),
+    }).eq("id", ev.id as string);
+
+    /* Logged like every other outbound, so it appears in the message history
+       and in the delivery reports — this is the answer to "how do I know it
+       was even sent". */
+    if (res.messageId) {
+      await sb.from("wa_messages").insert({
+        event_id: ev.id, guest_id: null, wa_phone: toE164(phone) ?? "",
+        direction: "out", body: `בקשה לזוג לבדוק ${stuck.length} מספרים`,
+        wamid: res.messageId, status: "accepted",
+      });
+    }
+
+    return { sent: 1, event: String(ev.name ?? "") };
+  }
+  return { sent: 0 };
 }
 
 async function notifyGallery(
@@ -1196,6 +1334,14 @@ async function runSend(req: NextRequest) {
   }
 
   budget = Math.max(0, budget - dayBefore.sent);
+
+  /* One message to the couple about guests nobody can reach — see
+     askCoupleAboutUnreachable. After the day-before, which must never wait for
+     anything, and before the guest sends: it costs a single message and can
+     spare every send after it from going to a number that does not exist. */
+  const coupleAsk = await askCoupleAboutUnreachable(sb, cfg, budget);
+  budget = Math.max(0, budget - coupleAsk.sent);
+
   if (!budget) return record(sb, { sent: dayBefore.sent, reason: dayBefore.sent ? "day_before_only" : "budget_exhausted", cap, healed, dayBefore },
     { cap, tier: health.tier, quality: health.quality, posture: health.posture,
       window_used: usage.recipients });

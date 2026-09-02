@@ -909,6 +909,8 @@ export interface WhatsAppConfig {
   dayBeforeTemplateName: string;
   /** Same message with a fifth slot for the couple's own line. */
   dayBeforeNoteTemplateName: string;
+  /** Asking the couple to check numbers we cannot reach. */
+  coupleCheckTemplateName: string;
 }
 
 /** The four body variables of the generic invitation template */
@@ -971,6 +973,8 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
       process.env.WHATSAPP_TEMPLATE_DAY_BEFORE ?? "wedding_tomorrow_reminder",
     dayBeforeNoteTemplateName:
       process.env.WHATSAPP_TEMPLATE_DAY_BEFORE_NOTE ?? "wedding_tomorrow_reminder_v2",
+    coupleCheckTemplateName:
+      process.env.WHATSAPP_TEMPLATE_COUPLE_CHECK ?? "couple_check_numbers_v1",
     templateLang: process.env.WHATSAPP_TEMPLATE_LANG ?? "he",
     /* Kept only so existing callers still typecheck; nothing reads it as a
        fallback any more. The comment used to say there was deliberately no
@@ -1187,4 +1191,62 @@ export async function sendRunSummary(
       },
     }),
   });
+}
+
+
+/**
+ * Ask the couple to check numbers we could not reach.
+ *
+ * The couple is the only party who can tell a wrong number from an unreachable
+ * one. פוריה בן שמעון's was simply wrong, and Dvir learned that by asking תהל
+ * after WhatsApp and a phone call had both failed — one message, one minute,
+ * and nothing in the system had ever thought to send it.
+ *
+ * UTILITY, and legitimately so: it is addressed to the customer about their own
+ * event, not to a guest, and it asks for something only they can supply.
+ */
+export async function sendCoupleCheck(
+  cfg: WhatsAppConfig, phone: string,
+  couple: string, count: string, names: string, link: string,
+): Promise<SendResult> {
+  const to = toE164(phone);
+  if (!to) return { ok: false, error: "מספר לא תקין" };
+  if (![couple, count, names, link].every(v => v?.trim()))
+    return { ok: false, error: "חסרים פרטים" };
+
+  await pace();
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/${API_VERSION}/${cfg.phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${cfg.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(20_000),
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to,
+          type: "template",
+          template: {
+            name: cfg.coupleCheckTemplateName,
+            language: { code: cfg.templateLang },
+            components: [{
+              type: "body",
+              parameters: [couple, count, names, link]
+                .map(text => ({ type: "text", text: safeParam(text) })),
+            }],
+          },
+        }),
+      },
+    );
+    const data = await res.json();
+    if (!res.ok) {
+      return { ok: false, error: data?.error?.message ?? "שליחה נכשלה" };
+    }
+    return { ok: true, messageId: data?.messages?.[0]?.id ?? null };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "שגיאת רשת" };
+  }
 }

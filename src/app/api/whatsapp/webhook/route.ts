@@ -199,6 +199,25 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    /* The couple's own number, which is on no guest list.
+     *
+     * The system now asks them to check numbers it cannot reach, so they have
+     * a reason to reply — and a reply from client_phone matched no guest, so
+     * it was written with event_id null and appeared under no wedding at all.
+     * The one message Dvir most needs to see was the one the inbox could not
+     * file. This does not make them a guest; it only says which wedding they
+     * are writing about. */
+    const coupleEventByPhone = new Map<string, string>();
+    {
+      const { data: evs } = await sb.from("events")
+        .select("id, client_phone").not("client_phone", "is", null);
+      for (const ev of evs ?? []) {
+        for (const v of phoneVariants(String(ev.client_phone))) {
+          if (!coupleEventByPhone.has(v)) coupleEventByPhone.set(v, ev.id as string);
+        }
+      }
+    }
+
     /* When a handset is shared, the reply belongs to whichever wedding we most
        recently wrote to them about. That is the only signal available — Meta
        sends no thread identity for a template reply — and it is the right one:
@@ -288,7 +307,10 @@ export async function POST(req: NextRequest) {
       const g = guestFor(m.from ?? "");
       const media = mediaOf(m);
       return {
-        event_id: g?.event_id ?? null,
+        /* A guest's wedding if we know them, otherwise the wedding whose
+           couple this number belongs to. Better an inbox row filed under the
+           right event than one filed under none. */
+        event_id: g?.event_id ?? coupleEventByPhone.get(localise(m.from ?? "")) ?? null,
         guest_id: g?.id ?? null,
         wa_phone: m.from ?? "",
         direction: "in",
