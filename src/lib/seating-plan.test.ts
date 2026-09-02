@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { planSeating, DEFAULT_CAPACITY, type PlanGuest } from "./seating-plan.ts";
+import { planSeating, planIntoRoom, DEFAULT_CAPACITY, type PlanGuest, type RoomTable } from "./seating-plan.ts";
 
 /* Built from שחר's real list: 229 confirmed records, 427 people, four groups —
    משפחת ביטון, מוזמנים אורי, מוזמנים שחר, מוזמנים פורת — at 97% coverage, with
@@ -134,4 +134,86 @@ test("an empty list is a plan with no tables, not a crash", () => {
   assert.deepEqual(plan.tables, []);
   assert.equal(plan.totals.tables, 0);
   assert.equal(DEFAULT_CAPACITY, 12);
+});
+
+/* ── seating into a real hall ────────────────────────────────────────────── */
+
+/* ארץ האיילים's plan for שחר, 02/09: 26 numbered tables across four areas,
+   every one twelve seats except table 24, which is ten. 310 seats. */
+const arzHaAyalim = (): RoomTable[] => {
+  const t: RoomTable[] = [];
+  const zone = (n: number) =>
+    n <= 7 ? "מרכז" : n <= 15 ? "מפלס א" : n <= 20 ? "מפלס ב" : n <= 25 ? "מפלס ג" : "בר";
+  for (let n = 1; n <= 26; n++) t.push({ name: String(n), capacity: n === 24 ? 10 : 12, zone: zone(n) });
+  return t;
+};
+
+test("the hall's own tables are used, and no others are invented", () => {
+  const room = arzHaAyalim();
+  const plan = planIntoRoom(shachar(), room);
+  assert.equal(plan.tables.length, 26);
+  assert.deepEqual(plan.tables.map(t => t.name), room.map(t => t.name));
+  assert.equal(plan.totals.capacity, 310);
+});
+
+test("a hall too small says so by name rather than seating everyone anyway", () => {
+  /* שחר has 427 confirmed against 310 seats. Discovering that on the night is
+     the failure; the plan has to hand back the names it could not place. */
+  const plan = planIntoRoom(shachar(), arzHaAyalim());
+  assert.ok(plan.unseated.length > 0, "a full hall reported no overflow");
+  assert.ok((plan.totals.short ?? 0) > 0);
+  assert.equal(
+    plan.totals.people + (plan.totals.short ?? 0),
+    seatsOf(shachar()),
+    "seated plus overflow must account for everyone");
+});
+
+test("no table in the hall is ever over its own capacity", () => {
+  const plan = planIntoRoom(shachar(), arzHaAyalim());
+  const byName = new Map(arzHaAyalim().map(t => [t.name, t.capacity]));
+  for (const t of plan.tables) {
+    assert.ok(t.seats <= byName.get(t.name)!, `${t.name}: ${t.seats} of ${byName.get(t.name)}`);
+  }
+  /* Table 24 holds ten, not twelve, and that is the one a generic engine gets
+     wrong. */
+  const t24 = plan.tables.find(t => t.name === "24")!;
+  assert.ok(t24.seats <= 10);
+});
+
+test("a group is kept on one floor where the floor can hold it", () => {
+  const room: RoomTable[] = [
+    { name: "1", capacity: 12, zone: "מפלס א" },
+    { name: "2", capacity: 12, zone: "מפלס א" },
+    { name: "3", capacity: 12, zone: "מפלס ב" },
+    { name: "4", capacity: 12, zone: "מפלס ב" },
+  ];
+  const gs: PlanGuest[] = [
+    { id: "a1", name: "א1", seats: 10, group: "משפחת א" },
+    { id: "a2", name: "א2", seats: 10, group: "משפחת א" },
+    { id: "b1", name: "ב1", seats: 10, group: "משפחת ב" },
+    { id: "b2", name: "ב2", seats: 10, group: "משפחת ב" },
+  ];
+  const plan = planIntoRoom(gs, room);
+  const zoneOf = (id: string) => {
+    const t = plan.tables.find(x => x.guestIds.includes(id))!;
+    return room.find(r => r.name === t.name)!.zone;
+  };
+  assert.equal(zoneOf("a1"), zoneOf("a2"), "a family was split across floors with room to spare");
+  assert.equal(zoneOf("b1"), zoneOf("b2"));
+});
+
+test("a household bigger than the hall's biggest table is reported, not squeezed", () => {
+  const plan = planIntoRoom(
+    [{ id: "big", name: "משפחה", seats: 14, group: null }],
+    [{ name: "1", capacity: 12, zone: null }]);
+  assert.equal(plan.oversized.length, 1);
+  assert.equal(plan.totals.people, 0);
+});
+
+test("a household is still never split, even when the hall is tight", () => {
+  const plan = planIntoRoom(shachar(), arzHaAyalim());
+  const placed = plan.tables.flatMap(t => t.guestIds);
+  assert.equal(new Set(placed).size, placed.length);
+  const table = plan.tables.find(t => t.guestIds.includes("biton"));
+  if (table) assert.ok(table.seats <= table.capacity);
 });

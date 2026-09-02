@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
-import { planSeating, DEFAULT_CAPACITY, type PlanGuest } from "@/lib/seating-plan";
+import { planSeating, planIntoRoom, DEFAULT_CAPACITY, type PlanGuest, type RoomTable } from "@/lib/seating-plan";
 
 export const dynamic = "force-dynamic";
 
@@ -59,26 +59,61 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     return NextResponse.json({ error: "אין עדיין אורחים שאישרו הגעה" }, { status: 400 });
   }
 
-  const plan = planSeating(guests, capacity);
+  /* If the hall is already described, seat into it. Otherwise work out what
+   * the list needs and build that.
+   *
+   * ארץ האיילים sent שחר's plan on 02/09: 26 numbered tables across four
+   * areas, all twelve seats except table 24 which is ten. Inventing 37 tables
+   * for that room is not a seating plan, and the number we then send a guest —
+   * "שולחן 14" — is only true because a sign in the hall says 14.
+   *
+   * A described room is never demolished. Its tables, their numbers, their
+   * capacities and their areas came from the venue; only the assignments are
+   * cleared and redone. */
+  type HallTable = { id: string; name: string; capacity: number; zone?: string | null; sort_order: number };
+  let hall: HallTable[] = [];
+  {
+    const { data, error } = await sb.from("seating_tables")
+      .select("id, name, capacity, zone, sort_order")
+      .eq("event_id", eventId).order("sort_order");
+    if (error) {
+      /* zone arrives with 20260902_table_zone.sql; without it the room is
+         still a room, just one undivided area. */
+      const { data: plain } = await sb.from("seating_tables")
+        .select("id, name, capacity, sort_order")
+        .eq("event_id", eventId).order("sort_order");
+      hall = (plain ?? []) as HallTable[];
+    } else {
+      hall = (data ?? []) as HallTable[];
+    }
+  }
 
-  /* Cleared together, and assignments first: a table row that disappears while
-     its assignments still point at it is a room nobody can render. */
+  const intoRoom = hall.length > 0;
+  const room: RoomTable[] = hall.map(t => ({
+    name: String(t.name), capacity: Number(t.capacity) || DEFAULT_CAPACITY, zone: t.zone ?? null,
+  }));
+  const plan = intoRoom ? planIntoRoom(guests, room) : planSeating(guests, capacity);
+
   await sb.from("seating_assignments").delete().eq("event_id", eventId);
-  await sb.from("seating_tables").delete().eq("event_id", eventId);
 
-  const { data: made, error: tErr } = await sb.from("seating_tables")
-    .insert(plan.tables.map((t, i) => ({
-      event_id: eventId, name: t.name, capacity: t.capacity,
-      type: "round", sort_order: i,
-    })))
-    .select("id, sort_order");
-  if (tErr) return NextResponse.json({ error: tErr.message }, { status: 500 });
-
-  const idBySort = new Map<number, string>(
-    (made ?? []).map(t => [Number(t.sort_order), t.id as string]));
+  let idByIndex: Map<number, string>;
+  if (intoRoom) {
+    idByIndex = new Map<number, string>(hall.map((t, i) => [i, t.id]));
+  } else {
+    await sb.from("seating_tables").delete().eq("event_id", eventId);
+    const { data: made, error: tErr } = await sb.from("seating_tables")
+      .insert(plan.tables.map((t, i) => ({
+        event_id: eventId, name: t.name, capacity: t.capacity,
+        type: "round", sort_order: i,
+      })))
+      .select("id, sort_order");
+    if (tErr) return NextResponse.json({ error: tErr.message }, { status: 500 });
+    idByIndex = new Map<number, string>(
+      (made ?? []).map(t => [Number(t.sort_order), t.id as string]));
+  }
 
   const assignments = plan.tables.flatMap((t, i) => {
-    const tableId = idBySort.get(i);
+    const tableId = idByIndex.get(i);
     if (!tableId) return [];
     return t.guestIds.map(guest_id => ({ event_id: eventId, table_id: tableId, guest_id }));
   });
@@ -96,8 +131,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     groups: plan.totals.groups,
     kids: plan.totals.kids,
     capacity,
+    /* Whether this filled the venue's own room or built one. */
+    intoRoom,
+    roomCapacity: plan.totals.capacity ?? null,
     /* Named, so the screen can say who could not be placed rather than leaving
        the couple to notice a missing family on the night. */
     oversized: plan.oversized,
+    unseated: plan.unseated,
+    short: plan.totals.short ?? 0,
   });
 }

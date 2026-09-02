@@ -33,6 +33,14 @@ export interface PlanGuest {
   kids?: number;
 }
 
+/** A table the hall actually has. */
+export interface RoomTable {
+  name: string;
+  capacity: number;
+  /** מפלס א, מפלס ב — the part of the hall it stands in. */
+  zone?: string | null;
+}
+
 export interface PlannedTable {
   name: string;
   capacity: number;
@@ -47,7 +55,16 @@ export interface Plan {
   tables: PlannedTable[];
   /** Records that fit nowhere — a household larger than one table. */
   oversized: { id: string; name: string; seats: number }[];
-  totals: { people: number; records: number; tables: number; groups: number; kids: number };
+  /** Records the hall has no room for. Only possible when seating into a
+      fixed room; the room is a given and inventing a table is not an option. */
+  unseated: { id: string; name: string; seats: number }[];
+  totals: {
+    people: number; records: number; tables: number; groups: number; kids: number;
+    /** Seats the room has, when seating into a real one. */
+    capacity?: number;
+    /** How many people the room cannot hold. */
+    short?: number;
+  };
 }
 
 export const DEFAULT_CAPACITY = 12;
@@ -143,6 +160,7 @@ export function planSeating(guests: PlanGuest[], capacity = DEFAULT_CAPACITY): P
   return {
     tables,
     oversized,
+    unseated: [],
     totals: {
       people: tables.reduce((s, t) => s + t.seats, 0),
       records: tables.reduce((s, t) => s + t.guestIds.length, 0),
@@ -165,4 +183,106 @@ function place(t: PlannedTable, g: PlanGuest): void {
 
 function sum(gs: PlanGuest[]): number {
   return gs.reduce((s, g) => s + g.seats, 0);
+}
+
+
+/* ── seating into a hall that already exists ─────────────────────────────── */
+
+/**
+ * Seat into the room the venue actually has.
+ *
+ * ארץ האיילים sent שחר's plan on 02/09: 26 numbered tables across מפלס א,
+ * מפלס ב, מפלס ג and the floor by the bar, all twelve seats except table 24
+ * which is ten. planSeating had produced 37 tables for that hall, because it
+ * asks "how many tables do these people need" when the real question is "who
+ * sits at the tables that exist".
+ *
+ * That is also what makes the number we send a guest true. "שולחן 14" is
+ * useful only because a sign in the room says 14, and it says 14 because the
+ * venue decided so — not because we counted.
+ *
+ * The zone is the reason a group split across two tables is still sitting
+ * together: two tables on מפלס א are one party, and the same two split across
+ * floors are not.
+ *
+ * Nobody is invented a seat for. A hall that cannot hold the list is a fact
+ * the couple has to hear now, by name, and not discover on the night.
+ */
+export function planIntoRoom(guests: PlanGuest[], room: RoomTable[]): Plan {
+  const tables: PlannedTable[] = room.map(t => ({
+    name: t.name,
+    capacity: Math.max(1, Math.floor(t.capacity) || 1),
+    guestIds: [], seats: 0, group: null, kids: 0,
+    zone: (t.zone ?? "").trim() || null,
+  } as PlannedTable & { zone: string | null }));
+
+  const capacity = tables.reduce((s, t) => s + t.capacity, 0);
+  const biggest = tables.reduce((m, t) => Math.max(m, t.capacity), 0);
+
+  const usable = guests.filter(g => g && g.id && (g.seats ?? 0) > 0);
+  const oversized = usable.filter(g => g.seats > biggest)
+    .map(g => ({ id: g.id, name: g.name, seats: g.seats }));
+  const seatable = usable.filter(g => g.seats <= biggest);
+
+  const byGroup = new Map<string, PlanGuest[]>();
+  for (const g of seatable) {
+    const k = (g.group ?? "").trim() || UNGROUPED;
+    const list = byGroup.get(k);
+    if (list) list.push(g); else byGroup.set(k, [g]);
+  }
+  const groups = [...byGroup.entries()]
+    .sort((a, b) => sum(b[1]) - sum(a[1]) || a[0].localeCompare(b[0]));
+
+  const unseated: { id: string; name: string; seats: number }[] = [];
+
+  for (const [name, members] of groups) {
+    const label = name === UNGROUPED ? null : name;
+    const households = [...members]
+      .sort((a, b) => b.seats - a.seats || a.name.localeCompare(b.name));
+
+    for (const h of households) {
+      /* Same zone as the rest of this group first, then any table already
+         holding it, then any empty table, then anywhere at all. Each fallback
+         is a worse outcome than the one before and a better one than a guest
+         with nowhere to sit. */
+      const zonesOfGroup = new Set(
+        tables.filter(t => t.group === label && t.seats > 0)
+          .map(t => (t as PlannedTable & { zone: string | null }).zone));
+
+      const fits = (t: PlannedTable) => t.seats + h.seats <= t.capacity;
+      const spot =
+        tables.find(t => fits(t) && t.group === label
+          && zonesOfGroup.has((t as PlannedTable & { zone: string | null }).zone))
+        ?? tables.find(t => fits(t) && t.group === label)
+        ?? tables.find(t => fits(t) && t.seats === 0
+          && (!zonesOfGroup.size
+            || zonesOfGroup.has((t as PlannedTable & { zone: string | null }).zone)))
+        ?? tables.find(t => fits(t) && t.seats === 0)
+        ?? tables.find(fits);
+
+      if (!spot) { unseated.push({ id: h.id, name: h.name, seats: h.seats }); continue; }
+      place(spot, h);
+      spot.group = spot.group === null || spot.group === label ? label : null;
+    }
+  }
+
+  const used = tables.filter(t => t.seats > 0);
+  const people = used.reduce((s, t) => s + t.seats, 0);
+  const shortBy = unseated.reduce((s, g) => s + g.seats, 0)
+    + oversized.reduce((s, g) => s + g.seats, 0);
+
+  return {
+    tables,
+    oversized,
+    unseated,
+    totals: {
+      people,
+      records: used.reduce((s, t) => s + t.guestIds.length, 0),
+      tables: used.length,
+      groups: new Set(used.map(t => t.group).filter(Boolean)).size,
+      kids: used.reduce((s, t) => s + t.kids, 0),
+      capacity,
+      short: shortBy,
+    },
+  };
 }
