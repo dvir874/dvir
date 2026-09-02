@@ -596,11 +596,20 @@ async function notifyGallery(
   const today = new Date().toISOString().slice(0, 10);
 
   const { data: evs } = await sb.from("events")
-    .select("id, name, couple_names, gallery_ready, gallery_notified_at")
+    .select("id, name, couple_names, gallery_ready, gallery_notified_at, send_paused_until")
     .lt("date", today).eq("gallery_ready", true).is("gallery_notified_at", null)
     .order("date", { ascending: false }).limit(1);
   const ev = (evs ?? [])[0];
   if (!ev) return { sent: 0 };
+
+  /* The pause switch, for the same reason notifyDayBefore now reads it: this
+     block runs before the event selection at the bottom of the file and
+     fetches its own event, so the one control that stops a wedding did not
+     cover this burst either. שחר's is 226 photo requests on 09/09, the day
+     after her wedding — the exact window in which something going wrong is
+     most likely and stopping it matters most. */
+  const pausedUntil = ev.send_paused_until as string | null;
+  if (pausedUntil && new Date(pausedUntil).getTime() > Date.now()) return { sent: 0 };
 
   /* The upload page, not the gallery. See sendPhotosUploadRequest — the guest
      is being asked for their photos, and the gallery is the couple's alone.
