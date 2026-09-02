@@ -29,7 +29,7 @@ interface Msg { id: string; direction: string; body: string | null; status: stri
 interface Thread {
   phone: string;
   guest: { id: string; name: string; status: string; group: string | null } | null;
-  unread: number; lastAt: string | null; canReply: boolean; windowEndsAt: string | null;
+  unread: number; needsYou?: boolean; lastAt: string | null; canReply: boolean; windowEndsAt: string | null;
   messages: Msg[];
 }
 interface Delivery {
@@ -55,6 +55,15 @@ function Inbox() {
   const eventId = params.get("event") ?? "";
 
   const [threads, setThreads] = useState<Thread[]>([]);
+  /* Default ON.
+   *
+   * 672 of the 707 messages ever received were answered automatically inside a
+   * second, and until the replies were logged none of that was visible — so all
+   * 322 conversations looked equally untouched and the eight that need a person
+   * were buried among them. Opening this screen to everything is asking Dvir to
+   * find eight things in three hundred, every time, and he is about to have far
+   * less time to do it. */
+  const [onlyMine, setOnlyMine] = useState(true);
   const [delivery, setDelivery] = useState<Delivery | null>(null);
   const [active, setActive] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -90,6 +99,8 @@ function Inbox() {
     return () => clearInterval(id);
   }, [load]);
 
+  const needsCount = threads.filter(t => t.needsYou).length;
+  const shown = onlyMine ? threads.filter(t => t.needsYou) : threads;
   const thread = threads.find(t => t.phone === active) ?? null;
 
   async function openThread(t: Thread) {
@@ -177,13 +188,27 @@ function Inbox() {
 
           {/* thread list */}
           <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+            <div style={{ display: "flex", gap: 6, padding: 10, borderBottom: `1px solid ${C.border}` }}>
+              {([[true, `ממתין לך (${needsCount})`], [false, `הכול (${threads.length})`]] as const).map(([v, l]) => (
+                <button key={String(v)} onClick={() => setOnlyMine(v)} style={{
+                  flex: 1, padding: "6px 0", borderRadius: 10, cursor: "pointer",
+                  fontFamily: "inherit", fontSize: 12.5,
+                  fontWeight: onlyMine === v ? 700 : 400,
+                  border: `1px solid ${onlyMine === v ? C.gold : C.border}`,
+                  background: onlyMine === v ? "rgba(197,164,109,0.14)" : "#fff",
+                  color: onlyMine === v ? C.dark : C.muted,
+                }}>{l}</button>
+              ))}
+            </div>
             {loading ? (
               <p style={{ padding: 24, textAlign: "center", color: C.muted, fontSize: 14 }}>טוען…</p>
-            ) : threads.length === 0 ? (
+            ) : shown.length === 0 ? (
               <p style={{ padding: 24, textAlign: "center", color: C.muted, fontSize: 14, lineHeight: 1.7 }}>
-                אין עדיין הודעות נכנסות.<br />כשאורח ישיב, השיחה תופיע כאן.
+                {onlyMine && threads.length
+                  ? <>הכול טופל אוטומטית.<br />אין הודעה שממתינה לך.</>
+                  : <>אין עדיין הודעות נכנסות.<br />כשאורח ישיב, השיחה תופיע כאן.</>}
               </p>
-            ) : threads.map(t => (
+            ) : shown.map(t => (
               <button key={t.phone} onClick={() => openThread(t)}
                 style={{ display: "block", width: "100%", textAlign: "right", padding: "13px 16px",
                   border: "none", borderBottom: `1px solid ${C.border}`, cursor: "pointer",
@@ -192,10 +217,13 @@ function Inbox() {
                   <span style={{ fontWeight: 700, fontSize: 14.5, color: C.dark }}>
                     {t.guest?.name ?? t.phone}
                   </span>
-                  {t.unread > 0 && (
-                    <span style={{ background: C.green, color: "#fff", borderRadius: 999,
-                      fontSize: 12, padding: "1px 7px", fontWeight: 700 }}>{t.unread}</span>
-                  )}
+                  {t.needsYou
+                    ? <span style={{ background: "#C05050", color: "#fff", borderRadius: 999,
+                        fontSize: 11, padding: "1px 8px", fontWeight: 700, whiteSpace: "nowrap" }}>ממתין לך</span>
+                    : t.unread > 0 && (
+                      <span style={{ background: C.green, color: "#fff", borderRadius: 999,
+                        fontSize: 12, padding: "1px 7px", fontWeight: 700 }}>{t.unread}</span>
+                    )}
                 </div>
                 <p style={{ fontSize: 12.5, color: C.muted, margin: "3px 0 0",
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

@@ -55,10 +55,10 @@ export async function GET(req: NextRequest) {
   const guestIds = [...new Set(rows.map(r => r.guest_id).filter(Boolean))] as string[];
   /* Chunked for the PostgREST .in() limit; without it a large event showed
      phone numbers instead of names throughout the inbox. */
-  const guests: { id: string; name: string; phone: string | null; status: string; source_group: string | null }[] = [];
+  const guests: { id: string; name: string; phone: string | null; status: string; source_group: string | null; response_time: string | null }[] = [];
   for (let i = 0; i < guestIds.length; i += 100) {
     const { data } = await sb
-      .from("guests").select("id, name, phone, status, source_group")
+      .from("guests").select("id, name, phone, status, source_group, response_time")
       .in("id", guestIds.slice(i, i + 100));
     guests.push(...(data ?? []));
   }
@@ -76,8 +76,33 @@ export async function GET(req: NextRequest) {
     const ordered = [...msgs].reverse();              // oldest → newest
     const lastIn = ordered.filter(m => m.direction === "in").at(-1);
     const g = byId.get(msgs.find(m => m.guest_id)?.guest_id ?? "");
+
+    /* Whether anybody has answered this guest yet.
+     *
+     * The inbox has always sorted by time and counted `unread` off read_at,
+     * which is a flag Dvir has to set by hand and therefore never reflects
+     * anything. Meanwhile 672 of the 707 messages ever received were answered
+     * automatically within a second, and until today none of those replies was
+     * written down — so every thread looked equally untouched and the twenty
+     * that genuinely need a person were indistinguishable from the rest.
+     *
+     * Two ways a thread is already handled: something went out after their
+     * last message, or their answer was recorded at or after it. The second
+     * covers every conversation that predates the reply logging, where the
+     * automatic answer exists in WhatsApp and nowhere else.
+     *
+     * Dvir is about to have far less time. This is the flag that decides what
+     * he reads. */
+    const lastMsg = ordered.at(-1);
+    const repliedAfter = lastMsg?.direction === "out";
+    const answeredAfter = !!(g?.response_time && lastIn
+      && new Date(g.response_time as string).getTime()
+         >= new Date(lastIn.created_at).getTime() - 60_000);
+    const needsYou = !!lastIn && !repliedAfter && !answeredAfter;
+
     return {
       phone,
+      needsYou,
       guest: g ? { id: g.id, name: g.name, status: g.status, group: g.source_group } : null,
       unread: ordered.filter(m => m.direction === "in" && !m.read_at).length,
       lastAt: ordered.at(-1)?.created_at ?? null,
@@ -93,7 +118,10 @@ export async function GET(req: NextRequest) {
     };
   })
   .filter(t => t.messages.some(m => m.direction === "in"))   // only real conversations
-  .sort((a, b) => String(b.lastAt).localeCompare(String(a.lastAt)));
+  /* Unanswered first, newest within each group. A list ordered purely by time
+     buries the one message that needs a person under fifty that do not. */
+  .sort((a, b) => (Number(b.needsYou) - Number(a.needsYou))
+    || String(b.lastAt).localeCompare(String(a.lastAt)));
 
   /* Delivery roll-up across every outbound message we logged */
   const outbound = rows.filter(r => r.direction === "out");
@@ -102,6 +130,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     threads: out,
     unreadTotal: out.reduce((s, t) => s + t.unread, 0),
+    needsYouTotal: out.filter(t => t.needsYou).length,
     delivery: {
       total: outbound.length,
       accepted: tally("accepted"),
