@@ -781,6 +781,88 @@ async function askCoupleAboutUnreachable(
   return { sent: 0 };
 }
 
+
+/* A wedding that cannot send yet, said out loud while there is still time.
+ *
+ * Every report in this file is driven by guest activity: the digest skips an
+ * event with no guests, the day-before alert fires at T-1, and the readiness
+ * of an event is otherwise checked by nobody. So ירון ואיילת sits 42 days out
+ * with no couple names, no times, no invitation image and an empty guest list,
+ * and produces no signal at all — the first thing that would have noticed is
+ * the day-before alert on 13/10, which is far too late to matter.
+ *
+ * The gap is about to get worse, not better: Dvir is starting a job and will
+ * not be opening the admin to check.
+ *
+ * Not nightly noise. Outside two weeks it speaks once a week; inside two weeks
+ * it speaks daily, because that is when a missing invitation image stops being
+ * a to-do and starts being a wedding that cannot be sent to at all.
+ */
+const SETUP_HORIZON_DAYS = 60;
+
+function missingForSending(ev: Record<string, unknown>, guestCount: number): string[] {
+  const gaps: string[] = [];
+  if (!coupleName(ev as Parameters<typeof coupleName>[0])) gaps.push("שמות הזוג");
+  if (!venueLine(ev as Parameters<typeof venueLine>[0])) gaps.push("מקום");
+  if (!String(ev.reception_time ?? "").trim()) gaps.push("שעת קבלת פנים");
+  if (!String(ev.chuppah_time ?? "").trim()) gaps.push("שעת חופה");
+  if (!String(ev.wa_header_image_url ?? "").trim()) gaps.push("תמונת הזמנה");
+  if (!guestCount) gaps.push("רשימת אורחים");
+  return gaps;
+}
+
+async function alertIncompleteEvents(
+  sb: ReturnType<typeof createServerClient>,
+  cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+): Promise<void> {
+  const to = process.env.ADMIN_ALERT_PHONE;
+  if (!to) return;
+
+  const today = israelToday();
+  const horizon = new Date(Date.now() + SETUP_HORIZON_DAYS * 86_400_000)
+    .toISOString().slice(0, 10);
+
+  let evs: Record<string, unknown>[] = [];
+  try {
+    const { data } = await sb.from("events")
+      .select("id, name, couple_names, date, venue_name, address, reception_time, chuppah_time, wa_header_image_url, setup_alert_at")
+      .gt("date", today).lte("date", horizon).order("date").limit(8);
+    evs = (data ?? []) as Record<string, unknown>[];
+  } catch {
+    /* setup_alert_at arrives with 20260902_setup_alert.sql. Until then this
+       does nothing, which is exactly today's behaviour. */
+    return;
+  }
+
+  const nowMs = Date.now();
+  for (const ev of evs) {
+    const { count } = await sb.from("guests")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", ev.id as string).neq("category", "demo");
+    const gaps = missingForSending(ev, count ?? 0);
+    if (!gaps.length) continue;
+
+    const days = Math.ceil(
+      (new Date(String(ev.date)).getTime() - nowMs) / 86_400_000);
+
+    const lastAt = ev.setup_alert_at as string | null;
+    const hoursSince = lastAt ? (nowMs - new Date(lastAt).getTime()) / 3_600_000 : Infinity;
+    const everyHours = days <= 14 ? 20 : 7 * 24;
+    if (hoursSince < everyHours) continue;
+
+    await sendRunSummary(cfg, to, {
+      event: `🛠 ${coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name)} — חסרים פרטים`,
+      sent: "0", failed: "—", left: String(days),
+      attention: `${days} ימים לחתונה. חסר: ${gaps.join(" · ")}. `
+        + (gaps.includes("רשימת אורחים")
+            ? "בלי רשימה לא נשלח כלום."
+            : "בלי אלה השליחה לא מתחילה."),
+    });
+    await sb.from("events")
+      .update({ setup_alert_at: new Date().toISOString() }).eq("id", ev.id as string);
+  }
+}
+
 async function notifyGallery(
   sb: ReturnType<typeof createServerClient>,
   cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
@@ -1198,6 +1280,12 @@ async function runSend(req: NextRequest) {
 
   if (evening.getUTCHours() >= 18 && (claimsTonight ?? 99) <= 1) {
     try { await sendDailyDigest(sb, cfg); }
+    catch { /* a notification must never cost a send */ }
+
+    /* And which weddings cannot send at all yet — see alertIncompleteEvents.
+       Beside the digest rather than inside it, because the digest is driven by
+       guest activity and the events this catches have none. */
+    try { await alertIncompleteEvents(sb, cfg); }
     catch { /* a notification must never cost a send */ }
 
     /* And once a day, whether the links still work.
