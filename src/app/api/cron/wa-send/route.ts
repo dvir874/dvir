@@ -405,11 +405,24 @@ async function notifyRidesGroup(
     if (!couple) continue;
 
     const { data: guests } = await sb.from("guests")
-      .select("id, phone, rsvp_token, category, do_not_contact")
+      .select("id, phone, rsvp_token, category, do_not_contact, status")
       .eq("event_id", ev.id);
+    /* Everyone except the people who said they are not coming.
+     *
+     * This filtered on demo, phone, token and do_not_contact and never looked
+     * at status, so all 334 of שחר's records were offered a lift — including
+     * the 44 who had already answered that they would not be there. There is
+     * nothing for them to decide, and an unwanted message to somebody who has
+     * already said no is the exact shape of the reports that got this number
+     * restricted on 9/8 and stopped all three weddings for days.
+     *
+     * Guests who have not answered are deliberately kept: Dvir told שחר he was
+     * sending to the whole list "כדי שגם מי שעדיין מתלבט או שאין לו איך להגיע
+     * יוכל להצטרף", and for somebody still deciding, a lift is part of the
+     * decision. */
     const eligible = (guests ?? []).filter(g =>
       g.category !== "demo" && String(g.phone ?? "").trim()
-      && g.rsvp_token && !g.do_not_contact);
+      && g.rsvp_token && !g.do_not_contact && g.status !== "declined");
     if (!eligible.length) continue;
 
     const ids = eligible.map(g => g.id as string);

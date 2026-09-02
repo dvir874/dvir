@@ -349,7 +349,7 @@ interface CouponRow {
    a guest who has the invitation and has not replied wants a reminder, and a
    guest who never received one wants an invitation. Merging them is how 130
    people sat in a list labelled "waiting" having heard nothing at all. */
-type StatusFilter = "all" | GuestStatus | "no_answer" | "not_sent" | "unreachable" | "opted_out" | "experiment" | "opened";
+type StatusFilter = "all" | GuestStatus | "no_answer" | "not_sent" | "unreachable" | "opted_out" | "throttled" | "experiment" | "opened";
 
 /* ══════════════════════════════════════════════════════
    Main Admin Page
@@ -747,6 +747,8 @@ export default function AdminPage() {
           && deliveryMap[g.id]?.code !== 130472 && deliveryMap[g.id]?.code !== 131050
       /* They have WhatsApp and used it — they opted out of business messages. */
       : statusFilter === "opted_out" ? deliveryMap[g.id]?.code === 131050
+      /* Meta is rate-limiting marketing to them and nothing has got through. */
+      : statusFilter === "throttled" ? deliveryMap[g.id]?.code === 131049
       /* Reachable, just not by template. An inbound message reopens them. */
       : statusFilter === "experiment" ? deliveryMap[g.id]?.code === 130472
       : statusFilter === "opened"    ? !!g.opened_at
@@ -2971,6 +2973,23 @@ export default function AdminPage() {
                   }).length})`],
                   ["opted_out", `🔕 ביקשו להפסיק — לשלוח אישית (${guests.filter(g =>
                     deliveryMap[g.id]?.code === 131050).length})`],
+                  /* 131049, which is classified retryable and therefore appeared
+                     in no filter at all — the guests were on the screen with a
+                     red ❌ and no way to list them.
+                     
+                     The classification is right: Meta is rate-limiting marketing
+                     to that person, not refusing them, and 16 of the 35 who have
+                     ever hit it did get through later. But seven of שחר's have
+                     been stuck for weeks with the wedding six days away, and
+                     none of them has ever opened the invitation. "We will try
+                     again" stops being true at some point, and the screen had no
+                     way to say when.
+                     
+                     Only guests still in the failed bucket reach here — the
+                     delivery API moves anyone who answered, opened the link, or
+                     was ever delivered to into reachedNoLog first. */
+                  ["throttled", `🚧 מטא חוסמת זמנית — לשלוח אישית (${guests.filter(g =>
+                    deliveryMap[g.id]?.code === 131049).length})`],
                   ["experiment", `🧪 לא מקבלים תבניות (${guests.filter(g =>
                     deliveryMap[g.id]?.code === 130472).length})`],
                   ["opened",    `🔗 נכנסו לקישור (${guests.filter(g => g.opened_at).length})`],
