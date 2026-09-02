@@ -204,13 +204,55 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
                   📨 שלחו מספרי שולחן ({notifiable.length})
                 </button>
               )}
-              {data.tables.length > 0 && (
+              {/* Shown whenever there is anybody to seat.
+                  It used to be gated on data.tables.length > 0 — visible only
+                  to a couple who had already built tables by hand, which is
+                  the one couple who does not need it. Together with an engine
+                  that read tags nobody enters, that is the whole reason no
+                  wedding has ever had a single guest seated. */}
+              {data.guests.length > 0 && (
                 <button
                   onClick={async () => {
-                    if (!confirm("סידור אוטומטי ימחק את השיבוצים הקיימים ויסדר מחדש לפי קבוצות. להמשיך?")) return;
-                    const res = await fetch(`/api/couple/${token}/seating/auto`, { method: "POST" });
-                    if (res.ok) { await load(); alert("הטיוטה מוכנה! עברו על השולחנות ותקנו לפי הצורך ✨"); }
-                    else alert("לא הצלחנו לסדר אוטומטית — נסו שוב או סדרו ידנית");
+                    const cap = prompt("כמה אנשים יושבים בשולחן אצלכם?", "12");
+                    if (cap === null) return;
+                    const capacity = Math.max(2, Math.min(30, parseInt(cap, 10) || 12));
+
+                    const run = async (replace: boolean) => {
+                      const res = await fetch(`/api/couple/${token}/seating/auto`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ capacity, replace }),
+                      });
+                      return { res, d: await res.json().catch(() => null) };
+                    };
+
+                    let { res, d } = await run(false);
+
+                    /* Only ask about replacing when there is something to
+                       replace, and say how much — "יימחקו 240 שיבוצים" is a
+                       decision, "להמשיך?" is a guess. */
+                    if (res.status === 409) {
+                      if (!confirm(`כבר שיבצתם ${d?.seated ?? ""} אורחים.\nסידור מחדש ימחק את מה שסידרתם. להמשיך?`)) return;
+                      ({ res, d } = await run(true));
+                    }
+
+                    if (!res.ok) {
+                      alert(d?.error === "אין עדיין אורחים שאישרו הגעה"
+                        ? "עוד אין אורחים שאישרו הגעה — נחכה לאישורים ואז נסדר"
+                        : "לא הצלחנו לסדר אוטומטית — אפשר לסדר ידנית");
+                      return;
+                    }
+
+                    await load();
+                    const big = (d?.oversized ?? []) as { name: string; seats: number }[];
+                    alert(
+                      `הטיוטה מוכנה ✨\n\n${d.people} אנשים ב-${d.tables} שולחנות של ${d.capacity}`
+                      + (d.groups ? `\nלפי ${d.groups} קבוצות שלכם` : "")
+                      + (big.length
+                          ? `\n\n⚠️ לא הצלחנו להושיב: ${big.map(b => `${b.name} (${b.seats})`).join(", ")}`
+                            + `\nהם גדולים משולחן אחד — הוסיפו להם שולחן ידנית.`
+                          : "")
+                      + `\n\nעברו על השולחנות ותקנו כרצונכם — הכול ניתן לגרירה.`);
                   }}
                   style={{ display: "flex", alignItems: "center", gap: 6, padding: "0.6rem 1.2rem", borderRadius: 12, border: "none", background: "rgba(255,255,255,0.15)", color: "#FFF8EC", cursor: "pointer", fontSize: 14, fontFamily: "Heebo, sans-serif", backdropFilter: "blur(8px)" }}
                 >
