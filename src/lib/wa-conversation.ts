@@ -79,13 +79,43 @@ export async function handleGuestReply(
   if (!cfg) return false;
 
   const { data: g } = await sb.from("guests")
-    .select("id, name, phone, status, guest_count, chat_state, chat_state_at")
+    .select("id, name, phone, status, guest_count, chat_state, chat_state_at, event_id")
     .eq("id", guestId).maybeSingle();
   if (!g) return false;
 
   const guest = g as Guest;
   const to = phone.replace(/\D/g, "");
   const said = (buttonId ?? text ?? "").trim();
+
+  /* Every automatic reply, written down.
+   *
+   * sendText and sendButtons talk to Meta and nothing else, so "רשמנו 2 🤍",
+   * "רק לוודא — לא תוכלו להגיע?" and every other answer this file gives left
+   * no trace: not one row in wa_messages carries the word רשמנו, and the inbox
+   * showed a guest's question with nothing beneath it. Seven hundred inbound
+   * messages read as unanswered when nearly all had been answered in under a
+   * second.
+   *
+   * That is not only a display problem. Dvir opens the inbox to find what needs
+   * him, and an inbox where everything looks untouched is one he has to read
+   * line by line — which is the opposite of what this product is for.
+   *
+   * Fails soft on purpose: a log row must never cost a guest their reply. */
+  const logOut = async (body: string) => {
+    try {
+      await sb.from("wa_messages").insert({
+        event_id: (guest as { event_id?: string }).event_id ?? null,
+        guest_id: guest.id,
+        wa_phone: to.startsWith("972") ? to : `972${to.replace(/^0/, "")}`,
+        direction: "out", body, status: "auto",
+      });
+    } catch { /* the message went out; the record is a nicety */ }
+  };
+  const sayText = async (c: NonNullable<typeof cfg>, dest: string, body: string) => {
+    const r = await sendText(c, dest, body);
+    await logOut(body);
+    return r;
+  };
 
   /* ── mid-exchange ────────────────────────────────────────────── */
   const live = stateIsLive(guest);
@@ -104,6 +134,7 @@ export async function handleGuestReply(
          parked forever waiting to answer something they never received, and
          their next tap of "לא מגיע" is read as an answer to a missing question.
          Roll the state back so the next thing they say starts cleanly. */
+      await logOut("רק לוודא — לא תוכלו להגיע?");
       const asked = await sendButtons(cfg, to, "רק לוודא — לא תוכלו להגיע?", [
         { id: "yes_decline", title: "כן, לא נוכל" },
         { id: "no_mistake",  title: "רגע, טעיתי" },
@@ -113,6 +144,7 @@ export async function handleGuestReply(
     }
     if (/^rsvp_yes$/.test(said) || said === "מגיע") {
       /* Already recorded as attending; just ask the count again. */
+      await logOut(`${guest.name}, כמה אתם מגיעים?`);
       await sendList(cfg, to, `${guest.name}, כמה אתם מגיעים?`, "בחרו מספר",
         [1, 2, 3, 4, 5, 6, 7, 8].map(n => ({ id: `count_${n}`, title: String(n) })));
       return true;
@@ -120,13 +152,11 @@ export async function handleGuestReply(
 
     const n = parseGuestCount(said);
     if (n === null) {
-      await sendText(cfg, to,
-        "לא הצלחנו להבין את המספר 🙏\nכתבו בבקשה מספר בלבד — למשל 2");
+      await sayText(cfg, to, "לא הצלחנו להבין את המספר 🙏\nכתבו בבקשה מספר בלבד — למשל 2");
       return true;
     }
     await record(sb, guest, "confirmed", n);
-    await sendText(cfg, to,
-      `מעולה, רשמנו ${n} 🤍\nמחכים לראותכם בשמחה!\n\n` +
+    await sayText(cfg, to, `מעולה, רשמנו ${n} 🤍\nמחכים לראותכם בשמחה!\n\n` +
       `רוצים לשנות? פשוט כתבו לנו כאן.`);
     return true;
   }
@@ -135,25 +165,25 @@ export async function handleGuestReply(
     const proposed = parseInt(guest.chat_state.split(":")[1] ?? "", 10);
     if (/^(yes_change|כן)/.test(said) && Number.isFinite(proposed)) {
       await record(sb, guest, "confirmed", proposed);
-      await sendText(cfg, to, `עודכן ל-${proposed} 🤍 מחכים לראותכם!`);
+      await sayText(cfg, to, `עודכן ל-${proposed} 🤍 מחכים לראותכם!`);
       return true;
     }
     /* Anything that is not a clear yes leaves the existing answer alone. */
     await setState(sb, guest.id, null);
-    await sendText(cfg, to,
-      `בסדר גמור — השארנו ${guest.guest_count ?? 1}.\nאם תרצו לשנות, כתבו לנו כאן 🙏`);
+    await sayText(cfg, to, `בסדר גמור — השארנו ${guest.guest_count ?? 1}.\nאם תרצו לשנות, כתבו לנו כאן 🙏`);
     return true;
   }
 
   if (live && guest.chat_state === ASK_DECLINE) {
     if (/^(yes_decline|כן)/.test(said)) {
       await record(sb, guest, "declined");
-      await sendText(cfg, to, "תודה שעדכנתם 🤍 נתגעגע!\nאם משהו ישתנה — כתבו לנו כאן.");
+      await sayText(cfg, to, "תודה שעדכנתם 🤍 נתגעגע!\nאם משהו ישתנה — כתבו לנו כאן.");
       return true;
     }
     /* Anything that is not a clear yes returns them to the start rather than
        being read as a decline. */
     await setState(sb, guest.id, null);
+    await logOut("אין בעיה! אז מה נאמר?");
     await sendButtons(cfg, to, "אין בעיה! אז מה נאמר?", [
       { id: "rsvp_yes", title: "מגיע" },
       { id: "rsvp_no",  title: "לא מגיע" },
@@ -177,6 +207,7 @@ export async function handleGuestReply(
        refinement of an answer we already have, and it arrives below. */
     await record(sb, guest, "confirmed", guest.guest_count ?? 1);
     await setState(sb, guest.id, ASK_COUNT);   /* after record(), which clears it */
+    await logOut(`${guest.name}, נהדר! כמה אתם מגיעים?`);
     await sendList(cfg, to, `${guest.name}, נהדר! כמה אתם מגיעים?`, "בחרו מספר",
       [1, 2, 3, 4, 5, 6, 7, 8].map(n => ({ id: `count_${n}`, title: String(n) })));
     return true;
@@ -184,6 +215,7 @@ export async function handleGuestReply(
 
   if (/^rsvp_no$/.test(said) || said === "לא מגיע") {
     await setState(sb, guest.id, ASK_DECLINE);
+    await logOut("רק לוודא — לא תוכלו להגיע?");
     await sendButtons(cfg, to, "רק לוודא — לא תוכלו להגיע?", [
       { id: "yes_decline", title: "כן, לא נוכל" },
       { id: "no_mistake",  title: "רגע, טעיתי" },
@@ -196,7 +228,7 @@ export async function handleGuestReply(
   const m = said.match(/^count_(\d+)$/);
   if (m) {
     await record(sb, guest, "confirmed", parseInt(m[1], 10));
-    await sendText(cfg, to, `רשמנו ${m[1]} 🤍 מחכים לראותכם!`);
+    await sayText(cfg, to, `רשמנו ${m[1]} 🤍 מחכים לראותכם!`);
     return true;
   }
 
@@ -217,8 +249,7 @@ export async function handleGuestReply(
     const n = unpromptedCount(said);
     if (n !== null) {
       await record(sb, guest, "confirmed", n);
-      await sendText(cfg, to,
-        `רשמנו ${n} 🤍 מחכים לראותכם!\nאם התכוונתם למשהו אחר — כתבו לנו כאן ונתקן.`);
+      await sayText(cfg, to, `רשמנו ${n} 🤍 מחכים לראותכם!\nאם התכוונתם למשהו אחר — כתבו לנו כאן ונתקן.`);
       return true;
     }
   }
@@ -251,7 +282,7 @@ export async function handleGuestReply(
     if (n !== null) {
       const current = guest.guest_count ?? 1;
       if (guest.status === "confirmed" && n === current) {
-        await sendText(cfg, to, `רשום אצלנו ${current} — הכול מעודכן 🤍`);
+        await sayText(cfg, to, `רשום אצלנו ${current} — הכול מעודכן 🤍`);
         return true;
       }
       await setState(sb, guest.id, `${ASK_CHANGE}:${n}`);
@@ -279,7 +310,7 @@ export async function handleGuestReply(
     await sb.from("guests")
       .update({ ride_from: ride.area, ride_role: ride.role })
       .eq("id", guest.id);
-    await sendText(cfg, to, ride.role === "offer"
+    await sayText(cfg, to, ride.role === "offer"
       ? `רשמנו שיש לכם מקום ברכב מ${ride.area} 🚗\nאם מישהו משם מחפש טרמפ — נחבר ביניכם.`
       : `רשמנו שאתם מחפשים טרמפ מ${ride.area} 🚗\nאם מישהו משם נוסע — נחבר ביניכם.`);
     return true;
