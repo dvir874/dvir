@@ -670,8 +670,9 @@ export default function AdminPage() {
         /* retryable already comes from the delivery API — it was simply never
            read here, so a guest with no WhatsApp account sat in the same bucket
            as one whose message is still in flight. Seven of שחר's guests are in
-           that state and will never receive anything: 131026 is terminal, and
-           the only thing that reaches them is a phone call. */
+           that state and have received nothing: the code is terminal for
+           automatic retries, which is right — a genuinely dead number must not
+           burn quota — but it does not mean nothing can reach them. */
         (d.failed ?? []).forEach((r: { id: string; he?: string; raw?: string; retryable?: boolean; code?: number | null }) => {
           const dead = r.retryable === false;
           m[r.id] = { icon: dead ? "📵" : "❌", label: dead ? "לא ניתן להשיג" : "נכשל",
@@ -2954,8 +2955,14 @@ export default function AdminPage() {
                     g.status === "pending" &&
                     (!deliveryMap[g.id] || deliveryMap[g.id].neverSent)).length})`],
                   /* Three situations, not one, and each needs a different move.
-                     131026 is genuinely no WhatsApp account on that number and
-                     only a phone call reaches them. 130472 is Meta withholding
+                     131026 is Meta's "Message undeliverable", which it gives
+                     five causes for and never says which: not a WhatsApp
+                     number, terms not accepted, an old app version, a country
+                     the business may not send to, or one of Meta's experiments.
+                     The chip used to read "אין וואטסאפ — להתקשר" and assert the
+                     first as fact. מרים has this code from a single attempt and
+                     answered Dvir's personal WhatsApp on 02/09, so for her it
+                     was one of the other four. 130472 is Meta withholding
                      TEMPLATES from a number that works fine — an inbound
                      message opens a 24h window and everything flows again.
                      131050 is a guest who HAS WhatsApp, read the invitation,
@@ -2967,7 +2974,7 @@ export default function AdminPage() {
                      was the only thing that was wrong. Continuing to send to
                      her through the business number is also what degrades the
                      quality rating that got the number restricted on 9/8. */
-                  ["unreachable", `📵 אין וואטסאפ — להתקשר (${guests.filter(g => {
+                  ["unreachable", `📵 לא נמסר — לנסות אישית (${guests.filter(g => {
                     const d = deliveryMap[g.id];
                     return d?.unreachable && d.code !== 130472 && d.code !== 131050;
                   }).length})`],

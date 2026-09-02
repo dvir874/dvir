@@ -47,8 +47,20 @@ function explain(code: number | null | undefined, err: string | null): { he: str
     return { he: "נחסם זמנית — קצב שליחה", action: "שלח שוב, יעבור" };
   if (e.includes("healthy ecosystem"))
     return { he: "וואטסאפ חסם — הנמען ממעט להגיב להודעות עסקיות", action: "נסה שוב מאוחר יותר, או צור קשר בדרך אחרת" };
+  /* Meta's whole message here is "Message undeliverable". It documents five
+     causes for it — not a WhatsApp number, terms of service not accepted, an
+     old app version, the business not permitted to send to that country, or
+     the number being in one of Meta's experiments — and does not say which.
+     Saying "המספר לא פעיל בוואטסאפ" picked one and stated it as fact.
+
+     מרים carries this code from a single attempt on 25/08, and on 02/09 Dvir
+     messaged her from his own WhatsApp and it went straight through. Her
+     number is a WhatsApp number; the cause was one of the other four. גודי was
+     the same story under a different code, so this is twice that a confident
+     label sent him to the phone when a message would have worked. */
   if (e.includes("undeliverable"))
-    return { he: "המספר לא פעיל בוואטסאפ", action: "בדוק את המספר או התקשר" };
+    return { he: "וואטסאפ לא הצליחה למסור — הסיבה לא ידועה",
+             action: "נסה הודעה אישית מהטלפון שלך; אם גם היא לא עוברת, התקשר" };
   if (e.includes("experiment"))
     return { he: "ניסוי של מטא על המספר הזה", action: "נסה שוב מאוחר יותר" };
   if (e.includes("invalid phone") || e.includes("not exist"))
@@ -61,7 +73,7 @@ function explain(code: number | null | undefined, err: string | null): { he: str
  * Not the same question as "does this failure go on the automatic retry
  * timer", which is what action === "retry_later" answers. Two of the four
  * actions are refusals about the GUEST and must exclude them here:
- *   never             131026 has no WhatsApp, 131050 asked us to stop
+ *   never             131026 undeliverable, 131050 asked us to stop
  *   wait_for_inbound  130472 — a template cannot reach them on any timer
  *
  * stop_run is not one of them. 131048 is a restriction on OUR number — the run

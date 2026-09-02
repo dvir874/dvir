@@ -57,7 +57,8 @@ export type FailureKind =
 
 /* Meta codes that are settled facts about a recipient, not transient trouble.
  *
- * 131026 the number has no WhatsApp · 131050 opted out · 131048 the SENDING
+ * 131026 undeliverable, for one of five reasons Meta never names · 131050
+ * opted out · 131048 the SENDING
  * number is restricted. Retrying any of these spends quota to earn the same
  * answer.
  *
