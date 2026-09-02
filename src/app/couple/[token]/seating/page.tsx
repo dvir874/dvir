@@ -165,8 +165,10 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
     if (notifiable.length === 0) return;
     if (!confirm(
       `נשלח לכל ${notifiable.length} האורחים המשובצים הודעה עם מספר השולחן שלהם.\n\n` +
-      `ההודעות יוצאות מהמערכת בהדרגה — לא צריך לעשות כלום.\n\n` +
-      `כדאי לוודא שהסידור סופי: מי שיוזז אחר כך יקבל עדכון רק אם תלחצו שוב.`)) return;
+      `חשוב: האורח מקבל את המספר שמופיע כאן ליד כל שולחן (1, 2, 3...),\n` +
+      `אז כדאי שהשלטים באולם יהיו באותו מספור.\n\n` +
+      `ההודעות יוצאות מהמערכת בהדרגה — לא צריך לעשות כלום.\n` +
+      `מי שיוזז אחר כך יקבל עדכון רק אם תלחצו שוב.`)) return;
 
     const res = await fetch(`/api/couple/${token}/seating/notify`, { method: "POST" });
     const d = await res.json().catch(() => null);

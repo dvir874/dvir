@@ -989,10 +989,25 @@ async function sendTableNumbers(
       .select("guest_id, table_id").eq("event_id", ev.id as string);
     if (!(seats ?? []).length) continue;
 
+    /* The guest gets the NUMBER, not the name.
+     *
+     * The plan names tables the way a couple thinks — "משפחת ביטון 3",
+     * "חברים לאל 1" — and the template reads "🪑 שולחן {{5}}", which turns
+     * that into "שולחן משפחת ביטון 3". No sign at any venue says that. Tables
+     * in a hall are numbered, so a guest handed a family name walks in with
+     * nothing to look for.
+     *
+     * sort_order is the plan's own order and is what the couple should label
+     * the tables with. The couple keeps the descriptive name on their screen;
+     * the guest gets the number that will be on the card. */
     const { data: tables } = await sb.from("seating_tables")
-      .select("id, name").eq("event_id", ev.id as string);
+      .select("id, name, sort_order").eq("event_id", ev.id as string)
+      .order("sort_order");
     const tableName = new Map<string, string>(
-      (tables ?? []).map(t => [t.id as string, String(t.name ?? "")]));
+      (tables ?? []).map((t, i) => [
+        t.id as string,
+        String((Number(t.sort_order) >= 0 ? Number(t.sort_order) : i) + 1),
+      ]));
 
     const ids = [...new Set((seats ?? []).map(a => a.guest_id as string))];
     const already = new Set<string>();
