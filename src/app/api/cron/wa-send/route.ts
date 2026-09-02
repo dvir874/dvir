@@ -616,6 +616,34 @@ async function dayBeforeForEvent(
     note = (n as { day_before_note?: string | null } | null)?.day_before_note ?? null;
   } catch { /* column not there yet */ }
 
+  /* Where each guest sits, folded into this message rather than sent as its
+   * own.
+   *
+   * The two messages carry the same venue and the same reception time, so a
+   * guest who gets both is told half of it twice. And they compete for the
+   * same window in the week of the wedding: 229 table messages plus 224
+   * day-before messages is 453 against a rolling cap of 250, which is the
+   * collision that already forced לאל to be paused so שחר could send.
+   *
+   * The night before is also when the number is actually wanted — it is what
+   * you look at while getting dressed, not a week earlier.
+   *
+   * The number, not the table's name: the plan names tables the way a couple
+   * thinks ("משפחת ביטון 3") and no sign at any venue says that. */
+  const tableByGuest = new Map<string, string>();
+  try {
+    const [{ data: seats }, { data: tabs }] = await Promise.all([
+      sb.from("seating_assignments").select("guest_id, table_id").eq("event_id", ev.id),
+      sb.from("seating_tables").select("id, sort_order").eq("event_id", ev.id).order("sort_order"),
+    ]);
+    const numberOf = new Map<string, number>(
+      (tabs ?? []).map((t, i) => [t.id as string, (Number(t.sort_order) >= 0 ? Number(t.sort_order) : i) + 1]));
+    for (const a2 of seats ?? []) {
+      const n = numberOf.get(a2.table_id as string);
+      if (n && a2.guest_id) tableByGuest.set(a2.guest_id as string, String(n));
+    }
+  } catch { /* no seating is not a reason to hold the message */ }
+
   const { data: guests } = await sb.from("guests")
     .select("id, name, phone, category, do_not_contact")
     .eq("event_id", ev.id).eq("status", "confirmed");
@@ -635,11 +663,21 @@ async function dayBeforeForEvent(
   const todo = eligible.filter(g => !already.has(g.id as string)).slice(0, budget);
   if (!todo.length) return { sent: 0 };
 
+  /* One line, per guest: their table and whatever the couple wanted said. Both
+     are optional and either alone is fine; with neither, the four-parameter
+     template is used and nothing changes. */
+  const lineFor = (guestId: string): string | null => {
+    const t = tableByGuest.get(guestId);
+    const parts = [t ? `🪑 שולחן ${t}` : null, note?.trim() || null].filter(Boolean);
+    return parts.length ? parts.join(" · ") : null;
+  };
+
   let sent = 0;
   for (let i = 0; i < todo.length; i += SEND_CONCURRENCY) {
     const batch = await Promise.all(
       todo.slice(i, i + SEND_CONCURRENCY).map(async g => ({
-        g, res: await sendDayBefore(cfg, g.phone as string, couple, rec, chu, venue, note),
+        g, res: await sendDayBefore(cfg, g.phone as string, couple, rec, chu, venue,
+          lineFor(g.id as string)),
       })),
     );
     for (const { g, res } of batch) {
