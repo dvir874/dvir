@@ -293,11 +293,11 @@ async function sendDailyDigest(
   const today = new Date().toISOString().slice(0, 10);
 
   const { data: evs } = await sb.from("events")
-    .select("id, name, couple_names").gte("date", today).order("date").limit(4);
+    .select("id, name, couple_names, date").gte("date", today).order("date").limit(4);
 
   for (const ev of evs ?? []) {
     const { data: gs } = await sb.from("guests")
-      .select("id, status, category").eq("event_id", ev.id).limit(900);
+      .select("id, name, status, category, opened_at").eq("event_id", ev.id).limit(900);
     const real = (gs ?? []).filter(g => g.category !== "demo");
     if (!real.length) continue;
     const pending = real.filter(g => g.status === "pending").length;
@@ -312,7 +312,11 @@ async function sendDailyDigest(
       .select("id", { count: "exact", head: true })
       .eq("event_id", ev.id).neq("status", "pending").gte("response_time", since);
 
-    if (!sentToday && !answeredToday) continue;   /* a quiet day is not news */
+    /* The quiet-day skip moved below, past the unreachable calculation.
+       A wedding stops sending as it fills up, so the digest went silent
+       exactly as the date approached — which is when a guest who never
+       received anything stops being a statistic and starts being an empty
+       chair. Quiet is only not-news when nothing is wrong. */
 
     /* What is due tomorrow, which is the question this digest never answered.
      *
@@ -325,6 +329,9 @@ async function sendDailyDigest(
      * Built from the same three facts the sender itself uses, so the number in
      * the message and the number of messages that go out cannot disagree. */
     const pendingIds = real.filter(g => g.status === "pending").map(g => g.id as string);
+    /* Which of them Meta actually reported delivering to. Filled by the same
+       pass that builds the eligibility states, so this costs no extra query. */
+    const gotByGuest = new Set<string>();
     let tomorrow = { now: 0, soon: 0, never: 0 };
     if (pendingIds.length) {
       const states: ContactState[] = [];
@@ -343,8 +350,10 @@ async function sendDailyDigest(
           if (m.status === "delivered" || m.status === "read") row.got = true;
           if (/תזכורת|עוד לא קיבלנו/.test(String(m.body ?? ""))) row.rem++;
         }
-        for (const r of byGuest.values())
+        for (const [id, r] of byGuest) {
+          if (r.got) gotByGuest.add(id);
           states.push({ delivered: r.got, lastOutboundAt: r.last, remindersSent: r.rem });
+        }
       }
       tomorrow = dueWithin(states, Date.now() + 24 * 3_600_000);
     }
@@ -355,12 +364,46 @@ async function sendDailyDigest(
         ? `מחר: אף אחד — ${tomorrow.never} מיצו את התזכורות`
         : "מחר: אף אחד";
 
+    /* Guests who have received NOTHING, by name.
+     *
+     * The line above says "N מיצו את התזכורות", which mixes two states that
+     * need opposite responses: a guest who got the invitation and never
+     * answered is ordinary attrition, and a guest whose invitation never
+     * arrived is a seat that will be empty because of us. Reported together
+     * they read as the first, so on 02/09 — six days before שחר's wedding —
+     * four of her guests had never received a single message and Dvir found
+     * out by opening the admin and asking.
+     *
+     * `got` is a delivered or read report from Meta. Anything less is not
+     * evidence a message arrived: אריה זאבי has six that Meta accepted and
+     * none it ever delivered.
+     *
+     * Names rather than a count, because a number tells him something is
+     * wrong and a name tells him what to do about it. */
+    const neverGot = real
+      .filter(g => g.status === "pending" && !g.opened_at && !gotByGuest.has(g.id as string))
+      .map(g => String(g.name ?? "").trim())
+      .filter(Boolean);
+
+    const daysOut = Math.ceil(
+      (new Date(String(ev.date)).getTime() - Date.now()) / 86_400_000);
+
+    /* Quiet is only not-news when nothing is wrong. */
+    if (!sentToday && !answeredToday && !neverGot.length) continue;
+
+    const attention = neverGot.length
+      ? `❗ ${neverGot.length} לא קיבלו כלום (${daysOut} ימים לחתונה): `
+        + neverGot.slice(0, 6).join(" · ")
+        + (neverGot.length > 6 ? ` ועוד ${neverGot.length - 6}` : "")
+        + " — רק הודעה אישית ממך תגיע אליהם"
+      : `אישרו עד כה: ${confirmed} מתוך ${real.length} · ${dueLine}`;
+
     await sendRunSummary(cfg, to, {
       event: `🤍 עדכון יומי — ${coupleName(ev) ?? ev.name}`,
       sent: String(sentToday ?? 0),
       failed: String(answeredToday ?? 0),
       left: String(pending),
-      attention: `אישרו עד כה: ${confirmed} מתוך ${real.length} · ${dueLine}`,
+      attention,
     });
   }
 }
