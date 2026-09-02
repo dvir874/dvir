@@ -876,6 +876,35 @@ export default function AdminPage() {
     });
   }
 
+  /* How many of them are children.
+   *
+   * שירה ואייל answered שחר with "3" and then "1 + 2 ילדים". The three is what
+   * seating needs; the split is what the caterer bills, and a children's meal
+   * is not priced like an adult's. It arrived as free text in the inbox and
+   * stopped there, because nothing on this screen could record it.
+   *
+   * The total stays authoritative and children are a subset of it — entering a
+   * split can never contradict the headcount, which is the failure that would
+   * matter. Zero children clears the field entirely rather than writing
+   * {regular: n}: an empty meal_counts is what makes the venue report fall
+   * back to meal_preference, which is how every other row already behaves.
+   *
+   * The adult key is the guest's own meal_preference where they have one, so a
+   * vegetarian household with two children does not silently become regular. */
+  async function handleKidsChange(guestId: string, raw: string, total: number, pref: string | null) {
+    const kids = Math.max(0, Math.min(total, parseInt(raw, 10) || 0));
+    const adults = Math.max(0, total - kids);
+    const meal_counts = kids > 0
+      ? { [pref || "regular"]: adults, kids }
+      : null;
+    setGuests(prev => prev.map(g => (g.id === guestId ? { ...g, meal_counts } : g)));
+    await fetch(`/api/guests/${guestId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ meal_counts }),
+    });
+  }
+
   /* "Do not message this person."
    *
      The sender has honoured this flag since the day it was added — a marked
@@ -3159,6 +3188,32 @@ export default function AdminPage() {
                               fontFamily: "inherit",
                             }}
                           />
+                          {/* Children, as a subset of the total above. Shown only
+                              where more than one person is coming — a household of
+                              one has no split to record, and an empty box on every
+                              single-guest row is noise on a 335-row table. */}
+                          {(g.guest_count ?? 1) > 1 && (
+                            <input
+                              type="number" min={0} max={g.guest_count ?? 1}
+                              defaultValue={(g.meal_counts as Record<string, number> | null)?.kids ?? ""}
+                              placeholder="ילדים"
+                              onBlur={e => {
+                                const total = g.guest_count ?? 1;
+                                const k = Math.max(0, Math.min(total, parseInt(e.target.value, 10) || 0));
+                                e.target.value = k ? String(k) : "";
+                                const was = (g.meal_counts as Record<string, number> | null)?.kids ?? 0;
+                                if (k !== was) handleKidsChange(g.id, String(k), total, g.meal_preference ?? null);
+                              }}
+                              onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                              title="כמה מתוכם ילדים — נכנס לדוח האולם כמנת ילדים"
+                              style={{
+                                width: 52, marginTop: 4, padding: "2px 4px", textAlign: "center",
+                                fontSize: 11, color: C.muted, background: "transparent",
+                                border: `1px dashed ${C.border}`, borderRadius: 6,
+                                fontFamily: "inherit",
+                              }}
+                            />
+                          )}
                         </td>
                         <td className="px-4 py-3 text-xs" style={{ color: C.muted }}>
                           {g.meal_preference

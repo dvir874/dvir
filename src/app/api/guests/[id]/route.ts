@@ -11,9 +11,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (denied) return denied;
   const { id } = await params;
   const body = await request.json();
-  const { status, guest_count, do_not_contact, do_not_contact_note } = body as {
+  const { status, guest_count, meal_counts, do_not_contact, do_not_contact_note } = body as {
     status?: GuestStatus;
     guest_count?: number;
+    meal_counts?: Record<string, number> | null;
     do_not_contact?: boolean;
     do_not_contact_note?: string | null;
   };
@@ -25,6 +26,37 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       status !== 'pending' ? new Date().toISOString() : null;
   }
   if (guest_count !== undefined) update.guest_count = guest_count;
+
+  /* The split between adults and children in one household.
+   *
+   * שירה ואייל answered שחר's invitation with "3" and then "1 + 2 ילדים" — the
+   * headcount is what seating needs and the split is what the caterer bills,
+   * and only the first had anywhere to live. It reached the inbox as free text
+   * and stopped there.
+   *
+   * meal_counts already existed and the whole chain downstream already reads
+   * it: the venue report prefers it over meal_preference, the Excel export
+   * prints it, and MEAL_LABEL has carried `kids: 'מנת ילדים'` from the start.
+   * The only missing piece was a way to write it.
+   *
+   * Validated rather than trusted — it is a free-form map and a negative or
+   * absurd count would reach a caterer as a real order. An empty object clears
+   * it, which is how a row goes back to the meal_preference fallback. */
+  if (meal_counts !== undefined) {
+    if (meal_counts === null || Object.keys(meal_counts).length === 0) {
+      update.meal_counts = null;
+    } else {
+      const clean: Record<string, number> = {};
+      for (const [k, v] of Object.entries(meal_counts)) {
+        const n = Math.floor(Number(v));
+        if (!k || k.length > 30 || !Number.isFinite(n) || n < 0 || n > 20) {
+          return NextResponse.json({ error: 'meal_counts לא תקין' }, { status: 400 });
+        }
+        if (n > 0) clean[k] = n;
+      }
+      update.meal_counts = Object.keys(clean).length ? clean : null;
+    }
+  }
 
   /* "Do not message this person" — readable by the sender since the day it was
      added, writable by nobody.

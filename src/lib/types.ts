@@ -118,6 +118,10 @@ export interface Guest {
   rsvp_token: string;
   created_at: string;
   meal_preference?: string | null;
+  /** Per-meal-type counts for one household, e.g. { regular: 1, kids: 2 }.
+      Takes precedence over meal_preference in the venue report; null means
+      "no split recorded" and falls back to it. */
+  meal_counts?: Record<string, number> | null;
   meal_note?: string | null;
   category?: string | null;
   /* "Do not message this person." Honoured by the sender since it existed;
