@@ -349,7 +349,7 @@ interface CouponRow {
    a guest who has the invitation and has not replied wants a reminder, and a
    guest who never received one wants an invitation. Merging them is how 130
    people sat in a list labelled "waiting" having heard nothing at all. */
-type StatusFilter = "all" | GuestStatus | "no_answer" | "not_sent" | "unreachable" | "experiment" | "opened";
+type StatusFilter = "all" | GuestStatus | "no_answer" | "not_sent" | "unreachable" | "opted_out" | "experiment" | "opened";
 
 /* ══════════════════════════════════════════════════════
    Main Admin Page
@@ -743,7 +743,10 @@ export default function AdminPage() {
       : statusFilter === "not_sent"  ? g.status === "pending" && !reached &&
                                        (!deliveryMap[g.id] || deliveryMap[g.id].neverSent)
       /* WhatsApp will never reach them. Only a phone call will. */
-      : statusFilter === "unreachable" ? !!deliveryMap[g.id]?.unreachable && deliveryMap[g.id]?.code !== 130472
+      : statusFilter === "unreachable" ? !!deliveryMap[g.id]?.unreachable
+          && deliveryMap[g.id]?.code !== 130472 && deliveryMap[g.id]?.code !== 131050
+      /* They have WhatsApp and used it — they opted out of business messages. */
+      : statusFilter === "opted_out" ? deliveryMap[g.id]?.code === 131050
       /* Reachable, just not by template. An inbound message reopens them. */
       : statusFilter === "experiment" ? deliveryMap[g.id]?.code === 130472
       : statusFilter === "opened"    ? !!g.opened_at
@@ -2919,17 +2922,26 @@ export default function AdminPage() {
                   ["not_sent",  `⚠️ טרם נשלחה הזמנה (${guests.filter(g =>
                     g.status === "pending" &&
                     (!deliveryMap[g.id] || deliveryMap[g.id].neverSent)).length})`],
-                  /* Two situations, not one. 131026 means there is no WhatsApp
-                     account on that number and only a phone call reaches them.
-                     130472 means Meta is withholding TEMPLATES from a number
-                     that has WhatsApp and works fine — an inbound message from
-                     them opens a 24h window and everything flows again. Shown
-                     together as "אין וואטסאפ", six of שחר's guests were written
-                     off as uncontactable when they are not. */
+                  /* Three situations, not one, and each needs a different move.
+                     131026 is genuinely no WhatsApp account on that number and
+                     only a phone call reaches them. 130472 is Meta withholding
+                     TEMPLATES from a number that works fine — an inbound
+                     message opens a 24h window and everything flows again.
+                     131050 is a guest who HAS WhatsApp, read the invitation,
+                     and then told Meta to stop sending them business messages.
+
+                     גודי read hers on 16/08 and opted out on 20/08. The screen
+                     said "אין וואטסאפ — להתקשר", Dvir messaged her from his own
+                     WhatsApp on 02/09, and it went straight through — the label
+                     was the only thing that was wrong. Continuing to send to
+                     her through the business number is also what degrades the
+                     quality rating that got the number restricted on 9/8. */
                   ["unreachable", `📵 אין וואטסאפ — להתקשר (${guests.filter(g => {
                     const d = deliveryMap[g.id];
-                    return d?.unreachable && d.code !== 130472;
+                    return d?.unreachable && d.code !== 130472 && d.code !== 131050;
                   }).length})`],
+                  ["opted_out", `🔕 ביקשו להפסיק — לשלוח אישית (${guests.filter(g =>
+                    deliveryMap[g.id]?.code === 131050).length})`],
                   ["experiment", `🧪 לא מקבלים תבניות (${guests.filter(g =>
                     deliveryMap[g.id]?.code === 130472).length})`],
                   ["opened",    `🔗 נכנסו לקישור (${guests.filter(g => g.opened_at).length})`],

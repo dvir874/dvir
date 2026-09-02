@@ -1,4 +1,5 @@
 import { PHONE_DISPLAY } from '@/lib/constants';
+import { waPrefill } from "./wa-prefill";
 
 /* One base URL for every guest-facing link this file builds.
  *
@@ -38,7 +39,7 @@ export function whatsappInviteLink(
   const rsvpUrl = `${baseUrl}/rsvp/${rsvpToken}`;
   const message =
     `✨ *הזמנה רשמית* ✨\n\nמשפחה וחברים יקרים!\n\nאתם מוזמנים לחגוג איתנו 🎊\n\nלחצו על הקישור לפרטים מלאים ואישור הגעה:\n👇\n${rsvpUrl}\n\nנשמח לראותכם! 🤍`;
-  const encoded = encodeURIComponent(message);
+  const encoded = encodeURIComponent(waPrefill(message));
 
   if (phone && phone.trim()) {
     return `https://wa.me/${normalizePhone(phone)}?text=${encoded}`;
@@ -64,7 +65,7 @@ export function whatsappThankYouLink(
      screen showed 053-331-8177; reading the constant means it cannot drift
      again. */
   message += `\n\n💍 מכירים זוג שמתחתן? האירוע הזה נוהל עם "רגע לפני" — אישורי הגעה, הושבה והכל במקום אחד. שלחו להם: ${PHONE_DISPLAY}`;
-  return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+  return `https://wa.me/${normalized}?text=${encodeURIComponent(waPrefill(message))}`;
 }
 
 export function whatsappReminderLink(
@@ -78,7 +79,7 @@ export function whatsappReminderLink(
   const rsvpUrl = `${baseUrl}/rsvp/${rsvpToken}`;
   const message =
     `🔔 *תזכורת* — ${eventName}\n\nשלום ${name}!\n\nעוד לא קיבלנו את אישור ההגעה שלכם 🙏\n\nלחצו על הקישור לאישור מהיר:\n👇\n${rsvpUrl}\n\nנשמח לדעת האם תוכלו להגיע 🤍`;
-  return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+  return `https://wa.me/${normalized}?text=${encodeURIComponent(waPrefill(message))}`;
 }
 
 /* ── Welcome message to a newly-onboarded couple ── */
@@ -96,7 +97,7 @@ export function whatsappWelcomeLink(
     `שם תוכלו לראות את רשימת האורחים, אישורי ההגעה בזמן אמת, וכל מה שקשור לאירוע.\n\n` +
     `שמרו את הקישור — הוא שלכם בלבד 🔒\n` +
     `לכל שאלה אני כאן — דביר`;
-  return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+  return `https://wa.me/${normalized}?text=${encodeURIComponent(waPrefill(message))}`;
 }
 
 /* ── Weekly RSVP summary to the couple ── */
@@ -116,7 +117,7 @@ export function whatsappWeeklySummaryLink(
     `❌ לא מגיעים: ${stats.declined}\n` +
     `📋 סה״כ מוזמנים: ${stats.total}\n\n` +
     `לצפייה בכל הפרטים:\n${dashUrl}`;
-  return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+  return `https://wa.me/${normalized}?text=${encodeURIComponent(waPrefill(message))}`;
 }
 
 /* ── Day-before reminder to a guest (with Waze) ── */
@@ -136,7 +137,7 @@ export function whatsappDayBeforeLink(
     message += `\n📍 ${address}\n🚗 ניווט: https://waze.com/ul?q=${encodeURIComponent(address)}`;
   }
   message += `\n\nמחכים לראותכם! 🤍`;
-  return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+  return `https://wa.me/${normalized}?text=${encodeURIComponent(waPrefill(message))}`;
 }
 
 /* ── Testimonial request to the couple (post-wedding) ── */
@@ -149,7 +150,7 @@ export function whatsappTestimonialLink(
     `💍 ${coupleName}, מזל טוב שוב! 🥂\n\n` +
     `מקווה שהכל היה מושלם. אשמח מאוד אם תוכלו לכתוב לי 2-3 משפטים על החוויה עם רגע לפני — זה עוזר לי המון.\n\n` +
     `ואם מכירים זוג שמתחתן — אשמח שתעבירו את המספר שלי 🙏\n\nתודה, דביר`;
-  return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+  return `https://wa.me/${normalized}?text=${encodeURIComponent(waPrefill(message))}`;
 }
 
 /**
