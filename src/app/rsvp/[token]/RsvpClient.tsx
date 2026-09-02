@@ -1100,6 +1100,39 @@ export default function RsvpClient({
           )}
 
 
+          {/* The one line this page has never said.
+            *
+            * 405 guests have opened it and it asks them for nothing. They are
+            * the most concentrated audience a wedding service can have — some
+            * are engaged, most know somebody who is, and every one of them has
+            * just watched the product work on a wedding they were invited to.
+            * 922 numbers have received a message from this business and the
+            * only thing any of them was ever offered was an RSVP.
+            *
+            * Placed after everything they came for, in muted type, with no
+            * button and no colour. A guest who came to say they are coming
+            * must never feel they were sold to on the way out — the line is
+            * here because it costs them nothing to ignore.
+            *
+            * A page rather than a message, deliberately: nothing about this
+            * touches the WhatsApp number, its quality rating or its cap. */}
+          <p style={{
+            textAlign: "center", fontFamily: "'Heebo', sans-serif",
+            fontSize: "12.5px", lineHeight: 1.7, color: "rgba(28,16,8,0.38)",
+            margin: "26px 0 0", animation: "fadeUp 0.5s ease 0.5s both",
+          }}>
+            מתחתנים בקרוב?{" "}
+            <a
+              href="https://regalifnei.vercel.app/?ref=rsvp"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: T.goldText, textDecoration: "none", borderBottom: "1px solid rgba(197,164,109,0.4)" }}
+            >
+              רגע לפני
+            </a>{" "}
+            ניהלה את אישורי ההגעה של החתונה הזו.
+          </p>
+
           <button
             type="button"
             onClick={() => setScreen("form")}

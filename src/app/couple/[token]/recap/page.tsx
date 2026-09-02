@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { waPrefill } from "@/lib/wa-prefill";
 
 const C = {
   ivory:   "#FDFAF5",
@@ -124,6 +125,42 @@ export default function RecapPage({ params }: { params: Promise<{ token: string 
               </div>
             )}
           </div>
+        </div>
+
+        {/* Answering the question a friend actually asks.
+          *
+          * One customer in five arrived by referral — שלמה, because a couple
+          * mentioned this to him, with nobody asking them to. That is a 20%
+          * referral rate at zero effort, and there has never been anything to
+          * make it easier.
+          *
+          * Not "share your statistics": nobody forwards their own response
+          * rate. What a couple does is answer "מי עשה לכם את אישורי ההגעה?",
+          * and this writes that answer for them, once, at the moment they are
+          * happiest about it.
+          *
+          * Through waPrefill because WhatsApp Desktop mangles anything past two
+          * UTF-8 bytes on the way into the compose box — every emoji in this
+          * message would otherwise arrive as a replacement character. */}
+        <div style={{ background: "linear-gradient(135deg,rgba(197,164,109,0.12),rgba(197,164,109,0.05))", border: `1px solid rgba(197,164,109,0.3)`, borderRadius: 20, padding: "18px 16px", marginBottom: 20 }}>
+          <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 14.5, color: C.dark, margin: "0 0 4px", fontWeight: 600 }}>
+            מכירים זוג שמתחתן?
+          </p>
+          <p style={{ fontFamily: "Heebo, sans-serif", fontSize: 13, color: C.muted, margin: "0 0 14px", lineHeight: 1.6 }}>
+            אם עזרנו לכם, ההמלצה שלכם שווה לנו יותר מכל פרסום.
+          </p>
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent(waPrefill(
+              `היי! ראיתי שאתם מתחתנים 🤍\n\n`
+              + `אנחנו עבדנו עם "רגע לפני" על אישורי ההגעה והכל היה ממש פשוט — `
+              + `כל אורח קיבל הזמנה אישית בוואטסאפ, אישר בלחיצה, ואנחנו ראינו הכל בזמן אמת.\n\n`
+              + `שווה לבדוק:\nhttps://regalifnei.vercel.app/?ref=couple`))}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px 20px", background: "#25D366", color: "#fff", borderRadius: 12, textDecoration: "none", fontFamily: "Heebo, sans-serif", fontSize: 15, fontWeight: 600 }}
+          >
+            שלחו המלצה בוואטסאפ
+          </a>
         </div>
 
         {/* 2×2 action grid */}
