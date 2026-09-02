@@ -5,6 +5,7 @@ import { eventDay } from "@/lib/event-times";
 import { shrinkImage } from "@/lib/shrink-image";
 import { use, useEffect, useState, useRef } from "react";
 import { Upload, Loader2, Lock, X } from "lucide-react";
+import { waPrefill } from "@/lib/wa-prefill";
 
 /* The one link the guests of a wedding actually see.
  *
@@ -671,6 +672,27 @@ export default function MemoryUploadPage({ params }: { params: Promise<{ token: 
             <span style={{ fontWeight:500, color:T.dark }}>מתחתנים בקרוב?</span>
             {/* Kept well clear of "add another" — a mis-tap that dials a
                 stranger is worse than one that does nothing. */}
+            {/* WhatsApp before the phone number, because it is the smaller ask.
+                A guest who just uploaded a photo from a wedding is warm, not
+                ready to be called — and this reaches Dvir with the sentence
+                already written, so the whole action is one tap.
+
+                Here rather than in the message itself, deliberately. The
+                template that brought them to this page is UTILITY, which is
+                what makes it cost 0.02₪ instead of 0.13₪ and keeps it clear of
+                the per-recipient marketing cap that blocks 35 of these guests.
+                A sales line inside it makes it MARKETING, and a template that
+                Meta reclassifies or rejects feeds the quality signal that is
+                gating the tier upgrade. Same people, same moment, no risk. */}
+            <a
+              href={`https://wa.me/972533318177?text=${encodeURIComponent(waPrefill(
+                "היי דביר, הייתי באירוע שניהלתם ואשמח לשמוע על אישורי הגעה לאירוע שלנו"))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ minHeight:"44px", display:"inline-flex", alignItems:"center", gap:6, padding:"0 12px", color:"#25654A", textDecoration:"none", fontWeight:500 }}
+            >
+              דברו איתנו בוואטסאפ
+            </a>
             <a
               href="tel:0533318177"
               dir="ltr"
