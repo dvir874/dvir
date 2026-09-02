@@ -1564,6 +1564,12 @@ async function runSend(req: NextRequest) {
   const ids = (pending ?? []).filter(g => g.category !== "demo" && g.phone && g.rsvp_token)
     .map(g => g.id);
 
+  /* The number each guest has NOW, to compare against the number a failure was
+     actually sent to. See the unreachable map below. */
+  const phoneById = new Map<string, string>(
+    (pending ?? []).filter(g => g.id && g.phone).map(g => [g.id as string, g.phone as string]),
+  );
+
   const contacted = new Set<string>();
   /* When each guest FIRST got the invitation into their hands — by message or
      by a helper. Used to order reminders, below. */
@@ -1586,7 +1592,7 @@ async function runSend(req: NextRequest) {
      in June and delivered in August is reachable, and only the most recent
      attempt describes where things actually stand. */
   const lastByGuest = new Map<string,
-    { at: string; status: string; code: number | null; err: string | null }>();
+    { at: string; status: string; code: number | null; err: string | null; to: string | null }>();
   /* Reminders already sent, for the cap in lib/eligibility.
    *
    * There is no per-message type column; the sender writes a Hebrew label into
@@ -1603,7 +1609,7 @@ async function runSend(req: NextRequest) {
   for (let i = 0; i < ids.length; i += 100) {
     const slice = ids.slice(i, i + 100);
     const { data } = await sb.from("wa_messages")
-      .select("guest_id, status, error_code, error, created_at, body")
+      .select("guest_id, status, error_code, error, created_at, body, wa_phone")
       .eq("direction", "out").in("guest_id", slice);
     (data ?? []).forEach(m => {
       if (!m.guest_id) return;
@@ -1627,6 +1633,7 @@ async function runSend(req: NextRequest) {
       if (!prev || m.created_at > prev.at) {
         lastByGuest.set(m.guest_id, {
           at: m.created_at, status: m.status, code: m.error_code, err: m.error,
+          to: (m.wa_phone as string) ?? null,
         });
       }
     });
@@ -1715,6 +1722,25 @@ async function runSend(req: NextRequest) {
   const unreachable = new Map<string, string>();
   for (const [id, m] of lastByGuest) {
     if (m.status !== "failed") continue;
+    /* A failure is evidence about the NUMBER it was sent to, not about the
+     * guest for ever.
+     *
+     * Without this the exclusion is a deadlock. A wrong number fails with
+     * 131026, which is "never", and the only thing that releases it is an
+     * inbound message — which somebody whose number we have wrong can never
+     * send. פוריה בן שמעון sat there from 18/08: Dvir could not reach her by
+     * WhatsApp, could not reach her by phone, and only found out by asking
+     * תהל, who said the number was simply wrong and sent a new one. He then
+     * had to DELETE and recreate the row to get her back into the send pool,
+     * which threw away her token and her history.
+     *
+     * Correcting the number is the whole fix, and it should be enough on its
+     * own — whoever makes the correction, Dvir or the couple on their own
+     * screen. */
+    const sentTo = m.to;
+    const nowIs = toE164(phoneById.get(id) ?? "");
+    if (sentTo && nowIs && sentTo !== nowIs) continue;
+
     const pol = policyFor(m.code, m.err);
     if (pol.action === "never" || pol.action === "wait_for_inbound") {
       unreachable.set(id, pol.human);
