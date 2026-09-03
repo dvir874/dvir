@@ -117,7 +117,21 @@ export function cooldownHours(c: ContactState): number {
 export function isEligibleNow(c: ContactState, nowMs: number = Date.now()): boolean {
   /* Only ever caps reminders. A guest nothing reached is not "reminded" no
      matter how many attempts failed, and must stay reachable. */
-  if (c.delivered && (c.remindersSent ?? 0) >= MAX_REMINDERS_PER_GUEST) return false;
+  /* Three reminders and no more — whether or not Meta confirmed delivery.
+   *
+   * This read `c.delivered && …`, so the cap applied only to guests whose
+   * reminder came back delivered. A guest Meta accepted and never reported on
+   * — which is every guest on a phone that is off, and every guest whose
+   * receipt was lost — was outside the cap entirely and could be reminded for
+   * ever. Nobody actually crossed three at any of the three weddings, so this
+   * is a latent fault rather than a bill already paid; it was one slow week of
+   * missing receipts away from becoming real.
+   *
+   * Dvir's rule, 04/09: after three reminders nothing more goes out
+   * automatically. A fourth message is a phone call, and only if the couple
+   * asks for one. A reminder SENT is a reminder sent — the guest received it or
+   * they did not, and either way we have now asked them three times. */
+  if ((c.remindersSent ?? 0) >= MAX_REMINDERS_PER_GUEST) return false;
   /* …and the mirror of it, which was missing: a guest Meta kept accepting for
      and never reported on was exempt from every ceiling here. */
   if (!c.delivered && (c.attemptsAccepted ?? 0) >= MAX_FIRST_CONTACT_ATTEMPTS) return false;
@@ -138,7 +152,8 @@ export function isEligibleNow(c: ContactState, nowMs: number = Date.now()): bool
  * and only the second one is an answer.
  */
 export function eligibleAt(c: ContactState): number | null {
-  if (c.delivered && (c.remindersSent ?? 0) >= MAX_REMINDERS_PER_GUEST) return null;
+  /* Same cap, same reason — see isEligibleNow above. */
+  if ((c.remindersSent ?? 0) >= MAX_REMINDERS_PER_GUEST) return null;
   if (!c.delivered && (c.attemptsAccepted ?? 0) >= MAX_FIRST_CONTACT_ATTEMPTS) return null;
   if (!c.lastOutboundAt) return 0;               /* due now, and always has been */
   return new Date(c.lastOutboundAt).getTime() + cooldownHours(c) * 3_600_000;

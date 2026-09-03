@@ -25,6 +25,7 @@
 export type AdminCommand =
   | { kind: "status" }                                   /* how is everything */
   | { kind: "work" }                                     /* who needs me */
+  | { kind: "missing"; event?: string }                   /* who never got an invitation */
   | { kind: "pause"; event: string }
   | { kind: "resume"; event: string }
   | { kind: "reply"; phone: string; text: string }        /* to a named number */
@@ -38,7 +39,10 @@ export type AdminCommand =
 const LEADING_PHONE = /^\+?(972\d{9}|0\d{8,9})[\s,:־-]+([\s\S]+)$/;
 
 const STATUS = /^(סטטוס|מצב|status|מה קורה|מה המצב)\??$/i;
-const WORK   = /^(מחכה לי|מי צריך אותי|מי לא קיבל|משימות|טיפול|work)\??$/i;
+const WORK   = /^(מחכה לי|מי צריך אותי|משימות|טיפול|work)\??$/i;
+/* The list he can act on from the phone — every guest with no invitation,
+   each with a tap-to-send link. */
+const MISSING = /^(לא קיבלו|מי לא קיבל|לא קיבל|חסרים|missing)\s*(.{0,40})$/i;
 const HELP   = /^(עזרה|פקודות|\?|help)$/i;
 const PAUSE  = /^(עצור|השהה|stop|pause)\s+(.{2,40})$/i;
 const RESUME = /^(המשך|תמשיך|חדש|resume|start)\s+(.{2,40})$/i;
@@ -58,6 +62,8 @@ export function parseAdminCommand(said: string, hasTarget: boolean): AdminComman
   if (HELP.test(t)) return { kind: "help" };
   if (STATUS.test(t)) return { kind: "status" };
   if (WORK.test(t)) return { kind: "work" };
+  const ms = MISSING.exec(t);
+  if (ms) return { kind: "missing", event: ms[2].trim() || undefined };
 
   const p = PAUSE.exec(t);
   if (p) return { kind: "pause", event: p[2].trim() };
@@ -79,7 +85,7 @@ export function parseAdminCommand(said: string, hasTarget: boolean): AdminComman
 /** The reply to `עזרה`, and to anything that was not understood. */
 export const ADMIN_HELP =
   "פקודות: סטטוס · מחכה לי · עצור <שם חתונה> · המשך <שם חתונה> · "
-  + "או פשוט ענה להודעה על אורח ואעביר לו. "
+  + "לא קיבלו <שם חתונה> · או פשוט ענה להודעה על אורח ואעביר לו. "
   + "לענות למישהו אחר: 0501234567 ואז הטקסט.";
 
 /**

@@ -47,11 +47,25 @@ test("two reminders is the limit, and it applies to nobody else", () => {
      keeps the behaviour it had. */
   assert.equal(isEligibleNow(old, NOW), true);
 
-  /* A guest nothing ever reached is not "reminded", however many attempts
-     failed, and must stay reachable. */
+  /* This used to assert the opposite — that a guest nothing ever reached is
+     not "reminded" however many attempts failed, and stays reachable for ever.
+     Two rules cannot both hold, and Dvir's, set 04/09, wins: after three
+     reminders nothing more goes out automatically; a fourth is a phone call,
+     and only if the couple asks.
+     
+     It is safe to reverse because the two cases the old rule protected are
+     both still covered. A guest who never received the INVITATION has
+     remindersSent = 0 and is reached through first contact, which has its own
+     allowance. And a guest whose number genuinely cannot receive is stopped
+     earlier and harder by policyFor — 131026 and 131050 both return "never".
+     
+     What is left is the case the old rule got wrong: a phone that is off, or a
+     receipt Meta never sent. Reminding that guest for ever spends a paid
+     conversation each time on somebody who has already been asked three
+     times. */
   assert.equal(
     isEligibleNow({ delivered: false, lastOutboundAt: hoursAgo(200), remindersSent: 9 }, NOW),
-    true,
+    false,
   );
 });
 
@@ -150,4 +164,17 @@ test("an uncounted caller keeps the behaviour it had", () => {
   /* attemptsAccepted omitted means "not counted" — every call site that has not
      been taught to count yet must be unaffected. */
   assert.equal(isEligibleNow({ delivered: false, lastOutboundAt: back(200) }, T0), true);
+});
+
+test("three reminders is three, delivery report or not", () => {
+  /* The cap read `delivered && remindersSent >= MAX`, so a guest Meta accepted
+     and never reported on — a phone that is off, a lost receipt — sat outside
+     it and could be reminded for ever. Dvir's rule of 04/09: after three,
+     nothing automatic. A fourth is a phone call, if the couple asks. */
+  const asked = { delivered: false, lastOutboundAt: "2026-08-01T00:00:00Z", remindersSent: 3 };
+  assert.equal(isEligibleNow(asked, NOW), false, "no delivery report is not a fresh start");
+  assert.equal(isEligibleNow({ ...asked, delivered: true }, NOW), false);
+  assert.equal(eligibleAt(asked), null);
+  /* Two is still allowed. */
+  assert.equal(isEligibleNow({ ...asked, remindersSent: 2 }, NOW), true);
 });

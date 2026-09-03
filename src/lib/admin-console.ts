@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseAdminCommand, matchEvent, ADMIN_HELP } from "./admin-command";
 import { classifyManualWork, manualWorkMessage, type LastContact } from "./manual-work";
 import { coupleName } from "./couple-name";
+import { whatsappInviteLink } from "./phone";
 import { getWhatsAppConfig, toE164 } from "./whatsapp";
 import { sendText } from "./wa-interactive";
 
@@ -130,6 +131,69 @@ export async function handleAdminMessage(sb: Sb, from: string, said: string): Pr
         if (body) out.push(body);
       }
       await say(out.length ? out.join("\n\n") : "אין כלום שמחכה לך 🤍");
+      return true;
+    }
+
+    case "missing": {
+      /* The guests with no invitation, each with a link that opens WhatsApp
+         with their own personal RSVP address already written.
+         
+         "בדיוק כמו שזה נותן לי לשלוח באדמין" — the admin has had this button
+         since the start; it just lived on a screen. Sent from his own number
+         rather than the business one, which is why it works at all: the
+         business number is bound by Meta's 24-hour rule and his is not, and a
+         guest who never received anything has no window open. */
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+      const { data: evs } = await sb.from("events")
+        .select("id, name, couple_names, date").gte("date", today).order("date").limit(12);
+      let list = (evs ?? []) as { id: string; name?: string | null; couple_names?: string | null }[];
+      if (cmd.event) {
+        const m = matchEvent(cmd.event, list);
+        if ("none" in m) { await say(`לא מצאתי חתונה בשם "${cmd.event}".`); return true; }
+        if ("ambiguous" in m) {
+          await say(`"${cmd.event}" מתאים ליותר מאחת. תכתוב שם מדויק יותר.`);
+          return true;
+        }
+        list = [m.event];
+      }
+
+      const out: string[] = [];
+      for (const e of list) {
+        const { data: gs } = await sb.from("guests")
+          .select("id, name, phone, rsvp_token, status, category, do_not_contact")
+          .eq("event_id", e.id).eq("status", "pending").limit(900);
+        const real = (gs ?? []).filter(g =>
+          g.category !== "demo" && !g.do_not_contact
+          && String(g.phone ?? "").trim() && g.rsvp_token);
+        if (!real.length) continue;
+
+        const ids = real.map(g => g.id as string);
+        const reached = new Set<string>();
+        for (let i = 0; i < ids.length; i += 100) {
+          const { data: ms } = await sb.from("wa_messages")
+            .select("guest_id, status").eq("direction", "out")
+            .in("guest_id", ids.slice(i, i + 100));
+          for (const m of ms ?? []) {
+            if (m.guest_id && ["delivered", "read"].includes(m.status as string)) {
+              reached.add(m.guest_id as string);
+            }
+          }
+        }
+        const missing = real.filter(g => !reached.has(g.id as string));
+        if (!missing.length) continue;
+
+        const who = coupleName(e as Parameters<typeof coupleName>[0]) ?? e.name;
+        /* Ten at a time. A message with sixty links is one nobody works
+           through, and the rest are one "לא קיבלו" away. */
+        const shown = missing.slice(0, 10);
+        out.push(`${who} — ${missing.length} לא קיבלו:\n` + shown.map(g =>
+          `${g.name} ${g.phone}\n${whatsappInviteLink(String(g.phone), String(g.name), String(g.rsvp_token))}`
+        ).join("\n\n") + (missing.length > 10 ? `\n\nועוד ${missing.length - 10} — כתוב "לא קיבלו" שוב` : ""));
+      }
+
+      await say(out.length
+        ? out.join("\n\n———\n\n") + "\n\nלחיצה על קישור פותחת וואטסאפ עם ההזמנה שלהם מוכנה. נשלח ממך, לא מהמספר העסקי."
+        : "כולם קיבלו 🤍");
       return true;
     }
 

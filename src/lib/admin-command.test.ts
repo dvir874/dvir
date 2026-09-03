@@ -6,7 +6,7 @@ test("the everyday questions", () => {
   for (const m of ["סטטוס", "מה המצב", "status"]) {
     assert.equal(parseAdminCommand(m, false).kind, "status", m);
   }
-  for (const m of ["מחכה לי", "מי לא קיבל", "מי צריך אותי"]) {
+  for (const m of ["מחכה לי", "משימות", "מי צריך אותי"]) {
     assert.equal(parseAdminCommand(m, false).kind, "work", m);
   }
   assert.equal(parseAdminCommand("עזרה", false).kind, "help");
@@ -74,4 +74,12 @@ test("a word matching two weddings acts on neither", () => {
 
 test("a name matching nothing is not a near miss", () => {
   assert.ok("none" in matchEvent("ירון", EVENTS));
+});
+
+test("asking who never got an invitation", () => {
+  /* He wants the list on his phone, with a way to send each one by hand —
+     "בדיוק כמו שזה נותן לי לשלוח באדמין". */
+  assert.deepEqual(parseAdminCommand("לא קיבלו", false), { kind: "missing", event: undefined });
+  assert.deepEqual(parseAdminCommand("לא קיבלו שחר", false), { kind: "missing", event: "שחר" });
+  assert.equal(parseAdminCommand("מי לא קיבל", false).kind, "missing");
 });
