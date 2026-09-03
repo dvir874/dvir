@@ -83,3 +83,27 @@ test("asking who never got an invitation", () => {
   assert.deepEqual(parseAdminCommand("לא קיבלו שחר", false), { kind: "missing", event: "שחר" });
   assert.equal(parseAdminCommand("מי לא קיבל", false).kind, "missing");
 });
+
+test("a mistyped instruction never becomes a message to a guest", () => {
+  /* The fallthrough sends anything unrecognised to whoever we last raised —
+     right for "היי נעם, מה קרה?", catastrophic for a half-typed command
+     arriving at a stranger as though Dvir had written it to them. */
+  for (const m of ["סטטוס שחר", "עצור", "המשך", "מה קורה עם שחר", "לא קיבלו של שלמה", "help me"]) {
+    assert.equal(parseAdminCommand(m, true).kind, "unknown", m);
+  }
+});
+
+test("an ordinary sentence to a guest still goes through", () => {
+  /* The guard must not swallow the thing the feature exists for. */
+  for (const m of ["היי נעם, מה קרה? אני כאן", "אין בעיה, נעדכן", "מצטער על העיכוב 🤍"]) {
+    assert.equal(parseAdminCommand(m, true).kind, "reply_last", m);
+  }
+});
+
+test("a photograph is never forwarded to a guest as the word [image]", () => {
+  /* The webhook renders media as a literal placeholder, and this file would
+     have sent that string on with "נשלח בהצלחה" back to Dvir. */
+  assert.equal(parseAdminCommand("[image]", true, "media").kind, "unknown");
+  assert.equal(parseAdminCommand("היי נעם", true, "media").kind, "unknown");
+  assert.equal(parseAdminCommand("היי נעם", true, "text").kind, "reply_last");
+});

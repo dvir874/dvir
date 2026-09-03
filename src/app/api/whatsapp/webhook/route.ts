@@ -386,7 +386,8 @@ export async function POST(req: NextRequest) {
        * grammar — nothing here deletes, imports, or sends to everybody. */
       if (isAdminPhone(m.from)) {
         try {
-          if (await handleAdminMessage(sb, m.from, bodyOf(m))) continue;
+          if (await handleAdminMessage(sb, m.from, bodyOf(m),
+              m.type && m.type !== "text" && m.type !== "button" && m.type !== "interactive" ? "media" : "text")) continue;
         } catch (e) {
           await recordFailure(w, {
             scope: "webhook.admin", runId, ref: m.from, error: e,

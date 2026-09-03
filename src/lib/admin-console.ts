@@ -41,7 +41,10 @@ export function isAdminPhone(from: string): boolean {
  * the caller can fall through to treating him as an ordinary guest — he is on
  * his own guest lists.
  */
-export async function handleAdminMessage(sb: Sb, from: string, said: string): Promise<boolean> {
+export async function handleAdminMessage(
+  sb: Sb, from: string, said: string,
+  kind: "text" | "media" = "text",
+): Promise<boolean> {
   const cfg = getWhatsAppConfig();
   if (!cfg) return false;
   const to = toE164(from) ?? from;
@@ -59,7 +62,7 @@ export async function handleAdminMessage(sb: Sb, from: string, said: string): Pr
     }
   } catch { /* migration not run — no target, free text is refused below */ }
 
-  const cmd = parseAdminCommand(said, !!target);
+  const cmd = parseAdminCommand(said, !!target, kind);
 
   switch (cmd.kind) {
     case "help":

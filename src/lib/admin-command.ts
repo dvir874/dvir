@@ -55,7 +55,24 @@ const RESUME = /^(המשך|תמשיך|חדש|resume|start)\s+(.{2,40})$/i;
  * not be guessed at: an unaddressed sentence becoming a message to a stranger
  * is the one failure this whole feature could produce.
  */
-export function parseAdminCommand(said: string, hasTarget: boolean): AdminCommand {
+/* A sentence that BEGINS like a command but did not parse as one.
+ *
+ * The fallthrough sends anything unrecognised to the guest we last raised, and
+ * that is right for "היי נעם, מה קרה?" and catastrophic for "סטטוס שחר",
+ * "עצור", or "מה קורה עם שחר" — a mistyped instruction arriving at a stranger
+ * as though Dvir had written it to them.
+ *
+ * Matched on the opening PHRASE rather than a word list, because "מה קורה עם
+ * שחר" opens with "מה", which is also how half of an ordinary sentence starts.
+ * When one of these does not parse, the answer is the help text. */
+const NEAR_COMMAND =
+  /^(סטטוס|מצב|status|מחכה לי|מי צריך|משימות|לא קיבלו|מי לא קיבל|חסרים|עצור|השהה|stop|pause|המשך|תמשיך|resume|start|עזרה|פקודות|help|מה קורה|מה המצב)\b/i;
+
+export function parseAdminCommand(
+  said: string, hasTarget: boolean,
+  /* Media carries no text this file can read — see handleAdminMessage. */
+  kind: "text" | "media" = "text",
+): AdminCommand {
   const t = String(said ?? "").trim();
   if (!t) return { kind: "unknown" };
 
@@ -75,6 +92,17 @@ export function parseAdminCommand(said: string, hasTarget: boolean): AdminComman
     const text = ph[2].trim();
     return text ? { kind: "reply", phone: ph[1], text } : { kind: "unknown" };
   }
+
+  /* A photograph, a voice note, a contact card: the webhook renders these as
+     "[image]" and this file would have forwarded that literal string to a
+     guest, with "נשלח בהצלחה" back to Dvir. Enforced on the argument rather
+     than by matching "[...]", because the next media type added upstream would
+     silently slip past a pattern. */
+  if (kind === "media") return { kind: "unknown" };
+
+  /* Something that opens like an instruction is an instruction he got wrong,
+     never a message meant for a guest. */
+  if (NEAR_COMMAND.test(t)) return { kind: "unknown" };
 
   /* Anything else is what he wants said to the guest we last raised. Only
      when there IS one — see above. */
