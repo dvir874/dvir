@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { handleGuestReply } from "@/lib/wa-conversation";
+import { isAdminPhone, handleAdminMessage } from "@/lib/admin-console";
 import { isRetryableFailure, nextRetryAt } from "@/lib/whatsapp";
 import { failureWriter, newRunId, recordFailure } from "@/lib/failures";
 
@@ -368,8 +369,34 @@ export async function POST(req: NextRequest) {
     const w = failureWriter(sb);
 
     for (const m of messages) {
-      const g = guestFor(m.from ?? "");
       if (!m.from) continue;
+
+      /* Dvir's own phone, talking to the business number.
+       *
+       * He is starting a new job and is on a phone rather than at a desk for
+       * most of the day: "המטרה העיקרית שלי שכל האוטומציה תהיה דרך הפלאפון
+       * שלי". Every alert this system produces already reaches his pocket;
+       * this is the other direction. A guest asks for a person at 14:58, and
+       * answering them stops requiring a computer.
+       *
+       * Checked before guestFor, because he is also a guest on his own lists
+       * and would otherwise be answered by the RSVP machine. If the console is
+       * off or the message is not a command, it falls through to exactly the
+       * behaviour it had. See admin-command.ts for the deliberately small
+       * grammar — nothing here deletes, imports, or sends to everybody. */
+      if (isAdminPhone(m.from)) {
+        try {
+          if (await handleAdminMessage(sb, m.from, bodyOf(m))) continue;
+        } catch (e) {
+          await recordFailure(w, {
+            scope: "webhook.admin", runId, ref: m.from, error: e,
+            context: { body: bodyOf(m).slice(0, 120) },
+          });
+          continue;
+        }
+      }
+
+      const g = guestFor(m.from ?? "");
       if (!g?.id) {
         /* Answered from a number that is not on the list. Previously a silent
            `continue`: the reply sat in the inbox under the sender's WhatsApp

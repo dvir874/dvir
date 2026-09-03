@@ -6,6 +6,7 @@ import { stateIsLive } from "@/lib/chat-state";
 import { bareCount, changeIntent, unpromptedCount, compositeCount} from "@/lib/guest-count";
 import { decide, type Kind, type GuestView } from "@/lib/wa-decide";
 import { needsHuman, saysNotComing, HUMAN_REASON_TEXT } from "@/lib/needs-human";
+import { pointAdminAt } from "@/lib/admin-console";
 import { sendRunSummary } from "@/lib/whatsapp";
 
 /* Answering an invitation without leaving WhatsApp.
@@ -154,12 +155,15 @@ export async function handleGuestReply(
       await setState(sb, guest.id, null);
       const admin = process.env.ADMIN_ALERT_PHONE;
       if (admin) {
+        /* Point his phone at this guest, so his next message answers them
+           without needing an address — see admin-console.ts. */
+        await pointAdminAt(sb, guest.id);
         try {
           await sendRunSummary(cfg, admin, {
             event: "🙋 אורח מחכה לך",
             sent: "0", failed: "—", left: "—",
             attention: `${guest.name} ${guest.phone} — ${HUMAN_REASON_TEXT[human.reason!]}. `
-              + `מה שכתב: "${String(said).slice(0, 90).replace(/[\n\t]/g, " ")}"`,
+              + `מה שכתב: "${String(said).slice(0, 90).replace(/[\n\t]/g, " ")}" — ענה להודעה הזאת ואעביר לו.`,
           });
         } catch { /* an alert must never cost the guest their reply */ }
       }

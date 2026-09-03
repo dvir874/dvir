@@ -43,6 +43,7 @@ export type FailureScope =
   | "webhook.reply"
   | "webhook.status"
   | "webhook.unmatched"
+  | "webhook.admin"
   | "cron.send"
   | "admin.send"
   | "conversation";
