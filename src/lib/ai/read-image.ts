@@ -43,9 +43,11 @@ export async function readInvitationImage(
       body: JSON.stringify({
         model: process.env.ANTHROPIC_VISION_MODEL ?? "claude-sonnet-5",
         max_tokens: 800,
-        /* Zero temperature: the same invitation photographed twice must not
-           produce two different weddings. */
-        temperature: 0,
+        /* No temperature. The newer models refuse the parameter outright — the
+           first live upload came back "400 `temperature` is deprecated for this
+           model" — and their default is already the steady one. What actually
+           keeps the same invitation from becoming two different weddings is the
+           validator: a value survives only if it was quoted off the picture. */
         messages: [{
           role: "user",
           content: [
