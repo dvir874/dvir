@@ -9,6 +9,7 @@ import { weddingDateLine } from "@/lib/hebrew-date";
 import {
   getWhatsAppConfig, sendInvitation, toE164, policyFor, rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY, fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendDayBefore, sendRunSummary, sendRidesGroup, nextRetryAt, sendCoupleCheck, sendTableNumber} from "@/lib/whatsapp";
 import { checkEventLinks, brokenSummary } from "@/lib/link-health";
+import { chooseEvents, MAX_EVENTS_PER_RUN, type WindowEvent } from "@/lib/send-window";
 
 export const dynamic = "force-dynamic";
 /* Five minutes, so a run can reach the daily cap instead of a fifth of it.
@@ -48,7 +49,24 @@ export const maxDuration = 300;
    waiting. Hardcoding one event id meant the next paying couple's invitations
    would never go out on their own, no matter how correctly everything else
    behaved. */
-const MAX_EVENTS_PER_RUN = 3;
+/* How many weddings are LOOKED AT to find those three.
+ *
+ * The two numbers used to be one, and the difference is the whole bug: the
+ * query took the three nearest weddings by date, and the paused and the
+ * not-yet-ready ones were removed from that three afterwards. A wedding that
+ * cannot be sent to still held a slot.
+ *
+ * On 03/09 the three nearest are שחר (08/09), תהל and לאל (both 22/09) — and
+ * לאל is paused until 08/09. So one of the three slots was spent on a wedding
+ * deliberately silenced, while שלמה's wedding sat fourth at 08/10, outside the
+ * query, with 173 guests who have never been contacted. Importing his list
+ * would have sent nothing at all for five days, and looked precisely like an
+ * import that failed.
+ *
+ * Reading more rows costs one query the same size. The three that matter are
+ * still the three nearest — nearest among the weddings we can actually send
+ * to, which is what the constant always meant. */
+const EVENT_WINDOW = 12;
 /* Ceiling per run for the rides-group message. Sixty clears a 334-guest
    wedding in six runs — one day — without ever taking a run whole. */
 const RIDES_GROUP_PER_RUN = 60;
@@ -1771,7 +1789,7 @@ async function runSend(req: NextRequest) {
   const today = israelToday();
   const { data: events } = await sb.from("events")
     .select("id, name, couple_names, date, address, venue_name, wa_header_image_url, send_paused_until, reception_time, chuppah_time")
-    .gt("date", today).order("date").limit(MAX_EVENTS_PER_RUN);
+    .gt("date", today).order("date").limit(EVENT_WINDOW);
 
   /* A wedding can be held back without disturbing the order of the others.
    *
@@ -1786,22 +1804,19 @@ async function runSend(req: NextRequest) {
    * wedding takes the run, and when the pause lapses the ordering returns to
    * what it was with nothing to undo. It appears in skippedEvents with its
    * return date so a silent run is never unexplained. */
-  const nowMs = Date.now();
-  const paused = (events ?? []).filter(e =>
-    e.send_paused_until && new Date(e.send_paused_until as string).getTime() > nowMs);
-  const pausedIds = new Set(paused.map(e => e.id as string));
-
-  const active = (events ?? []).filter(e => e.wa_header_image_url && !pausedIds.has(e.id as string));
-  const skippedEvents = [
-    ...(events ?? [])
-      .filter(e => !e.wa_header_image_url && !pausedIds.has(e.id as string))
-      .map(e => ({ event: e.name, reason: "אין תמונת הזמנה" })),
-    ...paused.map(e => ({
-      event: e.name,
-      reason: `מושהה עד ${new Date(e.send_paused_until as string)
-        .toLocaleString("he-IL", { timeZone: "Asia/Jerusalem", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}`,
-    })),
-  ];
+  /* The shortlist, and why anything nearer was passed — see send-window.ts,
+     where the rule is tested without a database. */
+  const chosen = chooseEvents(
+    (events ?? []) as (NonNullable<typeof events>[number] & WindowEvent)[],
+    Date.now(), MAX_EVENTS_PER_RUN);
+  const active = chosen.active;
+  const skippedEvents = chosen.skipped.map(s => ({
+    event: s.event.name as string,
+    reason: s.reason === "paused"
+      ? `מושהה עד ${new Date(s.pausedUntil!)
+          .toLocaleString("he-IL", { timeZone: "Asia/Jerusalem", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}`
+      : "אין תמונת הזמנה",
+  }));
 
   if (!active.length)
     return record(sb, { sent: 0, reason: "no_sendable_event", healed, skippedEvents },
