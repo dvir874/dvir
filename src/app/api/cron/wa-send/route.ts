@@ -10,6 +10,7 @@ import {
   getWhatsAppConfig, sendInvitation, toE164, policyFor, rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY, fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendDayBefore, sendRunSummary, sendRidesGroup, nextRetryAt, sendCoupleCheck, sendTableNumber} from "@/lib/whatsapp";
 import { checkEventLinks, brokenSummary } from "@/lib/link-health";
 import { chooseEvents, MAX_EVENTS_PER_RUN, type WindowEvent } from "@/lib/send-window";
+import { forecastDayBefore, pressingDays, forecastMessage, type ForecastEvent } from "@/lib/send-forecast";
 
 export const dynamic = "force-dynamic";
 /* Five minutes, so a run can reach the daily cap instead of a fifth of it.
@@ -867,6 +868,106 @@ function missingForSending(ev: Record<string, unknown>, guestCount: number): str
   return gaps;
 }
 
+/* The evenings that will not fit, while there is still time to do something.
+ *
+ * Everything else in this file reports what happened. This reports what is
+ * going to, and it is the only alert here that fires when nothing is wrong
+ * yet: on 03/09 the system is healthy, every send is succeeding, and the
+ * evening of 21/09 is already 84 messages short because תהל and לאל married on
+ * the same Tuesday. Discovering that at 19:30 on 21/09 is an outage.
+ * Discovering it on 03/09 is a choice about which lever to pull.
+ *
+ * Once a day at most, and only when an evening in the horizon does not fit.
+ * The record goes in wa_runs, which is where "what this run decided" already
+ * lives, so the throttle needs no table of its own. */
+const CAPACITY_HORIZON_DAYS = 21;
+
+async function alertCapacityAhead(
+  sb: ReturnType<typeof createServerClient>,
+  cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+  cap: number,
+): Promise<void> {
+  const to = process.env.ADMIN_ALERT_PHONE;
+  if (!to || cap <= 0) return;
+
+  /* Once in twenty hours. Same shape as the setup alert: often enough that a
+     new confirmation can change the answer, rarely enough to stay readable. */
+  const since = new Date(Date.now() - 20 * 3_600_000).toISOString();
+  const { data: recent } = await sb.from("wa_runs")
+    .select("id").eq("reason", "capacity_alert").gte("created_at", since).limit(1);
+  if ((recent ?? []).length) return;
+
+  const today = israelToday();
+  const horizon = new Date(Date.now() + (CAPACITY_HORIZON_DAYS + 1) * 86_400_000)
+    .toISOString().slice(0, 10);
+
+  const { data: evs } = await sb.from("events")
+    .select("id, name, couple_names, date, send_paused_until")
+    .gte("date", today).lte("date", horizon).order("date").limit(12);
+  if (!(evs ?? []).length) return;
+
+  const forecastable: ForecastEvent[] = [];
+  for (const ev of evs ?? []) {
+    /* Confirmed drives the send; pending is what it can still become. Both
+       exclude the demo guest and anyone without a number, because neither is
+       ever messaged. */
+    const [{ count: confirmed }, { count: pending }] = await Promise.all([
+      sb.from("guests").select("id", { count: "exact", head: true })
+        .eq("event_id", ev.id as string).eq("status", "confirmed")
+        .neq("category", "demo").not("phone", "is", null).neq("phone", ""),
+      sb.from("guests").select("id", { count: "exact", head: true })
+        .eq("event_id", ev.id as string).eq("status", "pending")
+        .neq("category", "demo").not("phone", "is", null).neq("phone", ""),
+    ]);
+    forecastable.push({
+      id: ev.id as string,
+      name: coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name ?? ""),
+      date: String(ev.date ?? ""),
+      confirmed: confirmed ?? 0,
+      pending: pending ?? 0,
+      pausedUntil: (ev.send_paused_until as string | null) ?? null,
+    });
+  }
+
+  const pressing = pressingDays(
+    forecastDayBefore(forecastable, cap, today, CAPACITY_HORIZON_DAYS));
+  if (!pressing.length) return;
+
+  /* Certain before near.
+   *
+   * Nearest-first was the obvious rule and it is the wrong one here. On 03/09
+   * it picks the evening of 07/09 — שחר, 230 confirmed against a cap of 250,
+   * short only if twenty more of her sixty undecided guests say yes — and says
+   * nothing about 21/09, which is already 84 messages short and certain.
+   *
+   * The nearer one is also the one nothing can be done about: business
+   * verification does not arrive in four days. The one eighteen days out is
+   * the one where telling him early is the entire value. So: the first evening
+   * that is certainly short, and only if none is, the nearest that might be.
+   *
+   * Anything else pressing is named in a line, not dropped. */
+  const worst = pressing.find(d => d.short > 0) ?? pressing[0];
+  const others = pressing.filter(d => d !== worst);
+  await sendRunSummary(cfg, to, {
+    event: `📊 תקרת שליחה — ${worst.date.slice(8, 10)}/${worst.date.slice(5, 7)}`,
+    sent: String(worst.required),
+    failed: worst.short ? String(worst.short) : "—",
+    left: String(worst.inDays),
+    attention: forecastMessage(worst)
+      + (others.length
+          ? `\nגם ${others.map(d => `${d.date.slice(8, 10)}/${d.date.slice(5, 7)}`).join(" · ")} על הגבול.`
+          : ""),
+  });
+
+  await sb.from("wa_runs").insert({
+    reason: "capacity_alert", sent: 0, failed: 0, cap,
+    details: { date: worst.date, required: worst.required, cap,
+               short: worst.short, at_ceiling: worst.shortAtCeiling,
+               weddings: worst.weddings,
+               also: others.map(d => d.date) },
+  });
+}
+
 async function alertIncompleteEvents(
   sb: ReturnType<typeof createServerClient>,
   cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
@@ -1537,6 +1638,14 @@ async function runSend(req: NextRequest) {
        Beside the digest rather than inside it, because the digest is driven by
        guest activity and the events this catches have none. */
     try { await alertIncompleteEvents(sb, cfg); }
+    catch { /* a notification must never cost a send */ }
+
+    /* And whether the cap will hold on the evenings that cannot wait — see
+       alertCapacityAhead. This one is different in kind from its neighbours:
+       nothing is broken, nothing is missing, and every check in this file
+       passes. It is arithmetic about a date three weeks out, which is exactly
+       why nobody was ever going to do it by hand. */
+    try { await alertCapacityAhead(sb, cfg, cap); }
     catch { /* a notification must never cost a send */ }
 
     /* And the one thing a finished wedding still needs — see
