@@ -57,8 +57,16 @@ export async function readInvitationImage(
     });
 
     if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      return { ok: false, reason: "failed", detail: `HTTP ${res.status} ${detail.slice(0, 200)}` };
+      /* The provider's own words, trimmed. A 401 says the key is wrong, a 404 says the
+         model name is, and a 429 says neither — and they are indistinguishable
+         from "it did not work". */
+      const body = await res.text().catch(() => "");
+      let msg = body.slice(0, 300);
+      try {
+        const j = JSON.parse(body) as { error?: { type?: string; message?: string } };
+        if (j?.error?.message) msg = `${j.error.type ?? ""} ${j.error.message}`.trim();
+      } catch { /* not JSON */ }
+      return { ok: false, reason: "failed", detail: `HTTP ${res.status} · ${msg}` };
     }
 
     const data = await res.json() as { content?: { type: string; text?: string }[] };

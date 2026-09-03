@@ -107,13 +107,24 @@ async function readImageMode(req: NextRequest) {
     const out = await readInvitationImage(
       new Uint8Array(await file.arrayBuffer()), file.type);
     if (!out.ok) {
+      /* The detail, not swallowed.
+       *
+       * "לא הצלחנו לקרוא את התמונה" covered a wrong key, a wrong model name, a
+       * timeout and a network fault in the same four words — so the first real
+       * failure told Dvir nothing about which of them it was. This route is
+       * behind requireAdmin and its only reader is him, so the underlying
+       * reason belongs on screen rather than in a log he would have to go and
+       * find. */
       const say: Record<string, string> = {
         not_configured: "קריאת הזמנה מתמונה לא מופעלת — חסר ANTHROPIC_API_KEY",
         bad_type: `אפשר JPG, PNG או WEBP — הקובץ הזה הוא ${out.detail ?? "לא מזוהה"}`,
         too_large: `התמונה ${out.detail} והמקסימום 5MB`,
-        failed: "לא הצלחנו לקרוא את התמונה",
+        failed: `לא הצלחנו לקרוא את התמונה — ${out.detail ?? "סיבה לא ידועה"}`,
       };
-      return NextResponse.json({ error: say[out.reason] ?? "שגיאה" }, { status: 400 });
+      console.error(`[intake:image] ${out.reason}: ${out.detail ?? ""}`);
+      return NextResponse.json(
+        { error: say[out.reason] ?? "שגיאה", reason: out.reason, detail: out.detail ?? null },
+        { status: 400 });
     }
     const { rejected, ...fields } = out.read;
     return NextResponse.json({
