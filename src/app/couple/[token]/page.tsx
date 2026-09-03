@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useCallback, useRef } from "react";
+import { useAfterPaint } from "@/lib/use-after-paint";
 import { useRouter } from "next/navigation";
 import {
   CheckCircle, Clock, XCircle, Users, Loader2, AlertCircle,
@@ -1209,12 +1210,15 @@ const ACTIVITY_META: Record<ActivityItem["type"], { emoji: string; text: (i: Act
 
 function BenchmarkBadge({ token }: { token: string }) {
   const [pct, setPct] = useState<number | null>(null);
+  const afterPaint = useAfterPaint();
+
   useEffect(() => {
+    if (!afterPaint) return;
     fetch(`/api/couple/${token}/benchmark`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (typeof d?.percentile === "number" && d.percentile >= 50) setPct(d.percentile); })
       .catch(() => {});
-  }, [token]);
+  }, [afterPaint, token]);
   if (pct === null) return null;
   return (
     <div style={{ background:"linear-gradient(135deg,rgba(197,164,109,0.12),rgba(74,124,89,0.08))", border:"1px solid rgba(197,164,109,0.3)", borderRadius:12, padding:"10px 16px", marginBottom:12, textAlign:"center" }}>
@@ -1252,12 +1256,15 @@ function ParentShareButton({ token }: { token: string }) {
 function ActivityFeed({ token }: { token: string }) {
   const [items, setItems] = useState<ActivityItem[]>([]);
 
+  const afterPaint = useAfterPaint();
+
   useEffect(() => {
+    if (!afterPaint) return;
     fetch(`/api/couple/${token}/activity`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (Array.isArray(d?.items)) setItems(d.items); })
       .catch(() => {});
-  }, [token]);
+  }, [afterPaint, token]);
 
   if (items.length === 0) return null;
 
@@ -1382,6 +1389,11 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
 
   useEffect(() => { load(); }, [load]);
 
+  /* Everything below the fold waits for the screen to exist first — see
+     useAfterPaint. The guest list and the answers are what a couple opened this
+     for; the other ten requests are mostly empty and were racing them. */
+  const afterPaint = useAfterPaint();
+
   // Live RSVP polling — beep + toast when new confirmation arrives
   useEffect(() => {
     const id = setInterval(async () => {
@@ -1417,18 +1429,19 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
 
   // Fetch announcements from admin
   useEffect(() => {
+    if (!afterPaint) return;
     fetch(`/api/couple/${token}/announcements`)
       .then(r => r.json())
       .then(d => Array.isArray(d) && setAnnouncements(d))
       .catch(() => {});
-  }, [token]);
+  }, [afterPaint, token]);
 
   /* Token-scoped, not the admin routes. /api/wedding-tasks lives behind the
      admin middleware, so this returned 401, Array.isArray(401 body) was false,
      tasks stayed empty and the card read "0 משימות נותרו" to a couple with 63
      of them. A 401 was being rendered as an achievement. */
   useEffect(() => {
-    if (!data?.event?.id) return;
+    if (!afterPaint || !data?.event?.id) return;
     fetch(`/api/couple/${token}/tasks`)
       .then((r) => r.ok ? r.json() : null)
       .then((d) => Array.isArray(d) && setTasks(d))
@@ -1693,11 +1706,14 @@ function TimelineEditor({ token }: { token: string }) {
   const [label,   setLabel]   = useState("");
   const [saving,  setSaving]  = useState(false);
 
+  const afterPaint = useAfterPaint();
+
   useEffect(() => {
+    if (!afterPaint) return;
     fetch(`/api/couple/${token}/timeline`)
       .then(r => r.json())
       .then(d => { if (Array.isArray(d)) setItems(d); setLoaded(true); });
-  }, [token]);
+  }, [afterPaint, token]);
 
   async function save(next: TimelineItem[]) {
     const sorted = [...next].sort((a, b) => a.time.localeCompare(b.time));
@@ -1978,11 +1994,14 @@ function BudgetTracker({ token }: { token: string }) {
   const [amount,   setAmount]   = useState("");
   const [saving,   setSaving]   = useState(false);
 
+  const afterPaint = useAfterPaint();
+
   useEffect(() => {
+    if (!afterPaint) return;
     fetch(`/api/couple/${token}/budget`)
       .then(r => r.json())
       .then(d => Array.isArray(d) && setItems(d));
-  }, [token]);
+  }, [afterPaint, token]);
 
   async function add() {
     if (!amount || Number(amount) <= 0) return;
@@ -2169,11 +2188,14 @@ function GiftsTracker({ token }: { token: string }) {
   const [notes,   setNotes]   = useState("");
   const [saving,  setSaving]  = useState(false);
 
+  const afterPaint = useAfterPaint();
+
   useEffect(() => {
+    if (!afterPaint) return;
     fetch(`/api/couple/${token}/gifts-log`)
       .then(r => r.json())
       .then(d => Array.isArray(d) && setGifts(d));
-  }, [token]);
+  }, [afterPaint, token]);
 
   async function add() {
     if (!name || !amount || Number(amount) <= 0) return;
