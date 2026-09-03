@@ -2127,6 +2127,18 @@ async function runSend(req: NextRequest) {
   }
 
   const sent: string[] = [];
+  /* Which wedding each message actually belonged to.
+   *
+   * A run picks ONE wedding and then, since blocks 2b and 3b, sends to the
+   * others too — correctly, each guest getting their own invitation from
+   * `packs`. What did not follow was the reporting: the run record and the
+   * summary both carried `ev.name`, the wedding that was SELECTED, whatever
+   * the messages were. On 03/09 at 16:01 that produced the honest-looking
+   * sentence "חתונת שחר ואורי · 173 נשלחו" for 173 invitations that all went
+   * to שלמה's guests. Nothing was mis-sent; everything was mis-labelled, which
+   * is worse in one specific way — it is the number Dvir would have used to
+   * decide whether a wedding was progressing. */
+  const sentByEvent = new Map<string, number>();
   const failed: { name: string; error: string }[] = [];
   /* Guests who reached the batch from a query scoped to a different wedding.
      Always empty in a healthy run; loud in the run where it is not. */
@@ -2774,6 +2786,8 @@ async function runSend(req: NextRequest) {
 
       if (res.ok) {
         sent.push(g.name);
+        sentByEvent.set(g.event_id as string,
+          (sentByEvent.get(g.event_id as string) ?? 0) + 1);
         /* Dequeued only once the send has actually succeeded. This loop used
            to clear retry_after BEFORE the attempt, so a retry that failed was
            evicted from the queue and nothing anywhere put it back — the guest
@@ -2867,6 +2881,19 @@ async function runSend(req: NextRequest) {
    *
    * Never allowed to break a send — the whole thing is wrapped and swallowed.
    * A failed alert must not lose a run that already put messages on phones. */
+  /* Who this run actually spoke for. `active` carries every wedding the run may
+     serve, and `ev` is only the one the selection landed on. */
+  const nameOf = (id: string): string =>
+    (active.find(e => e.id === id)?.name as string) ?? (ev.id === id ? ev.name as string : id);
+  const byVolume = [...sentByEvent].sort((a, b) => b[1] - a[1]);
+  const topEventId = (byVolume[0]?.[0] as string) ?? (ev.id as string);
+  /* "שלמה 173" — or "שלמה 173 + שחר 12" when a run served two. Naming the
+     count beside each wedding is the part that makes a wrong attribution
+     visible instead of plausible. */
+  const sentLabel = byVolume.length
+    ? byVolume.map(([id, n]) => `${nameOf(id)} ${n}`).join(" + ")
+    : (ev.name as string);
+
   try {
     const alertTo = process.env.ADMIN_ALERT_PHONE;
     const hourIl = Number(new Date().toLocaleString("en-GB",
@@ -2920,7 +2947,7 @@ async function runSend(req: NextRequest) {
 
     if (alertTo && (sent.length > 0 || needsAction || hourIl >= 21)) {
       await sendRunSummary(cfg, alertTo, {
-        event: ev.name as string,
+        event: sentLabel,
         sent: String(sent.length),
         failed: String(failed.length),
         left: String(Math.max(0, cap - usage.recipients - sent.length)),
@@ -2934,7 +2961,7 @@ async function runSend(req: NextRequest) {
   } catch { /* an alert must never cost a run */ }
 
   return record(sb, {
-    event: ev.name,
+    event: sentLabel,
     /* Everything this run sent, not only the group it chose.
      *
      * This wrote sent.length — the invitations and reminders for one event —
@@ -2967,8 +2994,14 @@ async function runSend(req: NextRequest) {
     unreachable: [...unreachable.values()].length,
     healed, statusesApplied,
     details: { sent, failed },
+    /* Per wedding, so a report can never again attribute one couple's
+       invitations to another. */
+    sentPerEvent: [...sentByEvent].map(([id, n]) => ({ event: nameOf(id), sent: n })),
   }, {
-    event_id: ev.id, cap, tier: health.tier, quality: health.quality,
+    /* The wedding that actually received the messages, not the one the
+       selection landed on. With several, the one that got the most — a single
+       column cannot hold two, and `sentPerEvent` above holds all of them. */
+    event_id: topEventId, cap, tier: health.tier, quality: health.quality,
     posture: health.posture, window_used: usage.recipients,
   });
 }
