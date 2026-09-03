@@ -203,7 +203,7 @@ export async function handleGuestReply(
     if (shadow.kind !== took) {
       console.warn(`[wa-decide:shadow] took=${took} mirror=${shadow.kind} said=${JSON.stringify(said.slice(0, 60))}`);
     }
-    return done("decline_confirm_ask");
+    return true;
   };
   if (live && guest.chat_state === ASK_COUNT) {
     /* Changing their mind while the headcount question is open.
@@ -230,14 +230,14 @@ export async function handleGuestReply(
         { id: "no_mistake",  title: "רגע, טעיתי" },
       ]);
       if (!asked.ok) await setState(sb, guest.id, null);
-      return done("count_ask_again");
+      return done("decline_confirm_ask");
     }
     if (/^rsvp_yes$/.test(said) || said === "מגיע") {
       /* Already recorded as attending; just ask the count again. */
       await logOut(`${guest.name}, כמה אתם מגיעים?`);
       await sendList(cfg, to, `${guest.name}, כמה אתם מגיעים?`, "בחרו מספר",
         [1, 2, 3, 4, 5, 6, 7, 8].map(n => ({ id: `count_${n}`, title: String(n) })));
-      return done("count_with_kids");
+      return done("count_ask_again");
     }
 
     /* "1+ 2 ילדים" before a plain number, because a guest who answers in parts
@@ -249,18 +249,18 @@ export async function handleGuestReply(
       await sayText(cfg, to,
         `מעולה, רשמנו ${parts.total} 🤍 מתוכם ${parts.kids} ילדים.\n` +
         `מחכים לראותכם בשמחה!\n\nרוצים לשנות? פשוט כתבו לנו כאן.`);
-      return done("count_ask_again");
+      return done("count_with_kids");
     }
 
     const n = parseGuestCount(said);
     if (n === null) {
       await sayText(cfg, to, "לא הצלחנו להבין את המספר 🙏\nכתבו בבקשה מספר בלבד — למשל 2");
-      return done("count_recorded");
+      return done("count_ask_again");
     }
     await record(sb, guest, "confirmed", n);
     await sayText(cfg, to, `מעולה, רשמנו ${n} 🤍\nמחכים לראותכם בשמחה!\n\n` +
       `רוצים לשנות? פשוט כתבו לנו כאן.`);
-    return done("change_yes");
+    return done("count_recorded");
   }
 
   if (live && guest.chat_state?.startsWith(`${ASK_CHANGE}:`)) {
@@ -268,19 +268,19 @@ export async function handleGuestReply(
     if (/^(yes_change|כן)/.test(said) && Number.isFinite(proposed)) {
       await record(sb, guest, "confirmed", proposed);
       await sayText(cfg, to, `עודכן ל-${proposed} 🤍 מחכים לראותכם!`);
-      return done("change_no");
+      return done("change_yes");
     }
     /* Anything that is not a clear yes leaves the existing answer alone. */
     await setState(sb, guest.id, null);
     await sayText(cfg, to, `בסדר גמור — השארנו ${guest.guest_count ?? 1}.\nאם תרצו לשנות, כתבו לנו כאן 🙏`);
-    return done("decline_recorded");
+    return done("change_no");
   }
 
   if (live && guest.chat_state === ASK_DECLINE) {
     if (/^(yes_decline|כן)/.test(said)) {
       await record(sb, guest, "declined");
       await sayText(cfg, to, "תודה שעדכנתם 🤍 נתגעגע!\nאם משהו ישתנה — כתבו לנו כאן.");
-      return done("decline_cancelled");
+      return done("decline_recorded");
     }
     /* Anything that is not a clear yes returns them to the start rather than
        being read as a decline. */
