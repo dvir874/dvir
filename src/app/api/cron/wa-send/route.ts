@@ -11,6 +11,7 @@ import {
 import { checkEventLinks, brokenSummary } from "@/lib/link-health";
 import { chooseEvents, MAX_EVENTS_PER_RUN, type WindowEvent } from "@/lib/send-window";
 import { dayOfWindow, dayOfTargets } from "@/lib/day-of";
+import { classifyManualWork, manualWorkMessage, type LastContact } from "@/lib/manual-work";
 import { forecastDayBefore, pressingDays, forecastMessage, type ForecastEvent } from "@/lib/send-forecast";
 
 export const dynamic = "force-dynamic";
@@ -1075,6 +1076,84 @@ function missingForSending(ev: Record<string, unknown>, guestCount: number): str
  * lives, so the throttle needs no table of its own. */
 const CAPACITY_HORIZON_DAYS = 21;
 
+/* Everything left for a person, once a day, without being asked.
+ *
+ * Dvir, 03/09, starting a new job: "כל אלה אני בסוף צריך לעבוד עליהם ידנית אבל
+ * אני לא יודע את זה מבלי להיכנס לאדמין ואני רוצה לדעת את זה גם כשאני לא באדמין
+ * שיש דברים לטיפול."
+ *
+ * The information already existed — as coloured chips on /admin, which is to
+ * say it existed for somebody already looking. A guest who asked to stop, a
+ * number with no WhatsApp, someone who wrote a question nobody answered: all
+ * of them sat on a screen he was about to stop opening daily.
+ *
+ * A business that runs itself is not one that hides what it could not finish.
+ * See manual-work.ts for what counts and what deliberately does not — 131049
+ * retries itself and never appears here, because a list containing things
+ * nobody has to do is a list nobody reads.
+ *
+ * Once a day, in the evening, alongside the digest. Silent when there is
+ * nothing to do. */
+async function alertManualWork(
+  sb: ReturnType<typeof createServerClient>,
+  cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+): Promise<void> {
+  const to = process.env.ADMIN_ALERT_PHONE;
+  if (!to) return;
+
+  const today = israelToday();
+  const { data: evs } = await sb.from("events")
+    .select("id, name, couple_names, date")
+    .gte("date", today).order("date").limit(4);
+
+  const nowMs = Date.now();
+  for (const ev of evs ?? []) {
+    const { data: gs } = await sb.from("guests")
+      .select("id, name, phone, status, category, do_not_contact")
+      .eq("event_id", ev.id as string).limit(900);
+    const real = (gs ?? []).filter(g => g.category !== "demo");
+    if (!real.length) continue;
+
+    const ids = real.map(g => g.id as string);
+    const contact = new Map<string, LastContact>();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data: ms } = await sb.from("wa_messages")
+        .select("guest_id, direction, status, error_code, created_at")
+        .in("guest_id", ids.slice(i, i + 100));
+      for (const m of ms ?? []) {
+        const id = m.guest_id as string;
+        if (!id) continue;
+        const at = m.created_at as string;
+        const cur = contact.get(id) ?? {};
+        if (m.direction === "in") {
+          if (!cur.lastInAt || at > cur.lastInAt) cur.lastInAt = at;
+        } else {
+          if (["delivered", "read"].includes(m.status as string)) cur.arrived = true;
+          if (!cur.lastOutAt || at > cur.lastOutAt) {
+            cur.lastOutAt = at;
+            cur.lastCode = (m.error_code as number | null) ?? null;
+          }
+        }
+        contact.set(id, cur);
+      }
+    }
+
+    const items = classifyManualWork(real as Parameters<typeof classifyManualWork>[0], contact);
+    const days = Math.max(0, Math.ceil((new Date(String(ev.date)).getTime() - nowMs) / 86_400_000));
+    const body = manualWorkMessage(
+      coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name ?? ""), days, items);
+    if (!body) continue;
+
+    try {
+      await sendRunSummary(cfg, to, {
+        event: "🙋 מחכה לך",
+        sent: String(items.length), failed: "—", left: String(days),
+        attention: body,
+      });
+    } catch { /* an alert must never cost a send */ }
+  }
+}
+
 async function alertCapacityAhead(
   sb: ReturnType<typeof createServerClient>,
   cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
@@ -1839,6 +1918,11 @@ async function runSend(req: NextRequest) {
        passes. It is arithmetic about a date three weeks out, which is exactly
        why nobody was ever going to do it by hand. */
     try { await alertCapacityAhead(sb, cfg, cap); }
+    catch { /* a notification must never cost a send */ }
+
+    /* And everything the automation could not finish — see alertManualWork.
+       The one report that is about people rather than numbers. */
+    try { await alertManualWork(sb, cfg); }
     catch { /* a notification must never cost a send */ }
 
     /* And the one thing a finished wedding still needs — see

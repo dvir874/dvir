@@ -122,6 +122,26 @@ export async function GET(req: NextRequest) {
     (data ?? []).forEach(r => sentIds.add(r.guest_id));
   }
 
+  /* And whoever has an accepted message, whatever guest_events says.
+   *
+   * The two records are written by the same send and either one can be lost:
+   * אשר כהן and חיים כצמן, both at שחר's wedding, have an outbound message
+   * Meta accepted and read — and no invite_sent row. The screen therefore
+   * showed them under "⚠️ טרם נשלחה הזמנה", five days before the wedding, and
+   * the honest reading of that chip is "send to them" — which would have
+   * re-invited two people who had already read their invitation.
+   *
+   * A wamid is Meta's receipt. Either record proves the message left, and
+   * requiring both means the weaker of the two decides. */
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data, error } = await sb
+      .from("wa_messages").select("guest_id")
+      .eq("direction", "out").not("wamid", "is", null)
+      .in("guest_id", ids.slice(i, i + 100));
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    (data ?? []).forEach(r => r.guest_id && sentIds.add(r.guest_id as string));
+  }
+
   /* Sends made by hand from a personal phone. They produce no wa_messages row
      at all, so without this they landed in "ללא נתוני מסירה" — the operator
      had just messaged them minutes earlier and the screen said it did not
