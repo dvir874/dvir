@@ -196,6 +196,12 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
   const [roomZones, setRoomZones] = useState("");
   const [roomOpen, setRoomOpen] = useState(false);
   const [roomSaving, setRoomSaving] = useState(false);
+  /* The designed "הדגמת חוסר" control. It shows the couple what a half-entered
+     plan looks like before they can mistake one for a complete room — the
+     state I was actually in when I told שחר 119 of her guests had nowhere to
+     sit. Saving is blocked while it is on, because the number on screen is
+     not the number they typed. */
+  const [roomDemoShort, setRoomDemoShort] = useState(false);
 
   /* "24=10, 35=9" and "1-7=מרכז, 8-15=מפלס א" read the same way. */
   const parseRanges = (text: string): Map<number, string> => {
@@ -356,75 +362,129 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "1.5rem 1rem 4rem" }}>
 
-        {/* The hall, as the venue drew it.
-            Uses the card, the border and the gold of every other panel on this
-            screen — no new visual language, only a form the couple did not
-            have. Opens by itself when the room has not been described yet,
-            because that is the first thing that has to happen. */}
+        {/* The hall, as the venue drew it. Stitch design "פריסת שולחנות",
+            approved 03/09. Implemented as designed: steppers rather than free
+            number fields, the critical multi-page notice as its own bordered
+            card, per-field helper text, and a live summary that states the
+            arithmetic before anything is saved.
+
+            ארץ האיילים sent שחר a two-page plan. I read one page, entered 310
+            seats for a hall of 448, and told her 119 of her guests had nowhere
+            to sit. Every element below exists because of that. */}
         {(roomOpen || data.tables.length === 0) && (
-          <div style={{ background: "rgba(255,255,255,0.92)", border: "1px solid rgba(197,164,109,0.3)", borderRadius: "1.25rem", padding: "1.25rem", marginBottom: "1.25rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.85rem" }}>
-              <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.1rem", fontWeight: 700, color: "#1C1008", margin: 0 }}>
-                🏛️ האולם שלכם
-              </h2>
+          <div style={{ background: "rgba(255,255,255,0.94)", border: "1px solid rgba(197,164,109,0.28)", borderRadius: 20, padding: "1.4rem 1.25rem", marginBottom: "1.25rem", boxShadow: "0 6px 28px rgba(28,16,8,0.05)" }}>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: "0.9rem" }}>
+              <div>
+                <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.45rem", fontWeight: 800, color: "#1C1008", margin: "0 0 6px" }}>
+                  🏛️ האולם שלכם
+                </h2>
+                <p style={{ fontSize: 13.5, color: "rgba(28,16,8,0.55)", lineHeight: 1.6, margin: 0, maxWidth: 460 }}>
+                  קחו את שרטוט האולם שקיבלתם מהמקום והעתיקו ממנו את המספרים.
+                </p>
+              </div>
               {data.tables.length > 0 && (
-                <button onClick={() => setRoomOpen(false)} style={{ border: "none", background: "none", color: "rgba(28,16,8,0.45)", cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}>
+                <button onClick={() => setRoomOpen(false)} style={{ border: "none", background: "none", color: "rgba(28,16,8,0.4)", cursor: "pointer", fontSize: 13, fontFamily: "inherit", padding: 4 }}>
                   סגירה
                 </button>
               )}
             </div>
-            <p style={{ fontSize: 13, color: "rgba(28,16,8,0.55)", lineHeight: 1.65, margin: "0 0 1rem" }}>
-              קחו את שרטוט האולם שקיבלתם מהמקום והעתיקו ממנו את המספרים.
-              <strong> שימו לב אם יש בו יותר מעמוד אחד.</strong>
-            </p>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-              <div>
-                <label style={{ display: "block", fontSize: 12.5, color: "rgba(28,16,8,0.6)", marginBottom: 5 }}>כמה שולחנות בסך הכול?</label>
-                <input value={roomCount} onChange={e => setRoomCount(e.target.value)} inputMode="numeric" placeholder="38"
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #E8E0D4", fontSize: 15, fontFamily: "inherit", background: "#fff" }} />
+            {/* The notice that would have caught my own mistake. Its own card,
+                its own border, and the phrase carrying the risk underlined. */}
+            <div style={{ background: "rgba(192,80,80,0.06)", borderRight: "3px solid #C05050", borderRadius: 12, padding: "12px 14px", marginBottom: "1.1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
+                <span style={{ fontSize: 14 }}>📕</span>
+                <strong style={{ fontSize: 13.5, color: "#1C1008" }}>דגש קריטי לפני שמתחילים</strong>
               </div>
-              <div>
-                <label style={{ display: "block", fontSize: 12.5, color: "rgba(28,16,8,0.6)", marginBottom: 5 }}>כמה יושבים בשולחן?</label>
-                <input value={roomCap} onChange={e => setRoomCap(e.target.value)} inputMode="numeric" placeholder="12"
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #E8E0D4", fontSize: 15, fontFamily: "inherit", background: "#fff" }} />
-              </div>
+              <p style={{ fontSize: 13, color: "rgba(28,16,8,0.62)", lineHeight: 1.65, margin: 0 }}>
+                שימו לב אם יש בשרטוט{" "}
+                <span style={{ color: "#C05050", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 3 }}>יותר מעמוד אחד</span>
+                {" "}(מפלסים, חצר, מרפסת).
+              </p>
             </div>
 
-            <label style={{ display: "block", fontSize: 12.5, color: "rgba(28,16,8,0.6)", marginBottom: 5 }}>
-              שולחנות עם מספר אחר <span style={{ color: "rgba(28,16,8,0.4)" }}>(לא חובה)</span>
-            </label>
-            <input value={roomExcept} onChange={e => setRoomExcept(e.target.value)} placeholder="24=10, 35=9, 38=9"
-              style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #E8E0D4", fontSize: 14, fontFamily: "inherit", background: "#fff", marginBottom: 12 }} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+              <Stepper label="כמה שולחנות בסך הכול?" value={roomCount} onChange={setRoomCount} min={1} max={200} fallback={38} />
+              <Stepper label="כמה יושבים בשולחן?" value={roomCap} onChange={setRoomCap} min={2} max={40} fallback={12} />
+            </div>
 
-            <label style={{ display: "block", fontSize: 12.5, color: "rgba(28,16,8,0.6)", marginBottom: 5 }}>
-              אזורים באולם <span style={{ color: "rgba(28,16,8,0.4)" }}>(לא חובה — שומר משפחה באותו אזור)</span>
-            </label>
-            <input value={roomZones} onChange={e => setRoomZones(e.target.value)} placeholder="1-7=מרכז, 8-15=מפלס א, 27-38=רחבה"
-              style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #E8E0D4", fontSize: 14, fontFamily: "inherit", background: "#fff", marginBottom: 14 }} />
+            <RoomField
+              label="שולחנות עם מספר אחר" optional="(לא חובה)"
+              value={roomExcept} onChange={setRoomExcept}
+              placeholder="24=10, 35=9, 38=9"
+              help="למשל: שולחן 24 עם 10 מקומות, שולחן 35 עם 9 מקומות."
+            />
+            <RoomField
+              label="אזורים באולם" optional="(לא חובה — שומר משפחה באותו אזור)"
+              value={roomZones} onChange={setRoomZones}
+              placeholder="1-7=מרכז, 8-15=מפלס א, 27-38=רחבה"
+              help="שיוך שולחנות לאזורים יעזור למערכת להושיב חברים ומשפחות יחד באזור הנכון."
+            />
 
-            {roomPreview && (
-              <div style={{ background: "rgba(197,164,109,0.1)", borderRadius: 12, padding: "12px 14px", marginBottom: 14, fontSize: 13.5, color: "#1C1008", lineHeight: 1.7 }}>
-                <strong>{roomPreview.tables.length} שולחנות · {roomPreview.seats} מקומות</strong>
-                {totalGuests > 0 && (
-                  <div style={{ color: roomPreview.seats >= totalGuests ? "#4A7C59" : "#C05050", marginTop: 3 }}>
-                    {roomPreview.seats >= totalGuests
-                      ? `מספיק ל-${totalGuests} האורחים שאישרו, ונשארים ${roomPreview.seats - totalGuests} מקומות`
-                      : `❗ ${totalGuests} אישרו — חסרים ${totalGuests - roomPreview.seats} מקומות`}
+            {/* The arithmetic, before anything is saved. */}
+            {roomPreview && (() => {
+              const seats = roomDemoShort ? Math.round(roomPreview.seats * 0.7) : roomPreview.seats;
+              const enough = seats >= totalGuests;
+              return (
+                <div style={{ background: "rgba(197,164,109,0.09)", border: "1px solid rgba(197,164,109,0.25)", borderRadius: 16, padding: "14px 16px", marginBottom: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#1C1008" }}>📋 סיכום תפוסה חי</span>
+                    <span style={{ fontSize: 11, color: "rgba(28,16,8,0.45)", background: "rgba(255,255,255,0.7)", borderRadius: 999, padding: "3px 9px" }}>מתעדכן אוטומטית</span>
                   </div>
-                )}
-              </div>
-            )}
+                  <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.35rem", fontWeight: 800, color: "#1C1008", margin: "0 0 3px" }}>
+                    {roomPreview.tables.length} שולחנות · {seats} מקומות
+                  </p>
+                  <p style={{ fontSize: 12, color: "rgba(28,16,8,0.45)", margin: "0 0 12px" }}>
+                    תכולה כוללת מחושבת על פי כל השולחנות וההחרגות
+                  </p>
+                  {totalGuests > 0 && (
+                    <div style={{
+                      display: "flex", alignItems: "flex-start", gap: 9,
+                      background: enough ? "rgba(107,123,90,0.1)" : "rgba(192,80,80,0.08)",
+                      border: `1px solid ${enough ? "rgba(107,123,90,0.3)" : "rgba(192,80,80,0.3)"}`,
+                      borderRadius: 12, padding: "11px 13px",
+                    }}>
+                      <span style={{ fontSize: 14, lineHeight: 1.4 }}>{enough ? "✅" : "❗"}</span>
+                      <div>
+                        <p style={{ fontSize: 13.5, fontWeight: 600, color: enough ? "#4A7C59" : "#C05050", margin: 0, lineHeight: 1.5 }}>
+                          {enough
+                            ? `מספיק ל-${totalGuests} האורחים שאישרו, ונשארים ${seats - totalGuests} מקומות`
+                            : `${totalGuests} אישרו — חסרים ${totalGuests - seats} מקומות`}
+                        </p>
+                        <p style={{ fontSize: 11.5, color: "rgba(28,16,8,0.5)", margin: "3px 0 0", lineHeight: 1.55 }}>
+                          {enough
+                            ? "החלוקה מאוזנת ותאפשר מרווח לשינויים של הרגע האחרון"
+                            : "בדקו שוב אם יש עמוד נוסף בשרטוט — מפלס, חצר או מרפסת"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 10 }}>
+                    <span style={{ fontSize: 11.5, color: "rgba(28,16,8,0.4)" }}>בדקו מצב שגיאה (הזנת עמוד 1 בלבד):</span>
+                    <button onClick={() => setRoomDemoShort(v => !v)}
+                      style={{ border: "1px solid rgba(197,164,109,0.4)", background: roomDemoShort ? "rgba(197,164,109,0.2)" : "#fff", color: "rgba(28,16,8,0.65)", borderRadius: 999, padding: "4px 11px", fontSize: 11.5, cursor: "pointer", fontFamily: "inherit" }}>
+                      הדגמת חוסר
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
 
-            <button onClick={saveRoom} disabled={!roomPreview || roomSaving}
-              style={{ width: "100%", padding: "13px 0", borderRadius: 12, border: "none", cursor: roomPreview ? "pointer" : "default",
-                background: roomPreview ? "#C5A46D" : "#E8E0D4", color: roomPreview ? "#1C1008" : "rgba(28,16,8,0.4)",
-                fontSize: 15, fontWeight: 600, fontFamily: "inherit" }}>
-              {roomSaving ? "שומר…" : "שמירת האולם"}
+            <button onClick={saveRoom} disabled={!roomPreview || roomSaving || roomDemoShort}
+              style={{ width: "100%", padding: "15px 0", borderRadius: 14, border: "none",
+                cursor: roomPreview && !roomDemoShort ? "pointer" : "default",
+                background: roomPreview && !roomDemoShort ? "#C5A46D" : "#E8E0D4",
+                color: roomPreview && !roomDemoShort ? "#1C1008" : "rgba(28,16,8,0.4)",
+                fontSize: 15.5, fontWeight: 700, fontFamily: "inherit",
+                boxShadow: roomPreview && !roomDemoShort ? "0 6px 18px rgba(197,164,109,0.3)" : "none" }}>
+              {roomSaving ? "שומר…" : "✓ שמירת האולם"}
             </button>
+            <p style={{ textAlign: "center", fontSize: 11.5, color: "rgba(28,16,8,0.4)", margin: "9px 0 0" }}>
+              תוכלו לערוך, להזיז שולחנות ולשנות מיקומים בכל שלב
+            </p>
           </div>
         )}
-
 
         {/* F10 — Seating Simulator */}
         {showSimulator && data.tables.length > 0 && (
@@ -589,6 +649,57 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
         )}
       </div>
       <HelpButton token={token} />
+    </div>
+  );
+}
+
+/* Stepper and field, from the Stitch design. A stepper rather than a bare
+   number input because "38" is reached by nudging far more often than by
+   typing, and because a mistyped digit here is a hall of 380 seats. */
+function Stepper({ label, value, onChange, min, max, fallback }: {
+  label: string; value: string; onChange: (v: string) => void;
+  min: number; max: number; fallback: number;
+}) {
+  const n = parseInt(value, 10);
+  const cur = Number.isFinite(n) ? n : fallback;
+  const set = (v: number) => onChange(String(Math.max(min, Math.min(max, v))));
+  const btn = {
+    width: 34, height: 34, borderRadius: 10, border: "1px solid #E8E0D4",
+    background: "#fff", color: "#1C1008", fontSize: 17, cursor: "pointer",
+    fontFamily: "inherit", lineHeight: 1,
+  } as const;
+  return (
+    <div style={{ background: "#fff", border: "1px solid #E8E0D4", borderRadius: 14, padding: "11px 12px" }}>
+      <label style={{ display: "block", fontSize: 12.5, color: "rgba(28,16,8,0.6)", marginBottom: 9 }}>{label}</label>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <button onClick={() => set(cur + 1)} style={btn} aria-label="הוספה">+</button>
+        <input
+          value={value} onChange={e => onChange(e.target.value)} inputMode="numeric"
+          placeholder={String(fallback)}
+          style={{ flex: 1, minWidth: 0, textAlign: "center", border: "none", outline: "none",
+            background: "transparent", fontSize: 20, fontWeight: 700, color: "#1C1008",
+            fontFamily: "Frank Ruhl Libre, serif" }} />
+        <button onClick={() => set(cur - 1)} style={btn} aria-label="הפחתה">-</button>
+      </div>
+    </div>
+  );
+}
+
+function RoomField({ label, optional, value, onChange, placeholder, help }: {
+  label: string; optional: string; value: string;
+  onChange: (v: string) => void; placeholder: string; help: string;
+}) {
+  return (
+    <div style={{ background: "#fff", border: "1px solid #E8E0D4", borderRadius: 14, padding: "11px 12px", marginBottom: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "#1C1008" }}>{label}</span>
+        <span style={{ fontSize: 11.5, color: "rgba(28,16,8,0.38)" }}>{optional}</span>
+      </div>
+      <input
+        value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+        style={{ width: "100%", padding: "11px 12px", borderRadius: 10, border: "1px solid #E8E0D4",
+          fontSize: 14, fontFamily: "inherit", background: "#FDFAF5", color: "#1C1008", minHeight: 44 }} />
+      <p style={{ fontSize: 11.5, color: "rgba(28,16,8,0.42)", margin: "7px 0 0", lineHeight: 1.55 }}>{help}</p>
     </div>
   );
 }
