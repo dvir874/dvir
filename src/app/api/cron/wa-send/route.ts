@@ -7,9 +7,10 @@ import { eventTimes, eventDay} from "@/lib/event-times";
 import { venueLine } from "@/lib/venue";
 import { weddingDateLine } from "@/lib/hebrew-date";
 import {
-  getWhatsAppConfig, sendInvitation, toE164, policyFor, rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY, fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendDayBefore, sendRunSummary, sendRidesGroup, nextRetryAt, sendCoupleCheck, sendTableNumber} from "@/lib/whatsapp";
+  getWhatsAppConfig, sendInvitation, toE164, policyFor, rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY, fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendDayBefore, sendRunSummary, sendRidesGroup, nextRetryAt, sendCoupleCheck, sendTableNumber, sendDayOf} from "@/lib/whatsapp";
 import { checkEventLinks, brokenSummary } from "@/lib/link-health";
 import { chooseEvents, MAX_EVENTS_PER_RUN, type WindowEvent } from "@/lib/send-window";
+import { dayOfWindow, dayOfTargets } from "@/lib/day-of";
 import { forecastDayBefore, pressingDays, forecastMessage, type ForecastEvent } from "@/lib/send-forecast";
 
 export const dynamic = "force-dynamic";
@@ -603,6 +604,160 @@ async function notifyDayBefore(
   };
 }
 
+/* The extra line a guest gets with the wedding details: their table number and
+ * whatever the couple wanted said.
+ *
+ * ONE implementation, used by both the eve message and the morning catch-up.
+ * They must agree: a guest reached by both would otherwise be given two table
+ * numbers, and the second would be the one they believed. That is not a
+ * hypothetical — the two functions compute the same thing from the same two
+ * tables, and the only thing keeping them identical would have been memory.
+ *
+ * Both halves are optional and either alone is fine; with neither, the sender
+ * falls back to the four-parameter template and nothing changes.
+ */
+/* The morning catch-up — see day-of.ts for the rule and send-forecast.ts for
+ * the arithmetic that makes it necessary.
+ *
+ * Asks, on the wedding day, who was never told when to arrive, and tells them.
+ * It does not know or care WHY they were missed: the cap running out on a
+ * shared evening is the case that prompted it, but a transient failure, a
+ * guest who confirmed after the eve's send, and an event unpaused too late all
+ * produce the same guest and are all fixed by the same message.
+ *
+ * Dark until the template is approved in Meta and WHATSAPP_TEMPLATE_DAY_OF is
+ * set. Until then this returns zero and nothing about the run changes.
+ */
+async function notifyDayOf(
+  sb: ReturnType<typeof createServerClient>,
+  cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+  budget: number,
+): Promise<{ sent: number; event?: string; unreached?: number }> {
+  if (budget <= 0 || !cfg.dayOfTemplateName) return { sent: 0 };
+
+  const today = israelToday();
+  const hour = Number(new Date().toLocaleString("en-GB", {
+    timeZone: "Asia/Jerusalem", hour: "2-digit", hour12: false }).slice(0, 2));
+
+  const { data: evs } = await sb.from("events")
+    .select("id, name, couple_names, date, address, venue_name, reception_time, chuppah_time, send_paused_until")
+    .eq("date", today).limit(5);
+  if (!(evs ?? []).length) return { sent: 0 };
+
+  const nowMs = Date.now();
+  let sentTotal = 0;
+  let unreached = 0;
+  const names: string[] = [];
+
+  for (const ev of evs ?? []) {
+    if (sentTotal >= budget) break;
+    if (!dayOfWindow(String(ev.date ?? ""), today, hour).send) continue;
+    if (ev.send_paused_until && new Date(ev.send_paused_until as string).getTime() > nowMs) continue;
+
+    const couple = coupleName(ev as Parameters<typeof coupleName>[0]);
+    const venue  = venueLine(ev as Parameters<typeof venueLine>[0]);
+    const rec    = (ev.reception_time as string | null)?.trim();
+    const chu    = (ev.chuppah_time as string | null)?.trim();
+    if (!couple || !venue || !rec || !chu) continue;
+
+    const { data: guests } = await sb.from("guests")
+      .select("id, name, phone, status, category, do_not_contact")
+      .eq("event_id", ev.id).eq("status", "confirmed");
+    if (!(guests ?? []).length) continue;
+
+    /* Both halves of "already told": the eve message and any earlier run of
+       this one. Six runs sit inside the window and nobody hears it twice. */
+    const ids = (guests ?? []).map(g => g.id as string);
+    const gotDayBefore = new Set<string>();
+    const gotDayOf = new Set<string>();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data } = await sb.from("guest_events")
+        .select("guest_id, event_type")
+        .in("event_type", ["day_before_sent", "day_of_sent"])
+        .in("guest_id", ids.slice(i, i + 100));
+      for (const r of data ?? []) {
+        if (!r.guest_id) continue;
+        (r.event_type === "day_of_sent" ? gotDayOf : gotDayBefore).add(r.guest_id as string);
+      }
+    }
+
+    const targetIds = dayOfTargets(
+      (guests ?? []) as Parameters<typeof dayOfTargets>[0], gotDayBefore, gotDayOf);
+    if (!targetIds.length) continue;
+
+    const lineFor = await guestLineFactory(sb, ev.id as string);
+    const byId = new Map((guests ?? []).map(g => [g.id as string, g]));
+    const todo = targetIds.slice(0, budget - sentTotal);
+    /* Anyone the budget could not reach today needs a telephone, not a run —
+       reported so the number is never zero by silence. */
+    unreached += targetIds.length - todo.length;
+
+    for (let i = 0; i < todo.length; i += SEND_CONCURRENCY) {
+      const batch = await Promise.all(todo.slice(i, i + SEND_CONCURRENCY).map(async id => {
+        const g = byId.get(id)!;
+        return { g, res: await sendDayOf(cfg, g.phone as string, couple, rec, chu, venue, lineFor(id)) };
+      }));
+      for (const { g, res } of batch) {
+        if (!res.ok) continue;
+        sentTotal++;
+        await sb.from("guest_events").insert({ guest_id: g.id, event_type: "day_of_sent" });
+        if (res.messageId) {
+          await sb.from("wa_messages").insert({
+            event_id: ev.id, guest_id: g.id, wa_phone: toE164(g.phone as string) ?? "",
+            direction: "out", body: "היום מתחתנים (תבנית)",
+            wamid: res.messageId, status: "accepted",
+          });
+        }
+      }
+    }
+    if (sentTotal) names.push(ev.name as string);
+  }
+
+  return {
+    sent: sentTotal,
+    event: names.join(" + ") || undefined,
+    ...(unreached ? { unreached } : {}),
+  };
+}
+
+async function guestLineFactory(
+  sb: ReturnType<typeof createServerClient>,
+  eventId: string,
+): Promise<(guestId: string) => string | null> {
+  /* day_before_note arrives with 20260901_day_before_note.sql, and selecting a
+     column that does not exist fails the WHOLE query with 42703. Fetched on its
+     own and allowed to fail, so a missing column degrades to "no note" rather
+     than taking the guest list with it. */
+  let note: string | null = null;
+  try {
+    const { data: n } = await sb.from("events")
+      .select("day_before_note").eq("id", eventId).maybeSingle();
+    note = (n as { day_before_note?: string | null } | null)?.day_before_note ?? null;
+  } catch { /* column not there yet */ }
+
+  /* The NUMBER, not the table's name: the plan names tables the way a couple
+     thinks ("משפחת ביטון 3") and no sign at any venue says that. */
+  const tableByGuest = new Map<string, string>();
+  try {
+    const [{ data: seats }, { data: tabs }] = await Promise.all([
+      sb.from("seating_assignments").select("guest_id, table_id").eq("event_id", eventId),
+      sb.from("seating_tables").select("id, sort_order").eq("event_id", eventId).order("sort_order"),
+    ]);
+    const numberOf = new Map<string, number>(
+      (tabs ?? []).map((t, i) => [t.id as string, (Number(t.sort_order) >= 0 ? Number(t.sort_order) : i) + 1]));
+    for (const a of seats ?? []) {
+      const n = numberOf.get(a.table_id as string);
+      if (n && a.guest_id) tableByGuest.set(a.guest_id as string, String(n));
+    }
+  } catch { /* no seating is not a reason to hold the message */ }
+
+  return (guestId: string): string | null => {
+    const t = tableByGuest.get(guestId);
+    const parts = [t ? `🪑 שולחן ${t}` : null, note?.trim() || null].filter(Boolean);
+    return parts.length ? parts.join(" · ") : null;
+  };
+}
+
 async function dayBeforeForEvent(
   sb: ReturnType<typeof createServerClient>,
   cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
@@ -620,48 +775,7 @@ async function dayBeforeForEvent(
   if (!couple || !venue || !rec || !chu)
     return { sent: 0, skipped: "חסרים שמות, מקום או שעות" };
 
-  /* The couple's own line, fetched on its own and allowed to fail.
-   *
-   * day_before_note is added by 20260901_day_before_note.sql, and this code
-   * ships before that migration runs. Selecting a column that does not exist
-   * makes PostgREST fail the WHOLE query with 42703 — put in the select above
-   * and it would take the guest list with it, which is this file's one send
-   * with no second chance. A separate query that fails soft degrades to
-   * exactly today's behaviour: no note, four parameters, original template. */
-  let note: string | null = null;
-  try {
-    const { data: n } = await sb.from("events")
-      .select("day_before_note").eq("id", ev.id).maybeSingle();
-    note = (n as { day_before_note?: string | null } | null)?.day_before_note ?? null;
-  } catch { /* column not there yet */ }
-
-  /* Where each guest sits, folded into this message rather than sent as its
-   * own.
-   *
-   * The two messages carry the same venue and the same reception time, so a
-   * guest who gets both is told half of it twice. And they compete for the
-   * same window in the week of the wedding: 229 table messages plus 224
-   * day-before messages is 453 against a rolling cap of 250, which is the
-   * collision that already forced לאל to be paused so שחר could send.
-   *
-   * The night before is also when the number is actually wanted — it is what
-   * you look at while getting dressed, not a week earlier.
-   *
-   * The number, not the table's name: the plan names tables the way a couple
-   * thinks ("משפחת ביטון 3") and no sign at any venue says that. */
-  const tableByGuest = new Map<string, string>();
-  try {
-    const [{ data: seats }, { data: tabs }] = await Promise.all([
-      sb.from("seating_assignments").select("guest_id, table_id").eq("event_id", ev.id),
-      sb.from("seating_tables").select("id, sort_order").eq("event_id", ev.id).order("sort_order"),
-    ]);
-    const numberOf = new Map<string, number>(
-      (tabs ?? []).map((t, i) => [t.id as string, (Number(t.sort_order) >= 0 ? Number(t.sort_order) : i) + 1]));
-    for (const a2 of seats ?? []) {
-      const n = numberOf.get(a2.table_id as string);
-      if (n && a2.guest_id) tableByGuest.set(a2.guest_id as string, String(n));
-    }
-  } catch { /* no seating is not a reason to hold the message */ }
+  const lineFor = await guestLineFactory(sb, ev.id);
 
   const { data: guests } = await sb.from("guests")
     .select("id, name, phone, category, do_not_contact")
@@ -681,15 +795,6 @@ async function dayBeforeForEvent(
 
   const todo = eligible.filter(g => !already.has(g.id as string)).slice(0, budget);
   if (!todo.length) return { sent: 0 };
-
-  /* One line, per guest: their table and whatever the couple wanted said. Both
-     are optional and either alone is fine; with neither, the four-parameter
-     template is used and nothing changes. */
-  const lineFor = (guestId: string): string | null => {
-    const t = tableByGuest.get(guestId);
-    const parts = [t ? `🪑 שולחן ${t}` : null, note?.trim() || null].filter(Boolean);
-    return parts.length ? parts.join(" · ") : null;
-  };
 
   let sent = 0;
   for (let i = 0; i < todo.length; i += SEND_CONCURRENCY) {
@@ -1788,6 +1893,26 @@ async function runSend(req: NextRequest) {
   }
 
   budget = Math.max(0, budget - dayBefore.sent);
+
+  /* The morning catch-up, immediately behind the eve message and ahead of
+     everything else — see notifyDayOf. A guest who still does not know when to
+     arrive on the day itself outranks every invitation and every reminder in
+     the system, because for them the wedding is in a few hours. */
+  const dayOf = await notifyDayOf(sb, cfg, budget);
+  budget = Math.max(0, budget - dayOf.sent);
+
+  /* Anyone the day-of could not reach needs a telephone, and there are hours
+     rather than days left to make the call. */
+  if (dayOf.unreached && process.env.ADMIN_ALERT_PHONE) {
+    try {
+      await sendRunSummary(cfg, process.env.ADMIN_ALERT_PHONE, {
+        event: `📞 ${dayOf.event ?? "החתונה היום"}`,
+        sent: String(dayOf.sent), failed: "—", left: String(dayOf.unreached),
+        attention: `${dayOf.unreached} אורחים עדיין לא יודעים מתי להגיע והחתונה היום. `
+          + `התקרה נגמרה — צריך להתקשר אליהם.`,
+      });
+    } catch { /* an alert must never cost a send */ }
+  }
 
   /* One message to the couple about guests nobody can reach — see
      askCoupleAboutUnreachable. After the day-before, which must never wait for
@@ -2972,7 +3097,7 @@ async function runSend(req: NextRequest) {
      * the messages that mattered most that week.
      *
      * The parts stay reported separately below; this is their sum. */
-    sent: sent.length + dayBefore.sent + rides.sent,
+    sent: sent.length + dayBefore.sent + dayOf.sent + rides.sent,
     groupSent: sent.length,
     failed: failed.length, stopped,
     /* Guests the run had time for but not budget. Reported rather than dropped:
@@ -2987,6 +3112,7 @@ async function runSend(req: NextRequest) {
       posture: health.posture, recentPeak: peak,
       reasons: health.reasons,
     },
+    ...(dayOf.sent || dayOf.unreached ? { dayOf } : {}),
     skippedEvents,
     ...(crossEvent.length ? { crossEvent } : {}),
     /* Named, not just counted. These are the guests the automation has given
