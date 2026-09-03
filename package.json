@@ -10,7 +10,7 @@
     "test:e2e:check": "node scripts/check-e2e-env.js",
     "dev:staging": "npx dotenv-cli -e .env.test -- next dev -p 3001",
     "seed:staging": "npx tsx scripts/seed-staging.ts",
-    "test": "node --test src/**/*.test.ts",
+    "test": "node --test 'src/**/*.test.ts'",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json"
   },
   "dependencies": {
