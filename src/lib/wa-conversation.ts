@@ -4,6 +4,7 @@ import { sendButtons, sendList, sendText, parseGuestCount } from "@/lib/wa-inter
 import { detectRideIntent } from "@/lib/rides";
 import { stateIsLive } from "@/lib/chat-state";
 import { bareCount, changeIntent, unpromptedCount, compositeCount} from "@/lib/guest-count";
+import { decide, type Kind, type GuestView } from "@/lib/wa-decide";
 
 /* Answering an invitation without leaving WhatsApp.
  *
@@ -124,8 +125,41 @@ export async function handleGuestReply(
     return r;
   };
 
+
   /* ── mid-exchange ────────────────────────────────────────────── */
   const live = stateIsLive(guest);
+  /* The same decision, computed in parallel and compared — nothing acted on.
+   *
+   * This file decides whether somebody is recorded as attending and how many
+   * meals a caterer is told to make, and until today it had no tests: every
+   * import here goes through the @/lib alias, which the test runner cannot
+   * resolve. wa-decide.ts is that decision as a value, with twenty tests over
+   * the branches this file has.
+   *
+   * Running it in shadow rather than swapping it in is deliberate. שחר's
+   * wedding is on 08/09 and this is the path her guests answer through; a
+   * re-plumbed effect order is not something to discover from a wrong meal
+   * count. Every branch below declares its own name, the mirror is checked
+   * against it on real traffic, and any disagreement is logged with the
+   * message that caused it. When the log stays quiet through a wedding, the
+   * mirror can become the decision. */
+  const view: GuestView = {
+    status: (guest.status as GuestView["status"]) ?? "pending",
+    guestCount: guest.guest_count ?? 1,
+    liveState: live ? (guest.chat_state ?? null) : null,
+    hasToken: !!(guest as { rsvp_token?: string }).rsvp_token,
+  };
+  const shadow = decide(view, said, {
+    promptedCount: parseGuestCount,
+    unpromptedCount, composite: compositeCount,
+    bare: bareCount, changeIntent, ride: detectRideIntent,
+  });
+  const done = (took: Kind): boolean => {
+    if (shadow.kind !== took) {
+      console.warn(`[wa-decide:shadow] took=${took} mirror=${shadow.kind} said=${JSON.stringify(said.slice(0, 60))}`);
+    }
+    return done("decline_confirm_ask");
+  };
   if (live && guest.chat_state === ASK_COUNT) {
     /* Changing their mind while the headcount question is open.
        דור ענף tapped מגיע and לא מגיע in the same second on 12/08. The second
@@ -147,14 +181,14 @@ export async function handleGuestReply(
         { id: "no_mistake",  title: "רגע, טעיתי" },
       ]);
       if (!asked.ok) await setState(sb, guest.id, null);
-      return true;
+      return done("count_ask_again");
     }
     if (/^rsvp_yes$/.test(said) || said === "מגיע") {
       /* Already recorded as attending; just ask the count again. */
       await logOut(`${guest.name}, כמה אתם מגיעים?`);
       await sendList(cfg, to, `${guest.name}, כמה אתם מגיעים?`, "בחרו מספר",
         [1, 2, 3, 4, 5, 6, 7, 8].map(n => ({ id: `count_${n}`, title: String(n) })));
-      return true;
+      return done("count_with_kids");
     }
 
     /* "1+ 2 ילדים" before a plain number, because a guest who answers in parts
@@ -166,18 +200,18 @@ export async function handleGuestReply(
       await sayText(cfg, to,
         `מעולה, רשמנו ${parts.total} 🤍 מתוכם ${parts.kids} ילדים.\n` +
         `מחכים לראותכם בשמחה!\n\nרוצים לשנות? פשוט כתבו לנו כאן.`);
-      return true;
+      return done("count_ask_again");
     }
 
     const n = parseGuestCount(said);
     if (n === null) {
       await sayText(cfg, to, "לא הצלחנו להבין את המספר 🙏\nכתבו בבקשה מספר בלבד — למשל 2");
-      return true;
+      return done("count_recorded");
     }
     await record(sb, guest, "confirmed", n);
     await sayText(cfg, to, `מעולה, רשמנו ${n} 🤍\nמחכים לראותכם בשמחה!\n\n` +
       `רוצים לשנות? פשוט כתבו לנו כאן.`);
-    return true;
+    return done("change_yes");
   }
 
   if (live && guest.chat_state?.startsWith(`${ASK_CHANGE}:`)) {
@@ -185,19 +219,19 @@ export async function handleGuestReply(
     if (/^(yes_change|כן)/.test(said) && Number.isFinite(proposed)) {
       await record(sb, guest, "confirmed", proposed);
       await sayText(cfg, to, `עודכן ל-${proposed} 🤍 מחכים לראותכם!`);
-      return true;
+      return done("change_no");
     }
     /* Anything that is not a clear yes leaves the existing answer alone. */
     await setState(sb, guest.id, null);
     await sayText(cfg, to, `בסדר גמור — השארנו ${guest.guest_count ?? 1}.\nאם תרצו לשנות, כתבו לנו כאן 🙏`);
-    return true;
+    return done("decline_recorded");
   }
 
   if (live && guest.chat_state === ASK_DECLINE) {
     if (/^(yes_decline|כן)/.test(said)) {
       await record(sb, guest, "declined");
       await sayText(cfg, to, "תודה שעדכנתם 🤍 נתגעגע!\nאם משהו ישתנה — כתבו לנו כאן.");
-      return true;
+      return done("decline_cancelled");
     }
     /* Anything that is not a clear yes returns them to the start rather than
        being read as a decline. */
@@ -207,7 +241,7 @@ export async function handleGuestReply(
       { id: "rsvp_yes", title: "מגיע" },
       { id: "rsvp_no",  title: "לא מגיע" },
     ]);
-    return true;
+    return done("decline_cancelled");
   }
 
   /* ── first tap ───────────────────────────────────────────────── */
@@ -229,7 +263,7 @@ export async function handleGuestReply(
     await logOut(`${guest.name}, נהדר! כמה אתם מגיעים?`);
     await sendList(cfg, to, `${guest.name}, נהדר! כמה אתם מגיעים?`, "בחרו מספר",
       [1, 2, 3, 4, 5, 6, 7, 8].map(n => ({ id: `count_${n}`, title: String(n) })));
-    return true;
+    return done("yes_first_tap");
   }
 
   if (/^rsvp_no$/.test(said) || said === "לא מגיע") {
@@ -239,7 +273,7 @@ export async function handleGuestReply(
       { id: "yes_decline", title: "כן, לא נוכל" },
       { id: "no_mistake",  title: "רגע, טעיתי" },
     ]);
-    return true;
+    return done("no_first_tap");
   }
 
   /* A list selection arrives as count_N even without chat_state — for instance
@@ -248,7 +282,7 @@ export async function handleGuestReply(
   if (m) {
     await record(sb, guest, "confirmed", parseInt(m[1], 10));
     await sayText(cfg, to, `רשמנו ${m[1]} 🤍 מחכים לראותכם!`);
-    return true;
+    return done("list_pick");
   }
 
   /* A bare number from someone who has not answered yet.
@@ -265,11 +299,25 @@ export async function handleGuestReply(
        its word table, and "מזל טוב לזוג המאושר" contains "זוג" — a
        congratulation booked two seats and answered "רשמנו 2 🤍". A refusal
        carrying a number did the same in the other direction. */
+    /* The split, when they volunteer it before being asked. Handled in the
+       mid-question branch since 02/09 and not here, so "1+ 2 ילדים" from a
+       guest nobody had asked yet fell through to Dvir — the same sentence,
+       understood or not depending only on whether a question happened to be
+       open. Found by wa-decide.ts, which had it in both places. */
+    const parts = compositeCount(said);
+    if (parts) {
+      await record(sb, guest, "confirmed", parts.total, parts.kids);
+      await sayText(cfg, to,
+        `רשמנו ${parts.total} 🤍 מתוכם ${parts.kids} ילדים.\n` +
+        `אם התכוונתם למשהו אחר — כתבו לנו כאן ונתקן.`);
+      return done("unprompted_composite");
+    }
+
     const n = unpromptedCount(said);
     if (n !== null) {
       await record(sb, guest, "confirmed", n);
       await sayText(cfg, to, `רשמנו ${n} 🤍 מחכים לראותכם!\nאם התכוונתם למשהו אחר — כתבו לנו כאן ונתקן.`);
-      return true;
+      return done("unprompted_count");
     }
   }
 
@@ -302,7 +350,7 @@ export async function handleGuestReply(
       const current = guest.guest_count ?? 1;
       if (guest.status === "confirmed" && n === current) {
         await sayText(cfg, to, `רשום אצלנו ${current} — הכול מעודכן 🤍`);
-        return true;
+        return done("change_same");
       }
       await setState(sb, guest.id, `${ASK_CHANGE}:${n}`);
       const asked = await sendButtons(cfg, to,
@@ -314,7 +362,7 @@ export async function handleGuestReply(
       /* Same rollback as the decline path: a state that says "waiting for an
          answer" is only true if the question actually left. */
       if (!asked.ok) await setState(sb, guest.id, null);
-      return true;
+      return done("change_proposed");
     }
   }
 
@@ -340,7 +388,7 @@ export async function handleGuestReply(
       await sayText(cfg, to,
         `הנה הקישור האישי שלכם שוב 🤍\n${base}/rsvp/${token}\n\n` +
         `אם הוא עדיין לא נפתח — אפשר פשוט לכתוב לנו כאן כמה אתם ונרשום ידנית.`);
-      return true;
+      return done("link_resend");
     }
   }
 
@@ -358,7 +406,7 @@ export async function handleGuestReply(
     await sayText(cfg, to, ride.role === "offer"
       ? `רשמנו שיש לכם מקום ברכב מ${ride.area} 🚗\nאם מישהו משם מחפש טרמפ — נחבר ביניכם.`
       : `רשמנו שאתם מחפשים טרמפ מ${ride.area} 🚗\nאם מישהו משם נוסע — נחבר ביניכם.`);
-    return true;
+    return done("ride");
   }
 
   return false;
