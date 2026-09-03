@@ -16,7 +16,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const sb = createServerClient();
   const { data: event } = await sb
     .from("events")
-    .select("name, date, address")
+    .select("name, date, address, venue_name")
     .eq("open_rsvp_token", token)
     .maybeSingle();
   if (!event) return NextResponse.json({ error: "not found" }, { status: 404 });

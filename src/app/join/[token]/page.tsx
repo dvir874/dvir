@@ -1,6 +1,7 @@
 "use client";
 
 import { eventDay } from "@/lib/event-times";
+import { venueLine } from "@/lib/venue";
 
 import { useState, useEffect, use, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
@@ -14,7 +15,7 @@ const T = {
   dark: "#1C1008", muted: "#8C7B6E", border: "#E8E0D4",
 };
 
-interface EventInfo { name: string; date: string | null; address?: string | null }
+interface EventInfo { name: string; date: string | null; address?: string | null; venue_name?: string | null }
 
 function JoinInner({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -94,7 +95,7 @@ function JoinInner({ params }: { params: Promise<{ token: string }> }) {
                 {event.name}
               </h1>
               {dateStr && <p style={{ fontSize: 14, color: T.muted, margin: 0 }}>{dateStr}</p>}
-              {event.address && <p style={{ fontSize: 13, color: T.muted, margin: "4px 0 0" }}>📍 {event.address}</p>}
+              {venueLine(event) && <p style={{ fontSize: 13, color: T.muted, margin: "4px 0 0" }}>📍 {venueLine(event)}</p>}
               {group && (
                 <span style={{ display: "inline-block", marginTop: 12, background: "rgba(197,164,109,0.14)", border: `1px solid rgba(197,164,109,0.35)`, borderRadius: 9999, padding: "5px 14px", fontSize: 12, fontWeight: 600, color: T.goldT }}>
                   {group}

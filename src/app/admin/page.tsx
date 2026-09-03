@@ -5,6 +5,7 @@ import { Users, CheckCircle, Clock, XCircle, Search, Upload, Download, Trash2, C
 import type { Event, EventSummary, Forecast, Guest, GuestEvent, GuestStatus, HealthScore, EventStatus, ApprovalRequest } from "@/lib/types";
 import { EVENT_STATUS_LABEL, EVENT_STATUS_COLOR } from "@/lib/types";
 import { buildRideBoard } from "@/lib/rides";
+import { venueLine } from "@/lib/venue";
 import { generateReminderRecommendations } from "@/lib/reminder-recommendations";
 import type { ReminderRecommendation } from "@/lib/reminder-recommendations";
 import { ACTION_LABEL } from "@/lib/reminder-recommendations";
@@ -1851,7 +1852,6 @@ export default function AdminPage() {
                     {selectedEvent?.client_phone && (() => {
                       const phone = selectedEvent.client_phone!.replace(/\D/g,"").replace(/^0/,"972");
                       const eventDate = selectedEvent.date ? new Date(selectedEvent.date).toLocaleDateString("he-IL", { day: "numeric", month: "long" }) : "";
-                      const venue = selectedEvent.address ?? "האולם";
                       const msg = encodeURIComponent(`היום, אחרי כל התכנונים, הרשימות והטלפונים — נשאר רק דבר אחד לעשות: להתחתן 🤍\n\nכל השאר מסודר. האורחים יודעים לאן להגיע, השולחנות מחכים, והמערכת עובדת בשבילכם.\n\nהיום תסתכלו אחד על השנייה, תנשמו עמוק, ותזכרו למה כל זה קרה מלכתחילה.\n\nמזל טוב, ${selectedEvent.name} 💍\nרגע לפני... זה עכשיו.\n\nדביר`);
                       return (
                         <a href={`https://wa.me/${phone}?text=${msg}`} target="_blank" rel="noopener noreferrer" onClick={() => setShowToolsMenu(false)}
@@ -2291,7 +2291,7 @@ export default function AdminPage() {
 
 אירוע: ${selectedEvent.name}
 תאריך: ${selectedEvent.date ? new Date(selectedEvent.date).toLocaleDateString("he-IL") : ""}
-מיקום: ${selectedEvent.address ?? "[כתובת האולם]"}
+מיקום: ${venueLine(selectedEvent) ?? "[כתובת האולם]"}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 שירותים הכלולים:

@@ -32,3 +32,34 @@ test("Waze gets the whole destination, not half of it", () => {
   assert.ok(l?.includes(encodeURIComponent("גן האירועים ארץ, מושב עג׳ור")));
   assert.equal(wazeLink({}), null);
 });
+
+test("the two halves of a location are joined wherever a person reads them", () => {
+  /* THE BUG THIS FILE EXISTS FOR, and why it kept coming back.
+   *
+   * The schema allows two valid ways to record one location, and only luck
+   * decided which a wedding got:
+   *
+   *   שחר   address = "חוות ארץ האיילים, גוש עציון"   venue_name = null
+   *   תהל   address = "מושב עג׳ור"                     venue_name = "גן האירועים ארץ"
+   *
+   * Code that read `address` and stopped was right for שחר and wrong for תהל,
+   * whose 310 guests would have been sent to a village with no venue named in
+   * it. Same operator, same afternoon, two weddings, opposite outcomes.
+   *
+   * It was fixed in the automated sends on 01/09 and stayed broken in three
+   * other places until 03/09 — the guest-facing join page and the client
+   * agreement among them — because "fixed" meant "fixed where we looked". */
+  assert.equal(
+    venueLine({ venue_name: "גן האירועים ארץ", address: "מושב עג׳ור" }),
+    "גן האירועים ארץ, מושב עג׳ור");
+  assert.equal(
+    venueLine({ venue_name: null, address: "חוות ארץ האיילים, גוש עציון" }),
+    "חוות ארץ האיילים, גוש עציון");
+  /* Not repeated when the address already carries the name. */
+  assert.equal(
+    venueLine({ venue_name: "חוות טל", address: "חוות טל, מושב תאשור" }),
+    "חוות טל, מושב תאשור");
+  /* Either half alone is still better than nothing. */
+  assert.equal(venueLine({ venue_name: "אולמי גאיה", address: null }), "אולמי גאיה");
+  assert.equal(venueLine({ venue_name: null, address: null }), null);
+});

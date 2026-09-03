@@ -438,6 +438,84 @@ export async function sendDayBefore(
   }
 }
 
+/* "היום מתחתנים" — the same message as the eve, a morning late and on purpose.
+ *
+ * Meta counts distinct recipients in a ROLLING 24 hours, and that is the whole
+ * reason this exists. תהל and לאל married on the same Tuesday: 334 guests
+ * needed the arrival time on the evening of 21/09 and the cap allowed 250, so
+ * 84 of them would have been cut off mid-list and arrived at a venue not
+ * knowing when to come or where to sit.
+ *
+ * The window is rolling, not daily, so those 84 can simply be told the next
+ * morning — by which time the eve's batch has aged out and the whole allowance
+ * is free again. A wedding at 17:45 told about at 10:00 is not a compromise;
+ * it is arguably the better message.
+ *
+ * Dark until both the template is approved and the variable is set. Same two
+ * templates as the eve, and for the same reason: a Meta parameter cannot be
+ * empty, so a wedding with no table numbers and no note needs the four-slot
+ * version rather than an empty fifth. */
+export async function sendDayOf(
+  cfg: WhatsAppConfig, phone: string,
+  couple: string, reception: string, chuppah: string, venue: string,
+  note?: string | null,
+): Promise<SendResult> {
+  const to = toE164(phone);
+  if (!to) return { ok: false, error: "מספר לא תקין" };
+  if (![couple, reception, chuppah, venue].every(v => v?.trim()))
+    return { ok: false, error: "חסרים פרטי אירוע" };
+
+  const cleaned = note?.trim() ? safeParam(note) : null;
+  const withNote = cleaned && cleaned !== "—" ? cleaned : null;
+
+  const templateName = withNote ? cfg.dayOfNoteTemplateName : cfg.dayOfTemplateName;
+  /* Not an error worth retrying, and not a failure of this guest — the feature
+     is simply not switched on. The caller reports it once for the run. */
+  if (!templateName) return { ok: false, error: "תבנית 'היום זה קורה' לא מוגדרת" };
+
+  const params = withNote
+    ? [couple, reception, chuppah, venue, withNote]
+    : [couple, reception, chuppah, venue];
+
+  await pace();
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/${API_VERSION}/${cfg.phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${cfg.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(20_000),
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to,
+          type: "template",
+          template: {
+            name: templateName,
+            language: { code: cfg.templateLang },
+            components: [{
+              type: "body",
+              parameters: params.map(text => ({ type: "text", text })),
+            }],
+          },
+        }),
+      },
+    );
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: json?.error?.error_user_msg ?? json?.error?.message ?? `HTTP ${res.status}`,
+      };
+    }
+    return { ok: true, messageId: json?.messages?.[0]?.id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "network error" };
+  }
+}
+
 /* Kept for the one wedding whose names the template was approved with — see
    above. Nothing calls it; it is here so the swap is one line to undo. */
 export async function sendGalleryReady(
@@ -909,6 +987,11 @@ export interface WhatsAppConfig {
   dayBeforeTemplateName: string;
   /** Same message with a fifth slot for the couple's own line. */
   dayBeforeNoteTemplateName: string;
+  /* Null until the template is approved in Meta and the variable is set. The
+     day-of send is dark while these are null — a template name the code calls
+     and Meta has not approved is a failed send at a real guest. */
+  dayOfTemplateName: string | null;
+  dayOfNoteTemplateName: string | null;
   /** Asking the couple to check numbers we cannot reach. */
   coupleCheckTemplateName: string;
   /** Event details with the guest's table number. */
@@ -975,6 +1058,11 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
       process.env.WHATSAPP_TEMPLATE_DAY_BEFORE ?? "wedding_tomorrow_reminder",
     dayBeforeNoteTemplateName:
       process.env.WHATSAPP_TEMPLATE_DAY_BEFORE_NOTE ?? "wedding_tomorrow_reminder_v2",
+    /* Deliberately no default. Every other template here falls back to a name
+       approved months ago; these two do not exist in Meta yet, and a fallback
+       would turn "not submitted" into a run of failed sends. */
+    dayOfTemplateName: process.env.WHATSAPP_TEMPLATE_DAY_OF?.trim() || null,
+    dayOfNoteTemplateName: process.env.WHATSAPP_TEMPLATE_DAY_OF_NOTE?.trim() || null,
     coupleCheckTemplateName:
       process.env.WHATSAPP_TEMPLATE_COUPLE_CHECK ?? "couple_check_numbers_v1",
     tableNumberTemplateName:
