@@ -885,17 +885,43 @@ async function askCoupleAboutUnreachable(
 
     const ids = candidates.map(g => g.id as string);
     const got = new Set<string>();
+    const lastFail = new Map<string, { at: string; code: number | null }>();
     for (let i = 0; i < ids.length; i += 100) {
       const { data: ms } = await sb.from("wa_messages")
-        .select("guest_id, status").eq("direction", "out")
+        .select("guest_id, status, error_code, created_at").eq("direction", "out")
         .in("guest_id", ids.slice(i, i + 100));
       (ms ?? []).forEach(m => {
-        if (["delivered", "read"].includes(m.status as string) && m.guest_id) {
-          got.add(m.guest_id as string);
-        }
+        const id = m.guest_id as string;
+        if (!id) return;
+        if (["delivered", "read"].includes(m.status as string)) got.add(id);
+        const at = m.created_at as string;
+        const prev = lastFail.get(id);
+        if (!prev || at > prev.at) lastFail.set(id, { at, code: (m.error_code as number | null) ?? null });
       });
     }
-    const stuck = candidates.filter(g => !got.has(g.id as string));
+
+    /* ONLY the guests the couple can actually do something about.
+     *
+     * This asked about everyone who had not received, whatever the reason, and
+     * the template says "וייתכן שהמספר ברשימה לא מדויק" — so on 03/09 שלמה was
+     * asked to check sixteen numbers of which ten were perfectly correct: five
+     * were Meta's per-recipient quota and retry themselves the next day, three
+     * were an experiment group Meta had put the recipient in, and two had
+     * simply not reported delivery yet. He wrote back asking who we meant,
+     * because the message had handed him work he could not do.
+     *
+     * A client asked to check a number that is fine learns two things: that
+     * this request was not thought through, and that the next one might not be
+     * either. So the question goes out only where a wrong number is a real
+     * possibility — 131026, meaning that number has no WhatsApp at all, and
+     * the silent case where nothing came back. The rest are ours to handle. */
+    const stuck = candidates.filter(g => {
+      if (got.has(g.id as string)) return false;
+      const code = lastFail.get(g.id as string)?.code;
+      if (code === undefined) return true;   /* never attempted */
+      if (code === null) return true;        /* accepted, never delivered */
+      return code === 131026;                /* 131049 · 130472 · 131050 are ours */
+    });
     if (!stuck.length) continue;
 
     /* Nothing new to say, and asked recently: stay quiet. A guest who becomes
@@ -910,9 +936,15 @@ async function askCoupleAboutUnreachable(
       && nowMs - new Date(askedAt).getTime() < COUPLE_ASK_COOLDOWN_H * 3_600_000;
     if (withinCooldown && !fresh.length) continue;
 
-    const names = stuck.map(g => String(g.name ?? "").trim()).filter(Boolean);
-    const shown = names.slice(0, 8).join(" · ")
-      + (names.length > 8 ? ` ועוד ${names.length - 8}` : "");
+    /* The number beside the name, because the number is the thing being checked.
+       Names alone made שלמה open a link and cross-reference a list to find out
+       which מספר we meant; with the digits in the message he can answer from
+       the message. Separated by · rather than newlines — a newline in a Meta
+       parameter is #132000 and fails the whole send. */
+    const shown = stuck.slice(0, 8)
+      .map(g => `${String(g.name ?? "").trim()} ${String(g.phone ?? "").trim()}`.trim())
+      .filter(Boolean).join(" · ")
+      + (stuck.length > 8 ? ` ועוד ${stuck.length - 8}` : "");
     const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app";
 
     const res = await sendCoupleCheck(
@@ -936,6 +968,62 @@ async function askCoupleAboutUnreachable(
         direction: "out", body: `בקשה לזוג לבדוק ${stuck.length} מספרים`,
         wamid: res.messageId, status: "accepted",
       });
+    }
+
+    /* Dvir hears about it too, every time.
+     *
+     * A message went to a paying client, in his name, without him. He learned
+     * of the first one when שלמה replied asking what it meant — which is the
+     * wrong order for a business he is trying to leave running by itself.
+     * Autonomy is not the same as opacity: the system may act alone, and it
+     * must always say what it did. */
+    const admin = process.env.ADMIN_ALERT_PHONE;
+    if (admin) {
+      try {
+        await sendRunSummary(cfg, admin, {
+          event: `📨 נשלחה הודעה ל${couple}`,
+          sent: String(stuck.length), failed: "—",
+          left: String(Math.max(0, Math.ceil((new Date(String(ev.date)).getTime() - nowMs) / 86_400_000))),
+          attention: `ביקשנו מהם לוודא ${stuck.length} מספרים שאין להם וואטסאפ: ${shown}`,
+        });
+      } catch { /* an alert must never cost a send */ }
+    }
+
+    /* And the ones the couple cannot fix come to Dvir instead, with the reason.
+     *
+     * These are real guests who will not receive an invitation, and until now
+     * they were either mixed into the client's message — where they read as
+     * "your list is wrong" — or nowhere at all. Neither is true: the number is
+     * correct and the block is Meta's, which makes it his problem to solve, by
+     * hand, from his own phone. He can only do that if somebody tells him. */
+    if (admin) {
+      const OURS: Record<number, string> = {
+        131049: "מכסת הודעות שיווקיות אצל הנמען — ננסה שוב מחר",
+        130472: "מטא שמה אותו בקבוצת ניסוי — יגיע רק אם יכתוב לנו קודם",
+        131050: "ביקש להפסיק לקבל הודעות — לא נשלח שוב",
+      };
+      const mine = candidates
+        .filter(g => !got.has(g.id as string))
+        .map(g => ({ g, code: lastFail.get(g.id as string)?.code ?? null }))
+        .filter(x => x.code !== null && x.code !== undefined && x.code !== 131026 && OURS[x.code]);
+      if (mine.length) {
+        const byCode = new Map<number, string[]>();
+        for (const { g, code } of mine) {
+          const list = byCode.get(code!) ?? [];
+          list.push(`${String(g.name ?? "").trim()} ${String(g.phone ?? "").trim()}`.trim());
+          byCode.set(code!, list);
+        }
+        const lines = [...byCode].map(([code, who]) =>
+          `${OURS[code]}: ${who.slice(0, 6).join(" · ")}${who.length > 6 ? ` ועוד ${who.length - 6}` : ""}`);
+        try {
+          await sendRunSummary(cfg, admin, {
+            event: `🔧 ${couple} — לא באשמת הרשימה`,
+            sent: "0", failed: String(mine.length),
+            left: String(Math.max(0, Math.ceil((new Date(String(ev.date)).getTime() - nowMs) / 86_400_000))),
+            attention: `${mine.length} אורחים שלא יקבלו, והמספר שלהם תקין. לא שלחנו על זה לזוג. ${lines.join(" | ")}`,
+          });
+        } catch { /* an alert must never cost a send */ }
+      }
     }
 
     return { sent: 1, event: String(ev.name ?? "") };
