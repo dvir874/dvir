@@ -60,6 +60,28 @@ export default function IntakePage() {
     finally { setBusy(false); }
   }
 
+  /* The invitation as a picture, which is how most of them arrive.
+   *
+   * Dvir reads the photo a couple sends and types five fields into this form,
+   * per client. The model reads it instead; the fields land in exactly the
+   * same place, with the same "read from" line under each, and he confirms
+   * them the same way. Nothing about who signs off changes. */
+  async function readImage(file: File) {
+    setBusy(true); setErr("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await fetch("/api/admin/intake", { method: "POST", body: fd });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? `HTTP ${r.status}`);
+      setParsed(d.parsed);
+      const v: Record<string, string> = {};
+      for (const [k] of LABELS) v[k] = (d.parsed[k] as Field)?.value ?? "";
+      setVals(v);
+    } catch (e) { setErr(String((e as Error).message)); }
+    finally { setBusy(false); }
+  }
+
   async function create() {
     setBusy(true); setErr("");
     try {
@@ -109,6 +131,21 @@ export default function IntakePage() {
         placeholder={"היי דביר! הנה הפרטים\nהחתונה של תהל ואביב\n22.09.2026\n📍 גן האירועים ארץ, מושב עג׳ור\nקבלת פנים 17:45\nחופה וקידושין 18:45"}
         style={{ ...inputStyle(true), minHeight: 170, lineHeight: 1.7, resize: "vertical" as const }}
       />
+      {/* The other way an invitation arrives, and the more common one. */}
+      <label style={{
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+        marginTop: 12, padding: "12px 0", borderRadius: 10, minHeight: 44,
+        border: `1px dashed ${T.gold}`, background: "rgba(197,164,109,0.06)",
+        color: T.dark, fontSize: 14, cursor: busy ? "default" : "pointer",
+        opacity: busy ? 0.5 : 1, fontFamily: "inherit",
+      }}>
+        🖼 או העלו את ההזמנה כתמונה
+        <input
+          type="file" accept="image/jpeg,image/png,image/webp" hidden disabled={busy}
+          onChange={e => { const f = e.target.files?.[0]; if (f) readImage(f); e.target.value = ""; }}
+        />
+      </label>
+
       <button onClick={parse} disabled={busy || !text.trim()} style={{ ...btn, width: "100%", marginTop: 12, opacity: busy || !text.trim() ? 0.5 : 1 }}>
         {busy ? "קורא…" : "קרא את ההודעה"}
       </button>
