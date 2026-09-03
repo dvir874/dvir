@@ -87,6 +87,38 @@ export async function POST(req: NextRequest) {
   const guestById = new Map(
     (guests ?? []).filter(g => g.category !== "demo").map(g => [g.id, g]));
 
+  /* And never to somebody the invitation already reached.
+   *
+   * A retry row is written when one send fails, and nothing after that asked
+   * whether a LATER send had succeeded. At שחר's wedding 23 guests received a
+   * second invitation after Meta had already reported the first delivered —
+   * twelve of them after it was read. Every one is a paid conversation spent
+   * on a message that had arrived, and a guest wondering whether we know who
+   * they are.
+   *
+   * The send-to-all route has had this check since the start; this path is
+   * where it was missing. Delivery is the only fact that settles it: the row
+   * says the attempt failed, and the guest's inbox says otherwise. */
+  const arrived = new Set<string>();
+  for (let i = 0; i < guestIds.length; i += 100) {
+    const { data } = await sb.from("wa_messages")
+      .select("guest_id, status").eq("direction", "out")
+      .in("guest_id", guestIds.slice(i, i + 100));
+    for (const m of data ?? []) {
+      if (m.guest_id && ["delivered", "read"].includes(m.status as string)) {
+        arrived.add(m.guest_id as string);
+      }
+    }
+  }
+  /* Cleared from the queue rather than left to be reconsidered every run. */
+  const settled = [...arrived].filter(id => guestById.has(id));
+  if (settled.length) {
+    await sb.from("wa_messages")
+      .update({ retry_after: null })
+      .eq("status", "failed").in("guest_id", settled);
+    settled.forEach(id => guestById.delete(id));
+  }
+
   const evIds = [...new Set((guests ?? []).map(g => g.event_id))];
   const { data: events } = await sb.from("events")
     .select("id, name, couple_names, date, address, venue_name, reception_time, chuppah_time, wa_header_image_url")
