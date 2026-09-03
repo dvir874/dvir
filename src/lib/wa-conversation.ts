@@ -5,6 +5,8 @@ import { detectRideIntent } from "@/lib/rides";
 import { stateIsLive } from "@/lib/chat-state";
 import { bareCount, changeIntent, unpromptedCount, compositeCount} from "@/lib/guest-count";
 import { decide, type Kind, type GuestView } from "@/lib/wa-decide";
+import { needsHuman, saysNotComing, HUMAN_REASON_TEXT } from "@/lib/needs-human";
+import { sendRunSummary } from "@/lib/whatsapp";
 
 /* Answering an invitation without leaving WhatsApp.
  *
@@ -126,6 +128,45 @@ export async function handleGuestReply(
   };
 
 
+  /* ── a person is needed, and nothing automatic will do ───────────
+   *
+   * Checked before every branch below, because every branch below is a machine
+   * answering. נעם חדד asked "יש אפשרות לדבר עם נציג אנושי??" and was sent the
+   * same automatic sentence twice — the conversation had nowhere to go and no
+   * way to say so.
+   *
+   * Two things end it: the guest asks for a person, or we have already told
+   * them twice that we did not understand. Either way the guest is told a
+   * person will get back to them, Dvir is told who and why, and no further
+   * automatic reply goes out. */
+  {
+    const { data: recent } = await sb.from("wa_messages")
+      .select("direction, body, created_at").eq("guest_id", guest.id)
+      .order("created_at", { ascending: false }).limit(6);
+    let confused = 0;
+    for (const m of recent ?? []) {
+      if (m.direction !== "out") break;
+      if (String(m.body ?? "").includes("לא הצלחנו להבין")) confused++;
+    }
+    const human = needsHuman(said, confused);
+    if (human.needed && cfg) {
+      await sayText(cfg, to, "קיבלנו 🤍 מישהו מאיתנו יחזור אליכם בהקדם.");
+      await setState(sb, guest.id, null);
+      const admin = process.env.ADMIN_ALERT_PHONE;
+      if (admin) {
+        try {
+          await sendRunSummary(cfg, admin, {
+            event: "🙋 אורח מחכה לך",
+            sent: "0", failed: "—", left: "—",
+            attention: `${guest.name} ${guest.phone} — ${HUMAN_REASON_TEXT[human.reason!]}. `
+              + `מה שכתב: "${String(said).slice(0, 90).replace(/[\n\t]/g, " ")}"`,
+          });
+        } catch { /* an alert must never cost the guest their reply */ }
+      }
+      return true;
+    }
+  }
+
   /* ── mid-exchange ────────────────────────────────────────────── */
   const live = stateIsLive(guest);
   /* The same decision, computed in parallel and compared — nothing acted on.
@@ -167,7 +208,11 @@ export async function handleGuestReply(
        "לא הצלחנו להבין את המספר" — so a guest saying he was not coming was
        answered with a complaint about arithmetic, and stayed recorded as
        attending. A button is never an answer to "how many". */
-    if (/^rsvp_no$/.test(said) || said === "לא מגיע") {
+    /* saysNotComing rather than an exact match on the button's label. נעם חדד
+       wrote "אני לא מגיע" on 03/09 — three characters more than the label —
+       and it fell straight through to the number parser, which answered a
+       guest saying he was not coming with a complaint about arithmetic. */
+    if (/^rsvp_no$/.test(said) || saysNotComing(said)) {
       await setState(sb, guest.id, ASK_DECLINE);
       /* The one send whose failure has to be handled.
          The state above says "waiting for them to confirm the decline", and it

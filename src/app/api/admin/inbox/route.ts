@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { getWhatsAppConfig, toE164 } from "@/lib/whatsapp";
+import { needsHuman } from "@/lib/needs-human";
 
 export const dynamic = "force-dynamic";
 
@@ -95,14 +96,44 @@ export async function GET(req: NextRequest) {
      * he reads. */
     const lastMsg = ordered.at(-1);
     const repliedAfter = lastMsg?.direction === "out";
+
+    /* An automatic reply is an answer — until it stops being one.
+     *
+     * 672 of 707 messages were answered automatically, so treating every
+     * automatic reply as unfinished would put the whole inbox in this list and
+     * the flag would mean nothing. But the reverse — treating every automatic
+     * reply as finished — is what happened to נעם חדד on 03/09:
+     *
+     *   11:46  "אני לא מגיע"        → "לא הצלחנו להבין את המספר"
+     *   14:58  "יש אפשרות לדבר עם נציג אנושי??" → the same sentence, twice
+     *
+     * Something HAD gone out after his message, so the thread read as handled
+     * and never appeared here. He asked for a person, in plain words, and the
+     * screen whose job is to find exactly that guest hid him.
+     *
+     * So the rule is not "did anything go out" but "did the automation
+     * actually answer them" — see needs-human.ts. A guest who asked for a
+     * person, or who has been told twice that we did not understand, is
+     * waiting however many replies went out. */
+    const autoTail: string[] = [];
+    for (let i = ordered.length - 1; i >= 0; i--) {
+      const m = ordered[i];
+      if (m.direction !== "out") break;
+      autoTail.push(String(m.body ?? ""));
+    }
+    const confusedInARow = autoTail.filter(b => b.includes("לא הצלחנו להבין")).length;
+    const human = needsHuman(String(lastIn?.body ?? ""), confusedInARow);
     const answeredAfter = !!(g?.response_time && lastIn
       && new Date(g.response_time as string).getTime()
          >= new Date(lastIn.created_at).getTime() - 60_000);
-    const needsYou = !!lastIn && !repliedAfter && !answeredAfter;
+    const needsYou = !!lastIn && !answeredAfter && (!repliedAfter || human.needed);
 
     return {
       phone,
       needsYou,
+      /* Why, when the automation gave up rather than simply not having spoken
+         yet. Carried so the daily alert can say it out loud. */
+      humanReason: human.needed ? human.reason : null,
       guest: g ? { id: g.id, name: g.name, status: g.status, group: g.source_group } : null,
       unread: ordered.filter(m => m.direction === "in" && !m.read_at).length,
       lastAt: ordered.at(-1)?.created_at ?? null,
