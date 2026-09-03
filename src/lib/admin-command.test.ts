@@ -88,9 +88,12 @@ test("a mistyped instruction never becomes a message to a guest", () => {
   /* The fallthrough sends anything unrecognised to whoever we last raised —
      right for "היי נעם, מה קרה?", catastrophic for a half-typed command
      arriving at a stranger as though Dvir had written it to them. */
-  for (const m of ["סטטוס שחר", "עצור", "המשך", "מה קורה עם שחר", "לא קיבלו של שלמה", "help me"]) {
+  for (const m of ["סטטוס שחר", "עצור", "המשך", "מה קורה עם שחר", "help me"]) {
     assert.equal(parseAdminCommand(m, true).kind, "unknown", m);
   }
+  /* And a command that IS complete still runs — "של" is a stopword the event
+     matcher drops, so this finds שלמה rather than being blocked as a near-miss. */
+  assert.equal(parseAdminCommand("לא קיבלו של שלמה", true).kind, "missing");
 });
 
 test("an ordinary sentence to a guest still goes through", () => {

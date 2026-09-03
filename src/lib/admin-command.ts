@@ -66,7 +66,11 @@ const RESUME = /^(המשך|תמשיך|חדש|resume|start)\s+(.{2,40})$/i;
  * שחר" opens with "מה", which is also how half of an ordinary sentence starts.
  * When one of these does not parse, the answer is the help text. */
 const NEAR_COMMAND =
-  /^(סטטוס|מצב|status|מחכה לי|מי צריך|משימות|לא קיבלו|מי לא קיבל|חסרים|עצור|השהה|stop|pause|המשך|תמשיך|resume|start|עזרה|פקודות|help|מה קורה|מה המצב)\b/i;
+  /^(סטטוס|מצב|status|מחכה לי|מי צריך|משימות|לא קיבלו|מי לא קיבל|חסרים|עצור|השהה|stop|pause|המשך|תמשיך|resume|start|עזרה|פקודות|help|מה קורה|מה המצב)(?=\s|$)/i;
+/* (?=\s|$) and not \b — JavaScript's \b is defined over ASCII word
+   characters, so a Hebrew letter is not a word character and "סטטוס " never
+   produced a boundary at all. The guard silently matched nothing, which is the
+   worst possible outcome for a guard. */
 
 export function parseAdminCommand(
   said: string, hasTarget: boolean,
