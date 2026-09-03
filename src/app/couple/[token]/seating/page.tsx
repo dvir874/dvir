@@ -176,6 +176,79 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
     alert(`מעולה ✨\n${d.seated} אורחים יקבלו את מספר השולחן שלהם בשעות הקרובות.`);
   }
 
+  /* Describing the hall, the way the venue describes it.
+   *
+   * ארץ האיילים sent שחר a two-page plan: 26 tables on one page and 12 more on
+   * the second, in a separate plaza. Read by hand, the second page was missed
+   * and the couple was told 119 of her guests had nowhere to sit — a hall of
+   * 448 seats reported as 310.
+   *
+   * That is what a form fixes. A couple reading their own plan does not skip
+   * its second page, and the number that reaches the system is then the number
+   * the venue actually wrote.
+   *
+   * Two fields rather than 38 rows: nobody types "12" thirty-eight times. The
+   * exceptions field is where the real plan differs — table 24 seats ten, 35
+   * and 38 seat nine — and it is exactly what a person reads off the drawing. */
+  const [roomCount, setRoomCount] = useState("");
+  const [roomCap, setRoomCap] = useState("12");
+  const [roomExcept, setRoomExcept] = useState("");
+  const [roomZones, setRoomZones] = useState("");
+  const [roomOpen, setRoomOpen] = useState(false);
+  const [roomSaving, setRoomSaving] = useState(false);
+
+  /* "24=10, 35=9" and "1-7=מרכז, 8-15=מפלס א" read the same way. */
+  const parseRanges = (text: string): Map<number, string> => {
+    const out = new Map<number, string>();
+    for (const part of text.split(/[,\n;]/)) {
+      const m = part.trim().match(/^(\d+)\s*(?:-\s*(\d+))?\s*=\s*(.+)$/);
+      if (!m) continue;
+      const from = Number(m[1]);
+      const to = m[2] ? Number(m[2]) : from;
+      const val = m[3].trim();
+      if (!val || from < 1 || to < from || to > 400) continue;
+      for (let n = from; n <= to; n++) out.set(n, val);
+    }
+    return out;
+  };
+
+  const roomPreview = (() => {
+    const count = Math.max(0, Math.min(200, parseInt(roomCount, 10) || 0));
+    const base = Math.max(1, Math.min(40, parseInt(roomCap, 10) || 12));
+    if (!count) return null;
+    const caps = parseRanges(roomExcept);
+    const zones = parseRanges(roomZones);
+    const tables = Array.from({ length: count }, (_, i) => {
+      const n = i + 1;
+      const c = Number(caps.get(n));
+      return {
+        name: String(n),
+        capacity: Number.isFinite(c) && c >= 1 && c <= 40 ? c : base,
+        zone: zones.get(n) ?? null,
+      };
+    });
+    return { tables, seats: tables.reduce((s, t) => s + t.capacity, 0) };
+  })();
+
+  async function saveRoom() {
+    if (!roomPreview) return;
+    if (data.assignments.length && !confirm(
+      `הגדרת האולם מחדש תמחק את ${data.assignments.length} השיבוצים הקיימים.\nלהמשיך?`)) return;
+    setRoomSaving(true);
+    try {
+      const res = await fetch(`/api/couple/${token}/seating/room`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tables: roomPreview.tables }),
+      });
+      const d = await res.json().catch(() => null);
+      if (!res.ok) { alert(d?.error ?? "לא הצלחנו לשמור"); return; }
+      await load();
+      setRoomOpen(false);
+      alert(`האולם נשמר ✨\n${d.tables} שולחנות · ${d.capacity} מקומות\n\nעכשיו אפשר ללחוץ "סידור אוטומטי".`);
+    } finally { setRoomSaving(false); }
+  }
+
   return (
     <div dir="rtl" lang="he" style={{ minHeight: "100vh", background: CREAM, fontFamily: "Heebo, sans-serif" }}>
 
@@ -193,6 +266,14 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
               </p>
             </div>
             <div style={{ display: "flex", gap: "0.5rem" }}>
+              {data.tables.length > 0 && !roomOpen && (
+                <button
+                  onClick={() => setRoomOpen(true)}
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "0.6rem 1.2rem", borderRadius: 12, border: "none", background: "rgba(255,255,255,0.15)", color: "#FFF8EC", cursor: "pointer", fontSize: 14, fontFamily: "Heebo, sans-serif", backdropFilter: "blur(8px)" }}
+                >
+                  🏛️ ערכו את האולם
+                </button>
+              )}
               <button
                 onClick={() => setShowSimulator(!showSimulator)}
                 style={{ display: "flex", alignItems: "center", gap: 6, padding: "0.6rem 1.2rem", borderRadius: 12, border: "none", background: showSimulator ? "rgba(197,164,109,0.35)" : "rgba(255,255,255,0.15)", color: "#FFF8EC", cursor: "pointer", fontSize: 14, fontFamily: "Heebo, sans-serif", backdropFilter: "blur(8px)" }}
@@ -274,6 +355,76 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
       </div>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "1.5rem 1rem 4rem" }}>
+
+        {/* The hall, as the venue drew it.
+            Uses the card, the border and the gold of every other panel on this
+            screen — no new visual language, only a form the couple did not
+            have. Opens by itself when the room has not been described yet,
+            because that is the first thing that has to happen. */}
+        {(roomOpen || data.tables.length === 0) && (
+          <div style={{ background: "rgba(255,255,255,0.92)", border: "1px solid rgba(197,164,109,0.3)", borderRadius: "1.25rem", padding: "1.25rem", marginBottom: "1.25rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.85rem" }}>
+              <h2 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "1.1rem", fontWeight: 700, color: "#1C1008", margin: 0 }}>
+                🏛️ האולם שלכם
+              </h2>
+              {data.tables.length > 0 && (
+                <button onClick={() => setRoomOpen(false)} style={{ border: "none", background: "none", color: "rgba(28,16,8,0.45)", cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}>
+                  סגירה
+                </button>
+              )}
+            </div>
+            <p style={{ fontSize: 13, color: "rgba(28,16,8,0.55)", lineHeight: 1.65, margin: "0 0 1rem" }}>
+              קחו את שרטוט האולם שקיבלתם מהמקום והעתיקו ממנו את המספרים.
+              <strong> שימו לב אם יש בו יותר מעמוד אחד.</strong>
+            </p>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 12.5, color: "rgba(28,16,8,0.6)", marginBottom: 5 }}>כמה שולחנות בסך הכול?</label>
+                <input value={roomCount} onChange={e => setRoomCount(e.target.value)} inputMode="numeric" placeholder="38"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #E8E0D4", fontSize: 15, fontFamily: "inherit", background: "#fff" }} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12.5, color: "rgba(28,16,8,0.6)", marginBottom: 5 }}>כמה יושבים בשולחן?</label>
+                <input value={roomCap} onChange={e => setRoomCap(e.target.value)} inputMode="numeric" placeholder="12"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #E8E0D4", fontSize: 15, fontFamily: "inherit", background: "#fff" }} />
+              </div>
+            </div>
+
+            <label style={{ display: "block", fontSize: 12.5, color: "rgba(28,16,8,0.6)", marginBottom: 5 }}>
+              שולחנות עם מספר אחר <span style={{ color: "rgba(28,16,8,0.4)" }}>(לא חובה)</span>
+            </label>
+            <input value={roomExcept} onChange={e => setRoomExcept(e.target.value)} placeholder="24=10, 35=9, 38=9"
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #E8E0D4", fontSize: 14, fontFamily: "inherit", background: "#fff", marginBottom: 12 }} />
+
+            <label style={{ display: "block", fontSize: 12.5, color: "rgba(28,16,8,0.6)", marginBottom: 5 }}>
+              אזורים באולם <span style={{ color: "rgba(28,16,8,0.4)" }}>(לא חובה — שומר משפחה באותו אזור)</span>
+            </label>
+            <input value={roomZones} onChange={e => setRoomZones(e.target.value)} placeholder="1-7=מרכז, 8-15=מפלס א, 27-38=רחבה"
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #E8E0D4", fontSize: 14, fontFamily: "inherit", background: "#fff", marginBottom: 14 }} />
+
+            {roomPreview && (
+              <div style={{ background: "rgba(197,164,109,0.1)", borderRadius: 12, padding: "12px 14px", marginBottom: 14, fontSize: 13.5, color: "#1C1008", lineHeight: 1.7 }}>
+                <strong>{roomPreview.tables.length} שולחנות · {roomPreview.seats} מקומות</strong>
+                {totalGuests > 0 && (
+                  <div style={{ color: roomPreview.seats >= totalGuests ? "#4A7C59" : "#C05050", marginTop: 3 }}>
+                    {roomPreview.seats >= totalGuests
+                      ? `מספיק ל-${totalGuests} האורחים שאישרו, ונשארים ${roomPreview.seats - totalGuests} מקומות`
+                      : `❗ ${totalGuests} אישרו — חסרים ${totalGuests - roomPreview.seats} מקומות`}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <button onClick={saveRoom} disabled={!roomPreview || roomSaving}
+              style={{ width: "100%", padding: "13px 0", borderRadius: 12, border: "none", cursor: roomPreview ? "pointer" : "default",
+                background: roomPreview ? "#C5A46D" : "#E8E0D4", color: roomPreview ? "#1C1008" : "rgba(28,16,8,0.4)",
+                fontSize: 15, fontWeight: 600, fontFamily: "inherit" }}>
+              {roomSaving ? "שומר…" : "שמירת האולם"}
+            </button>
+          </div>
+        )}
+
 
         {/* F10 — Seating Simulator */}
         {showSimulator && data.tables.length > 0 && (
