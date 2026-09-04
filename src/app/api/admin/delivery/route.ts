@@ -122,21 +122,26 @@ export async function GET(req: NextRequest) {
     (data ?? []).forEach(r => sentIds.add(r.guest_id));
   }
 
-  /* And whoever has an accepted message, whatever guest_events says.
+  /* And whoever has an accepted INVITATION, whatever guest_events says.
    *
-   * The two records are written by the same send and either one can be lost:
-   * אשר כהן and חיים כצמן, both at שחר's wedding, have an outbound message
-   * Meta accepted and read — and no invite_sent row. The screen therefore
-   * showed them under "⚠️ טרם נשלחה הזמנה", five days before the wedding, and
-   * the honest reading of that chip is "send to them" — which would have
-   * re-invited two people who had already read their invitation.
+   * The two records are written by the same send and either can be lost, so
+   * either one proves the invitation left. But it must be the invitation.
    *
-   * A wamid is Meta's receipt. Either record proves the message left, and
-   * requiring both means the weaker of the two decides. */
+   * This first counted ANY outbound message with a wamid, and that was wrong
+   * in the one direction that costs a guest their seat. אשר כהן's only message
+   * was the rides-board notice — he was never invited — and counting it made
+   * the "טרם נשלחה הזמנה" chip drop from 1 to 0 while the guest it was about
+   * still had nothing. שחר told Dvir five days before her wedding; the screen
+   * had stopped saying it the day before.
+   *
+   * Matched on the body the senders write, because the template name is not
+   * stored on the row. Reminders are excluded too: a reminder to somebody who
+   * never received an invitation is its own bug, not evidence of one. */
   for (let i = 0; i < ids.length; i += 100) {
     const { data, error } = await sb
-      .from("wa_messages").select("guest_id")
+      .from("wa_messages").select("guest_id, body")
       .eq("direction", "out").not("wamid", "is", null)
+      .like("body", "%הזמנה לחתונה%")
       .in("guest_id", ids.slice(i, i + 100));
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     (data ?? []).forEach(r => r.guest_id && sentIds.add(r.guest_id as string));

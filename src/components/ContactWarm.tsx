@@ -34,6 +34,7 @@ export default function ContactWarm() {
      * the click or the browser treats it as an unrequested popup and blocks it.
      * keepalive lets the request outlive the tab losing focus. A lead that
      * fails to record must still reach WhatsApp, so the catch stays silent. */
+    const refCode = refCodeOf();
     fetch("/api/leads", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -48,13 +49,36 @@ export default function ContactWarm() {
            site". organic is the honest fit, and the exact CTA goes in
            ref_code, which is free text. Sending "site:contact-form" here
            returns a 22P02 the silent catch would have swallowed. */
-        source: "organic",
-        ref_code: "site:contact-form",
+        /* Where they actually came from, when we know.
+         *
+         * This sent "organic" and "site:contact-form" on every submission,
+         * hard-coded — so a lead from שחר's wedding, a lead from Google and a
+         * lead from a referral link were all recorded identically, and there
+         * was no way to tell which wedding was worth asking for a
+         * recommendation. The referral counters could never agree with the
+         * lead counters because one side was never written.
+         *
+         * lead_source is a closed enum — referral | instagram | facebook |
+         * google | organic | unknown — and anything else returns 22P02, which
+         * the silent catch below would swallow along with the whole lead. So
+         * the enum is chosen here and the free-text code carries the detail. */
+        source: refCode ? "referral" : "organic",
+        ref_code: refCode || "site:contact-form",
         notes: notes.trim() || null,
       }),
     }).catch(() => {});
 
     window.open(`https://wa.me/${WA_PHONE}?text=${encodeURIComponent(raw)}`, "_blank", "noopener,noreferrer");
+  };
+
+  /* Cookie first, then ?ref= — a browser that refused the cookie still carries
+     it in the URL, and /ref/[code] sets both for exactly that reason. */
+  const refCodeOf = (): string => {
+    if (typeof document === "undefined") return "";
+    const c = document.cookie.match(/(?:^|;\s*)ref_code=([^;]+)/);
+    if (c) return decodeURIComponent(c[1]).slice(0, 40);
+    const q = new URLSearchParams(window.location.search).get("ref");
+    return q ? q.slice(0, 40) : "";
   };
 
   const field = "w-full rounded-field bg-cream px-4 py-3 font-body text-[15px] text-ink placeholder-ink/40 outline-none focus:ring-2 focus:ring-gold/40";

@@ -48,16 +48,39 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
 
     const { data: event } = await supabase
       .from("events")
-      .select("name")
+      .select("name, wa_header_image_url")
       .eq("id", guest.event_id)
       .single();
 
     if (event?.name) {
       const title = `${event.name} 💍 אישור הגעה`;
+      const description = "נשמח לראותכם! לחצו לאישור הגעה.";
+
+      /* The couple's own invitation in the WhatsApp link preview.
+       *
+       * This branch returned an openGraph object with no `images` key, and
+       * Next REPLACES the root object rather than merging into it — so the
+       * site-wide og.png went too. Every paying client's link opened as bare
+       * text, while an unrecognised token fell through to `fallback` and got a
+       * picture. The customer got the worse preview.
+       *
+       * ~1,100 guests have opened this link. It is the most-seen surface in
+       * the business and the first thing a couple planning a wedding judges.
+       *
+       * Spread rather than `images: x ? [...] : undefined` — Next checks for
+       * the key, and an explicit undefined still counts as present. No
+       * width/height: the image is an arbitrary upload and stating dimensions
+       * we have not measured is worse than omitting them. And deliberately not
+       * og.png as a fallback — it is 676KB, well past the size at which
+       * WhatsApp drops the thumbnail. */
+      const card = (event.wa_header_image_url as string | null)?.trim();
+      const images = card ? { images: [{ url: card, alt: String(event.name) }] } : {};
+
       return {
         title,
-        description: "נשמח לראותכם! לחצו לאישור הגעה.",
-        openGraph: { title, description: "נשמח לראותכם! לחצו לאישור הגעה.", type: "website", locale: "he_IL" },
+        description,
+        openGraph: { title, description, type: "website", locale: "he_IL", ...images },
+        ...(card ? { twitter: { card: "summary_large_image" as const, title, description, images: [card] } } : {}),
       };
     }
 
