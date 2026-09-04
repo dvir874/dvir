@@ -527,7 +527,12 @@ async function notifyRidesGroup(
         })),
       );
       for (const { g, res } of batch) {
-        if (!res.ok) continue;
+        if (!res.ok) {
+          /* Recorded rather than dropped — see logSendFailure. */
+          await logSendFailure(sb, { eventId: ev.id as string, guestId: g.id as string,
+            phone: g.phone as string, body: "קבוצת טרמפים (תבנית)", error: res.error });
+          continue;
+        }
         sent++;
         await sb.from("guest_events")
           .insert({ guest_id: g.id, event_type: "rides_group_sent" });
@@ -708,7 +713,12 @@ async function notifyDayOf(
         return { g, res: await sendDayOf(cfg, g.phone as string, couple, rec, chu, venue, lineFor(id)) };
       }));
       for (const { g, res } of batch) {
-        if (!res.ok) continue;
+        if (!res.ok) {
+          /* Recorded rather than dropped — see logSendFailure. */
+          await logSendFailure(sb, { eventId: ev.id as string, guestId: g.id as string,
+            phone: g.phone as string, body: "היום מתחתנים (תבנית)", error: res.error });
+          continue;
+        }
         sentTotal++;
         await sb.from("guest_events").insert({ guest_id: g.id, event_type: "day_of_sent" });
         if (res.messageId) {
@@ -728,6 +738,44 @@ async function notifyDayOf(
     event: names.join(" + ") || undefined,
     ...(unreached ? { unreached } : {}),
   };
+}
+
+/* A send that Meta refused, written down.
+ *
+ * Five loops in this file ended in `if (!res.ok) continue;` — the photo
+ * request, the rides board, "מחר זה קורה", the table numbers and the gallery.
+ * No row, no counter, no alert. A guest who never received their table number
+ * looked identical to one who did, on every screen, for ever.
+ *
+ * The invitation path has recorded its failures since the beginning, which is
+ * why every diagnosis in this project starts from an invitation and stops at
+ * the edge of everything else. This is that edge.
+ *
+ * Written with status "failed" so it lands in the same places a failed
+ * invitation does: the delivery screen, the unreachable list, and the nightly
+ * "who needs you" digest. Never throws — a lost log must not cost the next
+ * guest their message. */
+async function logSendFailure(
+  sb: ReturnType<typeof createServerClient>,
+  row: { eventId: string; guestId: string | null; phone: string; body: string; error?: string },
+): Promise<void> {
+  try {
+    await sb.from("wa_messages").insert({
+      event_id: row.eventId, guest_id: row.guestId,
+      wa_phone: toE164(row.phone) ?? "",
+      direction: "out", body: row.body,
+      status: "failed", error: (row.error ?? "").slice(0, 300),
+      error_code: codeFromError(row.error),
+    });
+  } catch { /* the send already failed; the record is the lesser loss */ }
+}
+
+/* Meta puts the numeric code in the message text when the client did not
+   surface it separately. policyFor already parses these; this only needs the
+   number so the failure lands in the right bucket downstream. */
+function codeFromError(err?: string | null): number | null {
+  const m = /\b(13\d{4})\b/.exec(String(err ?? ""));
+  return m ? Number(m[1]) : null;
 }
 
 async function guestLineFactory(
@@ -815,7 +863,12 @@ async function dayBeforeForEvent(
       })),
     );
     for (const { g, res } of batch) {
-      if (!res.ok) continue;
+      if (!res.ok) {
+        /* Recorded rather than dropped — see logSendFailure. */
+        await logSendFailure(sb, { eventId: ev.id as string, guestId: g.id as string,
+          phone: g.phone as string, body: "מחר מתחתנים (תבנית)", error: res.error });
+        continue;
+      }
       sent++;
       await sb.from("guest_events").insert({ guest_id: g.id, event_type: "day_before_sent" });
       if (res.messageId) {
@@ -1478,7 +1531,12 @@ async function sendTableNumbers(
           reception, tableName.get(x.a.table_id as string)!),
       })));
       for (const { x, res } of batch) {
-        if (!res.ok) continue;
+        if (!res.ok) {
+          /* Recorded rather than dropped — see logSendFailure. */
+          await logSendFailure(sb, { eventId: ev.id as string, guestId: x.g!.id as string,
+            phone: String(x.g!.phone), body: "מספר שולחן (תבנית)", error: res.error });
+          continue;
+        }
         sent++;
         await sb.from("guest_events")
           .insert({ guest_id: x.g!.id, event_type: "table_number_sent" });
@@ -1592,7 +1650,12 @@ async function notifyGallery(
       })),
     );
     for (const { g, res } of batch) {
-      if (!res.ok) continue;
+      if (!res.ok) {
+        /* Recorded rather than dropped — see logSendFailure. */
+        await logSendFailure(sb, { eventId: ev.id as string, guestId: g.id as string,
+          phone: g.phone as string, body: "גלריית התמונות מוכנה", error: res.error });
+        continue;
+      }
       sent++;
       await sb.from("guest_events").insert({ guest_id: g.id, event_type: "gallery_sent" });
       if (res.messageId) {
