@@ -4,6 +4,7 @@ import { handleGuestReply } from "@/lib/wa-conversation";
 import { isAdminPhone, handleAdminMessage } from "@/lib/admin-console";
 import { isRetryableFailure, nextRetryAt } from "@/lib/whatsapp";
 import { failureWriter, newRunId, recordFailure } from "@/lib/failures";
+import { isNewerStatus } from "@/lib/rsvp-contact";
 
 export const dynamic = "force-dynamic";
 
@@ -276,6 +277,15 @@ export async function POST(req: NextRequest) {
          it PostgREST reports success for updating nothing, which is exactly
          what happens when the report wins the race against the INSERT that
          records the send. */
+      /* Never backwards — the same rule applyOrphanStatuses now applies.
+       *
+       * Meta reports out of order and re-reports what it has already said, so
+       * a late "sent" arriving after "read" reverted the row, dropped the
+       * guest out of didArrive, and had them invited a second time. */
+      const { data: cur } = await sb
+        .from("wa_messages").select("status").eq("wamid", s.id).maybeSingle();
+      if (cur && !isNewerStatus(s.status as string, cur.status as string)) continue;
+
       const { data: hit, error } = await sb
         .from("wa_messages").update({ ...base, ...retry }).eq("wamid", s.id).select("id");
 

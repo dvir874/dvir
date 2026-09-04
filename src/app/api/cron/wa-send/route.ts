@@ -11,7 +11,7 @@ import {
 import { checkEventLinks, brokenSummary } from "@/lib/link-health";
 import { chooseEvents, MAX_EVENTS_PER_RUN, type WindowEvent } from "@/lib/send-window";
 import { dayOfWindow, dayOfTargets } from "@/lib/day-of";
-import { isRsvpMessage, didArrive } from "@/lib/rsvp-contact";
+import { isRsvpMessage, didArrive, isNewerStatus } from "@/lib/rsvp-contact";
 import { classifyManualWork, manualWorkMessage, type LastContact } from "@/lib/manual-work";
 import { forecastDayBefore, pressingDays, forecastMessage, type ForecastEvent } from "@/lib/send-forecast";
 
@@ -236,9 +236,35 @@ async function applyOrphanStatuses(
 
   let applied = 0;
   for (const o of orphans) {
+    /* Never backwards.
+     *
+     * Meta reports out of order. A "sent" that arrived before our row existed
+     * is parked here, and this replayed it over the "delivered" and "read"
+     * that had since been written — so a guest who had opened their invitation
+     * reverted to "sent", failed didArrive, re-entered the first-contact group
+     * and was invited a second time. And a row correctly marked failed with
+     * 131050, the code meaning the recipient asked us to stop, had its
+     * error_code cleared by the same replay and was messaged again.
+     *
+     * Compared here rather than in the UPDATE: status is nullable, and an
+     * `.in("status", ...)` filter would make every row without one permanently
+     * unupdatable. */
+    const { data: cur } = await sb.from("wa_messages")
+      .select("id, status").eq("wamid", o.wamid).maybeSingle();
+
+    if (cur && !isNewerStatus(o.status as string, cur.status as string)) {
+      /* Stale, and it must be dropped rather than left — an orphan that can
+         never apply otherwise burns a retry on every run for ever. */
+      await sb.from("wa_status_orphans").delete().eq("id", o.id);
+      continue;
+    }
+
     const { data: hit } = await sb.from("wa_messages")
       .update({
-        status: o.status, error: o.error, error_code: o.error_code,
+        status: o.status,
+        /* Only a failure carries error text. Copying null from a delivery
+           report is how a 131050 lost the code that protects the guest. */
+        ...(o.status === "failed" ? { error: o.error, error_code: o.error_code } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq("wamid", o.wamid).select("id");

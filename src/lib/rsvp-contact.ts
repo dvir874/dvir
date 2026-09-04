@@ -41,3 +41,33 @@ export function isInvitation(body: string | null | undefined): boolean {
 export function didArrive(status: string | null | undefined): boolean {
   return status === "delivered" || status === "read";
 }
+
+/* How far along a delivery is. Higher wins.
+ *
+ * Meta reports out of order and re-reports what it has already said. A "sent"
+ * that arrived before our row existed is parked as an orphan and replayed on
+ * the next cron run — which, without this, overwrote the "read" that had since
+ * been written. The guest then failed didArrive, re-entered the first-contact
+ * group, and was invited a second time. Worse: a row correctly marked failed
+ * with 131050, the code meaning the recipient asked us to stop, had its
+ * error_code cleared by the same replay and was messaged again.
+ *
+ * failed ranks with read rather than above it: both are final, and a stale
+ * failure must not erase a delivery any more than the reverse. */
+const STATUS_RANK: Record<string, number> = {
+  auto: 0, accepted: 0, sent: 1, delivered: 2, read: 3, failed: 3,
+};
+
+/** -1 for anything unknown or missing, so it never overwrites a known state. */
+export function statusRank(status: string | null | undefined): number {
+  const r = STATUS_RANK[String(status ?? "")];
+  return r === undefined ? -1 : r;
+}
+
+/** Should `incoming` be written over `current`? */
+export function isNewerStatus(
+  incoming: string | null | undefined,
+  current: string | null | undefined,
+): boolean {
+  return statusRank(incoming) > statusRank(current);
+}

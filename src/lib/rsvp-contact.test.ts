@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isRsvpMessage, isInvitation, didArrive } from "./rsvp-contact.ts";
+import { isRsvpMessage, isInvitation, didArrive, isNewerStatus } from "./rsvp-contact.ts";
 
 test("the rides board is not an invitation", () => {
   /* אשר כהן's only message, status "read", four days before שחר's wedding.
@@ -42,4 +42,29 @@ test("arrival is what Meta confirmed, not what we sent", () => {
 
 test("nothing at all is not an invitation", () => {
   for (const b of [null, undefined, ""]) assert.equal(isRsvpMessage(b), false);
+});
+
+test("a delivery report never travels backwards", () => {
+  /* Meta reports out of order and replays what it has already said. A parked
+     "sent" overwriting a "read" sent the guest a second invitation. */
+  assert.equal(isNewerStatus("delivered", "sent"), true);
+  assert.equal(isNewerStatus("read", "delivered"), true);
+  assert.equal(isNewerStatus("sent", "read"), false);
+  assert.equal(isNewerStatus("sent", "delivered"), false);
+  assert.equal(isNewerStatus("accepted", "sent"), false);
+});
+
+test("a stale report never erases a failure, and vice versa", () => {
+  /* A row marked failed with 131050 — the recipient asked us to stop — had its
+     code cleared by a replayed "sent" and was messaged again. */
+  assert.equal(isNewerStatus("sent", "failed"), false);
+  assert.equal(isNewerStatus("delivered", "failed"), false);
+  assert.equal(isNewerStatus("failed", "read"), false);
+});
+
+test("an unknown status never overwrites a known one", () => {
+  for (const s of [null, undefined, "", "weird"]) {
+    assert.equal(isNewerStatus(s, "sent"), false, String(s));
+    assert.equal(isNewerStatus("sent", s), true, String(s));
+  }
 });
