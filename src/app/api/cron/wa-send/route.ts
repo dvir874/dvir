@@ -1927,6 +1927,54 @@ async function runSend(req: NextRequest) {
   ]);
   const cap = warmupCap(health, peak);
 
+  /* Moved ABOVE the `if (!cap)` return, which is the only reason it exists.
+   *
+   * cap reaches 0 in precisely the two states this alert was written for —
+   * posture "blocked" and quality RED — so the line reading "🔴 אדום — מטא
+   * עלולה להגביל את המספר" was unreachable code on every day it mattered. It
+   * warned about a decline and went silent at the bottom. */
+  /* The one alert that prevents damage instead of reporting it.
+   *
+   * On 9/8 Meta restricted this number with 131048 and sending stopped for
+   * ALL THREE weddings for days. Dvir found out by looking. Quality moves
+   * GREEN → YELLOW → RED before a restriction lands, so a message the
+   * moment it slips is the difference between slowing down in time and
+   * discovering it afterwards.
+   *
+   * The previous value is read from wa_runs, which has recorded quality on
+   * every run since it existed — no new column, and the comparison is
+   * against what actually happened rather than something held in memory
+   * that a cold start would lose.
+   *
+   * Deliberately unconditional on posture: this fires even on a run that
+   * sends nothing, because a number can degrade on a quiet day too. */
+  if (process.env.ADMIN_ALERT_PHONE && health.quality && health.quality !== "UNKNOWN") {
+    const RANK: Record<string, number> = { GREEN: 3, YELLOW: 2, RED: 1 };
+    const now = RANK[health.quality] ?? 0;
+    const { data: prevRows } = await sb.from("wa_runs")
+      .select("quality, created_at").not("quality", "is", null)
+      .neq("quality", "UNKNOWN")
+      .order("created_at", { ascending: false }).limit(2);
+    const prev = (prevRows ?? []).map(r => r.quality as string).find(q => RANK[q]);
+    const was = prev ? RANK[prev] ?? 0 : 0;
+
+    if (was && now && now < was) {
+      /* Once per drop, not once per run — the check above reads the last
+         recorded value, so the next run compares against the new low and
+         stays quiet. */
+      await sendRunSummary(cfg, process.env.ADMIN_ALERT_PHONE, {
+        event: `⚠️ דירוג האיכות ירד: ${prev} → ${health.quality}`,
+        /* `cap`, not `usage.remaining` — the rolling window is read further
+           down and this block now runs before it. The number a person needs
+           here is what Meta still allows, not what is left of it today. */
+        sent: "0", failed: "0", left: String(cap),
+        attention: health.quality === "RED"
+          ? "🔴 אדום — מטא עלולה להגביל את המספר בקרוב. לעצור שליחות ולבדוק דיווחי ספאם."
+          : "🟡 צהוב — התקרה תרד לחצי אוטומטית. כדאי להאט ולבדוק למי נשלח לאחרונה.",
+      });
+    }
+  }
+
   if (!cap) {
     return record(sb, {
       sent: 0, reason: "meta_blocked", healed,
@@ -2072,44 +2120,6 @@ async function runSend(req: NextRequest) {
    * day with 196 of these simply has fewer reminders — which is the correct
    * trade and not an accident. */
   try {
-  /* The one alert that prevents damage instead of reporting it.
-   *
-   * On 9/8 Meta restricted this number with 131048 and sending stopped for
-   * ALL THREE weddings for days. Dvir found out by looking. Quality moves
-   * GREEN → YELLOW → RED before a restriction lands, so a message the
-   * moment it slips is the difference between slowing down in time and
-   * discovering it afterwards.
-   *
-   * The previous value is read from wa_runs, which has recorded quality on
-   * every run since it existed — no new column, and the comparison is
-   * against what actually happened rather than something held in memory
-   * that a cold start would lose.
-   *
-   * Deliberately unconditional on posture: this fires even on a run that
-   * sends nothing, because a number can degrade on a quiet day too. */
-  if (process.env.ADMIN_ALERT_PHONE && health.quality && health.quality !== "UNKNOWN") {
-    const RANK: Record<string, number> = { GREEN: 3, YELLOW: 2, RED: 1 };
-    const now = RANK[health.quality] ?? 0;
-    const { data: prevRows } = await sb.from("wa_runs")
-      .select("quality, created_at").not("quality", "is", null)
-      .neq("quality", "UNKNOWN")
-      .order("created_at", { ascending: false }).limit(2);
-    const prev = (prevRows ?? []).map(r => r.quality as string).find(q => RANK[q]);
-    const was = prev ? RANK[prev] ?? 0 : 0;
-
-    if (was && now && now < was) {
-      /* Once per drop, not once per run — the check above reads the last
-         recorded value, so the next run compares against the new low and
-         stays quiet. */
-      await sendRunSummary(cfg, process.env.ADMIN_ALERT_PHONE, {
-        event: `⚠️ דירוג האיכות ירד: ${prev} → ${health.quality}`,
-        sent: "0", failed: "0", left: String(usage.remaining ?? 0),
-        attention: health.quality === "RED"
-          ? "🔴 אדום — מטא עלולה להגביל את המספר בקרוב. לעצור שליחות ולבדוק דיווחי ספאם."
-          : "🟡 צהוב — התקרה תרד לחצי אוטומטית. כדאי להאט ולבדוק למי נשלח לאחרונה.",
-      });
-    }
-  }
 
   } catch { /* a notification must never cost a send */ }
 
