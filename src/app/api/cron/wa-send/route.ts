@@ -2825,12 +2825,16 @@ async function runSend(req: NextRequest) {
       const latest = new Map<string, { at: string; code: number | null; err: string | null }>();
       for (let i = 0; i < oIds.length; i += 100) {
         const { data } = await sb.from("wa_messages")
-          .select("guest_id, status, error_code, error, created_at")
+          .select("guest_id, status, error_code, error, created_at, body")
           .eq("direction", "out").in("guest_id", oIds.slice(i, i + 100));
         for (const m of data ?? []) {
           const id = m.guest_id as string;
           if (!id) continue;
-          if (["delivered", "read"].includes(m.status as string)) arrived.add(id);
+          /* The RSVP conversation, not any message — see rsvp-contact.ts. Fixed
+             in the selected wedding's blocks and missed here, which left the
+             אשר כהן bug alive at every wedding a run does not select: the
+             majority of them, most runs. */
+          if (didArrive(m.status as string) && isRsvpMessage(m.body as string)) arrived.add(id);
           const at = m.created_at as string;
           const prev = latest.get(id);
           if (!prev || at > prev.at) latest.set(id, { at, code: m.error_code, err: m.error });
@@ -2950,7 +2954,7 @@ async function runSend(req: NextRequest) {
           if (String(m.body ?? "").includes("תזכורת")) {
             remCount.set(id, (remCount.get(id) ?? 0) + 1);
           }
-          if (["delivered", "read"].includes(m.status as string)) {
+          if (didArrive(m.status as string) && isRsvpMessage(m.body as string)) {
             arrived.add(id);
             const f = firstAt.get(id);
             if (!f || at < f) firstAt.set(id, at);
@@ -3100,7 +3104,16 @@ async function runSend(req: NextRequest) {
           await sb.from("wa_messages")
             .update({ retry_count: t.count, retry_after: null }).eq("id", t.row);
         }
-        await sb.from("guest_events").insert({ guest_id: g.id, event_type: "invite_sent" });
+        /* Only the invitation is invite_sent.
+         *
+         * This ran for every send in the loop, reminders included — so the
+         * first reminder to a guest who was never invited wrote the record
+         * saying he had been, and the delivery screen then agreed with it. Two
+         * sources of truth, and the wrong one was being written by the wrong
+         * event. */
+        if (!t.reminder) {
+          await sb.from("guest_events").insert({ guest_id: g.id, event_type: "invite_sent" });
+        }
         if (res.messageId) {
           await sb.from("wa_messages").insert({
             /* The GUEST's wedding, not the run's.

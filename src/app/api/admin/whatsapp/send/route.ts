@@ -4,6 +4,7 @@ import { venueLine } from "@/lib/venue";
 import { coupleName, looksLikeCouple } from "@/lib/couple-name";
 import { eventTimes } from "@/lib/event-times";
 import { weddingDateLine } from "@/lib/hebrew-date";
+import { isRsvpMessage, didArrive } from "@/lib/rsvp-contact";
 import {
   getWhatsAppConfig, sendInvitation, toE164,
   SAFE_DAILY_LIMIT, SECONDS_PER_MESSAGE, rollingWindowUsage,
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
     (manualRows ?? []).forEach(r => already.add(r.guest_id));
 
     const { data: msgRows, error: msgErr } = await sb
-      .from("wa_messages").select("guest_id, status")
+      .from("wa_messages").select("guest_id, status, body")
       .eq("direction", "out").in("guest_id", slice);
     if (msgErr) {
       return NextResponse.json(
@@ -130,7 +131,13 @@ export async function POST(req: NextRequest) {
       );
     }
     (msgRows ?? []).forEach(m => {
-      if (m.guest_id && ["delivered", "read"].includes(m.status)) already.add(m.guest_id);
+      /* An RSVP message that arrived, not any message. אשר כהן's only message
+         was the rides-board notice, delivered and read — and this route would
+         have skipped him for the same reason the cron did, so the one path
+         left to reach him by hand was closed too. */
+      if (m.guest_id && didArrive(m.status) && isRsvpMessage((m as { body?: string }).body)) {
+        already.add(m.guest_id);
+      }
     });
   }
 
