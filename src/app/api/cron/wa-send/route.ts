@@ -11,6 +11,7 @@ import {
 import { checkEventLinks, brokenSummary } from "@/lib/link-health";
 import { chooseEvents, MAX_EVENTS_PER_RUN, type WindowEvent } from "@/lib/send-window";
 import { dayOfWindow, dayOfTargets } from "@/lib/day-of";
+import { isRsvpMessage, didArrive } from "@/lib/rsvp-contact";
 import { classifyManualWork, manualWorkMessage, type LastContact } from "@/lib/manual-work";
 import { forecastDayBefore, pressingDays, forecastMessage, type ForecastEvent } from "@/lib/send-forecast";
 
@@ -2304,12 +2305,15 @@ async function runSend(req: NextRequest) {
     const arrived = new Set<string>();
     for (let i = 0; i < pendIds.length; i += 150) {
       const { data } = await sb.from("wa_messages")
-        .select("guest_id, status, created_at").eq("direction", "out")
+        .select("guest_id, status, created_at, body").eq("direction", "out")
         .in("guest_id", pendIds.slice(i, i + 150));
       for (const m of data ?? []) {
         const id = m.guest_id as string;
         if (!id) continue;
-        if (["delivered", "read"].includes(m.status as string)) arrived.add(id);
+        /* An RSVP message that arrived — not any message. אשר כהן's only
+           message was the rides-board notice, status "read", and counting it
+           here made his wedding look as though nobody was left to invite. */
+        if (didArrive(m.status as string) && isRsvpMessage(m.body as string)) arrived.add(id);
         const at = m.created_at as string;
         if (!last.has(id) || at > last.get(id)!) last.set(id, at);
       }
@@ -2531,7 +2535,10 @@ async function runSend(req: NextRequest) {
       if (m.status !== "failed" && !m.error_code) {
         acceptedByGuest.set(m.guest_id, (acceptedByGuest.get(m.guest_id) ?? 0) + 1);
       }
-      if (["delivered", "read"].includes(m.status)) {
+      /* Contact means the RSVP conversation reached them, not that any message
+         did. The rides board, the photo request, "מחר זה קורה" and the gallery
+         all arrive independently of whether the guest was ever invited. */
+      if (didArrive(m.status) && isRsvpMessage(m.body as string)) {
         contacted.add(m.guest_id);
         /* EARLIEST arrival, not latest. See the reminder ordering below. */
         const prev = firstArrival.get(m.guest_id);
