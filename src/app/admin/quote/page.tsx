@@ -126,6 +126,24 @@ export default function QuoteBuilder() {
              total, cost, profit, margin: total > 0 ? (profit / total) * 100 : 0 };
   }, [records, launch, calls, withDesign, print]);
 
+  /* What the couple is actually charged, and what it actually earns.
+   *
+   * The override rewrites the price in the message and nothing else: the
+   * profit and margin on this screen stayed on the calculated total. Quote a
+   * wedding at 200 with a computed total of 335 and the screen still says the
+   * margin is fine — the one number that would have argued against the
+   * discount was reading a price nobody was being offered.
+   *
+   * And the floor: MIN_CHARGE is applied to the calculation and not to the
+   * override, so the field beside it is the one place in the business where a
+   * price below 290 leaves without a word. */
+  const priceNow = override.trim() ? Number(override.trim()) : q.total;
+  const overrideBelowFloor = !!override.trim()
+    && Number.isFinite(priceNow) && priceNow < MIN_CHARGE;
+  const realProfit = Number.isFinite(priceNow) ? priceNow - q.cost : q.profit;
+  const realMargin = Number.isFinite(priceNow) && priceNow > 0
+    ? (realProfit / priceNow) * 100 : 0;
+
   const message = useMemo(() => {
     const who  = names.trim() || "[שמות]";
     const when = date.trim() ? `\nהחתונה שלכם: ${date.trim()}\n` : "\n";
@@ -295,6 +313,11 @@ ${DEMO_LINK}
 
             <div>
               <label style={label}>מחיר סופי (ריק = לפי החישוב)</label>
+              {overrideBelowFloor && (
+                <p style={{ margin: "0 0 6px", fontSize: 12.5, color: "#C05050", fontWeight: 600 }}>
+                  ⚠️ מתחת לרצפת המחיר ({ils(MIN_CHARGE)}). המחירון של העסק אומר {ils(MIN_CHARGE)} מינימום.
+                </p>
+              )}
               <input style={input} type="number" min={0} value={override}
                 placeholder={String(Math.round(q.total))}
                 onChange={e => setOverride(e.target.value)} />
@@ -335,8 +358,8 @@ ${DEMO_LINK}
                 {[
                   { k: "מחיר ללקוח", v: ils(q.total), c: C.dark },
                   { k: "עלות ישירה", v: ils(q.cost), c: C.muted },
-                  { k: "רווח", v: ils(q.profit), c: C.green },
-                  { k: "שיעור רווח", v: `${Math.round(q.margin)}%`, c: C.goldT },
+                  { k: "רווח", v: ils(realProfit), c: realProfit >= 0 ? C.green : "#C05050" },
+                  { k: "שיעור רווח", v: `${Math.round(realMargin)}%`, c: C.goldT },
                 ].map(x => (
                   <div key={x.k}>
                     <div style={{ fontSize: 12, color: C.muted }}>{x.k}</div>

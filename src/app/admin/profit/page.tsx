@@ -24,7 +24,7 @@ type Row = {
 
 export default function ProfitPage() {
   const [rows, setRows] = useState<Row[]>([]);
-  const [totals, setTotals] = useState<{ revenue: number; cost: number; profit: number; missingPrice: number } | null>(null);
+  const [totals, setTotals] = useState<{ revenue: number; agreed: number; collected: number; outstanding: number; cost: number; profit: number; missingPrice: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
@@ -72,7 +72,11 @@ export default function ProfitPage() {
 
         {totals && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 22 }}>
-            {[["הכנסות", ils(totals.revenue), T.dark],
+            {/* Agreed and collected are different facts. Showing one number
+                called "הכנסות" is how a business believes it has been paid. */}
+            {[["סוכם", ils(totals.agreed ?? totals.revenue), T.dark],
+              ["התקבל", ils(totals.collected ?? 0), T.olive],
+              ["לגבייה", ils(totals.outstanding ?? 0), (totals.outstanding ?? 0) > 0 ? T.gold : T.muted],
               ["עלויות", ils(totals.cost), T.muted],
               ["רווח", ils(totals.profit), totals.profit >= 0 ? T.olive : T.alert]].map(([l, v, c]) => (
               <div key={l} style={{ background: T.card, border: `1px solid ${T.border}`,
@@ -106,7 +110,11 @@ export default function ProfitPage() {
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <label style={{ fontSize: 13, color: T.muted }}>נגבה:</label>
+              {/* "סוכם", not "נגבה". The field writes price_charged, which the
+                  migration defines as the agreed price, and calling it
+                  "collected" made 894₪ of agreements read as money received
+                  when 115₪ had arrived. Whether it was paid is paid_at. */}
+              <label style={{ fontSize: 13, color: T.muted }}>סוכם:</label>
               <input
                 type="number" inputMode="numeric" defaultValue={r.charged ?? ""}
                 placeholder="—"

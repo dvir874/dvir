@@ -33,7 +33,7 @@ export async function GET(_req: NextRequest) {
   const waba = process.env.WHATSAPP_WABA_ID;
 
   const { data: events } = await sb.from("events")
-    .select("id, name, couple_names, date, price_charged").order("date");
+    .select("id, name, couple_names, date, price_charged, paid_at").order("date");
   const live = (events ?? []).filter(e => !String(e.name).includes("בדיקה"));
 
   /* Real cost per UTC day, straight from Meta. */
@@ -84,9 +84,13 @@ export async function GET(_req: NextRequest) {
     }
     const costIls = (metaUsd + vercelPerEvent) * USD_ILS;
     const charged = e.price_charged == null ? null : Number(e.price_charged);
+    /* price_charged is what was AGREED. Whether the money arrived is paid_at,
+       and the two were being summed under one heading called "הכנסות" — 894₪
+       on a screen where 115₪ had actually been received. */
+    const paidAt = (e as { paid_at?: string | null }).paid_at ?? null;
     return {
       id: e.id, name: e.name, couple: e.couple_names, date: e.date,
-      sent, charged,
+      sent, charged, paidAt,
       cost: Math.round(costIls),
       costMeasured: measured,
       profit: charged == null ? null : Math.round(charged - costIls),
@@ -99,6 +103,12 @@ export async function GET(_req: NextRequest) {
   return NextResponse.json({
     rows,
     totals: {
+      /* Three numbers, because they are three different facts and conflating
+         them is how a business believes it has money it has not been paid. */
+      agreed: known.reduce((s, r) => s + (r.charged ?? 0), 0),
+      collected: known.filter(r => r.paidAt).reduce((s, r) => s + (r.charged ?? 0), 0),
+      outstanding: known.filter(r => !r.paidAt).reduce((s, r) => s + (r.charged ?? 0), 0),
+      /* Kept so an older client of this route keeps working; it means agreed. */
       revenue: known.reduce((s, r) => s + (r.charged ?? 0), 0),
       cost: rows.reduce((s, r) => s + r.cost, 0),
       profit: known.reduce((s, r) => s + (r.profit ?? 0), 0),
