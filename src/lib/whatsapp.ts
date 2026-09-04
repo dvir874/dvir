@@ -1259,30 +1259,74 @@ export function safeParam(text: string): string {
   return /[^\s·]/.test(out) ? out : "—";
 }
 
+/* The one road every alert in this system travels.
+ *
+ * It returned Promise<void>: no res.ok, no body read, no log, and every one of
+ * the sixteen call sites wraps it in a silent catch. So the whole alerting
+ * layer could have been failing — a rejected template, an expired token, a
+ * parameter with a newline in it — and the only symptom would have been a
+ * quiet phone, which is exactly what a healthy day looks like.
+ *
+ * That matters more here than anywhere else in the file. The plan for this
+ * business is "silence means everything is fine". Silence has to be earned.
+ *
+ * Returns the outcome so a caller can react, and falls back to plain text when
+ * the template is refused — Dvir's own 24-hour window is open whenever he has
+ * used the console, and a degraded alert beats none. */
 export async function sendRunSummary(
   cfg: WhatsAppConfig,
   to: string,
   v: { event: string; sent: string; failed: string; left: string; attention: string },
-): Promise<void> {
+): Promise<SendResult> {
   const phone = toE164(to);
-  if (!phone) return;
-  await fetch(`https://graph.facebook.com/${API_VERSION}/${cfg.phoneNumberId}/messages`, {
-    method: "POST",
-    signal: AbortSignal.timeout(15_000),
-    headers: { Authorization: `Bearer ${cfg.accessToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messaging_product: "whatsapp", to: phone, type: "template",
-      template: {
-        name: "sending_run_summary_utility",
-        language: { code: cfg.templateLang },
-        components: [{
-          type: "body",
-          parameters: [v.event, v.sent, v.failed, v.left, v.attention]
-            .map(text => ({ type: "text", text: safeParam(text) })),
-        }],
-      },
-    }),
-  });
+  if (!phone) return { ok: false, error: "מספר לא תקין" };
+
+  const name = process.env.WHATSAPP_TEMPLATE_RUN_SUMMARY?.trim()
+    || "sending_run_summary_utility";
+  try {
+    const res = await fetch(`https://graph.facebook.com/${API_VERSION}/${cfg.phoneNumberId}/messages`, {
+      method: "POST",
+      signal: AbortSignal.timeout(15_000),
+      headers: { Authorization: `Bearer ${cfg.accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messaging_product: "whatsapp", to: phone, type: "template",
+        template: {
+          name,
+          language: { code: cfg.templateLang },
+          components: [{
+            type: "body",
+            parameters: [v.event, v.sent, v.failed, v.left, v.attention]
+              .map(text => ({ type: "text", text: safeParam(text) })),
+          }],
+        },
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok) return { ok: true, messageId: json?.messages?.[0]?.id };
+
+    const error = json?.error?.error_user_msg ?? json?.error?.message ?? `HTTP ${res.status}`;
+    console.error(`[run-summary] ${name}: ${error}`);
+
+    /* One fallback, in plain text. Only works inside the 24-hour window, which
+       is open whenever he has written to the business number — and if it is
+       shut, the failure is at least now on the record above. */
+    const plain = `${v.event}\n${v.attention}`.slice(0, 900);
+    const alt = await fetch(`https://graph.facebook.com/${API_VERSION}/${cfg.phoneNumberId}/messages`, {
+      method: "POST",
+      signal: AbortSignal.timeout(15_000),
+      headers: { Authorization: `Bearer ${cfg.accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messaging_product: "whatsapp", to: phone, type: "text",
+        text: { preview_url: false, body: plain },
+      }),
+    }).catch(() => null);
+    if (alt?.ok) return { ok: true };
+    return { ok: false, error };
+  } catch (e) {
+    const error = e instanceof Error ? e.message : "network";
+    console.error(`[run-summary] ${error}`);
+    return { ok: false, error };
+  }
 }
 
 
