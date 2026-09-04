@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseAdminCommand, matchEvent, ADMIN_HELP } from "./admin-command";
 import { classifyManualWork, manualWorkMessage, type LastContact } from "./manual-work";
 import { coupleName } from "./couple-name";
+import { isRsvpMessage, didArrive } from "./rsvp-contact";
 import { whatsappInviteLink } from "./phone";
 import { getWhatsAppConfig, toE164 } from "./whatsapp";
 import { sendText } from "./wa-interactive";
@@ -174,10 +175,14 @@ export async function handleAdminMessage(
         const reached = new Set<string>();
         for (let i = 0; i < ids.length; i += 100) {
           const { data: ms } = await sb.from("wa_messages")
-            .select("guest_id, status").eq("direction", "out")
+            .select("guest_id, status, body").eq("direction", "out")
             .in("guest_id", ids.slice(i, i + 100));
           for (const m of ms ?? []) {
-            if (m.guest_id && ["delivered", "read"].includes(m.status as string)) {
+            /* The sixth site of the same predicate. This command exists to find
+               exactly the guest the bug hides, and counted the rides-board
+               notice as an invitation — so it would have answered
+               "כולם קיבלו 🤍" while אשר כהן sat with nothing. */
+            if (m.guest_id && didArrive(m.status as string) && isRsvpMessage(m.body as string)) {
               reached.add(m.guest_id as string);
             }
           }

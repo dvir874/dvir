@@ -635,7 +635,15 @@ async function notifyDayOf(
   cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
   budget: number,
 ): Promise<{ sent: number; event?: string; unreached?: number }> {
-  if (budget <= 0 || !cfg.dayOfTemplateName) return { sent: 0 };
+  /* BOTH template names, because the sender picks between them.
+   *
+   * This checked only dayOfTemplateName while sendDayOf reaches for
+   * dayOfNoteTemplateName whenever the guest has a table number or the couple
+   * left a note — which is every seated guest. Setting one variable and not
+   * the other would have opened the feature and then failed on precisely the
+   * guests it was built for: the ones the eve could not reach, who are seated
+   * and need their table. */
+  if (budget <= 0 || !cfg.dayOfTemplateName || !cfg.dayOfNoteTemplateName) return { sent: 0 };
 
   const today = israelToday();
   const hour = Number(new Date().toLocaleString("en-GB", {

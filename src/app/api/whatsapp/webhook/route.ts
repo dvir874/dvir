@@ -323,6 +323,27 @@ export async function POST(req: NextRequest) {
       };
     }).filter(r => r.wa_phone);
 
+    /* Which of these we have seen before.
+     *
+     * Meta re-delivers a webhook whenever ours is slow or answers anything but
+     * 200, and a run that pushes seventy messages is exactly when ours is slow.
+     * The upsert below is keyed on wamid so no duplicate ROW appears — but
+     * handleGuestReply further down ran again regardless, replaying the whole
+     * RSVP exchange: the headcount recorded twice, the reply sent twice, and a
+     * decline confirmation arriving at a guest who had already declined.
+     *
+     * Duplicate messages to one recipient are the signal that produced 131048.
+     *
+     * Read BEFORE the upsert, because after it every row exists and the
+     * question can no longer be asked. */
+    const seenBefore = new Set<string>();
+    const wamids = inbound.map(r => r.wamid).filter(Boolean) as string[];
+    for (let i = 0; i < wamids.length; i += 100) {
+      const { data } = await sb.from("wa_messages")
+        .select("wamid").in("wamid", wamids.slice(i, i + 100));
+      (data ?? []).forEach(r => r.wamid && seenBefore.add(r.wamid as string));
+    }
+
     if (inbound.length) {
       const { error } = await sb.from("wa_messages").upsert(inbound, { onConflict: "wamid" });
       /* The media columns arrive by migration. Until it has run, keeping the
@@ -409,6 +430,10 @@ export async function POST(req: NextRequest) {
         });
         continue;
       }
+      /* A re-delivery of something already handled. The row is refreshed above;
+         the conversation must not run a second time. */
+      if (m.id && seenBefore.has(m.id)) continue;
+
       try {
         await handleGuestReply(sb, g.id, m.from, bodyOf(m), m.button?.payload);
       } catch (e1) {
