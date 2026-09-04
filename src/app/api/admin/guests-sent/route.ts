@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { isRsvpMessage, didArrive } from "@/lib/rsvp-contact";
 
 export const dynamic = "force-dynamic";
 
@@ -65,10 +66,16 @@ export async function GET(req: NextRequest) {
     (manual ?? []).forEach(e => reached.add(e.guest_id));
 
     const { data: msgs } = await sb
-      .from("wa_messages").select("guest_id, status")
+      .from("wa_messages").select("guest_id, status, body")
       .eq("direction", "out").in("guest_id", slice);
     (msgs ?? []).forEach(m => {
-      if (m.guest_id && ["delivered", "read"].includes(m.status)) reached.add(m.guest_id);
+      /* An RSVP message that arrived, not any message. This route feeds the
+         manual send station, which filters its queue by what comes back — so a
+         guest whose only message was the rides board vanished from the screen
+         and the station announced "כולם קיבלו! סיימת" over him. */
+      if (m.guest_id && didArrive(m.status) && isRsvpMessage((m as { body?: string }).body)) {
+        reached.add(m.guest_id);
+      }
     });
   }
 

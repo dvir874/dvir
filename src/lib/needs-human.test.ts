@@ -76,3 +76,19 @@ test("a long message is left to a person rather than parsed as a refusal", () =>
     + "אנחנו בחו״ל אז לא נוכל להגיע, נשמח להתראות אחרי";
   assert.equal(saysNotComing(essay), false);
 });
+
+test("the ordinary Hebrew way of saying it is a refusal", () => {
+  /* ל is a prefix. The old guard excluded "לא מגיע ל" and therefore excluded
+     "לא מגיע לחתונה" — the phrasing most guests actually use. They stayed
+     confirmed and the caterer cooked for them. */
+  for (const m of [
+    "אני לא מגיע לחתונה", "לא מגיע לאירוע", "לא מגיע לצערי",
+    "לא נגיע לחתונה", "לא מגיע לילדים שלי",
+  ]) {
+    assert.equal(saysNotComing(m), true, m);
+  }
+  /* And the complaint idiom is still not a refusal. */
+  for (const m of ["לא מגיע לי יחס כזה", "זה לא מגיע לי", "לא מגיע לנו"]) {
+    assert.equal(saysNotComing(m), false, m);
+  }
+});

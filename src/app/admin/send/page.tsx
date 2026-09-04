@@ -120,7 +120,7 @@ function SendStation() {
       fetch(`/api/guests?event_id=${eventId}`).then(r => r.ok ? r.json() : []),
       /* Server-side record, so "sent" survives across devices and also covers
          messages sent outside this screen. Falls back to local-only on error. */
-      fetch(`/api/admin/guests-sent?event_id=${eventId}`).then(r => r.ok ? r.json() : { sent: [] }),
+      fetch(`/api/admin/guests-sent?event_id=${eventId}`).then(r => r.ok ? r.json() : Promise.reject(new Error("lookup_failed"))),
     ]).then(([ev, gs, sentRes]) => {
       if (ev) setEvent(ev);
       if (Array.isArray(gs)) setGuests(gs);

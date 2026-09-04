@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { isRsvpMessage, didArrive } from "@/lib/rsvp-contact";
 
 export const dynamic = "force-dynamic";
 
@@ -117,10 +118,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
     (manual ?? []).forEach(r => r.guest_id && reached.add(r.guest_id));
 
     const { data: msgs, error: wErr } = await sb.from("wa_messages")
-      .select("guest_id, status").eq("direction", "out").in("guest_id", slice);
+      .select("guest_id, status, body").eq("direction", "out").in("guest_id", slice);
     if (wErr) return NextResponse.json({ error: "lookup_failed" }, { status: 503 });
     (msgs ?? []).forEach(m => {
-      if (m.guest_id && ["delivered", "read"].includes(m.status)) {
+      /* Same rule as everywhere else — see rsvp-contact.ts. The volunteer
+         working the list by hand in the last days must see the guest nobody
+         invited, not have him hidden by an unrelated notice. */
+      if (m.guest_id && didArrive(m.status) && isRsvpMessage((m as { body?: string }).body)) {
         reached.add(m.guest_id);
       }
     });

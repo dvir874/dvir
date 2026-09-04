@@ -85,9 +85,19 @@ export const HUMAN_REASON_TEXT: Record<HumanReason, string> = {
  * and nothing else, and it is applied only while a headcount question is open,
  * where the alternative reading is "a number" and there is no number here. */
 const DECLINES = /(^|\s)(אני |אנחנו |אנו |לא נוכל|לא נגיע)?\s*לא\s*(מגיע|מגיעים|נגיע|מגיעה|נוכל|אוכל|יכול|יכולים|נצליח|משתתפ)/;
-/* Guarded: "לא מגיע לי" is a complaint, and "בטח שאנחנו מגיעים" is not a
-   refusal because it never matches at all. */
-const NOT_A_DECLINE = /(מגיע לי|מגיע לנו|לא מגיע ל)/;
+/* Guarded — and the guard was worse than the thing it guarded against.
+ *
+ * It read /(מגיע לי|מגיע לנו|לא מגיע ל)/, and ל is a Hebrew PREFIX: "לא מגיע ל"
+ * is the opening of "לא מגיע לחתונה", "לא מגיע לאירוע", "לא מגיע לצערי". So
+ * the most natural way in Hebrew to say you are not coming was the one phrasing
+ * that never counted. The guest stayed confirmed, was answered with "לא הצלחנו
+ * להבין את המספר", and the caterer was told to cook for them.
+ *
+ * Now only the complaint idiom itself — "מגיע לי", "מגיע לנו" — and only when
+ * no Hebrew letter follows, so "לא מגיע לילדים" is still a refusal. The range
+ * is written as escapes rather than literal letters so that an invisible bidi
+ * character pasted into this line cannot quietly change what it matches. */
+const NOT_A_DECLINE = /מגיע ל(?:י|נו)(?![֐-׿])/;
 
 /** A refusal to attend, written rather than tapped. */
 export function saysNotComing(said: string): boolean {

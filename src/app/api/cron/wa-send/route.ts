@@ -369,7 +369,11 @@ async function sendDailyDigest(
           if (!row) continue;
           const at = m.created_at as string;
           if (!row.last || at > row.last) row.last = at;
-          if (m.status === "delivered" || m.status === "read") row.got = true;
+          /* The alert that says "N לא קיבלו כלום" was written because of the
+             four guests at שחר's wedding, and computed `got` the same wrong
+             way they were hidden by. body is already selected on the next
+             line; it simply was not read here. */
+          if (didArrive(m.status as string) && isRsvpMessage(m.body as string)) row.got = true;
           if (/תזכורת|עוד לא קיבלנו/.test(String(m.body ?? ""))) row.rem++;
         }
         for (const [id, r] of byGuest) {
