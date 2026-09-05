@@ -2,7 +2,7 @@
 
 import { use, useCallback, useEffect, useState } from "react";
 import { coupleName } from "@/lib/couple-name";
-import { eventTimes } from "@/lib/event-times";
+import { eventTimes, eventDay } from "@/lib/event-times";
 
 /* The helper's screen — one guest at a time, from a phone.
  *
@@ -166,8 +166,16 @@ export default function HelperSendPage({ params }: { params: Promise<{ token: st
 
   function message(g: Guest) {
     const ev = data!.event;
-    const when = ev.date
-      ? new Date(ev.date).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    /* The wedding's own day, not the reader's.
+     *
+     * new Date("2026-09-08") is parsed as UTC midnight and rendered in the
+     * device's zone, so a volunteer on a phone set east of Israel saw the day
+     * BEFORE — on the screen whose only job is telling guests when to come.
+     * eventDay returns local midnight; pinning a timezone on top of it would
+     * put the same shift back in the other direction. */
+    const d = ev.date ? eventDay(ev.date) : null;
+    const when = d
+      ? d.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
       : "";
     const where = [ev.venue_name, ev.address].filter(Boolean).join(", ");
 

@@ -11,7 +11,7 @@ import {
 import { checkEventLinks, brokenSummary } from "@/lib/link-health";
 import { chooseEvents, MAX_EVENTS_PER_RUN, type WindowEvent } from "@/lib/send-window";
 import { dayOfWindow, dayOfTargets } from "@/lib/day-of";
-import { isRsvpMessage, didArrive, isNewerStatus } from "@/lib/rsvp-contact";
+import { isRsvpMessage, isInvitation, didArrive, isNewerStatus } from "@/lib/rsvp-contact";
 import { classifyManualWork, manualWorkMessage, type LastContact } from "@/lib/manual-work";
 import { forecastDayBefore, pressingDays, forecastMessage, type ForecastEvent } from "@/lib/send-forecast";
 
@@ -549,15 +549,51 @@ async function notifyRidesGroup(
     if (!eligible.length) continue;
 
     const ids = eligible.map(g => g.id as string);
-    const already = new Set<string>();
+
+    /* And only somebody who knows there is a wedding.
+     *
+     * This offered a lift to every guest with a phone and a token, invited or
+     * not — so a guest the invitation never reached would receive, as their
+     * first contact from us, a link to a lift-sharing group for an event
+     * nobody had told them about. Then the 24-hour marketing window closes on
+     * that message and their actual invitation is delayed behind it.
+     *
+     * Gated on SENT rather than on arrived: a delivery report that has not
+     * come back yet is not a reason to treat somebody as uninvited. */
+    const invited = new Set<string>();
     for (let i = 0; i < ids.length; i += 100) {
-      const { data } = await sb.from("guest_events")
-        .select("guest_id").eq("event_type", "rides_group_sent")
+      const { data } = await sb.from("wa_messages")
+        .select("guest_id, status, error_code, body").eq("direction", "out")
         .in("guest_id", ids.slice(i, i + 100));
-      (data ?? []).forEach(r => r.guest_id && already.add(r.guest_id as string));
+      for (const m of data ?? []) {
+        if (m.guest_id && isRsvpMessage(m.body as string)
+            && m.status !== "failed" && !m.error_code) {
+          invited.add(m.guest_id as string);
+        }
+      }
     }
 
+    const already = new Set<string>();
+    /* A dedupe query that fails must stop this wedding, not thin the set.
+     *
+     * The error was dropped and the loop carried on with a partial `already`,
+     * so one momentary PostgREST fault would have re-sent a marketing message
+     * to up to a hundred guests who had already had it — the precise shape of
+     * the reports that restricted this number. A flag rather than a bare
+     * break: breaking alone leaves `already` short and reproduces the bug.
+     * Skipping the wedding costs one run out of eight in a day. */
+    let dedupeFailed = false;
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data, error } = await sb.from("guest_events")
+        .select("guest_id").eq("event_type", "rides_group_sent")
+        .in("guest_id", ids.slice(i, i + 100));
+      if (error) { dedupeFailed = true; break; }
+      (data ?? []).forEach(r => r.guest_id && already.add(r.guest_id as string));
+    }
+    if (dedupeFailed) continue;
+
     const todo = eligible.filter(g => !already.has(g.id as string))
+      .filter(g => invited.has(g.id as string) || g.status !== "pending")
       .slice(0, Math.min(RIDES_GROUP_PER_RUN, budget));
     if (!todo.length) continue;
 
@@ -3015,6 +3051,7 @@ async function runSend(req: NextRequest) {
       if (!oIds.length) continue;
 
       const arrived = new Set<string>();
+      const accepted = new Map<string, number>();
       const latest = new Map<string, { at: string; code: number | null; err: string | null }>();
       for (let i = 0; i < oIds.length; i += 100) {
         const { data } = await sb.from("wa_messages")
@@ -3028,6 +3065,17 @@ async function runSend(req: NextRequest) {
              אשר כהן bug alive at every wedding a run does not select: the
              majority of them, most runs. */
           if (didArrive(m.status as string) && isRsvpMessage(m.body as string)) arrived.add(id);
+          /* How many invitations Meta actually took for this guest.
+           *
+           * MAX_FIRST_CONTACT_ATTEMPTS stops us sending a fourth invitation to
+           * somebody three have already reached — and it was passed only at
+           * the wedding the run selected. Every other wedding, which is most
+           * of them on most runs, had no cap at all. The select above already
+           * returns status, error_code and body, so this costs nothing. */
+          if (isInvitation(m.body as string)
+              && m.status !== "failed" && !m.error_code) {
+            accepted.set(id, (accepted.get(id) ?? 0) + 1);
+          }
           const at = m.created_at as string;
           const prev = latest.get(id);
           if (!prev || at > prev.at) latest.set(id, { at, code: m.error_code, err: m.error });
@@ -3053,7 +3101,12 @@ async function runSend(req: NextRequest) {
         /* Latest attempt only — a number that failed in June and delivered in
            August is reachable. Same judgement as the unreachable map above. */
         if (l && ["never", "wait_for_inbound"].includes(policyFor(l.code, l.err).action)) continue;
-        if (!isEligibleNow({ delivered: false, lastOutboundAt: l?.at ?? null })) continue;
+        /* attemptsAccepted, so MAX_FIRST_CONTACT_ATTEMPTS applies here too —
+           see the counter above. Without it this wedding had no cap at all. */
+        if (!isEligibleNow({
+          delivered: false, lastOutboundAt: l?.at ?? null,
+          attemptsAccepted: accepted.get(id) ?? 0,
+        })) continue;
         targets.push({ id });
       }
     }
