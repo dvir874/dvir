@@ -744,9 +744,21 @@ async function notifyDayOf(
   const names: string[] = [];
 
   for (const ev of evs ?? []) {
-    if (sentTotal >= budget) break;
     if (!dayOfWindow(String(ev.date ?? ""), today, hour).send) continue;
     if (ev.send_paused_until && new Date(ev.send_paused_until as string).getTime() > nowMs) continue;
+
+    /* Out of budget — but still count who is waiting.
+     *
+     * This was `break`, which left the loop without looking at the remaining
+     * weddings at all. On 22/09 two weddings share a day: the first would
+     * consume the allowance and the second would vanish from the run entirely,
+     * with `unreached` reporting only the first one's shortfall. The alert
+     * exists to say "these people still do not know when to arrive, and the
+     * wedding is today" — and it would have named half of them.
+     *
+     * The count below is cheap; the send is what costs. So the loop continues,
+     * counts, and sends nothing. */
+    const outOfBudget = sentTotal >= budget;
 
     const couple = coupleName(ev as Parameters<typeof coupleName>[0]);
     const venue  = venueLine(ev as Parameters<typeof venueLine>[0]);
@@ -781,10 +793,11 @@ async function notifyDayOf(
 
     const lineFor = await guestLineFactory(sb, ev.id as string);
     const byId = new Map((guests ?? []).map(g => [g.id as string, g]));
-    const todo = targetIds.slice(0, budget - sentTotal);
+    const todo = outOfBudget ? [] : targetIds.slice(0, budget - sentTotal);
     /* Anyone the budget could not reach today needs a telephone, not a run —
        reported so the number is never zero by silence. */
     unreached += targetIds.length - todo.length;
+    if (outOfBudget) continue;
 
     for (let i = 0; i < todo.length; i += SEND_CONCURRENCY) {
       const batch = await Promise.all(todo.slice(i, i + SEND_CONCURRENCY).map(async id => {
