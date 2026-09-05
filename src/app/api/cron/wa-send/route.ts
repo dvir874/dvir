@@ -931,6 +931,26 @@ async function guestLineFactory(
   sb: ReturnType<typeof createServerClient>,
   eventId: string,
 ): Promise<(guestId: string) => string | null> {
+  /* The table number travels only if the couple asked for it.
+   *
+   * tables_send_requested_at is the couple's opt-in — the button on their
+   * seating screen — and the separate table-number send honours it. This one
+   * did not: it read seating_assignments directly, so a couple who had
+   * arranged their tables for their OWN use, and never asked us to tell
+   * anybody, had the number folded into "מחר זה קורה" for every confirmed
+   * guest anyway.
+   *
+   * שחר is exactly that couple. She decided on 06/09 to hand out tables
+   * herself, and 230 of her guests were four days from being told a number by
+   * us regardless — which is worse than not sending one, because now two
+   * sources are telling them where to sit. */
+  let tablesRequested = false;
+  try {
+    const { data: ev } = await sb.from("events")
+      .select("tables_send_requested_at").eq("id", eventId).maybeSingle();
+    tablesRequested = !!(ev as { tables_send_requested_at?: string | null } | null)
+      ?.tables_send_requested_at;
+  } catch { /* column arrives with 20260902_table_numbers.sql */ }
   /* day_before_note arrives with 20260901_day_before_note.sql, and selecting a
      column that does not exist fails the WHOLE query with 42703. Fetched on its
      own and allowed to fail, so a missing column degrades to "no note" rather
@@ -951,8 +971,9 @@ async function guestLineFactory(
       sb.from("seating_tables").select("id, name, sort_order").eq("event_id", eventId).order("sort_order"),
     ]);
     /* The venue's own numbering, or none — see venueTableNumbers. */
-    const numberOf = venueTableNumbers(
-      (tabs ?? []) as { id: string; name?: string | null }[]);
+    const numberOf = tablesRequested
+      ? venueTableNumbers((tabs ?? []) as { id: string; name?: string | null }[])
+      : null;
     if (numberOf) {
       for (const a of seats ?? []) {
         const n = numberOf.get(a.table_id as string);
