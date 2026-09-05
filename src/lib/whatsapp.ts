@@ -1180,10 +1180,20 @@ async function sendOnce(
         ...(details ? [{
           type: "body",
           parameters: [
-            { type: "text", text: details.couple },
-            { type: "text", text: details.date },
-            { type: "text", text: details.venue },
-            { type: "text", text: details.times },
+            /* safeParam on all four.
+             *
+             * These come from events rows a person typed, and a newline, a tab
+             * or four consecutive spaces in any one of them is error 132000 —
+             * which fails the ENTIRE run, not the one message. The day-before
+             * note has been guarded since it was added because it is pasted
+             * out of WhatsApp; the venue and the couple's names are typed into
+             * an admin field, which is not meaningfully safer. This is the
+             * invitation: the one send where a whole wedding's list is behind
+             * it. */
+            { type: "text", text: safeParam(details.couple) },
+            { type: "text", text: safeParam(details.date) },
+            { type: "text", text: safeParam(details.venue) },
+            { type: "text", text: safeParam(details.times) },
           ],
         }] : []),
         /* Quick-reply buttons take no parameters — they are fixed at approval

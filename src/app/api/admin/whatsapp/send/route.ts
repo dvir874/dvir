@@ -100,9 +100,17 @@ export async function POST(req: NextRequest) {
   const already = new Set<string>();
 
   const { data: statusRows } = await sb.from("guests")
-    .select("id, status, opened_at").eq("event_id", eventId);
+    .select("id, status, opened_at, do_not_contact").eq("event_id", eventId);
   (statusRows ?? []).forEach(g => {
     if (g.status !== "pending" || g.opened_at) already.add(g.id);
+    /* Somebody who asked us to stop.
+     *
+     * The cron has honoured do_not_contact since it existed and this route
+     * never read it at all — so the one path a person drives by hand, from a
+     * screen, was the one that could message a guest who had opted out. That
+     * is not a wasted slot; it is a promise broken, and the fastest route back
+     * to the spam reports that restricted this number. */
+    if ((g as { do_not_contact?: boolean }).do_not_contact) already.add(g.id);
   });
 
   for (let i = 0; i < ids.length; i += 100) {

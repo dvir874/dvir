@@ -54,10 +54,22 @@ export async function POST(req: NextRequest) {
   const timeCap = Math.floor((maxDuration - 10) / SECONDS_PER_MESSAGE);
   const limit = Math.max(1, Math.min(budget, timeCap));
 
+  /* Only a failed INVITATION is retried by sending an invitation.
+   *
+   * This selected every failed outbound row — the gallery link, the rides
+   * board, "מחר זה קורה", the table number — and then called sendInvitation on
+   * whichever guest it belonged to. A gallery message that bounced the morning
+   * after a wedding would have sent that guest a fresh invitation to a wedding
+   * that had already happened.
+   *
+   * The other senders now record their own failures (logSendFailure), which
+   * multiplied the rows this query sees; without the filter the bug would have
+   * arrived the same day the recording did. */
   let q = sb.from("wa_messages")
-    .select("id, guest_id, event_id, retry_count")
+    .select("id, guest_id, event_id, retry_count, body")
     .eq("direction", "out")
     .eq("status", "failed")
+    .like("body", "%הזמנה לחתונה%")
     .not("retry_after", "is", null)
     .lte("retry_after", now.toISOString())
     .lt("retry_count", MAX_RETRIES)
@@ -79,13 +91,19 @@ export async function POST(req: NextRequest) {
   const guests: { id: string; name: string; phone: string; rsvp_token: string; event_id: string; category: string | null }[] = [];
   for (let i = 0; i < guestIds.length; i += 100) {
     const { data } = await sb.from("guests")
-      .select("id, name, phone, rsvp_token, event_id, category").in("id", guestIds.slice(i, i + 100));
+      .select("id, name, phone, rsvp_token, event_id, category, do_not_contact")
+      .in("id", guestIds.slice(i, i + 100));
     guests.push(...((data ?? []) as typeof guests));
   }
   /* Demo guests exist to make screenshots; they must never consume the daily
      budget that real invitations need. */
   const guestById = new Map(
-    (guests ?? []).filter(g => g.category !== "demo").map(g => [g.id, g]));
+    (guests ?? [])
+      .filter(g => g.category !== "demo")
+      /* And never somebody who asked us to stop — honoured by the cron since
+         do_not_contact existed, and never read on this path. */
+      .filter(g => !(g as { do_not_contact?: boolean }).do_not_contact)
+      .map(g => [g.id, g]));
 
   /* And never to somebody the invitation already reached.
    *
