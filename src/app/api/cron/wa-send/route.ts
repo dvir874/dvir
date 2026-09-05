@@ -613,8 +613,8 @@ async function notifyRidesGroup(
           continue;
         }
         sent++;
-        await sb.from("guest_events")
-          .insert({ guest_id: g.id, event_type: "rides_group_sent" });
+        /* The one row that stops this being sent again — see markSent. */
+        await markSent(sb, g.id, "rides_group_sent");
         if (res.messageId) {
           await sb.from("wa_messages").insert({
             event_id: ev.id, guest_id: g.id,
@@ -812,7 +812,8 @@ async function notifyDayOf(
           continue;
         }
         sentTotal++;
-        await sb.from("guest_events").insert({ guest_id: g.id, event_type: "day_of_sent" });
+        /* The one row that stops this being sent again — see markSent. */
+        await markSent(sb, g.id, "day_of_sent");
         if (res.messageId) {
           await sb.from("wa_messages").insert({
             event_id: ev.id, guest_id: g.id, wa_phone: toE164(g.phone as string) ?? "",
@@ -898,6 +899,31 @@ function venueTableNumbers(
   if (!tables.length) return null;
   if (!tables.every(t => /^\d{1,3}$/.test(clean(t.name)))) return null;
   return new Map(tables.map(t => [t.id, clean(t.name)]));
+}
+
+/* The write that prevents a repeat, retried once and never silent.
+ *
+ * Six places recorded a milestone with a bare insert and threw the error away.
+ * That row is the ONLY thing standing between a guest and the same message
+ * again on the next run — eight runs a day — so a momentary database fault
+ * turns one send into eight, which is the shape of the reports that restricted
+ * this number.
+ *
+ * One retry, because the likely cause is transient, and a console line when
+ * both fail so the repeat that follows is at least explainable. Deliberately
+ * NOT a unique index on (guest_id, event_type) as a shortcut: rsvp_opened,
+ * rsvp_submitted, rides_group_click and referral_click all repeat legitimately
+ * and the constraint would start rejecting writes on live data. */
+async function markSent(
+  sb: ReturnType<typeof createServerClient>,
+  guestId: string, eventType: string,
+): Promise<void> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { error } = await sb.from("guest_events")
+      .insert({ guest_id: guestId, event_type: eventType });
+    if (!error) return;
+    if (attempt) console.error(`[markSent] ${eventType} ${guestId}: ${error.message}`);
+  }
 }
 
 async function guestLineFactory(
@@ -995,7 +1021,8 @@ async function dayBeforeForEvent(
         continue;
       }
       sent++;
-      await sb.from("guest_events").insert({ guest_id: g.id, event_type: "day_before_sent" });
+      /* The one row that stops this being sent again — see markSent. */
+      await markSent(sb, g.id, "day_before_sent");
 
       /* And if their table travelled inside this message, the table has been
        * sent.
@@ -1010,8 +1037,8 @@ async function dayBeforeForEvent(
        * Recorded here rather than filtered there, because the number the guest
        * now holds came from this message and this is where that is known. */
       if ((lineFor(g.id as string) ?? "").includes("שולחן")) {
-        await sb.from("guest_events")
-          .insert({ guest_id: g.id, event_type: "table_number_sent" });
+        /* The one row that stops this being sent again — see markSent. */
+        await markSent(sb, g.id, "table_number_sent");
       }
       if (res.messageId) {
         await sb.from("wa_messages").insert({
@@ -1690,8 +1717,8 @@ async function sendTableNumbers(
           continue;
         }
         sent++;
-        await sb.from("guest_events")
-          .insert({ guest_id: x.g!.id, event_type: "table_number_sent" });
+        /* The one row that stops this being sent again — see markSent. */
+        await markSent(sb, x.g!.id, "table_number_sent");
         if (res.messageId) {
           await sb.from("wa_messages").insert({
             event_id: ev.id, guest_id: x.g!.id, wa_phone: toE164(String(x.g!.phone)) ?? "",
@@ -1809,7 +1836,8 @@ async function notifyGallery(
         continue;
       }
       sent++;
-      await sb.from("guest_events").insert({ guest_id: g.id, event_type: "gallery_sent" });
+      /* The one row that stops this being sent again — see markSent. */
+      await markSent(sb, g.id, "gallery_sent");
       if (res.messageId) {
         await sb.from("wa_messages").insert({
           event_id: ev.id, guest_id: g.id, wa_phone: toE164(g.phone as string) ?? "",
@@ -3383,7 +3411,8 @@ async function runSend(req: NextRequest) {
          * sources of truth, and the wrong one was being written by the wrong
          * event. */
         if (!t.reminder) {
-          await sb.from("guest_events").insert({ guest_id: g.id, event_type: "invite_sent" });
+          /* The one row that stops this being sent again — see markSent. */
+          await markSent(sb, g.id, "invite_sent");
         }
         if (res.messageId) {
           await sb.from("wa_messages").insert({
