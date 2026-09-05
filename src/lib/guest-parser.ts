@@ -24,8 +24,12 @@ const COUNT_KEYS = ['כמות', 'כמות אורחים', 'מספר מוזמני�
                     "מס' מוזמנים", 'מס מוזמנים', 'כמה', 'מוזמנים',
                     'guests', 'count', 'quantity', 'qty', 'seats'];
 
+/* Invisible characters first — see the note in xlsx-blocks.ts. A bidi mark on
+   a header cell makes it match nothing, and the column is read as absent. */
 const norm = (s: string) =>
-  s.toLowerCase().replace(/["'׳״]/g, '').replace(/\s+/g, ' ').trim();
+  s.toLowerCase()
+    .replace(/[‎‏‪-‮⁦-⁩​﻿]/g, '')
+    .replace(/["'׳״]/g, '').replace(/\s+/g, ' ').trim();
 
 /** The first value whose header matches one of `keys`, or ''. */
 export function pickColumn(row: Record<string, unknown>, keys: string[]): string {

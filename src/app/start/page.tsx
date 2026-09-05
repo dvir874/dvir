@@ -10,7 +10,7 @@ import {
 import { THEME_LIST } from "@/lib/themes";
 import type { ThemeId } from "@/lib/themes";
 import {
-  parseGuestText, parseCsvText, validateGuests,
+  parseGuestText, parseCsvText, validateGuests, rowToGuest,
   type ParsedGuest, type GuestValidation, ISSUE_LABEL,
 } from "@/lib/guest-parser";
 import { WA_URL } from "@/lib/constants";
@@ -92,11 +92,17 @@ export default function StartPage() {
         const wb = XLSX.read(buffer, { type: "array" });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
-        const guests: ParsedGuest[] = rows.map((row) => ({
-          name: String(row["שם"] ?? row["name"] ?? row["Name"] ?? row["שם מלא"] ?? "").trim(),
-          phone: String(row["טלפון"] ?? row["phone"] ?? row["Phone"] ?? row["מספר טלפון"] ?? "").trim(),
-          guest_count: Number(row["מספר מוזמנים"] ?? row["guests"] ?? row["guest_count"] ?? 1) || 1,
-        })).filter((g) => g.name.length > 0);
+        /* rowToGuest, the same reader the admin wizard uses.
+         *
+         * This screen listed four header spellings per field and guest-parser
+         * already knows a dozen — "נייד", "איש קשר", "שם האורח", "מס' מוזמנים".
+         * A spreadsheet from an event planner, which is the most likely file a
+         * new couple owns, imported as ZERO guests with no error: the screen
+         * said it had read the file and the list was simply empty.
+         *
+         * This is the first screen a new couple ever touches. */
+        const guests: ParsedGuest[] = rows.map(rowToGuest)
+          .filter((g) => g.name.length > 0);
         applyGuests(guests);
       }
     } catch {

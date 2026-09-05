@@ -61,8 +61,25 @@ const NAME_WORDS  = ["שם", "name"];
 const PHONE_WORDS = ["טלפון", "נייד", "פלאפון", "phone", "mobile"];
 const COUNT_WORDS = ["מוזמנים", "כמות", "מספר אנשים", "count", "guests"];
 
+/* Invisible characters, removed before anything is compared.
+ *
+ * Google Docs, Word and WhatsApp all insert bidi controls around Hebrew and
+ * around phone numbers — U+200E/F and U+202A-E — and they render as nothing at
+ * all. On 04/09 sixteen of שלמה's guests were lost to exactly this: their
+ * lines looked identical to every other line and carried U+202D around the
+ * number, so they matched nothing and were dropped without a word.
+ *
+ * headerKind compares "שם" for EQUALITY, so one invisible mark on a header
+ * cell makes a whole family block unreadable and it disappears silently.
+ *
+ * Written as escapes rather than as the characters themselves, so this line
+ * cannot be broken by pasting into it — which is the same failure it exists to
+ * prevent. \uFEFF and \u200B are here too: Excel writes a BOM into the first
+ * cell of a CSV and a zero-width space survives every copy-paste. */
 const clean = (v: unknown) =>
-  String(v ?? "").replace(/[׳'"]/g, "").replace(/\s+/g, " ").trim();
+  String(v ?? "")
+    .replace(/[‎‏‪-‮⁦-⁩​﻿]/g, "")
+    .replace(/[׳'"]/g, "").replace(/\s+/g, " ").trim();
 
 function headerKind(v: unknown): "name" | "phone" | "count" | null {
   const t = clean(v).toLowerCase();

@@ -156,3 +156,22 @@ test("a sheet of just name and phone is read, not silently ignored", () => {
   assert.equal(r.guests[1].phone, "0587902074", "972 prefix still normalised");
   assert.equal(r.blocks[0].columns.count, "—", "reported as absent, not guessed");
 });
+
+test("an invisible mark on a header does not erase the block below it", () => {
+  /* Google Docs, Word and WhatsApp all insert bidi controls around Hebrew.
+     headerKind compares "שם" for equality, so one RLM on a header cell made a
+     whole family block unreadable — and it disappeared without a word. This is
+     the same class of character that lost sixteen of שלמה's guests on 04/09. */
+  const rows = [
+    ["‏שם‎", "‫טלפון‬", "מוזמנים"],
+    ["דנה כהן", "‭050-123-4567‬", 2],
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), "אורחים");
+  const r = parseBlockedGuests(XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer);
+  assert.equal(r.guests.length, 1, JSON.stringify(r).slice(0, 200));
+  assert.equal(r.guests[0].name, "דנה כהן");
+  assert.equal(r.guests[0].guest_count, 2);
+  assert.ok(r.guests[0].phone.includes("0501234567") || r.guests[0].phone.includes("050-123-4567"),
+    r.guests[0].phone);
+});
