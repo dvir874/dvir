@@ -934,6 +934,23 @@ async function dayBeforeForEvent(
       }
       sent++;
       await sb.from("guest_events").insert({ guest_id: g.id, event_type: "day_before_sent" });
+
+      /* And if their table travelled inside this message, the table has been
+       * sent.
+       *
+       * "מחר זה קורה" carries the number as its fifth parameter, and
+       * sendTableNumbers runs later in the SAME invocation with its own dedupe
+       * on a different event_type — so a seated guest received the venue, the
+       * time and "🪑 שולחן 12", and then a second message saying "🪑 שולחן 12".
+       * Two near-identical messages minutes apart, on the evening a guest is
+       * least inclined to forgive them, and each one a paid conversation.
+       *
+       * Recorded here rather than filtered there, because the number the guest
+       * now holds came from this message and this is where that is known. */
+      if ((lineFor(g.id as string) ?? "").includes("שולחן")) {
+        await sb.from("guest_events")
+          .insert({ guest_id: g.id, event_type: "table_number_sent" });
+      }
       if (res.messageId) {
         await sb.from("wa_messages").insert({
           event_id: ev.id, guest_id: g.id, wa_phone: toE164(g.phone as string) ?? "",
