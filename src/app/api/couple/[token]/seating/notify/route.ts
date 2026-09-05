@@ -31,6 +31,31 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ to
     return NextResponse.json({ error: "צריך קודם לסדר את השולחנות" }, { status: 400 });
   }
 
+  /* And the numbers have to be numbers.
+   *
+   * The sender only carries a table number when every table at the wedding is
+   * NAMED with one — that is the only case where the message matches the signs
+   * in the room. A couple whose plan came from automatic seating has tables
+   * called "משפחת ביטון", and without this check the button would set the flag,
+   * report success, and send nobody anything: a silent no-op on the last
+   * control the couple touches before their wedding.
+   *
+   * Bidi marks stripped first — a name pasted from an RTL document carries
+   * invisible characters and would fail a digits test while looking correct. */
+  const { data: allTables } = await sb.from("seating_tables")
+    .select("name").eq("event_id", ev.id as string);
+  const clean = (n: unknown) =>
+    String(n ?? "").replace(/[‎‏‪-‮⁦-⁩]/g, "").trim();
+  const named = (allTables ?? []).filter(t => !/^\d{1,3}$/.test(clean(t.name)));
+  if (named.length) {
+    return NextResponse.json({
+      error: "לשולחנות שלכם אין מספרים",
+      hint: "האורחים מקבלים את מספר השולחן כפי שהוא מופיע על השלטים באולם. "
+        + "עדכנו את שמות השולחנות למספרים (1, 2, 3…) ואז נשלח.",
+      examples: named.slice(0, 3).map(t => String(t.name)),
+    }, { status: 400 });
+  }
+
   const { error } = await sb.from("events")
     .update({ tables_send_requested_at: new Date().toISOString() })
     .eq("id", ev.id as string);

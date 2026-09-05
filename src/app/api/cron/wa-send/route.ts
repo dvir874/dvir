@@ -808,6 +808,36 @@ function codeFromError(err?: string | null): number | null {
   return m ? Number(m[1]) : null;
 }
 
+/* The number on the sign at the venue, or nothing.
+ *
+ * Two places sent `sort_order + 1` as the table number while four screens —
+ * the guest's own RSVP page, the check-in tablet, the printed list and the
+ * couple's grid — all read seating_tables.name. They agree only by luck: שחר
+ * numbered her tables "1".."38" by hand and sort_order happens to match. On
+ * the automatic-seating path the names are descriptive ("משפחת ביטון"), so the
+ * guest is told "שולחן 4" while every physical thing in the room says
+ * something else. sort_order is also neither unique nor contiguous — both add
+ * paths write `sort_order: tables.length` and neither delete path renumbers,
+ * so one delete and one add produce two tables sharing a number.
+ *
+ * So: send the NAME, and only when every table at this wedding is named with a
+ * number — exactly the case where the couple typed the venue's own numbering.
+ * Otherwise send nothing. A guest told nothing can be helped at the door; a
+ * guest told the wrong number cannot.
+ *
+ * Bidi marks are stripped first: a name pasted from an RTL document carries
+ * invisible characters and would fail a digits-only test while looking
+ * identical on screen. */
+function venueTableNumbers(
+  tables: { id: string; name?: string | null }[],
+): Map<string, string> | null {
+  const clean = (n: unknown) =>
+    String(n ?? "").replace(/[‎‏‪-‮⁦-⁩]/g, "").trim();
+  if (!tables.length) return null;
+  if (!tables.every(t => /^\d{1,3}$/.test(clean(t.name)))) return null;
+  return new Map(tables.map(t => [t.id, clean(t.name)]));
+}
+
 async function guestLineFactory(
   sb: ReturnType<typeof createServerClient>,
   eventId: string,
@@ -829,13 +859,16 @@ async function guestLineFactory(
   try {
     const [{ data: seats }, { data: tabs }] = await Promise.all([
       sb.from("seating_assignments").select("guest_id, table_id").eq("event_id", eventId),
-      sb.from("seating_tables").select("id, sort_order").eq("event_id", eventId).order("sort_order"),
+      sb.from("seating_tables").select("id, name, sort_order").eq("event_id", eventId).order("sort_order"),
     ]);
-    const numberOf = new Map<string, number>(
-      (tabs ?? []).map((t, i) => [t.id as string, (Number(t.sort_order) >= 0 ? Number(t.sort_order) : i) + 1]));
-    for (const a of seats ?? []) {
-      const n = numberOf.get(a.table_id as string);
-      if (n && a.guest_id) tableByGuest.set(a.guest_id as string, String(n));
+    /* The venue's own numbering, or none — see venueTableNumbers. */
+    const numberOf = venueTableNumbers(
+      (tabs ?? []) as { id: string; name?: string | null }[]);
+    if (numberOf) {
+      for (const a of seats ?? []) {
+        const n = numberOf.get(a.table_id as string);
+        if (n && a.guest_id) tableByGuest.set(a.guest_id as string, n);
+      }
     }
   } catch { /* no seating is not a reason to hold the message */ }
 
@@ -1524,11 +1557,12 @@ async function sendTableNumbers(
     const { data: tables } = await sb.from("seating_tables")
       .select("id, name, sort_order").eq("event_id", ev.id as string)
       .order("sort_order");
-    const tableName = new Map<string, string>(
-      (tables ?? []).map((t, i) => [
-        t.id as string,
-        String((Number(t.sort_order) >= 0 ? Number(t.sort_order) : i) + 1),
-      ]));
+    /* The venue's own numbering, or none — see venueTableNumbers. The send
+       loop below already skips any guest this map has no entry for, so a
+       wedding whose tables carry descriptive names sends nothing rather than
+       a number no sign in the room bears. */
+    const tableName = venueTableNumbers(
+      (tables ?? []) as { id: string; name?: string | null }[]) ?? new Map<string, string>();
 
     const ids = [...new Set((seats ?? []).map(a => a.guest_id as string))];
     const already = new Set<string>();
