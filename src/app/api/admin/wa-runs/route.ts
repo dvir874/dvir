@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { CRON_UTC } from "@/lib/cron-schedule";
 import {
   policyFor, getWhatsAppConfig, fetchAccountHealth, warmupCap, recentPeakRecipients,
 } from "@/lib/whatsapp";
@@ -51,7 +52,13 @@ export const dynamic = "force-dynamic";
  * a daily one would report six missing runs every week. Undercounting costs a
  * real missed run going unnoticed on a Saturday night; overcounting cries wolf
  * six days out of seven, and an alarm nobody believes is worse than no alarm. */
-const SCHEDULED_HOURS_UTC = [8, 16];
+/* The real schedule, from src/lib/cron-schedule.ts.
+ *
+ * This was [8, 16] while vercel.json runs eight times a day, so six of the
+ * eight were invisible to the one alarm watching for a run that did not
+ * happen — any of them could have stopped firing without a word. The list now
+ * lives in one file, because a schedule written down twice always drifts. */
+const SCHEDULED_HOURS_UTC = CRON_UTC.map(([h]) => h);
 
 export async function GET(req: NextRequest) {
   const sb = createServerClient();

@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabase-server";
 import { coupleName } from "@/lib/couple-name";
 import { shabbatBlock } from "@/lib/shabbat";
 import { dueWithin, MAX_FIRST_CONTACT_ATTEMPTS, type ContactState } from "@/lib/eligibility";
+import { CRON_UTC } from "@/lib/cron-schedule";
 
 export const dynamic = "force-dynamic";
 
@@ -16,10 +17,7 @@ export const dynamic = "force-dynamic";
  * Auth comes from the middleware on /api/admin/*.
  */
 
-/** vercel.json, in UTC. Israel is +3, so 06:00 here is 09:00 on his phone. */
-const CRON_UTC: [number, number][] = [
-  [6, 0], [7, 0], [8, 15], [10, 30], [13, 0], [16, 30], [18, 30], [18, 50],
-];
+/* The schedule now lives in one place — see cron-schedule.ts. */
 
 const IL_OFFSET_MS = 3 * 3_600_000;
 const DAY_MS = 86_400_000;
