@@ -2713,7 +2713,16 @@ async function runSend(req: NextRequest) {
       .eq("direction", "out").in("guest_id", slice);
     (data ?? []).forEach(m => {
       if (!m.guest_id) return;
-      if (String(m.body ?? "").includes("תזכורת")) {
+      /* A reminder Meta REFUSED is not a reminder the guest received.
+       *
+       * This counted every row whose body said "תזכורת", failures included, so
+       * a guest whose three reminders were all rejected — a quota hit, a
+       * transient fault — reached the cap of three having been told nothing at
+       * all, and was then silenced for the rest of the wedding. The cap exists
+       * to stop pestering somebody who is ignoring us, not to punish somebody
+       * we never reached. */
+      if (String(m.body ?? "").includes("תזכורת")
+          && m.status !== "failed" && !m.error_code) {
         remindersByGuest.set(m.guest_id, (remindersByGuest.get(m.guest_id) ?? 0) + 1);
       }
       if (m.status !== "failed" && !m.error_code) {
