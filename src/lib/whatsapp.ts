@@ -529,6 +529,72 @@ export async function sendDayOf(
   }
 }
 
+/* After the wedding: the money, and then the recommendation.
+ *
+ * Two templates and not one, and in that order. Asking somebody for a favour
+ * in the same breath as asking them for money reads as a trade, and the favour
+ * is the one that gets refused — see after-wedding.ts, which decides which is
+ * due and never lets both go in the same run.
+ *
+ * Dark until the names are set, like every other pair here: a template the
+ * code calls and Meta has not approved is a failed send at a real client. */
+export async function sendPaymentDue(
+  cfg: WhatsAppConfig, phone: string, couple: string, amount: string, bit: string,
+): Promise<SendResult> {
+  const name = process.env.WHATSAPP_TEMPLATE_PAYMENT?.trim() || null;
+  if (!name) return { ok: false, error: "תבנית הגבייה לא מוגדרת" };
+  return sendCoupleTemplate(cfg, phone, name, [couple, amount, bit]);
+}
+
+export async function sendReferralAsk(
+  cfg: WhatsAppConfig, phone: string, couple: string, link: string,
+): Promise<SendResult> {
+  const name = process.env.WHATSAPP_TEMPLATE_REFERRAL?.trim() || null;
+  if (!name) return { ok: false, error: "תבנית ההפניה לא מוגדרת" };
+  return sendCoupleTemplate(cfg, phone, name, [couple, link]);
+}
+
+/* One body-only template send to a couple. The three senders above differ only
+   in which template and which parameters, and writing that out three times is
+   how two of them drift apart. */
+async function sendCoupleTemplate(
+  cfg: WhatsAppConfig, phone: string, template: string, params: string[],
+): Promise<SendResult> {
+  const to = toE164(phone);
+  if (!to) return { ok: false, error: "מספר לא תקין" };
+  if (params.some(p => !String(p ?? "").trim())) {
+    return { ok: false, error: "פרמטר ריק — מטא דוחה תבנית עם משתנה ריק" };
+  }
+  await pace();
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/${API_VERSION}/${cfg.phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${cfg.accessToken}`, "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(20_000),
+        body: JSON.stringify({
+          messaging_product: "whatsapp", to, type: "template",
+          template: {
+            name: template, language: { code: cfg.templateLang },
+            components: [{
+              type: "body",
+              parameters: params.map(text => ({ type: "text", text: safeParam(text) })),
+            }],
+          },
+        }),
+      },
+    );
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, error: json?.error?.error_user_msg ?? json?.error?.message ?? `HTTP ${res.status}` };
+    }
+    return { ok: true, messageId: json?.messages?.[0]?.id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "network error" };
+  }
+}
+
 /* Kept for the one wedding whose names the template was approved with — see
    above. Nothing calls it; it is here so the swap is one line to undo. */
 export async function sendGalleryReady(

@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase-server';
 import { requireAdmin } from '@/lib/auth-guard';
 import { LeadCreateSchema, parseBody } from '@/lib/schemas';
 import { withRetry } from '@/lib/retry';
+import { getWhatsAppConfig, sendRunSummary } from '@/lib/whatsapp';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,6 +91,41 @@ export async function POST(request: NextRequest) {
   }, { attempts: 3, baseDelayMs: 500, label: 'ntfy' }).catch(err => {
     console.error('[ntfy] all retries failed:', err);
   });
+
+  /* And to the channel he actually reads.
+   *
+   * ntfy above is a separate app with a separate subscription, and this form
+   * answered 401 to every visitor until 04/09 — so in practice no lead
+   * notification has ever arrived by any route. Everything else in this system
+   * reaches him on WhatsApp; a person asking to hire us should not be the one
+   * exception.
+   *
+   * With a link that opens the conversation. Dvir's stated goal is that the
+   * only thing left for him is talking to the people who come to us, and the
+   * distance between "a lead arrived" and "I am talking to them" should be one
+   * tap, not a screen.
+   */
+  (async () => {
+    const to = process.env.ADMIN_ALERT_PHONE;
+    const cfg = getWhatsAppConfig();
+    if (!to || !cfg) return;
+    const wa = `https://wa.me/${String(phone).replace(/\D/g, "").replace(/^0/, "972")}`;
+    const bits = [
+      wedding_date ? `חתונה ${wedding_date}` : "",
+      guest_count ? `${guest_count} אורחים` : "",
+      ref_code && ref_code !== "site:contact-form" ? `הגיע מ-${ref_code}` : "",
+    ].filter(Boolean).join(" · ");
+    try {
+      await sendRunSummary(cfg, to, {
+        event: "🎯 פנייה חדשה",
+        sent: "1", failed: "—", left: "—",
+        attention: `${String(name).trim()} ${String(phone).trim()}`
+          + (bits ? ` · ${bits}` : "")
+          + (notes?.trim() ? ` · "${notes.trim().slice(0, 80)}"` : "")
+          + ` · ${wa}`,
+      });
+    } catch { /* a lead is saved either way; the alert is the nicety */ }
+  })();
 
   // If came via referral, increment leads count on referral code
   if (ref_code) {

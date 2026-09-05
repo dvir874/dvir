@@ -7,12 +7,13 @@ import { eventTimes, eventDay} from "@/lib/event-times";
 import { venueLine } from "@/lib/venue";
 import { weddingDateLine } from "@/lib/hebrew-date";
 import {
-  getWhatsAppConfig, sendInvitation, toE164, policyFor, rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY, fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendDayBefore, sendRunSummary, sendRidesGroup, nextRetryAt, sendCoupleCheck, sendTableNumber, sendDayOf} from "@/lib/whatsapp";
+  getWhatsAppConfig, sendInvitation, toE164, policyFor, rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY, fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendDayBefore, sendRunSummary, sendRidesGroup, nextRetryAt, sendCoupleCheck, sendTableNumber, sendDayOf, sendPaymentDue, sendReferralAsk} from "@/lib/whatsapp";
 import { checkEventLinks, brokenSummary } from "@/lib/link-health";
 import { chooseEvents, MAX_EVENTS_PER_RUN, type WindowEvent } from "@/lib/send-window";
 import { dayOfWindow, dayOfTargets } from "@/lib/day-of";
 import { isRsvpMessage, isInvitation, didArrive, isNewerStatus } from "@/lib/rsvp-contact";
 import { classifyManualWork, manualWorkMessage, type LastContact } from "@/lib/manual-work";
+import { afterWeddingAsks, referralCodeFor, ASK_UNTIL_DAYS } from "@/lib/after-wedding";
 import { forecastDayBefore, pressingDays, forecastMessage, type ForecastEvent } from "@/lib/send-forecast";
 
 export const dynamic = "force-dynamic";
@@ -1394,6 +1395,90 @@ async function alertManualWork(
   }
 }
 
+/* The wedding is over. Two things are still owed — see after-wedding.ts.
+ *
+ * 779₪ agreed and uncollected across four weddings, with nothing anywhere
+ * asking for it, because payment at the end of the event means the gap between
+ * "agreed" and "received" lives only in Dvir's head.
+ *
+ * And a couple whose wedding just worked knows other couples getting married.
+ * It is the only acquisition channel that grows on its own without touching
+ * the number's reputation — they are customers, not strangers, which is the
+ * whole difference between this and the cold outreach that got this number
+ * restricted on 9/8. שלמה himself arrived through one: his lead row still says
+ * ref_code "aviv-edri", which is תהל's groom.
+ *
+ * Dark until both template names are set. */
+async function askAfterWedding(
+  sb: ReturnType<typeof createServerClient>,
+  cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+): Promise<{ sent: number }> {
+  const today = israelToday();
+  const since = new Date(Date.now() - (ASK_UNTIL_DAYS + 1) * 86_400_000)
+    .toISOString().slice(0, 10);
+
+  let evs: Record<string, unknown>[] = [];
+  try {
+    const { data } = await sb.from("events")
+      .select("id, name, couple_names, date, client_phone, bit_phone, price_charged, "
+        + "paid_at, payment_asked_at, referral_asked_at, referral_code")
+      .gte("date", since).lt("date", today).order("date").limit(10);
+    evs = (data ?? []) as unknown as Record<string, unknown>[];
+  } catch {
+    /* The columns arrive with 20260904_after_wedding.sql. Until it runs this
+       does nothing at all, which is exactly today's behaviour. */
+    return { sent: 0 };
+  }
+
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app";
+  let sent = 0;
+
+  for (const ev of evs) {
+    const phone = String(ev.client_phone ?? "").trim();
+    const couple = coupleName(ev as Parameters<typeof coupleName>[0]);
+    if (!phone || !couple) continue;
+
+    const asks = afterWeddingAsks({
+      id: ev.id as string,
+      date: String(ev.date ?? ""),
+      priceCharged: ev.price_charged == null ? null : Number(ev.price_charged),
+      paidAt: (ev.paid_at as string | null) ?? null,
+      paymentAskedAt: (ev.payment_asked_at as string | null) ?? null,
+      referralAskedAt: (ev.referral_asked_at as string | null) ?? null,
+    }, today);
+    if (!asks.length) continue;
+
+    for (const ask of asks) {
+      if (ask === "payment") {
+        /* His own Bit number, never a guess. Without it the message would ask
+           for money and not say where to send it. */
+        const bit = String(ev.bit_phone ?? process.env.ADMIN_BIT_PHONE ?? "").trim();
+        if (!bit) continue;
+        const res = await sendPaymentDue(cfg, phone, couple,
+          String(Number(ev.price_charged)), bit);
+        if (!res.ok) continue;
+        await sb.from("events")
+          .update({ payment_asked_at: new Date().toISOString() }).eq("id", ev.id as string);
+        sent++;
+      } else {
+        /* A code the couple can say out loud, minted once and kept. */
+        let code = String(ev.referral_code ?? "").trim();
+        if (!code) {
+          code = referralCodeFor(couple, String(ev.id));
+          await sb.from("events")
+            .update({ referral_code: code }).eq("id", ev.id as string);
+        }
+        const res = await sendReferralAsk(cfg, phone, couple, `${base}/ref/${code}`);
+        if (!res.ok) continue;
+        await sb.from("events")
+          .update({ referral_asked_at: new Date().toISOString() }).eq("id", ev.id as string);
+        sent++;
+      }
+    }
+  }
+  return { sent };
+}
+
 async function alertCapacityAhead(
   sb: ReturnType<typeof createServerClient>,
   cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
@@ -2223,6 +2308,11 @@ async function runSend(req: NextRequest) {
     /* And everything the automation could not finish — see alertManualWork.
        The one report that is about people rather than numbers. */
     try { await alertManualWork(sb, cfg); }
+    catch { /* a notification must never cost a send */ }
+
+    /* And what a finished wedding still owes — the money, then the
+       recommendation. See askAfterWedding. */
+    try { await askAfterWedding(sb, cfg); }
     catch { /* a notification must never cost a send */ }
 
     /* And the one thing a finished wedding still needs — see
