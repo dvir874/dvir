@@ -51,10 +51,17 @@ async function setState(sb: Sb, id: string, state: string | null) {
     .eq("id", id);
 }
 
+/* Returns false when the answer was NOT recorded.
+ *
+ * This ignored the result, and every caller then told the guest "רשמנו 2 🤍"
+ * regardless. A write that failed — a dropped connection, a constraint, a
+ * momentary Supabase fault — produced a guest who believes they have answered,
+ * a couple whose count is wrong, and no trace anywhere. It is the one write in
+ * this file that a person acts on, and it was the one nobody checked. */
 async function record(
   sb: Sb, g: Guest, status: "confirmed" | "declined", count?: number, kids?: number,
-) {
-  await sb.from("guests").update({
+): Promise<boolean> {
+  const { error } = await sb.from("guests").update({
     status,
     ...(count !== undefined ? { guest_count: count } : {}),
     /* The adult/child split, when the guest volunteered it. Same shape the
@@ -73,6 +80,11 @@ async function record(
     chat_state: null, chat_state_at: null,
   }).eq("id", g.id);
 
+  if (error) {
+    console.error(`[rsvp] ${g.name} ${g.phone}: ${error.message}`);
+    return false;
+  }
+
   /* Same event the web form logs, so the timeline reads the same either way.
      Only when the answer actually changed, though: an attendance is now
      recorded on the first tap and again when the count arrives, and a timeline
@@ -80,7 +92,15 @@ async function record(
   if (g.status !== status) {
     await sb.from("guest_events").insert({ guest_id: g.id, event_type: "rsvp_submitted" });
   }
+  return true;
 }
+
+/* What a guest is told when their answer did not save.
+ *
+ * Never "רשמנו 2 🤍" — a guest who believes they answered stops answering, and
+ * the couple's count is wrong with nothing anywhere to show it. Saying so
+ * plainly costs one honest message and keeps them in the conversation. */
+const RECORD_FAILED = "משהו אצלנו נתקע ולא הצלחנו לשמור את התשובה 🙏\nתכתבו שוב בבקשה, ואם זה חוזר — נחזור אליכם.";
 
 /** Returns true when the message was part of an RSVP exchange and handled. */
 export async function handleGuestReply(
@@ -144,10 +164,22 @@ export async function handleGuestReply(
     const { data: recent } = await sb.from("wa_messages")
       .select("direction, body, created_at").eq("guest_id", guest.id)
       .order("created_at", { ascending: false }).limit(6);
+    /* Our last replies, ignoring theirs.
+     *
+     * This broke on the first inbound row — and the webhook writes the guest's
+     * message BEFORE calling this function, so the newest row is always
+     * inbound and the loop stopped on its first iteration. `confused` was
+     * always 0 and the escape hatch could never fire, which is the whole
+     * reason it exists. My bug, from this morning.
+     *
+     * Their messages are skipped rather than counted: what matters is how many
+     * times in a row WE said we did not understand, and a guest naturally
+     * writes between our replies. */
     let confused = 0;
     for (const m of recent ?? []) {
-      if (m.direction !== "out") break;
-      if (String(m.body ?? "").includes("לא הצלחנו להבין")) confused++;
+      if (m.direction !== "out") continue;
+      if (!String(m.body ?? "").includes("לא הצלחנו להבין")) break;
+      confused++;
     }
     const human = needsHuman(said, confused);
     if (human.needed && cfg) {
@@ -245,7 +277,10 @@ export async function handleGuestReply(
        on, and it used to fall through to Dvir and be typed in by hand. */
     const parts = compositeCount(said);
     if (parts) {
-      await record(sb, guest, "confirmed", parts.total, parts.kids);
+      if (!await record(sb, guest, "confirmed", parts.total, parts.kids)) {
+        await sayText(cfg, to, RECORD_FAILED);
+        return true;
+      }
       await sayText(cfg, to,
         `מעולה, רשמנו ${parts.total} 🤍 מתוכם ${parts.kids} ילדים.\n` +
         `מחכים לראותכם בשמחה!\n\nרוצים לשנות? פשוט כתבו לנו כאן.`);
@@ -257,7 +292,10 @@ export async function handleGuestReply(
       await sayText(cfg, to, "לא הצלחנו להבין את המספר 🙏\nכתבו בבקשה מספר בלבד — למשל 2");
       return done("count_ask_again");
     }
-    await record(sb, guest, "confirmed", n);
+    if (!await record(sb, guest, "confirmed", n)) {
+      await sayText(cfg, to, RECORD_FAILED);
+      return true;
+    }
     await sayText(cfg, to, `מעולה, רשמנו ${n} 🤍\nמחכים לראותכם בשמחה!\n\n` +
       `רוצים לשנות? פשוט כתבו לנו כאן.`);
     return done("count_recorded");
@@ -266,7 +304,10 @@ export async function handleGuestReply(
   if (live && guest.chat_state?.startsWith(`${ASK_CHANGE}:`)) {
     const proposed = parseInt(guest.chat_state.split(":")[1] ?? "", 10);
     if (/^(yes_change|כן)/.test(said) && Number.isFinite(proposed)) {
-      await record(sb, guest, "confirmed", proposed);
+      if (!await record(sb, guest, "confirmed", proposed)) {
+        await sayText(cfg, to, RECORD_FAILED);
+        return true;
+      }
       await sayText(cfg, to, `עודכן ל-${proposed} 🤍 מחכים לראותכם!`);
       return done("change_yes");
     }
@@ -278,7 +319,10 @@ export async function handleGuestReply(
 
   if (live && guest.chat_state === ASK_DECLINE) {
     if (/^(yes_decline|כן)/.test(said)) {
-      await record(sb, guest, "declined");
+      if (!await record(sb, guest, "declined")) {
+        await sayText(cfg, to, RECORD_FAILED);
+        return true;
+      }
       await sayText(cfg, to, "תודה שעדכנתם 🤍 נתגעגע!\nאם משהו ישתנה — כתבו לנו כאן.");
       return done("decline_recorded");
     }
@@ -307,7 +351,10 @@ export async function handleGuestReply(
 
        A guest who taps מגיע has told us they are coming. The headcount is a
        refinement of an answer we already have, and it arrives below. */
-    await record(sb, guest, "confirmed", guest.guest_count ?? 1);
+    if (!await record(sb, guest, "confirmed", guest.guest_count ?? 1)) {
+      await sayText(cfg, to, RECORD_FAILED);
+      return true;
+    }
     await setState(sb, guest.id, ASK_COUNT);   /* after record(), which clears it */
     await logOut(`${guest.name}, נהדר! כמה אתם מגיעים?`);
     await sendList(cfg, to, `${guest.name}, נהדר! כמה אתם מגיעים?`, "בחרו מספר",
@@ -329,7 +376,10 @@ export async function handleGuestReply(
      if the guest answered twice. Honour it rather than drop it. */
   const m = said.match(/^count_(\d+)$/);
   if (m) {
-    await record(sb, guest, "confirmed", parseInt(m[1], 10));
+    if (!await record(sb, guest, "confirmed", parseInt(m[1], 10))) {
+      await sayText(cfg, to, RECORD_FAILED);
+      return true;
+    }
     await sayText(cfg, to, `רשמנו ${m[1]} 🤍 מחכים לראותכם!`);
     return done("list_pick");
   }
@@ -355,7 +405,10 @@ export async function handleGuestReply(
        open. Found by wa-decide.ts, which had it in both places. */
     const parts = compositeCount(said);
     if (parts) {
-      await record(sb, guest, "confirmed", parts.total, parts.kids);
+      if (!await record(sb, guest, "confirmed", parts.total, parts.kids)) {
+        await sayText(cfg, to, RECORD_FAILED);
+        return true;
+      }
       await sayText(cfg, to,
         `רשמנו ${parts.total} 🤍 מתוכם ${parts.kids} ילדים.\n` +
         `אם התכוונתם למשהו אחר — כתבו לנו כאן ונתקן.`);
@@ -364,7 +417,10 @@ export async function handleGuestReply(
 
     const n = unpromptedCount(said);
     if (n !== null) {
-      await record(sb, guest, "confirmed", n);
+      if (!await record(sb, guest, "confirmed", n)) {
+        await sayText(cfg, to, RECORD_FAILED);
+        return true;
+      }
       await sayText(cfg, to, `רשמנו ${n} 🤍 מחכים לראותכם!\nאם התכוונתם למשהו אחר — כתבו לנו כאן ונתקן.`);
       return done("unprompted_count");
     }
