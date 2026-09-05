@@ -95,3 +95,22 @@ test("a long list is capped and says how many it did not name", () => {
 test("nothing to do produces no message at all", () => {
   assert.equal(manualWorkMessage("שחר", 5, []), null);
 });
+
+test("every name carries a link that opens WhatsApp with their message ready", () => {
+  /* A bare phone number in a WhatsApp message opens a dialler. Dvir asked for
+     what the admin screen has always had: one tap to a draft. The full wa.me
+     URL carries the encoded invitation and runs to ~700 characters, so several
+     cannot fit a Meta template parameter — this is the short form. */
+  const items = classifyManualWork(
+    [{ ...g("דנה כהן", { phone: "0501111111" }), rsvp_token: "abc-123" }], new Map());
+  const m = manualWorkMessage("שחר ואורי", 4, items, 6, "https://x.co")!;
+  assert.ok(m.includes("https://x.co/s/abc-123"), m);
+  assert.ok(m.includes("דנה כהן 0501111111"), m);
+});
+
+test("a guest with no token is still named, just without a link", () => {
+  const items = classifyManualWork([g("בלי טוקן")], new Map());
+  const m = manualWorkMessage("שחר", 4, items, 6, "https://x.co")!;
+  assert.ok(m.includes("בלי טוקן"), m);
+  assert.equal(m.includes("/s/"), false, m);
+});

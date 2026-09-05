@@ -1032,7 +1032,7 @@ async function askCoupleAboutUnreachable(
        still waiting. A "sent" that Meta accepted and never delivered is not
        evidence of arrival — אריה זאבי has six of those. */
     const { data: gs } = await sb.from("guests")
-      .select("id, name, phone, category, opened_at, do_not_contact")
+      .select("id, name, phone, category, opened_at, do_not_contact, rsvp_token")
       .eq("event_id", ev.id as string).eq("status", "pending");
     const candidates = (gs ?? []).filter(g =>
       g.category !== "demo" && String(g.phone ?? "").trim()
@@ -1102,6 +1102,13 @@ async function askCoupleAboutUnreachable(
       .filter(Boolean).join(" · ")
       + (stuck.length > 8 ? ` ועוד ${stuck.length - 8}` : "");
     const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app";
+    /* One tap per guest, for the copy that comes to Dvir. The couple gets
+       names and numbers; he gets the thing he can act on from a phone. */
+    const sendLinks = stuck.slice(0, 6)
+      .map(g => (g as { rsvp_token?: string }).rsvp_token
+        ? `${String(g.name ?? "").trim()} ${base}/s/${(g as { rsvp_token?: string }).rsvp_token}`
+        : "")
+      .filter(Boolean).join(" · ");
 
     const res = await sendCoupleCheck(
       cfg, phone, couple, String(stuck.length), shown, `${base}/couple/${token}/guests`);
@@ -1140,7 +1147,8 @@ async function askCoupleAboutUnreachable(
           event: `📨 נשלחה הודעה ל${couple}`,
           sent: String(stuck.length), failed: "—",
           left: String(Math.max(0, Math.ceil((new Date(String(ev.date)).getTime() - nowMs) / 86_400_000))),
-          attention: `ביקשנו מהם לוודא ${stuck.length} מספרים שאין להם וואטסאפ: ${shown}`,
+          attention: `ביקשנו מהם לוודא ${stuck.length} מספרים שאין להם וואטסאפ: ${shown}`
+            + (sendLinks ? ` | לשליחה ידנית: ${sendLinks}` : ""),
         });
       } catch { /* an alert must never cost a send */ }
     }
@@ -1264,7 +1272,7 @@ async function alertManualWork(
   const nowMs = Date.now();
   for (const ev of evs ?? []) {
     const { data: gs } = await sb.from("guests")
-      .select("id, name, phone, status, category, do_not_contact")
+      .select("id, name, phone, status, category, do_not_contact, rsvp_token")
       .eq("event_id", ev.id as string).limit(900);
     const real = (gs ?? []).filter(g => g.category !== "demo");
     if (!real.length) continue;
@@ -1296,7 +1304,8 @@ async function alertManualWork(
     const items = classifyManualWork(real as Parameters<typeof classifyManualWork>[0], contact);
     const days = Math.max(0, Math.ceil((new Date(String(ev.date)).getTime() - nowMs) / 86_400_000));
     const body = manualWorkMessage(
-      coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name ?? ""), days, items);
+      coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name ?? ""), days, items,
+      6, process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app");
     if (!body) continue;
 
     try {

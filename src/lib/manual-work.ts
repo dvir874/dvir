@@ -28,6 +28,8 @@ export type WorkKind =
 
 export interface WorkGuest {
   id: string;
+  /** The guest's own RSVP token — becomes the one-tap send link. */
+  rsvp_token?: string | null;
   name?: string | null;
   phone?: string | null;
   status?: string | null;
@@ -50,6 +52,8 @@ export interface WorkItem {
   name: string;
   phone: string;
   kind: WorkKind;
+  /** Short link that opens WhatsApp with this guest's own message ready. */
+  send?: string;
 }
 
 /* Ordered by how much a person is needed, not by how many there are. A guest
@@ -85,12 +89,13 @@ export function classifyManualWork(
     if (!name) continue;
 
     const c = contact.get(g.id);
+    const token = String(g.rsvp_token ?? "").trim();
 
     /* Somebody wrote to us and nothing went back. Checked first and for
        everyone, answered or not: a guest who has already confirmed can still
        be asking a question nobody read. */
     if (c?.lastInAt && (!c.lastOutAt || c.lastInAt > c.lastOutAt)) {
-      out.push({ id: g.id, name, phone, kind: "waiting_reply" });
+      out.push({ id: g.id, name, phone, kind: "waiting_reply", ...(token ? { send: token } : {}) });
       continue;
     }
 
@@ -101,15 +106,15 @@ export function classifyManualWork(
     if (!phone) continue;
 
     if (!c || !c.lastOutAt) {
-      out.push({ id: g.id, name, phone, kind: "never_sent" });
+      out.push({ id: g.id, name, phone, kind: "never_sent", ...(token ? { send: token } : {}) });
       continue;
     }
     if (c.arrived) continue;                       /* it got there; they just have not answered */
 
     switch (c.lastCode) {
-      case 131050: out.push({ id: g.id, name, phone, kind: "opted_out" }); break;
-      case 131026: out.push({ id: g.id, name, phone, kind: "no_whatsapp" }); break;
-      case 130472: out.push({ id: g.id, name, phone, kind: "template_blocked" }); break;
+      case 131050: out.push({ id: g.id, name, phone, kind: "opted_out", ...(token ? { send: token } : {}) }); break;
+      case 131026: out.push({ id: g.id, name, phone, kind: "no_whatsapp", ...(token ? { send: token } : {}) }); break;
+      case 130472: out.push({ id: g.id, name, phone, kind: "template_blocked", ...(token ? { send: token } : {}) }); break;
       /* 131049 and the unclassified failures retry themselves. They are not
          work for a person and must not appear here — a list that includes
          things nobody has to do is a list nobody reads. */
@@ -129,6 +134,9 @@ export function classifyManualWork(
  */
 export function manualWorkMessage(
   wedding: string, daysAway: number, items: WorkItem[], perKind = 6,
+  /* Where a one-tap link points. Passed in rather than read from env, so this
+     file stays testable without one. */
+  base = "",
 ): string | null {
   if (!items.length) return null;
 
@@ -143,8 +151,15 @@ export function manualWorkMessage(
   for (const kind of ORDER) {
     const list = byKind.get(kind);
     if (!list?.length) continue;
+    /* Name, number, and a link that opens WhatsApp with their own message
+       already written — the thing the admin screen has always had and the
+       alert did not. A bare phone number in WhatsApp opens a dialler; this
+       opens a draft. Kept short deliberately: the full wa.me URL carries the
+       encoded invitation and runs to about seven hundred characters, and
+       several of those do not fit in a Meta template parameter. */
     const who = list.slice(0, perKind)
-      .map(x => `${x.name}${x.phone ? " " + x.phone : ""}`).join(" · ");
+      .map(x => `${x.name}${x.phone ? " " + x.phone : ""}`
+        + (base && x.send ? ` ${base}/s/${x.send}` : "")).join(" · ");
     parts.push(`${WORK_TEXT[kind]} (${list.length}): ${who}`
       + (list.length > perKind ? ` ועוד ${list.length - perKind}` : ""));
   }

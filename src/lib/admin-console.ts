@@ -100,7 +100,7 @@ export async function handleAdminMessage(
       const out: string[] = [];
       for (const e of evs ?? []) {
         const { data: gs } = await sb.from("guests")
-          .select("id, name, phone, status, category, do_not_contact")
+          .select("id, name, phone, status, category, do_not_contact, rsvp_token")
           .eq("event_id", e.id as string).limit(900);
         const real = (gs ?? []).filter(g => g.category !== "demo");
         if (!real.length) continue;
@@ -131,7 +131,8 @@ export async function handleAdminMessage(
           (new Date(String(e.date)).getTime() - Date.now()) / 86_400_000));
         const body = manualWorkMessage(
           coupleName(e as Parameters<typeof coupleName>[0]) ?? String(e.name ?? ""),
-          days, classifyManualWork(real as Parameters<typeof classifyManualWork>[0], contact));
+          days, classifyManualWork(real as Parameters<typeof classifyManualWork>[0], contact),
+          6, process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app");
         if (body) out.push(body);
       }
       await say(out.length ? out.join("\n\n") : "אין כלום שמחכה לך 🤍");
