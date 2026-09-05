@@ -199,16 +199,29 @@ export const SECONDS_PER_MESSAGE = (MIN_GAP_MS + JITTER_MS) / 1000;
 
 /* Errors worth retrying: throttling and transient transport problems.
    A bad phone number or a rejected template will never succeed on retry. */
+/* Worth trying again in SECONDS — which is a much smaller set than "worth
+ * trying again".
+ *
+ * This listed (#131049) and the word "spam", and both contradict policyFor in
+ * this same file. 131049 is the per-recipient marketing cap and policyFor gives
+ * it 26 hours; retrying at 15s, 45s and 120s sent one guest four messages in
+ * three minutes, every one refused for the identical reason, and every one a
+ * fresh spam signal against a number that has already been restricted once.
+ * "spam" matches 131048's own text — "Spam Rate limit hit" — which policyFor
+ * classifies as stop_run: the whole run should end, not retry three times.
+ *
+ * So: transport faults only. Anything Meta decided about a recipient or about
+ * us belongs to policyFor and its schedule, which is where the thinking is. */
 function isTransient(err: string): boolean {
   const e = err.toLowerCase();
-  return e.includes("rate limit")
-      || e.includes("spam")
-      || e.includes("too many")
+  /* A per-recipient or per-number decision, never a transport fault. Checked
+     first so no looser phrase below can claim it. */
+  if (/\(#(131049|131048|131050|131026|130472)\)/.test(e)) return false;
+  return e.includes("too many")
       || e.includes("try again")
       || e.includes("timeout")
       || e.includes("network")
-      || e.includes("(#131049)")     // healthy-ecosystem throttle
-      || e.includes("(#130429)")     // cloud API rate limit
+      || e.includes("(#130429)")     // cloud API rate limit — genuinely ours
       || e.includes("(#80007)");     // rate limit issue
 }
 

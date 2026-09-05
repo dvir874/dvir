@@ -146,7 +146,20 @@ const MIN_MINUTES_BETWEEN_RUNS = 10;
 const REMINDERS_RESUME_AT = Date.parse("2026-08-20T06:00:00Z");
 
 const RUN_CLAIM = "run_started";
-const CLAIM_TTL_MINUTES = 4;
+/* The claim has to outlive the run that made it.
+ *
+ * It was a flat 4 while maxDuration is 300 and the send loop works to a
+ * deadline of 285 seconds — so for the last forty-five seconds of every long
+ * run the claim was already expired and a second invocation could start,
+ * select the same wedding, and message the same batch. Vercel retries a cron
+ * that times out, which is precisely when a run is long.
+ *
+ * Derived from maxDuration rather than written beside it, because the two
+ * drifting apart is how this happened: someone raised the run's budget and the
+ * lock protecting it stayed where it was. The margin is a minute; the closest
+ * scheduled pair is nineteen minutes apart, so a crashed run still cannot lock
+ * out a real one. */
+const CLAIM_TTL_MINUTES = Math.ceil(maxDuration / 60) + 1;
 
 /* Heal guests whose open was recorded in one place and not the other.
 
