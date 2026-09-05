@@ -3,7 +3,7 @@ import { createServerClient } from "@/lib/supabase-server";
 import { coupleName } from "@/lib/couple-name";
 import { shabbatBlock } from "@/lib/shabbat";
 import { dueWithin, MAX_FIRST_CONTACT_ATTEMPTS, type ContactState } from "@/lib/eligibility";
-import { CRON_UTC } from "@/lib/cron-schedule";
+import { CRON_UTC, israelClock, israelDay } from "@/lib/cron-schedule";
 
 export const dynamic = "force-dynamic";
 
@@ -19,16 +19,27 @@ export const dynamic = "force-dynamic";
 
 /* The schedule now lives in one place — see cron-schedule.ts. */
 
-const IL_OFFSET_MS = 3 * 3_600_000;
 const DAY_MS = 86_400_000;
 
-const ilTime = (ms: number) =>
-  new Date(ms + IL_OFFSET_MS).toISOString().slice(11, 16);
+/* Israel is +3 in summer and +2 in winter. This file added three hours to a
+   UTC timestamp and called the result Israel time; from 25/10/2026 every hour
+   it printed would have been an hour early. israelClock and israelDay ask Intl
+   instead — see cron-schedule.ts. */
+const ilTime = (ms: number) => israelClock(ms);
 
 /** Israeli midnight, as a UTC instant. */
 function ilDayStart(nowMs: number): number {
-  const il = new Date(nowMs + IL_OFFSET_MS);
-  return Date.UTC(il.getUTCFullYear(), il.getUTCMonth(), il.getUTCDate()) - IL_OFFSET_MS;
+  /* Built from the Israeli calendar day rather than by subtracting an offset,
+     so the boundary is right on both sides of the changeover. */
+  const [y, m, d] = israelDay(nowMs).split("-").map(Number);
+  const guess = Date.UTC(y, m - 1, d);
+  /* Two probes: local midnight is whichever UTC instant renders as 00:00 in
+     Israel on that date. The offset is 2 or 3 hours, never more. */
+  for (const off of [2, 3]) {
+    const t = guess - off * 3_600_000;
+    if (israelDay(t) === israelDay(nowMs) && israelClock(t) === "00:00") return t;
+  }
+  return guess - 3 * 3_600_000;
 }
 
 /** The next scheduled runs from now, as UTC instants. */
@@ -63,7 +74,7 @@ export async function GET() {
   const sb = createServerClient();
   const now = Date.now();
   const dayStart = ilDayStart(now);
-  const today = new Date(now + IL_OFFSET_MS).toISOString().slice(0, 10);
+  const today = israelDay(now);
 
   const [evRes, outRes] = await Promise.all([
     sb.from("events")

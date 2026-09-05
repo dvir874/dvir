@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
-import { CRON_UTC } from "@/lib/cron-schedule";
+import { CRON_UTC, israelHourOf } from "@/lib/cron-schedule";
 import {
   policyFor, getWhatsAppConfig, fetchAccountHealth, warmupCap, recentPeakRecipients,
 } from "@/lib/whatsapp";
@@ -277,6 +277,8 @@ export async function GET(req: NextRequest) {
     runs: runs ?? [], next, expectedRuns, needsHuman, available: true,
     stuck: stuck ?? 0,
     /* Israel local, for the screen to render without knowing about UTC */
-    schedule: SCHEDULED_HOURS_UTC.map(h => (h + 3) % 24),
+    /* Through Intl, not +3 — Israel is +2 in winter and this line would print
+       every scheduled hour an hour early from 25/10/2026. */
+    schedule: CRON_UTC.map(([h, m]) => israelHourOf(h, m)),
   });
 }

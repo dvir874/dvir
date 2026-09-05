@@ -45,3 +45,38 @@ export function slotOf(at: Date): number | null {
   }
   return found;
 }
+
+/* ── Israel time, honestly ────────────────────────────────────────────────
+ *
+ * Israel is UTC+3 in summer and +2 in winter, and the changeover on
+ * 25/10/2026 is the sort of date that arrives while nobody is looking. Three
+ * places added three hours to a UTC timestamp and called the result Israel
+ * time; from that Sunday they would all read an hour early, and the 06:00 UTC
+ * cron would land at 08:00 Israel and be refused by HOUR_START_IL = 9 — a run
+ * that simply stops happening, on the schedule, with no error anywhere.
+ *
+ * Intl knows the rule. These do the same jobs the arithmetic did.
+ */
+
+const IL = "Asia/Jerusalem";
+
+/** "HH:MM" in Israel, for a moment in time. */
+export function israelClock(at: Date | number): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: IL, hour: "2-digit", minute: "2-digit", hour12: false,
+  }).format(at);
+}
+
+/** "YYYY-MM-DD" — the Israeli calendar day a moment falls in. */
+export function israelDay(at: Date | number): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: IL, year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(at);
+}
+
+/** The hour of the Israeli day, 0-23. */
+export function israelHour(at: Date | number): number {
+  return Number(new Intl.DateTimeFormat("en-GB", {
+    timeZone: IL, hour: "2-digit", hour12: false,
+  }).format(at));
+}
