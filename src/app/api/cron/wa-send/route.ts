@@ -2933,6 +2933,10 @@ async function runSend(req: NextRequest) {
   const { data: held } = await sb.from("guests")
     .select("id").eq("event_id", ev.id)
     .not("assigned_helper", "is", null)
+        /* And still current. The selected wedding applies this floor and these
+           did not, so a volunteer assigned in August still reserved a guest in
+           September and the sender skipped them for ever. */
+        .gte("assigned_at", assignedSince)
     .gte("assigned_at", assignedSince);
   const reserved = new Set((held ?? []).map(h => h.id as string));
 
@@ -3103,7 +3107,11 @@ async function runSend(req: NextRequest) {
            was messaged by the sender as well — the "family messages them at
            14:50 and the business number at 15:00" failure the selected-wedding
            path above exists to prevent, live on every other wedding. */
-        .select("id").eq("event_id", other.id).not("assigned_helper", "is", null);
+        .select("id").eq("event_id", other.id).not("assigned_helper", "is", null)
+        /* And still current. The selected wedding applies this floor and these
+           did not, so a volunteer assigned in August still reserved a guest in
+           September and the sender skipped them for ever. */
+        .gte("assigned_at", assignedSince);
       const reservedHere = new Set((held ?? []).map(r => r.id as string));
 
       const seen = new Set(targets.map(t => t.id));
@@ -3230,7 +3238,11 @@ async function runSend(req: NextRequest) {
            was messaged by the sender as well — the "family messages them at
            14:50 and the business number at 15:00" failure the selected-wedding
            path above exists to prevent, live on every other wedding. */
-        .select("id").eq("event_id", other.id).not("assigned_helper", "is", null);
+        .select("id").eq("event_id", other.id).not("assigned_helper", "is", null)
+        /* And still current. The selected wedding applies this floor and these
+           did not, so a volunteer assigned in August still reserved a guest in
+           September and the sender skipped them for ever. */
+        .gte("assigned_at", assignedSince);
       const reservedHere = new Set((held ?? []).map(r => r.id as string));
 
       const seen = new Set(targets.map(t => t.id));

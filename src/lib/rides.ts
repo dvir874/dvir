@@ -41,8 +41,19 @@ const ALIASES: Record<string, string> = {
   "ירושליים": "ירושלים",
 };
 
-/** Noise that describes the arrangement rather than the place. */
-const NOISE = /\b(אזור|הסעה\s*מ?|מאזור|איסוף|יוצא\s*מ|נוסע\s*מ)\b/g;
+/* Noise that describes the arrangement rather than the place.
+ *
+ * \b is defined over ASCII word characters in JavaScript, so between a space
+ * and א there is no boundary and this pattern removed nothing at all — I ran
+ * it: "אזור חדרה" came back unchanged. So "חדרה" and "אזור חדרה" were two
+ * different places on the rides board and their guests were never matched to
+ * each other.
+ *
+ * Anchored on a separator instead, with a lookahead so a line that is ONLY the
+ * noise word is left alone rather than emptied — "אזור" on its own tells us
+ * nothing, but blanking it turns a useless entry into an invisible one. The
+ * separator is put back, or two words fuse into one. */
+const NOISE = /(^|[\s,.\-])(אזור|מאזור|הסעה\s*מ?|איסוף|יוצא\s*מ|נוסע\s*מ)(?=\s*\S)/g;
 
 /**
  * True when the entry describes an organised coach rather than a private car.
@@ -60,7 +71,7 @@ export function isShuttle(raw?: string | null): boolean {
 export function parseAreas(raw?: string | null): string[] {
   const text = String(raw ?? "")
     .replace(/[（(].*?[）)]/g, " ")   // a landmark in brackets is not a town
-    .replace(NOISE, " ");
+    .replace(NOISE, "$1");
 
   return [...new Set(
     text.split(/[,\/־+&]|\sו-|\sאו\s/)

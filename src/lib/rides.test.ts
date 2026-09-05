@@ -77,3 +77,19 @@ test("the introduction asks permission and carries no phone number", () => {
     assert.ok(!text.includes("0502222222"), "a driver's number must not travel");
   }
 });
+
+test("a place is the same place however the guest described the arrangement", () => {
+  /* \b is ASCII-only in JavaScript, so between a space and א there is no
+     boundary and NOISE removed nothing — "חדרה" and "אזור חדרה" were two
+     separate places on the board and their guests were never matched. */
+  assert.deepEqual(parseAreas("אזור חדרה"), ["חדרה"]);
+  assert.deepEqual(parseAreas("מאזור ירושלים"), ["ירושלים"]);
+  assert.deepEqual(parseAreas("הסעה מתל אביב"), ["תל אביב"]);
+  assert.deepEqual(parseAreas("חדרה, אזור נתניה"), ["חדרה", "נתניה"]);
+});
+
+test("a line that is only the noise word is left, not emptied", () => {
+  /* "אזור" alone tells us nothing — but blanking it turns a useless entry into
+     an invisible one, and somebody wrote it meaning something. */
+  assert.deepEqual(parseAreas("אזור"), ["אזור"]);
+});
