@@ -33,9 +33,27 @@ const PUBLIC_API_PREFIXES = [
   '/api/health',   // uptime monitoring — no auth required
 ];
 
-function isAdminProtectedApi(pathname: string): boolean {
+/* Routes where ONE method is public and the rest are not.
+ *
+ * /api/leads is the contact form on the public site. Its POST handler is
+ * written to be public — it rate-limits by IP, validates with a schema, and
+ * has no requireAdmin — but the prefix sits in PROTECTED_API_PREFIXES, so this
+ * middleware answered 401 before the handler was ever reached. Every enquiry
+ * anybody has typed into the website has been refused, silently: the form's
+ * fetch ends in .catch(() => {}) and then opens WhatsApp regardless, so the
+ * visitor saw a normal flow and Dvir saw nothing at all.
+ *
+ * Listing the method explicitly rather than moving the whole prefix to
+ * PUBLIC_API_PREFIXES: GET on this route returns every lead in the business. */
+const PUBLIC_METHOD_ROUTES: { path: string; methods: string[] }[] = [
+  { path: "/api/leads", methods: ["POST"] },
+];
+
+function isAdminProtectedApi(pathname: string, method?: string): boolean {
   // Explicitly public — skip immediately
   if (PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p))) return false;
+  if (method && PUBLIC_METHOD_ROUTES.some(
+    (r) => pathname === r.path && r.methods.includes(method))) return false;
   return PROTECTED_API_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
@@ -54,7 +72,7 @@ export function middleware(request: NextRequest) {
   // - Allow GET/POST/PATCH through (read and non-destructive writes are fine for dev)
   // - BLOCK DELETE/PUT on protected API routes — prevents accidental production data wipe
   if (!expected) {
-    if (DESTRUCTIVE_METHODS.includes(method) && isAdminProtectedApi(pathname)) {
+    if (DESTRUCTIVE_METHODS.includes(method) && isAdminProtectedApi(pathname, method)) {
       console.error(
         `[middleware] BLOCKED ${method} ${pathname} — ADMIN_TOKEN not set. ` +
         `Set ADMIN_TOKEN in .env.local to enable destructive operations in dev.`
@@ -81,7 +99,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Guard admin API routes
-  if (isAdminProtectedApi(pathname)) {
+  if (isAdminProtectedApi(pathname, method)) {
     if (token !== expected) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
