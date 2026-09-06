@@ -14,7 +14,12 @@ export async function GET(_req: NextRequest) {
 
   const [leadsRes, eventsRes, rsvpsRes, requestsRes] = await Promise.all([
     sb.from("leads").select("id, name, created_at, status").eq("status", "new_lead"),
-    sb.from("events").select("id, name, date, status, payment_status, payment_amount, payment_date, client_phone, couple_token"),
+    /* paid_at / price_charged and not payment_status / payment_amount /
+       payment_date: those three columns have never existed. PostgREST answers a
+       select naming an unknown column with 400 on the WHOLE query, so this
+       Promise.all leg returned null and "היום שלי" has been rendering an empty
+       day — no weddings, no pipeline, no revenue — since it was written. */
+    sb.from("events").select("id, name, date, status, paid_at, price_charged, client_phone, couple_token"),
     sb.from("guests").select("id, name, status, guest_count, response_time, event_id").gte("response_time", dayAgo),
     sb.from("couple_requests").select("id, title, status, created_at, event_id").neq("status", "done"),
   ]);
@@ -66,12 +71,15 @@ export async function GET(_req: NextRequest) {
     .map(g => ({ name: g.name, status: g.status, count: g.guest_count ?? 1, event: eventName.get(g.event_id) ?? "", at: g.response_time }));
 
   /* Revenue: paid this month + outstanding */
+  /* paid_at carries both facts the old code wanted from two columns: whether it
+     was paid, and when. price_charged is the agreed price, which is what is
+     owed until paid_at is set. */
   const paidThisMonth = events
-    .filter(e => e.payment_status === "paid" && e.payment_date && e.payment_date >= monthStart)
-    .reduce((s, e) => s + (e.payment_amount ?? 0), 0);
+    .filter(e => e.paid_at && e.paid_at >= monthStart)
+    .reduce((s, e) => s + (e.price_charged ?? 0), 0);
   const outstanding = events
-    .filter(e => e.payment_status !== "paid" && (e.payment_amount ?? 0) > 0)
-    .reduce((s, e) => s + (e.payment_amount ?? 0), 0);
+    .filter(e => !e.paid_at && (e.price_charged ?? 0) > 0)
+    .reduce((s, e) => s + (e.price_charged ?? 0), 0);
 
   /* Stale leads: waiting over 24h */
   const staleLeads = (leadsRes.data ?? []).filter(l => new Date(l.created_at).getTime() < now - 24 * 3600_000);

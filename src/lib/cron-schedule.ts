@@ -12,9 +12,23 @@
  * In UTC, because that is what Vercel schedules in. Israel is UTC+3 in summer
  * and +2 in winter, so anything showing these to a person must convert through
  * Intl rather than adding three — see israelHourOf below.
+ *
+ * The last slot is 19:30 and not 18:50 because of מוצ״ש. Sending is blocked on
+ * Saturday until 21:00 Israel (see shabbat.ts). In summer 18:30 and 18:50 UTC
+ * land at 21:30 and 21:50, so both served מוצ״ש; from 25/10/2026 they land at
+ * 20:30 and 20:50, and מוצ״ש — the best sending hour of the Israeli week —
+ * would have had no run at all, silently, on the schedule. No single UTC time
+ * is after 21:00 Israel in both seasons, so the pair splits the year instead:
+ * 18:30 serves מוצ״ש in summer and 19:30 serves it in winter, each refused by
+ * the hour guard in the other season. The cost is twenty minutes off the last
+ * summer run.
+ *
+ * 06:00 goes the same way in reverse — 09:00 Israel in summer, 08:00 in winter,
+ * where HOUR_START_IL refuses it. That one is left alone: 07:00 UTC is 09:00
+ * Israel in winter, so the morning is still served and only a slot is lost.
  */
 export const CRON_UTC: readonly [number, number][] = [
-  [6, 0], [7, 0], [8, 15], [10, 30], [13, 0], [16, 30], [18, 30], [18, 50],
+  [6, 0], [7, 0], [8, 15], [10, 30], [13, 0], [16, 30], [18, 30], [19, 30],
 ];
 
 /** How many runs a full day should contain. */

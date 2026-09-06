@@ -34,7 +34,7 @@ const C = {
    This was [10, 15] hardcoded and was wrong within the hour — the schedule
    moved to the evening the same afternoon, and the empty state went on
    promising a 10:00 run that no longer existed. */
-const FALLBACK_HOURS = [10, 19];
+const FALLBACK_HOURS = ["10:00", "19:00"];
 const GRACE_MIN = 45;
 
 interface Run {
@@ -52,7 +52,7 @@ interface Next {
 interface Human { id: string; name: string; phone: string | null; why: string }
 interface Data {
   runs: Run[]; next: Next | null; needsHuman: Human[];
-  available: boolean; note?: string; schedule?: number[]; stuck?: number;
+  available: boolean; note?: string; schedule?: string[]; stuck?: number;
 }
 
 /* A run's outcome, in the operator's language rather than the API's. A run
@@ -80,11 +80,21 @@ const QUALITY: Record<string, { he: string; tone: "ok" | "warn" | "idle" }> = {
   RED:    { he: "נמוך",   tone: "warn" },
 };
 
+/* The API sends "HH:MM" strings — the schedule already converted to Israel
+   time through Intl, which is the only place that knows about the changeover
+   on 25/10. Both functions below treated them as hour NUMBERS: setHours("09:00")
+   is NaN, every comparison against NaN is false, and missedRun therefore fell
+   straight through to "this run never happened" on its first iteration. The
+   alarm for a cron that stopped firing has been reporting a missed run every
+   time the screen was opened, which is the one failure mode that makes an
+   alarm worthless — it is ignored on the day it is right. */
+const hourOf = (slot: string) => Number(slot.slice(0, 2));
+
 /* The next scheduled hour that has not passed today, else the first tomorrow. */
-function nextRunLabel(hours: number[]): string {
+function nextRunLabel(slots: string[]): string {
   const h = new Date().getHours();
-  const up = [...hours].sort((a, b) => a - b).find(x => x > h);
-  return `${String(up ?? hours[0]).padStart(2, "0")}:00`;
+  const up = [...slots].sort().find(s => hourOf(s) > h);
+  return up ?? slots[0];
 }
 
 const hhmm = (iso: string) =>
@@ -101,7 +111,7 @@ const dayLabel = (iso: string) => {
 /* Which scheduled run should already have happened today and has not.
    Computed from the clock rather than from a flag, because the failure being
    detected is precisely that nothing wrote a flag. */
-function missedRun(runs: Run[], hours: number[]): string | null {
+function missedRun(runs: Run[], slots: string[]): string | null {
   const now = new Date();
   const todayRuns = runs.filter(r => new Date(r.created_at).toDateString() === now.toDateString());
 
@@ -114,7 +124,8 @@ function missedRun(runs: Run[], hours: number[]): string | null {
     ? new Date(runs[runs.length - 1].created_at).getTime()
     : Infinity;
 
-  for (const h of hours) {
+  for (const slot of slots) {
+    const h = hourOf(slot);
     const due = new Date(now); due.setHours(h, GRACE_MIN, 0, 0);
     if (now < due) continue;
     if (due.getTime() < earliest) continue;
@@ -122,7 +133,7 @@ function missedRun(runs: Run[], hours: number[]): string | null {
       const t = new Date(r.created_at);
       return t.getHours() >= h && t.getHours() < h + 2;
     });
-    if (!ran) return `${String(h).padStart(2, "0")}:00`;
+    if (!ran) return slot;
   }
   return null;
 }

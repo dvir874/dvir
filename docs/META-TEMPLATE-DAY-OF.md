@@ -13,7 +13,7 @@
 | שדה | ערך |
 |---|---|
 | **Name** | `wedding_today_reminder` |
-| **Category** | **Utility** ← לא Marketing |
+| **Category** | ⚠️ הוגשה כ-Utility אך **מטא סיווגה MARKETING** — נמדד מול ה-API ב-06/09 |
 | **Language** | עברית (Hebrew) |
 
 **Body:**
@@ -47,7 +47,7 @@
 | שדה | ערך |
 |---|---|
 | **Name** | `wedding_today_reminder_v2` |
-| **Category** | **Utility** |
+| **Category** | ⚠️ הוגשה כ-Utility אך **מטא סיווגה MARKETING** — נמדד מול ה-API ב-06/09 |
 | **Language** | עברית (Hebrew) |
 
 **Body:**
@@ -97,3 +97,35 @@ WHATSAPP_TEMPLATE_DAY_OF_NOTE  = wedding_today_reminder_v2
 
 **כל עוד הם לא מוגדרים — הפיצ׳ר כבוי לגמרי ושום דבר לא משתנה.** זה מכוון:
 תבנית שלא אושרה עדיין והקוד קורא לה היא שליחה שנכשלת מול אורח אמיתי.
+
+
+---
+
+## עדכון 06/09/2026 — הקטגוריות שכתובות למעלה שגויות
+
+הביקורת מדדה מול ה-API של מטא. מה שהוגש כ-Utility לא בהכרח אושר ככזה, והמסמך
+הזה טען שנתיים קדימה משהו שאף אחד לא בדק:
+
+| תבנית | משתנים | קטגוריה אמיתית |
+|---|---|---|
+| `wedding_today_reminder` | 4 | **MARKETING** |
+| `wedding_today_reminder_v2` | 5 | **MARKETING** |
+| `wedding_today_reminder_v3` | 4 | **MARKETING** |
+| `wedding_today_reminder_v4` | 5 | **UTILITY** ✅ |
+| `wedding_today_reminder_v5` | 4 | הוגשה 06/09, ממתינה |
+
+`v4` זהה ל-`v2` במבנה — חמישה משתנים, בלי כותרת, בלי כפתורים — אז היא החלפה
+ישירה בלי שינוי קוד:
+
+```
+WHATSAPP_TEMPLATE_DAY_OF_NOTE = wedding_today_reminder_v4
+```
+
+ל-4 המשתנים אין היום מקבילה UTILITY. `v5` הוגשה עם ניסוח זהה ל-`v3` פחות
+המשתנה החמישי; אם מטא תסווג אותה UTILITY זו החלפה של `WHATSAPP_TEMPLATE_DAY_OF`
+באותה צורה. אם לא — `v3` ו-`v4` נבדלות אך ורק במשתנה החמישי ומסווגות שונה,
+כלומר הסיווג כאן לא צפוי ואין טעם לנחש אותו שוב.
+
+**איך זה נמצא:** לא בקריאת קוד. המסמך והקוד היו עקביים זה עם זה; רק מטא ידעה
+אחרת. אותה משפחת תקלות של `#132000`, ולכן `src/lib/template-shape.ts` מודד את
+שני הצדדים במקום להאמין למסמך.
