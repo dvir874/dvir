@@ -4,7 +4,7 @@ import { shabbatBlock } from "@/lib/shabbat";
 import { coupleName, looksLikeCouple } from "@/lib/couple-name";
 import { isEligibleNow, dueWithin, type ContactState } from "@/lib/eligibility";
 import { eventTimes, eventDay} from "@/lib/event-times";
-import { venueLine } from "@/lib/venue";
+import { venueLine, wazeLink } from "@/lib/venue";
 import { weddingDateLine } from "@/lib/hebrew-date";
 import {
   getWhatsAppConfig, sendInvitation, toE164, policyFor, rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY, fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendDayBefore, sendRunSummary, sendRidesGroup, nextRetryAt, sendCoupleCheck, sendTableNumber, sendDayOf, sendPaymentDue, sendReferralAsk, sendAdminText} from "@/lib/whatsapp";
@@ -795,6 +795,27 @@ async function notifyDayOf(
     if (!targetIds.length) continue;
 
     const lineFor = await guestLineFactory(sb, ev.id as string);
+
+    /* Navigation, on the day itself and only on the day itself.
+     *
+     * Dvir asked for it here rather than in "מחר מתחתנים": the evening before,
+     * a guest is deciding whether to leave the house; on the morning of, they
+     * are deciding which turn to take. It rides in the fifth parameter, which
+     * the template already puts on its own line beside the couple's note.
+     *
+     * Through /nav rather than the raw waze.com URL. A Hebrew address encodes
+     * to about a hundred and eighty characters of percent signs, and it sits
+     * on the line beside the couple's own note — so what 240 people would read
+     * on the morning of the wedding is a wall of %D7%. Forty characters
+     * instead, resolved when they tap it. */
+    const nav = wazeLink(ev as Parameters<typeof wazeLink>[0])
+      ? `${process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app"}/nav/${ev.id}`
+      : null;
+    const dayOfLine = (id: string): string | null => {
+      const parts = [lineFor(id), nav ? `🚗 ניווט: ${nav}` : null].filter(Boolean);
+      return parts.length ? parts.join(" · ") : null;
+    };
+
     const byId = new Map((guests ?? []).map(g => [g.id as string, g]));
     const todo = outOfBudget ? [] : targetIds.slice(0, budget - sentTotal);
     /* Anyone the budget could not reach today needs a telephone, not a run —
@@ -805,7 +826,7 @@ async function notifyDayOf(
     for (let i = 0; i < todo.length; i += SEND_CONCURRENCY) {
       const batch = await Promise.all(todo.slice(i, i + SEND_CONCURRENCY).map(async id => {
         const g = byId.get(id)!;
-        return { g, res: await sendDayOf(cfg, g.phone as string, couple, rec, chu, venue, lineFor(id)) };
+        return { g, res: await sendDayOf(cfg, g.phone as string, couple, rec, chu, venue, dayOfLine(id)) };
       }));
       for (const { g, res } of batch) {
         if (!res.ok) {
