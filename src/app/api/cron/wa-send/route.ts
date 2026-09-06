@@ -17,6 +17,7 @@ import { afterWeddingAsks, referralCodeFor, ASK_UNTIL_DAYS } from "@/lib/after-w
 import { forecastDayBefore, pressingDays, forecastMessage, type ForecastEvent } from "@/lib/send-forecast";
 import { failureAlert } from "@/lib/send-failure";
 import { checkTemplate } from "@/lib/template-check";
+import { sendsDayBefore, sendsDayOf } from "@/lib/day-message";
 
 export const dynamic = "force-dynamic";
 /* Five minutes, so a run can reach the daily cap instead of a fifth of it.
@@ -794,6 +795,10 @@ async function notifyDayOf(
       (guests ?? []) as Parameters<typeof dayOfTargets>[0], gotDayBefore, gotDayOf);
     if (!targetIds.length) continue;
 
+    /* The other half of the same choice. A wedding that took the evening
+       before does not also get the morning of. */
+    if (!sendsDayOf(await dayMessageOf(sb, ev.id as string))) continue;
+
     const lineFor = await guestLineFactory(sb, ev.id as string);
 
     /* Navigation, on the day itself and only on the day itself.
@@ -950,6 +955,23 @@ async function markSent(
   }
 }
 
+/** Which of the two near-the-wedding messages this event may send.
+ *
+ * Read on its own and allowed to fail. Selecting a column that does not exist
+ * fails the WHOLE query with 42703 — which is exactly how the max_reminders
+ * select would have taken down every send in the system — so a database that
+ * has not run the migration yet degrades to the default, "evening before",
+ * rather than to silence on the night before a wedding. */
+async function dayMessageOf(
+  sb: ReturnType<typeof createServerClient>, eventId: string,
+): Promise<unknown> {
+  try {
+    const { data } = await sb.from("events")
+      .select("day_message").eq("id", eventId).maybeSingle();
+    return (data as { day_message?: string | null } | null)?.day_message ?? null;
+  } catch { return null; }
+}
+
 async function guestLineFactory(
   sb: ReturnType<typeof createServerClient>,
   eventId: string,
@@ -1028,6 +1050,11 @@ async function dayBeforeForEvent(
   const chu    = (ev.chuppah_time as string | null)?.trim();
   if (!couple || !venue || !rec || !chu)
     return { sent: 0, skipped: "חסרים שמות, מקום או שעות" };
+
+  /* Only if this wedding chose the evening before — see day-message.ts. Two
+     messages carrying the same four facts eighteen hours apart read as a
+     system that lost track, so exactly one of the pair ever goes. */
+  if (!sendsDayBefore(await dayMessageOf(sb, ev.id))) return { sent: 0 };
 
   const lineFor = await guestLineFactory(sb, ev.id);
 
