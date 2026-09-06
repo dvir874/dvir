@@ -17,10 +17,29 @@ const C = {
 
 export default async function WeddingsPage() {
   const sb = createServerClient();
-  const [{ count: eventsCount }, { count: guestsCount }] = await Promise.all([
-    sb.from("events").select("id", { count: "exact", head: true }),
-    sb.from("guests").select("id", { count: "exact", head: true }),
-  ]);
+  /* The real numbers, on the page that quotes them publicly.
+   *
+   * These counted every row: the two "בדיקה — אל תשלוח" events and the demo
+   * guests that exist to make screenshots. A number on a public page has to be
+   * one he could defend to a couple who asks, and "we have served 7 weddings"
+   * when two of them are test rows is the kind of claim that costs more than
+   * it earns.
+   *
+   * Guests are counted only at real events, and only guests who could actually
+   * be messaged — a phone number, not a placeholder. */
+  const { data: realEvents } = await sb.from("events")
+    .select("id, name").not("name", "ilike", "%בדיקה%");
+  const eventIds = (realEvents ?? []).map(e => e.id as string);
+  const eventsCount = eventIds.length;
+
+  let guestsCount = 0;
+  for (let i = 0; i < eventIds.length; i += 50) {
+    const { count } = await sb.from("guests")
+      .select("id", { count: "exact", head: true })
+      .in("event_id", eventIds.slice(i, i + 50))
+      .neq("category", "demo").not("phone", "is", null).neq("phone", "");
+    guestsCount += count ?? 0;
+  }
 
   return (
     <div dir="rtl" style={{ minHeight: "100vh", background: C.ivory, fontFamily: "Heebo, sans-serif", color: C.dark }}>

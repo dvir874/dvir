@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase-server';
 import { checkRateLimit, getClientIp, LIMITS } from '@/lib/rate-limit';
 import { DEFAULT_THEME_ID } from '@/lib/themes';
 import type { ParsedGuest } from '@/lib/guest-parser';
+import { getWhatsAppConfig, sendRunSummary } from "@/lib/whatsapp";
 
 interface OnboardingBody {
   // Event details
@@ -94,6 +95,37 @@ export async function POST(request: NextRequest) {
       importedCount = imported?.length ?? 0;
     }
   }
+
+  /* A couple who signed themselves up, and nobody knew.
+   *
+   * /start is a finished funnel — 965 lines: event type, date, venue, their
+   * details, a theme, and a guest list imported with the same parser the admin
+   * uses. It creates a real event and real guest rows. And then it told
+   * nobody: no alert, no ntfy, nothing. A couple could complete the whole
+   * thing at midnight and Dvir would find them days later, if he happened to
+   * scroll far enough.
+   *
+   * This is the one funnel where the customer has already done the work, and
+   * it was the quietest path in the system. With the couple's own link, so the
+   * first thing he can do is look at what they built. */
+  (async () => {
+    const to = process.env.ADMIN_ALERT_PHONE;
+    const cfg = getWhatsAppConfig();
+    if (!to || !cfg) return;
+    const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app";
+    const phone = String(event.client_phone ?? "").replace(/\D/g, "").replace(/^0/, "972");
+    try {
+      await sendRunSummary(cfg, to, {
+        event: "✨ זוג נרשם לבד",
+        sent: String(importedCount ?? 0), failed: "—", left: "—",
+        attention: `${String(event.name ?? "")} · ${String(event.client_phone ?? "")}`
+          + ` · ${importedCount ?? 0} אורחים כבר יובאו`
+          + (importError ? ` · ⚠️ ${String(importError).slice(0, 60)}` : "")
+          + ` · הדף שלהם: ${base}/couple/${event.couple_token}`
+          + (phone ? ` · לדבר איתם: https://wa.me/${phone}` : ""),
+      });
+    } catch { /* the event is created either way */ }
+  })();
 
   return NextResponse.json(
     {
