@@ -1099,6 +1099,18 @@ export interface EventDetails {
   times: string;    // "קבלת פנים 19:00 | חופה וקידושין 20:00"
 }
 
+/* Template names out of the environment, trimmed.
+ *
+ * Every one of these was read raw. A value pasted into the Vercel dashboard
+ * with a trailing space or a stray newline is a name Meta has never heard of,
+ * and the send fails for every guest in the run with nothing in the repo to
+ * explain it — the same invisible-across-the-boundary failure as #132000,
+ * reached by an even smaller mistake. An empty value falls back rather than
+ * sending the empty string. */
+function tpl(value: string | undefined, fallback: string): string {
+  return value?.trim() || fallback;
+}
+
 export function getWhatsAppConfig(): WhatsAppConfig | null {
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
@@ -1107,7 +1119,7 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
   return {
     phoneNumberId,
     accessToken,
-    templateName: process.env.WHATSAPP_TEMPLATE_NAME ?? "wedding_invitation_regalifnei",
+    templateName: tpl(process.env.WHATSAPP_TEMPLATE_NAME, "wedding_invitation_regalifnei"),
     /* v3 differs from v2 in its last line only: "מחכים לחגוג איתכם! 🤍"
        without "ביום המאושר". שחר asked for those two words to go and Dvir made
        it the wording for every couple, since a message that does not name the
@@ -1116,7 +1128,7 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
        v2 — those thirty keep the old closing line and nothing is gained by
        chasing them. WHATSAPP_TEMPLATE_GENERIC is not set in production, so
        this default is what actually sends. */
-    genericTemplateName: process.env.WHATSAPP_TEMPLATE_GENERIC ?? "wedding_invitation_v3",
+    genericTemplateName: tpl(process.env.WHATSAPP_TEMPLATE_GENERIC, "wedding_invitation_v3"),
     /* The approved template with "מגיע" / "לא מגיע" quick replies.
 
        A tap answers the invitation without opening anything — which removes,
@@ -1141,26 +1153,26 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
      *
      * wedding_reminder_buttons_generic has been approved all along, with the
      * same two quick-reply buttons and {{1}}–{{4}} in the right places. */
-    reminderTemplateName: process.env.WHATSAPP_TEMPLATE_REMINDER ?? "wedding_reminder_buttons_generic",
-    galleryTemplateName: process.env.WHATSAPP_TEMPLATE_GALLERY ?? "wedding_gallery_ready_regalifnei",
+    reminderTemplateName: tpl(process.env.WHATSAPP_TEMPLATE_REMINDER, "wedding_reminder_buttons_generic"),
+    galleryTemplateName: tpl(process.env.WHATSAPP_TEMPLATE_GALLERY, "wedding_gallery_ready_regalifnei"),
     photosUploadTemplateName:
-      process.env.WHATSAPP_TEMPLATE_PHOTOS_UPLOAD ?? "wedding_photos_upload_request",
+      tpl(process.env.WHATSAPP_TEMPLATE_PHOTOS_UPLOAD, "wedding_photos_upload_request"),
     ridesGroupTemplateName:
-      process.env.WHATSAPP_TEMPLATE_RIDES_GROUP ?? "wedding_rides_group_v1",
+      tpl(process.env.WHATSAPP_TEMPLATE_RIDES_GROUP, "wedding_rides_group_v1"),
     dayBeforeTemplateName:
-      process.env.WHATSAPP_TEMPLATE_DAY_BEFORE ?? "wedding_tomorrow_reminder",
+      tpl(process.env.WHATSAPP_TEMPLATE_DAY_BEFORE, "wedding_tomorrow_reminder"),
     dayBeforeNoteTemplateName:
-      process.env.WHATSAPP_TEMPLATE_DAY_BEFORE_NOTE ?? "wedding_tomorrow_reminder_v2",
+      tpl(process.env.WHATSAPP_TEMPLATE_DAY_BEFORE_NOTE, "wedding_tomorrow_reminder_v2"),
     /* Deliberately no default. Every other template here falls back to a name
        approved months ago; these two do not exist in Meta yet, and a fallback
        would turn "not submitted" into a run of failed sends. */
     dayOfTemplateName: process.env.WHATSAPP_TEMPLATE_DAY_OF?.trim() || null,
     dayOfNoteTemplateName: process.env.WHATSAPP_TEMPLATE_DAY_OF_NOTE?.trim() || null,
     coupleCheckTemplateName:
-      process.env.WHATSAPP_TEMPLATE_COUPLE_CHECK ?? "couple_check_numbers_v1",
+      tpl(process.env.WHATSAPP_TEMPLATE_COUPLE_CHECK, "couple_check_numbers_v1"),
     tableNumberTemplateName:
-      process.env.WHATSAPP_TEMPLATE_TABLE_NUMBER ?? "wedding_day_details_utility",
-    templateLang: process.env.WHATSAPP_TEMPLATE_LANG ?? "he",
+      tpl(process.env.WHATSAPP_TEMPLATE_TABLE_NUMBER, "wedding_day_details_utility"),
+    templateLang: tpl(process.env.WHATSAPP_TEMPLATE_LANG, "he"),
     /* Kept only so existing callers still typecheck; nothing reads it as a
        fallback any more. The comment used to say there was deliberately no
        fallback while three call sites did `?? cfg.headerImageUrl` — which is

@@ -95,3 +95,18 @@ test("חסרה כותרת שהתבנית דורשת — גם זה כיוון ש�
 test("משתנה שחוזר בגוף ההודעה נספר פעם אחת", () => {
   assert.equal(shapeOfMeta([{ type: "BODY", text: "{{1}} ... {{1}} ... {{2}}" }]).bodyVars, 2);
 });
+
+/* The correction of 06/09. templateProblem is a WARNING, and callers must not
+   treat "not found" as authoritative: an empty name filter is far more often a
+   wrong query — an untrimmed env value, a paging quirk — than a template that
+   stopped existing, because the send path keeps proving the template works.
+   The 19:30 run stopped a wedding's reminders on exactly that reasoning, three
+   hours after the same templates had sent without a single failure. */
+test("תבנית שלא נמצאה מדווחת, ולא נחשבת הוכחה שהיא נעלמה", () => {
+  const problem = templateProblem("wedding_reminder_buttons_generic", null,
+    { header: "IMAGE", bodyVars: 4, button: "NONE" });
+  assert.ok(problem?.includes("לא קיימת"));
+  /* Phrased as a fact about our lookup, not an instruction to stop sending —
+     the caller decides, and it decides to warn. */
+  assert.ok(!problem.includes("נעצר"));
+});

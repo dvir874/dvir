@@ -3517,11 +3517,27 @@ async function runSend(req: NextRequest) {
       if (problem) faults.push(problem);
     }
     if (faults.length) {
-      templateFault = `🚨 השליחה נעצרה לפני ההודעה הראשונה — ${faults.join(" · ")}`;
-      /* Stopping is the whole point. Every message in this run would fail, and
-         a failed send still costs the attempt, still writes a failure row, and
-         still leaves the guest looking contacted to anyone reading counts. */
-      stopped = "התבנית לא תואמת למה שהמערכת שולחת";
+      /* Reported, never blocking — and this is a correction.
+       *
+       * The first version set `stopped`, on the reasoning that every message in
+       * the run would fail anyway. On 06/09 at 19:30 it stopped a run for תהל
+       * with 89 guests eligible, three hours after a 16:00 run had sent
+       * reminders to the same account without a single failure. The templates
+       * were fine; the check was not sure enough to be trusted with the
+       * decision it had been given.
+       *
+       * It cannot be sure. "Not found" here means a name filter came back
+       * empty, which is far more often this query being wrong — an untrimmed
+       * env value, a paging quirk, a shape Meta reports differently than it
+       * enforces — than a template that genuinely stopped existing, because
+       * the send path itself keeps proving the template works.
+       *
+       * The asymmetry decides it. A wrong template costs messages Meta rejects
+       * without billing us, and failureAlert now shouts on the first one. A
+       * wrong guard costs every wedding's sending until somebody deploys. That
+       * is the more expensive mistake, so this warns early and gets out of the
+       * way. */
+      templateFault = `⚠️ אזהרת תבנית — ${faults.join(" · ")}`;
     }
   }
 
@@ -3781,6 +3797,10 @@ async function runSend(req: NextRequest) {
     sent: sent.length + dayBefore.sent + dayOf.sent + rides.sent,
     groupSent: sent.length,
     failed: failed.length, stopped,
+    /* Written down rather than only spoken. The first template warning fired
+       into a WhatsApp alert and nowhere else, so the run row said "התבנית לא
+       תואמת" with no way to learn WHICH template or HOW. */
+    templateWarning: templateFault,
     /* Guests the run had time for but not budget. Reported rather than dropped:
        they are picked up by the next run, and a run that ends early must say so
        rather than looking like a quiet day. */
