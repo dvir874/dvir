@@ -21,6 +21,7 @@
 
 export type WorkKind =
   | "never_sent"        /* no message ever left for them */
+  | "always_refused"    /* every attempt refused — the number will not take ours */
   | "no_whatsapp"       /* 131026 — that number cannot receive */
   | "opted_out"         /* 131050 — they asked us to stop */
   | "template_blocked"  /* 130472 — Meta will only allow it if they write first */
@@ -38,6 +39,8 @@ export interface WorkGuest {
 }
 
 export interface LastContact {
+  /** How many sends Meta refused outright. */
+  refusals?: number;
   /** Latest outbound, if any. */
   lastOutAt?: string | null;
   lastCode?: number | null;
@@ -59,7 +62,7 @@ export interface WorkItem {
 /* Ordered by how much a person is needed, not by how many there are. A guest
    who wrote to us and got nothing back is waiting right now; a wrong number is
    a task for this evening. */
-const ORDER: WorkKind[] = ["waiting_reply", "opted_out", "no_whatsapp", "template_blocked", "never_sent"];
+const ORDER: WorkKind[] = ["waiting_reply", "opted_out", "no_whatsapp", "always_refused", "template_blocked", "never_sent"];
 
 export const WORK_TEXT: Record<WorkKind, string> = {
   waiting_reply:    "כתבו ולא נענו",
@@ -67,6 +70,7 @@ export const WORK_TEXT: Record<WorkKind, string> = {
   no_whatsapp:      "אין וואטסאפ במספר — לוודא מול הזוג",
   template_blocked: "מטא חוסמת — יגיע רק אם יכתבו קודם",
   never_sent:       "לא יצאה אליהם הודעה",
+  always_refused:   "מטא דוחה כל ניסיון — רק הודעה מהטלפון שלך",
 };
 
 /**
@@ -107,6 +111,12 @@ export function classifyManualWork(
 
     if (!c || !c.lastOutAt) {
       out.push({ id: g.id, name, phone, kind: "never_sent", ...(token ? { send: token } : {}) });
+      continue;
+    }
+    /* Every attempt refused. The automation has stopped trying, so a person
+       has to — and the link beside the name is how. */
+    if ((c.refusals ?? 0) >= 6) {
+      out.push({ id: g.id, name, phone, kind: "always_refused", ...(token ? { send: token } : {}) });
       continue;
     }
     if (c.arrived) continue;                       /* it got there; they just have not answered */

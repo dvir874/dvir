@@ -114,3 +114,19 @@ test("a guest with no token is still named, just without a link", () => {
   assert.ok(m.includes("בלי טוקן"), m);
   assert.equal(m.includes("/s/"), false, m);
 });
+
+test("a number that refuses every attempt goes to a person, not to the queue", () => {
+  /* סטיב ומריאן: fourteen attempts across eleven days, every one returning
+     131049. The attempt cap counts what Meta ACCEPTED, so a recipient who
+     refuses everything never reaches it and is tried for ever. */
+  const items = classifyManualWork(
+    [g("סטיב ומריאן")],
+    new Map([["סטיב ומריאן", c({ lastCode: 131049, refusals: 14 })]]));
+  assert.equal(items[0].kind, "always_refused");
+});
+
+test("a couple of refusals is still just a throttle", () => {
+  const items = classifyManualWork(
+    [g("מכסה")], new Map([["מכסה", c({ lastCode: 131049, refusals: 2 })]]));
+  assert.deepEqual(items, [], "two refusals is Meta throttling, not an answer");
+});

@@ -191,6 +191,20 @@ const QUICK_REPLY_TEMPLATES = new Set([
    * the run. Switching WHATSAPP_TEMPLATE_REMINDER without this line is a silent
    * total outage of reminders. */
   "wedding_reminder_rides_v1",
+
+  /* The UTILITY reminder for guests with no rides board.
+   *
+   * wedding_rsvp_followup_utility, its predecessor, is the reason the warning
+   * above is written the way it is: it was approved with three variables, no
+   * header and quick-reply buttons, while sendOnce sends a header image, four
+   * variables and — being absent from this set — a url button. Every reminder
+   * it was used for failed 132000. Nineteen of them, across three runs, before
+   * anyone noticed.
+   *
+   * This one was submitted to match what sendOnce already sends rather than
+   * the other way round: image header, four variables, two quick replies. No
+   * code path changes for it except this line. */
+  "wedding_rsvp_followup_v2",
 ]);
 
 /** Seconds one message costs, worst case — lets callers size a batch to fit

@@ -178,3 +178,14 @@ test("three reminders is three, delivery report or not", () => {
   /* Two is still allowed. */
   assert.equal(isEligibleNow({ ...asked, remindersSent: 2 }, NOW), true);
 });
+
+test("a couple can raise their own ceiling, once, and only by asking", () => {
+  /* The rule is three. Dvir's own formulation left one door: "מקסימום אתקשר,
+     וגם זה יהיה אם הלקוח יבקש". תהל asked on 06/09 with 86 guests at the
+     ceiling and her wedding sixteen days out — a fourth, and a last. */
+  const at3 = { delivered: true, lastOutboundAt: hoursAgo(200), remindersSent: 3 };
+  assert.equal(isEligibleNow(at3, NOW), false, "three is still three by default");
+  assert.equal(isEligibleNow({ ...at3, maxReminders: 4 }, NOW), true, "raised to four");
+  /* And four is where it stops for them too. */
+  assert.equal(isEligibleNow({ ...at3, remindersSent: 4, maxReminders: 4 }, NOW), false);
+});

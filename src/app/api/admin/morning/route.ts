@@ -4,6 +4,7 @@ import { coupleName } from "@/lib/couple-name";
 import { shabbatBlock } from "@/lib/shabbat";
 import { dueWithin, MAX_FIRST_CONTACT_ATTEMPTS, type ContactState } from "@/lib/eligibility";
 import { CRON_UTC, israelClock, israelDay } from "@/lib/cron-schedule";
+import { needsHuman } from "@/lib/needs-human";
 
 export const dynamic = "force-dynamic";
 
@@ -251,7 +252,7 @@ export async function GET() {
 
   /* ── 4. guest messages nobody answered ─────────────────────────────── */
   const { data: inbound } = await sb.from("wa_messages")
-    .select("guest_id, body, created_at").eq("direction", "in")
+    .select("guest_id, body, created_at, read_at").eq("direction", "in")
     .gte("created_at", new Date(now - 3 * DAY_MS).toISOString())
     .order("created_at", { ascending: false }).limit(200);
   /* A question is free text that is not an RSVP answer. Bare numbers, button
@@ -263,7 +264,13 @@ export async function GET() {
     || /^(מזל טוב|תודה|בשעה טובה|אמן)/.test(s.trim());
   const waiting = (inbound ?? []).filter(m => {
     const s = String(m.body ?? "").trim();
-    return s.length > 2 && !isAnswer(s);
+    if (s.length <= 2 || isAnswer(s)) return false;
+    /* Already opened in the inbox — Dvir has seen it, and repeating it here
+       every morning is how a digest becomes something to scroll past.
+       The exception is a guest who asked for a person in so many words: that
+       is not finished by being read, it is finished by someone calling, and
+       this is the only place left that will keep saying so. */
+    return !m.read_at || needsHuman(s, 0).needed;
   });
 
   return NextResponse.json({

@@ -126,7 +126,20 @@ export async function GET(req: NextRequest) {
     const answeredAfter = !!(g?.response_time && lastIn
       && new Date(g.response_time as string).getTime()
          >= new Date(lastIn.created_at).getTime() - 60_000);
-    const needsYou = !!lastIn && !answeredAfter && (!repliedAfter || human.needed);
+    /* Opening the thread answers it, whatever happens next.
+     *
+     * The flag used to clear only when a reply went out, so a guest Dvir had
+     * read, understood and decided to phone stayed at the top of his list
+     * forever — and a list that shows things he has already handled is a list
+     * he stops trusting. He asked for this twice.
+     *
+     * read_at is written by openThread, so it means precisely "Dvir opened
+     * this conversation", not "a screen rendered it somewhere". Threads where
+     * the guest asked for a person are not dropped by this — they move to the
+     * morning digest, which speaks once a day instead of sitting there. */
+    const seen = !!lastIn?.read_at;
+    const needsYou = !!lastIn && !answeredAfter && !seen
+      && (!repliedAfter || human.needed);
 
     return {
       phone,

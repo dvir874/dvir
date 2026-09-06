@@ -15,6 +15,7 @@ import { isRsvpMessage, isInvitation, didArrive, isNewerStatus } from "@/lib/rsv
 import { classifyManualWork, manualWorkMessage, type LastContact } from "@/lib/manual-work";
 import { afterWeddingAsks, referralCodeFor, ASK_UNTIL_DAYS } from "@/lib/after-wedding";
 import { forecastDayBefore, pressingDays, forecastMessage, type ForecastEvent } from "@/lib/send-forecast";
+import { failureAlert } from "@/lib/send-failure";
 
 export const dynamic = "force-dynamic";
 /* Five minutes, so a run can reach the daily cap instead of a fifth of it.
@@ -1390,6 +1391,7 @@ async function alertManualWork(
           if (!cur.lastInAt || at > cur.lastInAt) cur.lastInAt = at;
         } else {
           if (["delivered", "read"].includes(m.status as string)) cur.arrived = true;
+          if (m.status === "failed" && m.error_code) cur.refusals = (cur.refusals ?? 0) + 1;
           if (!cur.lastOutAt || at > cur.lastOutAt) {
             cur.lastOutAt = at;
             cur.lastCode = (m.error_code as number | null) ?? null;
@@ -2567,7 +2569,7 @@ async function runSend(req: NextRequest) {
    * 21:00-23:59 on the eve — the last runs before the wedding. */
   const today = israelToday();
   const { data: events } = await sb.from("events")
-    .select("id, name, couple_names, date, address, venue_name, wa_header_image_url, send_paused_until, reception_time, chuppah_time")
+    .select("id, name, couple_names, date, address, venue_name, wa_header_image_url, send_paused_until, reception_time, chuppah_time, max_reminders")
     .gt("date", today).order("date").limit(EVENT_WINDOW);
 
   /* A wedding can be held back without disturbing the order of the others.
@@ -2894,6 +2896,8 @@ async function runSend(req: NextRequest) {
      exempt from every ceiling and were written to daily — 46 of them, 123
      redundant messages, 42 of which took a slot out of a 250-a-day cap. */
   const acceptedByGuest = new Map<string, number>();
+  /* How many sends Meta REFUSED outright — see the note below. */
+  const refusedByGuest = new Map<string, number>();
   for (let i = 0; i < ids.length; i += 100) {
     const slice = ids.slice(i, i + 100);
     const { data } = await sb.from("wa_messages")
@@ -2912,6 +2916,20 @@ async function runSend(req: NextRequest) {
       if (String(m.body ?? "").includes("תזכורת")
           && m.status !== "failed" && !m.error_code) {
         remindersByGuest.set(m.guest_id, (remindersByGuest.get(m.guest_id) ?? 0) + 1);
+      }
+      /* Refusals count too — separately, and for the opposite purpose.
+       *
+       * MAX_FIRST_CONTACT_ATTEMPTS counts what Meta ACCEPTED, so a recipient
+       * who refuses every single send never reaches it and is tried for ever.
+       * סטיב ומריאן took fourteen attempts across eleven days, every one
+       * returning 131049, and nine guests between them have burned 91.
+       *
+       * None of them cost money — Meta does not bill a refusal — but each is a
+       * fresh signal against a number that has already been restricted once,
+       * and a wedding that "still has uninvited guests" keeps winning runs
+       * that could have gone to somebody reachable. */
+      if (m.status === "failed" && m.error_code) {
+        refusedByGuest.set(m.guest_id, (refusedByGuest.get(m.guest_id) ?? 0) + 1);
       }
       if (m.status !== "failed" && !m.error_code) {
         acceptedByGuest.set(m.guest_id, (acceptedByGuest.get(m.guest_id) ?? 0) + 1);
@@ -3096,8 +3114,11 @@ async function runSend(req: NextRequest) {
    * nothing: no extra query, one map lookup per candidate. */
   /* One rule, from lib/eligibility. The floors used to be spelled out here and
      again in the selection above, and the two disagreed — see that file. */
+  /* A ceiling this wedding's couple asked for, or the standard three. */
+  const eventMaxReminders = (ev as { max_reminders?: number | null }).max_reminders ?? undefined;
   const mayMessage = (id: string) => isEligibleNow({
     delivered: contacted.has(id),
+    maxReminders: eventMaxReminders,
     lastOutboundAt: lastByGuest.get(id)?.at ?? null,
     /* Two reminders and no more — see MAX_REMINDERS_PER_GUEST. Passed only
        here, where a reminder is what would be sent; the first-contact groups
@@ -3107,8 +3128,17 @@ async function runSend(req: NextRequest) {
   });
 
   /* ---- 1. no evidence the invitation ever arrived ---- */
+  /* MAX_REFUSALS consecutive refusals and we stop, whatever the code says.
+   *
+   * policyFor gives 131049 twenty-six hours and two attempts, and that governs
+   * the retry queue — not this group, which treats the guest as never
+   * contacted and starts again from the top on every run. Six refusals is not
+   * a throttle any more; it is an answer. They go to the manual-work digest
+   * instead, where a person can reach them from their own phone. */
+  const MAX_REFUSALS = 6;
   ids.filter(id => !contacted.has(id) && !reserved.has(id) && !unreachable.has(id)
-                   && !doNotContact.has(id) && mayMessage(id))
+                   && !doNotContact.has(id) && (refusedByGuest.get(id) ?? 0) < MAX_REFUSALS
+                   && mayMessage(id))
     .slice(0, budget)
     .forEach(id => targets.push({ id }));
 
@@ -3348,6 +3378,7 @@ async function runSend(req: NextRequest) {
        * תהל ואביב and לאל וטל are both on 22/09, so one of them is the
        * secondary wedding on most runs, and 87 pending guests are sitting on
        * exactly three reminders today — every one of them a fourth away. */
+      const otherMax = (other as { max_reminders?: number | null }).max_reminders ?? undefined;
       const remCount = new Map<string, number>();
       for (let i = 0; i < oIds.length; i += 100) {
         const { data } = await sb.from("wa_messages")
@@ -3393,6 +3424,8 @@ async function runSend(req: NextRequest) {
           return isEligibleNow({
             delivered: true, lastOutboundAt: l?.at ?? null,
             remindersSent: remCount.get(id) ?? 0,
+            /* That wedding's own ceiling, not the selected one's. */
+            maxReminders: otherMax,
           });
         })
         .sort((a, b) => (firstAt.get(a) ?? "9999").localeCompare(firstAt.get(b) ?? "9999"))
@@ -3627,8 +3660,14 @@ async function runSend(req: NextRequest) {
     const hourIl = Number(new Date().toLocaleString("en-GB",
       { timeZone: "Asia/Jerusalem", hour: "2-digit", hour12: false }));
     const metaCap = Number(String(health.tier).replace(/\D/g, "")) || 0;
+    /* Not a count. #132000 failed three messages at 13:31 on 06/09 and this
+       run said nothing, because three is not more than five — while the cause
+       was the reminder template itself, so 09:00 had already failed and every
+       run until an env var changed would fail too. failureAlert asks whether
+       the failure describes a guest or describes us. */
+    const trouble = failureAlert(failed, sent.length);
     const needsAction =
-      failed.length > 5 ||
+      trouble !== null ||
       health.quality !== "GREEN" ||
       (metaCap > 0 && cap > 0 && cap < metaCap);   /* Meta raised the tier */
 
@@ -3679,11 +3718,16 @@ async function runSend(req: NextRequest) {
         sent: String(sent.length),
         failed: String(failed.length),
         left: String(Math.max(0, cap - usage.recipients - sent.length)),
-        attention: metaCap > cap
-          ? `⬆ Meta אישרה ${metaCap} ליום — צריך להעלות את המכסה`
-          : health.quality !== "GREEN"
-            ? `⚠️ איכות ${health.quality}`
-            : milestone || String(failed.length),
+        /* Trouble first. A run can finish a round and be broken in the same
+           breath — 09:00 on 06/09 sent three and failed three — and the
+           milestone is the wrong thing to read out when reminders are down. */
+        attention: trouble
+          ? trouble
+          : metaCap > cap
+            ? `⬆ Meta אישרה ${metaCap} ליום — צריך להעלות את המכסה`
+            : health.quality !== "GREEN"
+              ? `⚠️ איכות ${health.quality}`
+              : milestone || String(failed.length),
       });
     }
   } catch { /* an alert must never cost a run */ }

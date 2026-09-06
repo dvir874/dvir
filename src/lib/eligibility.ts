@@ -88,6 +88,17 @@ export const MAX_REMINDERS_PER_GUEST = 3;
 export const MAX_FIRST_CONTACT_ATTEMPTS = 4;
 
 export interface ContactState {
+  /* A per-wedding ceiling, set only when the couple asks for one.
+   *
+   * The rule is three and it stays three — see MAX_REMINDERS_PER_GUEST and the
+   * note there. Dvir's own formulation left one door open: "מקסימום אתקשר, וגם
+   * זה יהיה אם הלקוח יבקש". תהל asked on 06/09, with 86 guests at the ceiling
+   * and her wedding sixteen days away.
+   *
+   * A column rather than resetting the counter: a reset erases the history and
+   * grants three more instead of one, and nothing afterwards can tell an
+   * exception from a bug. */
+  maxReminders?: number;
   /** A delivery report actually arrived — delivered or read. Accepted is not enough. */
   delivered: boolean;
   /** ISO timestamp of the last outbound message, successful or failed, or null. */
@@ -131,7 +142,7 @@ export function isEligibleNow(c: ContactState, nowMs: number = Date.now()): bool
    * automatically. A fourth message is a phone call, and only if the couple
    * asks for one. A reminder SENT is a reminder sent — the guest received it or
    * they did not, and either way we have now asked them three times. */
-  if ((c.remindersSent ?? 0) >= MAX_REMINDERS_PER_GUEST) return false;
+  if ((c.remindersSent ?? 0) >= (c.maxReminders ?? MAX_REMINDERS_PER_GUEST)) return false;
   /* …and the mirror of it, which was missing: a guest Meta kept accepting for
      and never reported on was exempt from every ceiling here. */
   if (!c.delivered && (c.attemptsAccepted ?? 0) >= MAX_FIRST_CONTACT_ATTEMPTS) return false;
@@ -153,7 +164,7 @@ export function isEligibleNow(c: ContactState, nowMs: number = Date.now()): bool
  */
 export function eligibleAt(c: ContactState): number | null {
   /* Same cap, same reason — see isEligibleNow above. */
-  if ((c.remindersSent ?? 0) >= MAX_REMINDERS_PER_GUEST) return null;
+  if ((c.remindersSent ?? 0) >= (c.maxReminders ?? MAX_REMINDERS_PER_GUEST)) return null;
   if (!c.delivered && (c.attemptsAccepted ?? 0) >= MAX_FIRST_CONTACT_ATTEMPTS) return null;
   if (!c.lastOutboundAt) return 0;               /* due now, and always has been */
   return new Date(c.lastOutboundAt).getTime() + cooldownHours(c) * 3_600_000;
