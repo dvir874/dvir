@@ -11,7 +11,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-const API_VERSION = "v21.0";
+export const API_VERSION = "v21.0";
 
 /* ── Throughput guard ────────────────────────────────────────────────────
    Meta throttles new numbers hard: a burst of 66 invitations produced three
@@ -1227,6 +1227,60 @@ export async function sendInvitation(
   return { ...last, retries: BACKOFF_MS.length };
 }
 
+/** The exact components array a wedding invitation or reminder is sent with.
+ *
+ * Exported and used by sendOnce rather than duplicated, so the preflight in
+ * checkTemplate measures the same array that actually goes on the wire. A
+ * second description of the shape would be a second thing to keep in sync,
+ * and keeping two things in sync is precisely what failed here: the template
+ * was changed at Meta and the sender was not, and nothing in the repo could
+ * notice. A measurement of the real value cannot drift from the real value. */
+export function invitationComponents(
+  templateName: string,
+  image: string,
+  token: string,
+  details?: EventDetails,
+): Record<string, unknown>[] {
+  return [
+
+    {
+      type: "header",
+      parameters: [{ type: "image", image: { link: image } }],
+    },
+    ...(details ? [{
+      type: "body",
+      parameters: [
+        /* safeParam on all four.
+         *
+         * These come from events rows a person typed, and a newline, a tab
+         * or four consecutive spaces in any one of them is error 132000 —
+         * which fails the ENTIRE run, not the one message. The day-before
+         * note has been guarded since it was added because it is pasted
+         * out of WhatsApp; the venue and the couple's names are typed into
+         * an admin field, which is not meaningfully safer. This is the
+         * invitation: the one send where a whole wedding's list is behind
+         * it. */
+        { type: "text", text: safeParam(details.couple) },
+        { type: "text", text: safeParam(details.date) },
+        { type: "text", text: safeParam(details.venue) },
+        { type: "text", text: safeParam(details.times) },
+      ],
+    }] : []),
+    /* Quick-reply buttons take no parameters — they are fixed at approval
+       time and carry nothing per-message. Sending a url button component
+       for one of those templates is rejected outright, so every message in
+       the run would fail. QUICK_REPLY_TEMPLATES is explicit rather than
+       inferred from the name: an unrecognised template falls back to the url
+       shape, which is what every template before those used. */
+    ...(QUICK_REPLY_TEMPLATES.has(templateName) ? [] : [{
+      type: "button",
+      sub_type: "url",
+      index: "0",
+      parameters: [{ type: "text", text: token }],
+    }]),
+  ];
+}
+
 async function sendOnce(
   cfg: WhatsAppConfig,
   to: string,
@@ -1252,43 +1306,7 @@ async function sendOnce(
     template: {
       name: templateName,
       language: { code: cfg.templateLang },
-      components: [
-        {
-          type: "header",
-          parameters: [{ type: "image", image: { link: image } }],
-        },
-        ...(details ? [{
-          type: "body",
-          parameters: [
-            /* safeParam on all four.
-             *
-             * These come from events rows a person typed, and a newline, a tab
-             * or four consecutive spaces in any one of them is error 132000 —
-             * which fails the ENTIRE run, not the one message. The day-before
-             * note has been guarded since it was added because it is pasted
-             * out of WhatsApp; the venue and the couple's names are typed into
-             * an admin field, which is not meaningfully safer. This is the
-             * invitation: the one send where a whole wedding's list is behind
-             * it. */
-            { type: "text", text: safeParam(details.couple) },
-            { type: "text", text: safeParam(details.date) },
-            { type: "text", text: safeParam(details.venue) },
-            { type: "text", text: safeParam(details.times) },
-          ],
-        }] : []),
-        /* Quick-reply buttons take no parameters — they are fixed at approval
-           time and carry nothing per-message. Sending a url button component
-           for one of those templates is rejected outright, so every message in
-           the run would fail. The list above is explicit rather than inferred
-           from the name: an unrecognised template falls back to the url shape,
-           which is what every template before these two used. */
-        ...(QUICK_REPLY_TEMPLATES.has(templateName) ? [] : [{
-          type: "button",
-          sub_type: "url",
-          index: "0",
-          parameters: [{ type: "text", text: token }],
-        }]),
-      ],
+      components: invitationComponents(templateName, image, token, details),
     },
   };
 

@@ -16,6 +16,7 @@ import { classifyManualWork, manualWorkMessage, type LastContact } from "@/lib/m
 import { afterWeddingAsks, referralCodeFor, ASK_UNTIL_DAYS } from "@/lib/after-wedding";
 import { forecastDayBefore, pressingDays, forecastMessage, type ForecastEvent } from "@/lib/send-forecast";
 import { failureAlert } from "@/lib/send-failure";
+import { checkTemplate } from "@/lib/template-check";
 
 export const dynamic = "force-dynamic";
 /* Five minutes, so a run can reach the daily cap instead of a fifth of it.
@@ -3491,6 +3492,39 @@ async function runSend(req: NextRequest) {
      batch boundary is also where the one failure worth reacting to mid-run is
      caught: 131048 describes the NUMBER, so the next guest fails too and
      sending the rest of the list is pure damage. */
+  /* Does the template still fit what we send? Asked once, before the first
+     message, because the answer is the same for all of them.
+     
+     On 05/09 the reminder template was pointed at a name Meta stores with no
+     header, three variables and quick-reply buttons, while this loop sends an
+     image header, four variables and a url button. Thirteen guests were sent
+     to Meta one after another and rejected identically, then three more the
+     next morning, then three more at lunchtime. Meta could have said so before
+     the first one — the definition it rejected them against was readable over
+     the same API the whole time, and nobody asked.
+     
+     Only the templates this run will actually reach for, so a wedding sending
+     invitations is never blocked by a reminder template it is not using. */
+  let templateFault: string | null = null;
+  {
+    const willUse = new Set<string>();
+    if (targets.some(t => t.reminder)) willUse.add(cfg.reminderTemplateName);
+    if (targets.some(t => !t.reminder)) willUse.add(cfg.genericTemplateName);
+
+    const faults: string[] = [];
+    for (const name of willUse) {
+      const problem = await checkTemplate(cfg, name);
+      if (problem) faults.push(problem);
+    }
+    if (faults.length) {
+      templateFault = `🚨 השליחה נעצרה לפני ההודעה הראשונה — ${faults.join(" · ")}`;
+      /* Stopping is the whole point. Every message in this run would fail, and
+         a failed send still costs the attempt, still writes a failure row, and
+         still leaves the guest looking contacted to anyone reading counts. */
+      stopped = "התבנית לא תואמת למה שהמערכת שולחת";
+    }
+  }
+
   let ranOutOfTime = 0;
   for (let i = 0; i < targets.length && !stopped; i += SEND_CONCURRENCY) {
     /* Stop while there is still time to record what happened. A run that is
@@ -3665,7 +3699,7 @@ async function runSend(req: NextRequest) {
        was the reminder template itself, so 09:00 had already failed and every
        run until an env var changed would fail too. failureAlert asks whether
        the failure describes a guest or describes us. */
-    const trouble = failureAlert(failed, sent.length);
+    const trouble = templateFault ?? failureAlert(failed, sent.length);
     const needsAction =
       trouble !== null ||
       health.quality !== "GREEN" ||
