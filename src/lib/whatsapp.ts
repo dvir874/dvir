@@ -1406,6 +1406,38 @@ export function safeParam(text: string): string {
  * Returns the outcome so a caller can react, and falls back to plain text when
  * the template is refused — Dvir's own 24-hour window is open whenever he has
  * used the console, and a degraded alert beats none. */
+/** A plain WhatsApp message to Dvir, no template.
+ *
+ * Only reaches him inside the 24-hour window his own messages to the business
+ * number keep open — but inside it, newlines are allowed, and that is the whole
+ * point: a template parameter rejects them, so every report sent that way is
+ * one long paragraph. A list of people to phone is unusable as a paragraph.
+ *
+ * Callers must treat a false return as "say it the other way", never as "the
+ * report does not matter". */
+export async function sendAdminText(
+  cfg: WhatsAppConfig, phone: string, body: string,
+): Promise<SendResult> {
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/${API_VERSION}/${cfg.phoneNumberId}/messages`, {
+        method: "POST",
+        signal: AbortSignal.timeout(15_000),
+        headers: { Authorization: `Bearer ${cfg.accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messaging_product: "whatsapp", to: phone, type: "text",
+          /* Previews turn a list of six short links into six stacked cards. */
+          text: { preview_url: false, body: body.slice(0, 4000) },
+        }),
+      });
+    if (res.ok) return { ok: true };
+    const json = await res.json().catch(() => ({}));
+    return { ok: false, error: String(json?.error?.error_user_msg ?? json?.error?.message ?? res.status) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "network" };
+  }
+}
+
 export async function sendRunSummary(
   cfg: WhatsAppConfig,
   to: string,

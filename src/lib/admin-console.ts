@@ -131,7 +131,7 @@ export async function handleAdminMessage(
           (new Date(String(e.date)).getTime() - Date.now()) / 86_400_000));
         const body = manualWorkMessage(
           coupleName(e as Parameters<typeof coupleName>[0]) ?? String(e.name ?? ""),
-          days, classifyManualWork(real as Parameters<typeof classifyManualWork>[0], contact),
+          days, classifyManualWork(real as Parameters<typeof classifyManualWork>[0], contact, days),
           6, process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app");
         if (body) out.push(body);
       }

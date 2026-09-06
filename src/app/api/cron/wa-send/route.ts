@@ -7,12 +7,12 @@ import { eventTimes, eventDay} from "@/lib/event-times";
 import { venueLine } from "@/lib/venue";
 import { weddingDateLine } from "@/lib/hebrew-date";
 import {
-  getWhatsAppConfig, sendInvitation, toE164, policyFor, rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY, fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendDayBefore, sendRunSummary, sendRidesGroup, nextRetryAt, sendCoupleCheck, sendTableNumber, sendDayOf, sendPaymentDue, sendReferralAsk} from "@/lib/whatsapp";
+  getWhatsAppConfig, sendInvitation, toE164, policyFor, rollingWindowUsage, SECONDS_PER_MESSAGE, SEND_CONCURRENCY, fetchAccountHealth, warmupCap, recentPeakRecipients, sendPhotosUploadRequest, sendDayBefore, sendRunSummary, sendRidesGroup, nextRetryAt, sendCoupleCheck, sendTableNumber, sendDayOf, sendPaymentDue, sendReferralAsk, sendAdminText} from "@/lib/whatsapp";
 import { checkEventLinks, brokenSummary } from "@/lib/link-health";
 import { chooseEvents, MAX_EVENTS_PER_RUN, type WindowEvent } from "@/lib/send-window";
 import { dayOfWindow, dayOfTargets } from "@/lib/day-of";
 import { isRsvpMessage, isInvitation, didArrive, isNewerStatus } from "@/lib/rsvp-contact";
-import { classifyManualWork, manualWorkMessage, type LastContact } from "@/lib/manual-work";
+import { classifyManualWork, manualWorkMessage, manualWorkLines, type LastContact } from "@/lib/manual-work";
 import { afterWeddingAsks, referralCodeFor, ASK_UNTIL_DAYS } from "@/lib/after-wedding";
 import { forecastDayBefore, pressingDays, forecastMessage, type ForecastEvent } from "@/lib/send-forecast";
 import { failureAlert } from "@/lib/send-failure";
@@ -1402,19 +1402,35 @@ async function alertManualWork(
       }
     }
 
-    const items = classifyManualWork(real as Parameters<typeof classifyManualWork>[0], contact);
     const days = Math.max(0, Math.ceil((new Date(String(ev.date)).getTime() - nowMs) / 86_400_000));
+    const items = classifyManualWork(real as Parameters<typeof classifyManualWork>[0], contact, days);
     const body = manualWorkMessage(
       coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name ?? ""), days, items,
       6, process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app");
     if (!body) continue;
 
+    /* Free text first, template second, and the order is the feature.
+     *
+     * A template parameter cannot hold a newline, so the template version is
+     * one paragraph with every name and every link run together — which is
+     * what Dvir has been receiving while asking, more than once, for a link per
+     * person. Free text allows newlines, and his own messages to the business
+     * number keep the 24-hour window open almost all the time.
+     *
+     * When the window is shut the paragraph still goes. Worse to read, and
+     * infinitely better than silence. */
     try {
-      await sendRunSummary(cfg, to, {
-        event: "🙋 מחכה לך",
-        sent: String(items.length), failed: "—", left: String(days),
-        attention: body,
-      });
+      const lines = manualWorkLines(
+        coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name ?? ""),
+        days, items, process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app");
+      const sentPlain = lines ? (await sendAdminText(cfg, to, lines)).ok : false;
+      if (!sentPlain) {
+        await sendRunSummary(cfg, to, {
+          event: "🙋 מחכה לך",
+          sent: String(items.length), failed: "—", left: String(days),
+          attention: body,
+        });
+      }
     } catch { /* an alert must never cost a send */ }
   }
 }

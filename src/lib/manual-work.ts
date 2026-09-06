@@ -25,7 +25,8 @@ export type WorkKind =
   | "no_whatsapp"       /* 131026 — that number cannot receive */
   | "opted_out"         /* 131050 — they asked us to stop */
   | "template_blocked"  /* 130472 — Meta will only allow it if they write first */
-  | "waiting_reply";    /* they wrote and nothing has gone back */
+  | "waiting_reply"     /* they wrote and nothing has gone back */
+  | "coming_unreachable"; /* they are coming, and we cannot reach their number */
 
 export interface WorkGuest {
   id: string;
@@ -62,10 +63,11 @@ export interface WorkItem {
 /* Ordered by how much a person is needed, not by how many there are. A guest
    who wrote to us and got nothing back is waiting right now; a wrong number is
    a task for this evening. */
-const ORDER: WorkKind[] = ["waiting_reply", "opted_out", "no_whatsapp", "always_refused", "template_blocked", "never_sent"];
+const ORDER: WorkKind[] = ["waiting_reply", "coming_unreachable", "opted_out", "no_whatsapp", "always_refused", "template_blocked", "never_sent"];
 
 export const WORK_TEXT: Record<WorkKind, string> = {
-  waiting_reply:    "כתבו ולא נענו",
+  waiting_reply:     "כתבו ולא נענו",
+  coming_unreachable: "מגיעים ולא נקבל אליהם — פרטי ההגעה ידנית",
   opted_out:        "ביקשו להפסיק — רק הודעה אישית",
   no_whatsapp:      "אין וואטסאפ במספר — לוודא מול הזוג",
   template_blocked: "מטא חוסמת — יגיע רק אם יכתבו קודם",
@@ -83,6 +85,7 @@ export const WORK_TEXT: Record<WorkKind, string> = {
 export function classifyManualWork(
   guests: WorkGuest[],
   contact: Map<string, LastContact>,
+  daysToWedding?: number,
 ): WorkItem[] {
   const out: WorkItem[] = [];
 
@@ -103,8 +106,35 @@ export function classifyManualWork(
       continue;
     }
 
-    /* Past here it is about reaching them at all, so a guest who has already
-       answered needs nothing. */
+    /* A guest who is coming, whose number we cannot reach.
+     *
+     * This line used to be "a guest who has already answered needs nothing",
+     * and it was true while the only thing we ever send is an invitation or a
+     * reminder — once they answer, there is nothing left to ask.
+     *
+     * It stopped being true when the day-before and day-of messages were
+     * added. Those go to CONFIRMED guests, they carry the arrival time and the
+     * place, and they are the two sends with no second chance. A confirmed
+     * guest whose number refuses ours is therefore not someone who needs
+     * nothing — they are someone who will show up not knowing when.
+     *
+     * שחר's wedding, 06/09: seven confirmed guests could not be reached at all,
+     * five of them in one of Meta's experiment groups. The system knew every
+     * one of them and this line dropped them, so the evening report said there
+     * was nothing to do. Dvir found them by asking.
+     *
+     * Only near the wedding, and only when we truly cannot reach them: further
+     * out there is still time for the automation to succeed, and saying it
+     * early turns the one report that is about people into noise. */
+    if (g.status === "confirmed") {
+      const unreachable = c && !c.arrived
+        && (c.lastCode === 131026 || c.lastCode === 131050 || c.lastCode === 130472
+            || (c.refusals ?? 0) >= 3);
+      if (unreachable && phone && daysToWedding !== undefined && daysToWedding <= 3) {
+        out.push({ id: g.id, name, phone, kind: "coming_unreachable", ...(token ? { send: token } : {}) });
+      }
+      continue;
+    }
     if (g.status && g.status !== "pending") continue;
     if (g.do_not_contact) continue;
     if (!phone) continue;
@@ -175,4 +205,54 @@ export function manualWorkMessage(
   }
 
   return `${wedding} · בעוד ${daysAway} ימים · ${items.length} דורשים אותך. ${parts.join(" | ")}`;
+}
+
+
+/** The same report, one guest per line.
+ *
+ * manualWorkMessage above must stay on a single line: it is sent as a Meta
+ * template parameter, and a parameter containing a newline is rejected — error
+ * 132000, which fails the whole send. So the report Dvir actually receives was
+ * a paragraph with up to six names and six URLs run together, and finding one
+ * person's link in it meant reading the whole thing.
+ *
+ * Dvir, 06/09, having asked more than once: "אני רוצה שיהיה לי קישור כזה בכל
+ * פעם שיש כאלו שצריכים שליחה ידנית."
+ *
+ * A link he has to hunt for is not the thing he asked for. This is the same
+ * data as free text — where newlines are allowed — so every guest is a line and
+ * every link is its own tap. Free text only reaches him inside the 24-hour
+ * window, which his own messages to the business number keep open; the single
+ * line remains the fallback for when it is shut. */
+export function manualWorkLines(
+  wedding: string, daysAway: number, items: WorkItem[], base = "", perKind = 12,
+): string | null {
+  if (!items.length) return null;
+
+  const byKind = new Map<WorkKind, WorkItem[]>();
+  for (const it of items) {
+    const list = byKind.get(it.kind) ?? [];
+    list.push(it);
+    byKind.set(it.kind, list);
+  }
+
+  const out: string[] = [
+    `🙋 ${wedding} · בעוד ${daysAway} ימים`,
+    `${items.length} אנשים מחכים לך`,
+  ];
+
+  for (const kind of ORDER) {
+    const list = byKind.get(kind);
+    if (!list?.length) continue;
+    out.push("", `*${WORK_TEXT[kind]}* (${list.length})`);
+    for (const x of list.slice(0, perKind)) {
+      out.push(`${x.name}${x.phone ? " · " + x.phone : ""}`);
+      /* The link on its own line, because a URL sharing a line with Hebrew text
+         is where WhatsApp's own link detection gives up. */
+      if (base && x.send) out.push(`${base}/s/${x.send}`);
+    }
+    if (list.length > perKind) out.push(`ועוד ${list.length - perKind}`);
+  }
+
+  return out.join("\n");
 }
