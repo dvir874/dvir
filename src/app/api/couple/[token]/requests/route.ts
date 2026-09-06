@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { getWhatsAppConfig, sendRunSummary } from "@/lib/whatsapp";
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -42,5 +43,36 @@ export async function POST(req: NextRequest, { params }: Params) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  /* The page promises "נחזור אליכם תוך 24 שעות" and this route told nobody.
+   *
+   * A paying couple could send a request and it would sit in a table waiting
+   * for somebody to open a screen. The table has zero rows, which reads like
+   * "nobody needs anything" and is more likely "nobody found it": the button
+   * on their dashboard was labelled "הודעה לאורחים", and a couple looking for
+   * how to ask US something would never press that.
+   *
+   * The promise is the reason this matters. Everything else in this system
+   * that goes quiet is an inconvenience; this one is a commitment made to a
+   * customer in writing. */
+  (async () => {
+    const to = process.env.ADMIN_ALERT_PHONE;
+    const cfg = getWhatsAppConfig();
+    if (!to || !cfg) return;
+    const { data: ev } = await supabase.from("events")
+      .select("name, couple_names, client_phone").eq("id", event.id).maybeSingle();
+    const who = (ev?.couple_names as string) || (ev?.name as string) || "זוג";
+    const phone = String(ev?.client_phone ?? "").replace(/\D/g, "").replace(/^0/, "972");
+    try {
+      await sendRunSummary(cfg, to, {
+        event: "📬 בקשה מזוג",
+        sent: "1", failed: "—", left: "24",
+        attention: `${who} · ${category} · ${String(title).slice(0, 70)}`
+          + (description ? ` — ${String(description).slice(0, 90)}` : "")
+          + (phone ? ` · https://wa.me/${phone}` : ""),
+      });
+    } catch { /* the request is saved either way */ }
+  })();
+
   return NextResponse.json(data, { status: 201 });
 }

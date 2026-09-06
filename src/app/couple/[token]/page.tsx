@@ -843,7 +843,7 @@ function WeddingDayScreen({ token, event, briefing }: {
     { icon: "📞", label: "אנשי קשר",       href: `/couple/${token}/vendors` },
     { icon: "🪑", label: "הושבה",          href: `/couple/${token}/seating` },
     ...(galleryToken ? [{ icon: "📸", label: "גלריה", href: `/gallery/${galleryToken}` }] : []),
-    { icon: "💬", label: "הודעה לאורחים",  href: `/couple/${token}/requests` },
+    { icon: "📬", label: "בקשה או שאלה",  href: `/couple/${token}/requests` },
   ];
 
   const heroUrl = briefing?.event?.mini_site_hero_path ?? null;
