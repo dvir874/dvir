@@ -18,10 +18,20 @@ import { shapeOfOutgoing, templateProblem } from "@/lib/template-shape";
  * this check being unable to answer. The cost of a false negative is one more
  * run's failures, which are now alerted anyway. The cost of a false positive is
  * a wedding's invitations not going out. */
+export type TemplateFault = {
+  text: string;
+  /** True only when Meta gave us the stored definition and it disagrees with
+      what we build. Then every message in the run fails, with certainty, and
+      the run is worth stopping. False when the answer was inconclusive — a
+      name that returned nothing, a language we did not find — where the send
+      path itself is better evidence than this lookup. */
+  certain: boolean;
+};
+
 export async function checkTemplate(
   cfg: WhatsAppConfig,
   templateName: string,
-): Promise<string | null> {
+): Promise<TemplateFault | null> {
   const waba = process.env.WHATSAPP_WABA_ID;
   if (!waba) return null;
 
@@ -46,8 +56,16 @@ export async function checkTemplate(
 
     /* Present but not in our language is a real, sendable-looking fault, and
        one an empty result would hide. */
-    if (!stored && rows.length > 0) {
-      return `התבנית ${templateName} לא קיימת בשפה ${cfg.templateLang}`;
+    if (!stored) {
+      /* Inconclusive, not damning. An empty or unmatched name filter is more
+         often this query being wrong — an untrimmed value, a paging quirk —
+         than a template that stopped existing. Say so and let the run go. */
+      return {
+        text: rows.length > 0
+          ? `התבנית ${templateName} לא נמצאה בשפה ${cfg.templateLang}`
+          : `התבנית ${templateName} לא נמצאה במטא`,
+        certain: false,
+      };
     }
 
     /* Measured from the same builder the sender uses, with a filled details
@@ -58,7 +76,12 @@ export async function checkTemplate(
       { couple: "א", date: "ב", venue: "ג", times: "ד" },
     ));
 
-    return templateProblem(templateName, stored, sending);
+    const problem = templateProblem(templateName, stored, sending);
+    /* Meta told us the shape and it disagrees with ours. On 06/09 this exact
+       comparison was right and was overruled: it was reported as a warning,
+       the run continued, and 90 reminders failed #132000 in one evening — 85
+       of them תהל's fourth-and-final. Certain means certain. */
+    return problem ? { text: problem, certain: true } : null;
   } catch {
     return null;
   }

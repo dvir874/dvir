@@ -110,3 +110,34 @@ test("תבנית שלא נמצאה מדווחת, ולא נחשבת הוכחה ש
      the caller decides, and it decides to warn. */
   assert.ok(!problem.includes("נעצר"));
 });
+
+/* The two corrections of 06/09, as one rule.
+ *
+ * 19:30 — the check could not find the template and stopped a healthy run for
+ * תהל with 89 guests eligible. 21:31 — the check DID find it, said exactly
+ * what was wrong, was treated as a warning, and 90 reminders failed #132000.
+ *
+ * Both were the same code and opposite mistakes, so the rule cannot be "always
+ * stop" or "never stop". It is whether Meta gave us the definition: a stored
+ * shape that disagrees is proof, an empty lookup is not. */
+test("מבנה שמטא מסרה וסותר — הוכחה. חיפוש שחזר ריק — לא הוכחה", () => {
+  const sending = { header: "IMAGE", bodyVars: 4, button: "URL" as const };
+
+  /* 21:31: Meta stored it, and it disagrees on all three counts. */
+  const known = templateProblem("wedding_rsvp_followup_utility", {
+    status: "APPROVED",
+    components: [
+      { type: "BODY", text: "{{1}} {{2}} {{3}}" },
+      { type: "BUTTONS", buttons: [{ type: "QUICK_REPLY", text: "מגיע" }] },
+    ],
+  }, sending);
+  assert.ok(known?.includes("כותרת"));
+  assert.ok(known?.includes("4 פרמטרים"));
+  assert.ok(known?.includes("כפתור קישור"));
+
+  /* 19:30: nothing came back. The message is still worth saying out loud, but
+     it describes our lookup, not the template. */
+  const unknown = templateProblem("wedding_reminder_buttons_generic", null, sending);
+  assert.ok(unknown?.includes("לא קיימת"));
+  assert.ok(!unknown.includes("פרמטרים"), "אין מה להשוות בלי הגדרה מצד מטא");
+});

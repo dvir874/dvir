@@ -3512,12 +3512,16 @@ async function runSend(req: NextRequest) {
     if (targets.some(t => !t.reminder)) willUse.add(cfg.genericTemplateName);
 
     const faults: string[] = [];
+    let certain = false;
     for (const name of willUse) {
       const problem = await checkTemplate(cfg, name);
-      if (problem) faults.push(problem);
+      if (!problem) continue;
+      faults.push(problem.text);
+      if (problem.certain) certain = true;
     }
     if (faults.length) {
-      /* Reported, never blocking — and this is a correction.
+      /* Stops the run only when Meta itself told us the shape and it
+         disagrees. Two corrections in one evening taught the distinction.
        *
        * The first version set `stopped`, on the reasoning that every message in
        * the run would fail anyway. On 06/09 at 19:30 it stopped a run for תהל
@@ -3532,12 +3536,21 @@ async function runSend(req: NextRequest) {
        * enforces — than a template that genuinely stopped existing, because
        * the send path itself keeps proving the template works.
        *
-       * The asymmetry decides it. A wrong template costs messages Meta rejects
-       * without billing us, and failureAlert now shouts on the first one. A
-       * wrong guard costs every wedding's sending until somebody deploys. That
-       * is the more expensive mistake, so this warns early and gets out of the
-       * way. */
-      templateFault = `⚠️ אזהרת תבנית — ${faults.join(" · ")}`;
+       * So it was made a warning — and at 21:31 the same evening the warning
+       * was right and unheeded: the run went on and 90 reminders failed
+       * #132000, 85 of them תהל's fourth and final. The check had named the
+       * template, the missing header, the parameter count and the button, all
+       * before the first message.
+       *
+       * Both corrections were right about different things. A lookup that
+       * comes back empty proves nothing — that was the 19:30 case, and it must
+       * not stop a wedding. A stored definition that disagrees with what we
+       * build proves everything — that was 21:31, and continuing past it only
+       * buys a evening of rejections. So certainty, not caution, decides. */
+      templateFault = certain
+        ? `🚨 השליחה נעצרה לפני ההודעה הראשונה — ${faults.join(" · ")}`
+        : `⚠️ אזהרת תבנית — ${faults.join(" · ")}`;
+      if (certain) stopped = "התבנית לא תואמת למה שהמערכת שולחת";
     }
   }
 
