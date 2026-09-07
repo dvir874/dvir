@@ -189,3 +189,41 @@ test("a couple can raise their own ceiling, once, and only by asking", () => {
   /* And four is where it stops for them too. */
   assert.equal(isEligibleNow({ ...at3, remindersSent: 4, maxReminders: 4 }, NOW), false);
 });
+
+/* שלמה, 07/09. Invitations went 3–5/09, nobody has had a reminder, and Dvir
+   wants the first one today rather than waiting out the fifth day. */
+test("קירור מקוצר לאירוע אחד — פותח את התזכורת הראשונה", () => {
+  const now = Date.parse("2026-09-07T09:00:00+03:00");
+  const twoDaysAgo = new Date(now - 48 * 3_600_000).toISOString();
+  const base = { delivered: true, lastOutboundAt: twoDaysAgo, remindersSent: 0 };
+
+  assert.equal(isEligibleNow(base, now), false, "חמישה ימים — עדיין סגור");
+  assert.equal(isEligibleNow({ ...base, reminderCooldownH: 24 }, now), true);
+});
+
+/* The override may only ever shorten. A couple cannot be given a longer floor
+   by accident, and a nonsense value must not disable the floor entirely. */
+test("העקיפה רק מקצרת, וערך לא תקין נופל חזרה לחמישה ימים", () => {
+  const now = Date.parse("2026-09-07T09:00:00+03:00");
+  const c = { delivered: true, lastOutboundAt: new Date(now - 48 * 3_600_000).toISOString() };
+  for (const bad of [0, -5, 999, NaN, undefined]) {
+    assert.equal(cooldownHours({ ...c, reminderCooldownH: bad as number }), REMINDER_COOLDOWN_H,
+      `ערך ${bad} היה אמור ליפול חזרה`);
+  }
+});
+
+/* The 24-hour first-contact floor is not a pacing preference — it is what stops
+   two code paths messaging the same guest twice in an afternoon. */
+test("רצפת המגע הראשון לא ניתנת לקיצור", () => {
+  assert.equal(cooldownHours({ delivered: false, lastOutboundAt: null, reminderCooldownH: 1 }),
+    FIRST_CONTACT_COOLDOWN_H);
+});
+
+/* The cap is a separate rule and shortening the spacing must not touch it. */
+test("קיצור הקירור לא מבטל את תקרת שלוש התזכורות", () => {
+  const now = Date.parse("2026-09-07T09:00:00+03:00");
+  assert.equal(isEligibleNow({
+    delivered: true, lastOutboundAt: new Date(now - 48 * 3_600_000).toISOString(),
+    remindersSent: 3, reminderCooldownH: 1,
+  }, now), false);
+});

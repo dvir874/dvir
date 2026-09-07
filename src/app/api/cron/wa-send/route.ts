@@ -974,6 +974,27 @@ async function markSent(
  * select would have taken down every send in the system — so a database that
  * has not run the migration yet degrades to the default, "evening before",
  * rather than to silence on the night before a wedding. */
+/** A wedding's shortened reminder spacing, or undefined for the default.
+ *
+ * Fetched on its own and allowed to fail, NOT added to the event select.
+ * Naming an unmigrated column in that select is what nearly took every send in
+ * the system down on 06/09: PostgREST answers the WHOLE query with 42703, the
+ * event list comes back null, and every run for every wedding records
+ * "no_sendable_event" — which reads exactly like a quiet day. This one would be
+ * deployed the same morning its migration is meant to run.
+ *
+ * One extra query per event per run, to make the deploy order stop mattering. */
+async function cooldownOf(
+  sb: ReturnType<typeof createServerClient>, eventId: string,
+): Promise<number | undefined> {
+  try {
+    const { data, error } = await sb.from("events")
+      .select("reminder_cooldown_h").eq("id", eventId).maybeSingle();
+    if (error) return undefined;
+    return (data as { reminder_cooldown_h?: number | null } | null)?.reminder_cooldown_h ?? undefined;
+  } catch { return undefined; }
+}
+
 async function dayMessageOf(
   sb: ReturnType<typeof createServerClient>, eventId: string,
 ): Promise<{ known: boolean; value: unknown }> {
@@ -3198,9 +3219,13 @@ async function runSend(req: NextRequest) {
      again in the selection above, and the two disagreed — see that file. */
   /* A ceiling this wedding's couple asked for, or the standard three. */
   const eventMaxReminders = (ev as { max_reminders?: number | null }).max_reminders ?? undefined;
+  /* A shorter reminder spacing, for the one wedding that asked. Only ever
+     shortens and only ever for the event it is read from — see eligibility.ts. */
+  const eventCooldown = await cooldownOf(sb, ev.id as string);
   const mayMessage = (id: string) => isEligibleNow({
     delivered: contacted.has(id),
     maxReminders: eventMaxReminders,
+    reminderCooldownH: eventCooldown,
     lastOutboundAt: lastByGuest.get(id)?.at ?? null,
     /* Two reminders and no more — see MAX_REMINDERS_PER_GUEST. Passed only
        here, where a reminder is what would be sent; the first-contact groups
@@ -3461,6 +3486,7 @@ async function runSend(req: NextRequest) {
        * secondary wedding on most runs, and 87 pending guests are sitting on
        * exactly three reminders today — every one of them a fourth away. */
       const otherMax = (other as { max_reminders?: number | null }).max_reminders ?? undefined;
+      const otherCooldown = await cooldownOf(sb, other.id as string);
       const remCount = new Map<string, number>();
       for (let i = 0; i < oIds.length; i += 100) {
         const { data } = await sb.from("wa_messages")
@@ -3508,6 +3534,7 @@ async function runSend(req: NextRequest) {
             remindersSent: remCount.get(id) ?? 0,
             /* That wedding's own ceiling, not the selected one's. */
             maxReminders: otherMax,
+            reminderCooldownH: otherCooldown,
           });
         })
         .sort((a, b) => (firstAt.get(a) ?? "9999").localeCompare(firstAt.get(b) ?? "9999"))

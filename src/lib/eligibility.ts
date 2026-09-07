@@ -99,6 +99,21 @@ export interface ContactState {
    * grants three more instead of one, and nothing afterwards can tell an
    * exception from a bug. */
   maxReminders?: number;
+  /* A per-wedding reminder spacing, set only when the couple asks for one.
+   *
+   * Five days is the measured default and it stays the default — see
+   * REMINDER_COOLDOWN_H. But the measurement was about waste, not about time:
+   * it says a second reminder three days after the first arrives while the
+   * first is still being ignored. A FIRST reminder is a different message, and
+   * a couple asking for it sooner is not the case that number was drawn from.
+   *
+   * שלמה, 07/09: invitations went out 3–5/09, nobody has been reminded once,
+   * and Dvir wants the first reminder today rather than tomorrow. Nothing in
+   * the data argues against it — the 93%-then-25% curve is about reminder two.
+   *
+   * Only ever shortens for the wedding it is set on; every other wedding keeps
+   * five days, and a value that is missing or nonsense keeps five days too. */
+  reminderCooldownH?: number;
   /** A delivery report actually arrived — delivered or read. Accepted is not enough. */
   delivered: boolean;
   /** ISO timestamp of the last outbound message, successful or failed, or null. */
@@ -113,9 +128,18 @@ export interface ContactState {
   attemptsAccepted?: number;
 }
 
-/** The floor that applies to this guest, in hours. */
+/** The floor that applies to this guest, in hours.
+ *
+ * The per-event override applies only to the reminder floor. The 24-hour
+ * first-contact floor is not a pacing preference — it is what keeps a guest
+ * from being messaged twice in an afternoon by two different code paths — and
+ * no couple gets to shorten it. */
 export function cooldownHours(c: ContactState): number {
-  return c.delivered ? REMINDER_COOLDOWN_H : FIRST_CONTACT_COOLDOWN_H;
+  if (!c.delivered) return FIRST_CONTACT_COOLDOWN_H;
+  const custom = c.reminderCooldownH;
+  return typeof custom === "number" && custom > 0 && custom <= REMINDER_COOLDOWN_H
+    ? custom
+    : REMINDER_COOLDOWN_H;
 }
 
 /**
