@@ -74,7 +74,7 @@ export async function GET() {
    * Counting {{n}} in the approved body and comparing it to the four variables
    * we send turns that class of failure into a red line on a screen instead of
    * fifty-three silent failures found by reading the database the next day. */
-  async function template(name: string | null) {
+  async function template(name: string | null, expectVars = 4) {
     if (!cfg || !waba || !name) return null;
     try {
       const r = await fetch(
@@ -88,8 +88,15 @@ export async function GET() {
       const vars = body ? new Set([...body.matchAll(/\{\{(\d+)\}\}/g)].map(m => m[1])).size : 0;
       return {
         name, status: t.status, body: t.status === "APPROVED" ? body : null, vars,
-        /* The send always passes four body variables. Anything else is #132000. */
-        ok: t.status === "APPROVED" && vars === 4,
+        /* MARKETING costs about seven times UTILITY per conversation, and the
+           class is decided by Meta at approval — not by what we submitted. The
+           day-of runbook asserted UTILITY for two templates Meta stores as
+           MARKETING, and nobody could see it. */
+        category: t.category ?? null,
+        /* Anything but the count the sender passes is #132000, which fails the
+           whole run rather than the one message. */
+        expected: expectVars,
+        ok: t.status === "APPROVED" && vars === expectVars,
       };
     } catch { return null; }
   }
@@ -127,6 +134,20 @@ export async function GET() {
 
   const invite   = await template(cfg?.genericTemplateName ?? null);
   const reminder = await template(cfg?.reminderTemplateName ?? null);
+  /* The four near-the-wedding templates, which this screen has never shown.
+   *
+   * They are the two sends with no second chance, they are configured by env
+   * var like the others, and dayOf/dayOfNote have no default at all — an unset
+   * variable is not a wrong template, it is silence on the morning of a
+   * wedding. There was no way to check any of it without waiting for the day
+   * and reading the database afterwards.
+   *
+   * The note variants carry a fifth variable (the couple's own line, plus the
+   * navigation link on the day itself), so they are checked against five. */
+  const tplDayBefore     = await template(cfg?.dayBeforeTemplateName ?? null, 4);
+  const tplDayBeforeNote = await template(cfg?.dayBeforeNoteTemplateName ?? null, 5);
+  const tplDayOf         = await template(cfg?.dayOfTemplateName ?? null, 4);
+  const tplDayOfNote     = await template(cfg?.dayOfNoteTemplateName ?? null, 5);
   /* The other two the sender can reach. Not shown as cards — they are only
      needed to render what a run ACTUALLY sent, below. */
   const dayBefore = await template(cfg?.dayBeforeTemplateName ?? null);
@@ -450,7 +471,11 @@ export async function GET() {
       })),
     },
     health,
-    templates: { invite, reminder },
+    templates: {
+      invite, reminder,
+      dayBefore: tplDayBefore, dayBeforeNote: tplDayBeforeNote,
+      dayOf: tplDayOf, dayOfNote: tplDayOfNote,
+    },
     nextRun,
     note: "מה שהריצה הבאה תשלח. לא נשלחת אף הודעה ולא נכתב דבר.",
     generatedAt: new Date().toISOString(),
