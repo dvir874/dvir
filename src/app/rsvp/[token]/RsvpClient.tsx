@@ -1123,7 +1123,21 @@ export default function RsvpClient({
           }}>
             מתחתנים בקרוב?{" "}
             <a
-              href="https://regalifnei.vercel.app/?ref=rsvp"
+              /* Through /ref/ and not straight to the homepage.
+               *
+               * /ref/[code] is the only place that writes a referral_clicks row
+               * and sets the cookie the contact form reads. This link went to
+               * "/?ref=rsvp", which skips it entirely: referral_clicks holds
+               * seven rows in total and not one of them is rsvp, while 800
+               * guests have opened this page. Every click on the one piece of
+               * marketing the product actually has was invisible.
+               *
+               * The code carries the wedding, so a lead that closes can finally
+               * be traced to the wedding that produced it — which is the only
+               * way to know whose couple is worth asking for a referral. Eight
+               * characters of the id, matching /r/, because /ref/ truncates the
+               * code at forty and a full uuid plus the prefix is forty-one. */
+              href={`https://regalifnei.vercel.app/ref/rsvp-${(guest?.event_id ?? "").slice(0, 8)}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{ color: T.goldText, textDecoration: "none", borderBottom: "1px solid rgba(197,164,109,0.4)" }}
