@@ -13,6 +13,7 @@ import { chooseEvents, MAX_EVENTS_PER_RUN, type WindowEvent } from "@/lib/send-w
 import { dayOfWindow, dayOfTargets } from "@/lib/day-of";
 import { isRsvpMessage, isInvitation, didArrive, isNewerStatus } from "@/lib/rsvp-contact";
 import { classifyManualWork, manualWorkMessage, manualWorkLines, type LastContact } from "@/lib/manual-work";
+import { unreachableGuests, unreachableReport, askedOutcome } from "@/lib/unreachable";
 import { afterWeddingAsks, referralCodeFor, ASK_UNTIL_DAYS } from "@/lib/after-wedding";
 import { forecastDayBefore, pressingDays, forecastMessage, type ForecastEvent } from "@/lib/send-forecast";
 import { failureAlert } from "@/lib/send-failure";
@@ -1521,6 +1522,79 @@ async function alertManualWork(
   }
 }
 
+/** The numbers this business cannot reach, and the links to reach them.
+ *
+ * Its own report rather than a section of alertManualWork, because it asks
+ * something different. Manual work is "these people are waiting" — it changes
+ * daily and most of it resolves itself. This is "these numbers will never work
+ * automatically, no matter how long anyone waits", and every line of it is a
+ * thing only Dvir's own phone can do.
+ *
+ * Dvir, 07/09: "אני רוצה שאני אדע את המספרים שהם לא קיבלו כי המספר העסקי לא
+ * יכול לתת להם — והוא ישלח לי קישור אליהם באופן פרטי שאוכל לשלוח להם ממני."
+ *
+ * It also closes the loop the couple-check opened. שלמה was asked about 24
+ * numbers on 04/09; seventeen were fixed; nobody was ever told, and Dvir found
+ * it by running a query by hand three days later. A loop nobody closes teaches
+ * a couple that answering changed nothing. */
+async function alertUnreachable(
+  sb: ReturnType<typeof createServerClient>,
+  cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+): Promise<void> {
+  const to = process.env.ADMIN_ALERT_PHONE;
+  if (!to) return;
+
+  const today = israelToday();
+  const { data: evs } = await sb.from("events")
+    .select("id, name, couple_names, unreachable_asked_ids")
+    .gte("date", today).order("date").limit(4);
+
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app";
+
+  for (const ev of evs ?? []) {
+    const { data: gs } = await sb.from("guests")
+      .select("id, name, phone, rsvp_token, category")
+      .eq("event_id", ev.id as string).limit(900);
+    const guests = (gs ?? []) as Parameters<typeof unreachableGuests>[0];
+    if (!guests.length) continue;
+
+    /* reached means a delivery report SAID delivered or read. A wamid means
+       Meta accepted it and says nothing about arrival — asking the easier
+       question is what produced a message telling a couple all 195 of their
+       guests had been reached when sixteen never were. */
+    const ids = guests.map(g => g.id);
+    const delivery = new Map<string, { reached?: boolean; lastCode?: number | null }>();
+    const lastAt = new Map<string, string>();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data: ms } = await sb.from("wa_messages")
+        .select("guest_id, status, error_code, created_at")
+        .eq("direction", "out").in("guest_id", ids.slice(i, i + 100));
+      for (const m of ms ?? []) {
+        const id = m.guest_id as string;
+        if (!id) continue;
+        const cur = delivery.get(id) ?? {};
+        if (["delivered", "read"].includes(m.status as string)) cur.reached = true;
+        const at = m.created_at as string;
+        if (!lastAt.has(id) || at > lastAt.get(id)!) {
+          lastAt.set(id, at);
+          cur.lastCode = (m.error_code as number | null) ?? null;
+        }
+        delivery.set(id, cur);
+      }
+    }
+
+    const items = unreachableGuests(guests, delivery);
+    const outcome = askedOutcome(ev.unreachable_asked_ids as string[] | null, delivery);
+    const body = unreachableReport(
+      coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name ?? ""),
+      items, base, outcome);
+    if (!body) continue;
+
+    try { await sendAdminText(cfg, to, body); }
+    catch { /* an alert must never cost a send */ }
+  }
+}
+
 /* The wedding is over. Two things are still owed — see after-wedding.ts.
  *
  * 779₪ agreed and uncollected across four weddings, with nothing anywhere
@@ -2434,6 +2508,13 @@ async function runSend(req: NextRequest) {
     /* And everything the automation could not finish — see alertManualWork.
        The one report that is about people rather than numbers. */
     try { await alertManualWork(sb, cfg); }
+    catch { /* a notification must never cost a send */ }
+
+    /* And the numbers no automatic send will ever reach — see alertUnreachable.
+       Separate from the report above because it is a different question with a
+       different answer: not "who is waiting" but "who can only be reached from
+       your own phone". */
+    try { await alertUnreachable(sb, cfg); }
     catch { /* a notification must never cost a send */ }
 
     /* And what a finished wedding still owes — the money, then the
