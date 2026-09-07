@@ -1598,8 +1598,27 @@ async function alertUnreachable(
   const body = unreachableReport(sections, base);
   if (!body) return;
 
-  try { await sendAdminText(cfg, to, body); }
-  catch { /* an alert must never cost a send */ }
+  /* Free text carries the links, and free text only reaches him inside the
+     24-hour window his own messages keep open. When it is shut, the report
+     must not simply evaporate — that is the failure this whole report exists
+     to end. sendAdminText RETURNS false rather than throwing, so a bare
+     try/catch would have swallowed exactly that case in silence.
+     
+     The fallback cannot carry the links: a template parameter rejects the
+     newline that puts each one on its own line. It carries the count and the
+     names, which is enough to know to open /admin/sms. */
+  const plain = await sendAdminText(cfg, to, body).catch(() => ({ ok: false as const }));
+  if (plain.ok) return;
+
+  const total = sections.reduce((n, x) => n + x.items.length, 0);
+  const names = sections.flatMap(x => x.items).slice(0, 6).map(i => i.name).join(", ");
+  try {
+    await sendRunSummary(cfg, to, {
+      event: "📵 מספרים תקועים",
+      sent: String(total), failed: "—", left: "—",
+      attention: `${total} מספרים מחכים להודעה ממך — ${names}. הרשימה עם הקישורים ב-/admin/sms`,
+    });
+  } catch { /* an alert must never cost a send */ }
 }
 
 /* The wedding is over. Two things are still owed — see after-wedding.ts.
