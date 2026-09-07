@@ -108,6 +108,40 @@ export default function GuestCenterPage() {
   };
 
   // Summary
+  const [busyExport, setBusyExport] = useState<"confirmed" | "all" | null>(null);
+  const [exportDone, setExportDone] = useState<string | null>(null);
+  const [exportErr, setExportErr] = useState<string | null>(null);
+
+  /* Fetched rather than linked. A plain <a href> would show a browser error
+     page on failure instead of a sentence in Hebrew, and would name the file
+     after the route — "export.xlsx" — rather than after the wedding. */
+  async function download(scope: "confirmed" | "all") {
+    if (busyExport) return;
+    setBusyExport(scope); setExportErr(null); setExportDone(null);
+    try {
+      const r = await fetch(`/api/couple/${token}/guests/export?scope=${scope}`);
+      if (!r.ok) throw new Error(String(r.status));
+      const blob = await r.blob();
+      /* The server sends the Hebrew name twice — plain and RFC 5987 — and only
+         the second survives non-ASCII. Without reading it back the file lands
+         called "export". */
+      const cd = r.headers.get("content-disposition") ?? "";
+      const star = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+      const name = star ? decodeURIComponent(star[1]) : "רשימת אורחים.xlsx";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      setExportDone(name);
+    } catch {
+      setExportErr("לא הצלחנו להכין את הקובץ. נסו שוב בעוד רגע.");
+    } finally {
+      setBusyExport(null);
+    }
+  }
+
+  const confirmedRows = guests.filter(g => g.status === "confirmed").length;
   const total = guests.reduce((s, g) => s + g.guest_count, 0);
   const confirmed = guests.filter(g => g.status === "confirmed").reduce((s, g) => s + g.guest_count, 0);
   const pending   = guests.filter(g => g.status === "pending").reduce((s, g) => s + g.guest_count, 0);
@@ -165,6 +199,106 @@ export default function GuestCenterPage() {
           </div>
         )}
       </div>
+
+
+      {/* Download the list, in the one place the couple already looks.
+       *
+       * תהל, 07/09: "לאתר של ההושבה אני צריכה להכין דוקס של כל מי שאישר." It
+       * was the second thing that day a couple asked for that the product could
+       * not do, and both times Dvir built the file by hand.
+       *
+       * Stitch direction B — under the counts rather than a floating button.
+       * The floating variant it recommended would sit in the same corner as
+       * "הוסיפו אורח", the screen's primary action, and two floating buttons in
+       * one corner is a screen that asks the couple to choose on every visit.
+       *
+       * Two buttons and not one, each carrying its own number: a single button
+       * hiding both sheets makes the counts beside it a lie. */}
+      {!loading && guests.length > 0 && (
+        <div style={{ padding:"4px 20px 0" }}>
+          <div style={{ background:"#fff", borderRadius:16, padding:16, border:`1px solid ${C.border}`,
+                        boxShadow:"0 1px 2px rgba(28,16,8,0.05)" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ width:32, height:32, borderRadius:8, background:C.cream, color:C.goldText,
+                              display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 style={{ fontFamily:"Frank Ruhl Libre,serif", fontWeight:700, fontSize:14, color:C.dark, margin:0 }}>
+                    הורדת קובץ אקסל (XLSX)
+                  </h4>
+                  <p style={{ fontFamily:"Heebo,sans-serif", fontSize:11, color:C.muted, margin:"2px 0 0" }}>
+                    להעלאה ישירה לאתר סידורי ההושבה או לקייטרינג
+                  </p>
+                </div>
+              </div>
+              <span style={{ flexShrink:0, fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:4,
+                             background:"rgba(107,123,90,0.10)", color:C.olive, fontFamily:"Heebo,sans-serif" }}>
+                שתי לחיצות
+              </span>
+            </div>
+
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, paddingTop:14 }}>
+              {([
+                { scope:"confirmed" as const, label:"רק מאושרים", rows:confirmedRows, souls:confirmed, primary:true },
+                { scope:"all" as const,       label:"כל הרשימה",  rows:guests.length, souls:total,     primary:false },
+              ]).map(b => (
+                <button key={b.scope} onClick={() => download(b.scope)} disabled={!!busyExport}
+                  aria-label={`הורדת ${b.label} — ${b.souls} נפשות`}
+                  style={{ padding:10, borderRadius:12, textAlign:"right", cursor:busyExport?"wait":"pointer",
+                    border:b.primary?`2px solid ${C.olive}`:`1px solid ${C.border}`,
+                    background:b.primary?"rgba(107,123,90,0.05)":C.ivory,
+                    display:"flex", flexDirection:"column", justifyContent:"space-between",
+                    opacity:busyExport&&busyExport!==b.scope?0.5:1, transition:"opacity .15s" }}>
+                  <span style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%" }}>
+                    <span style={{ fontFamily:"Heebo,sans-serif", fontWeight:700, fontSize:12, color:C.dark }}>{b.label}</span>
+                    <span style={{ width:16, height:16, borderRadius:"50%", flexShrink:0,
+                      background:b.primary?C.olive:"#fff", border:b.primary?"none":`1px solid ${C.border}`,
+                      color:"#fff", fontSize:10, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      {b.primary ? "✓" : ""}
+                    </span>
+                  </span>
+                  <span style={{ marginTop:8, fontFamily:"Frank Ruhl Libre,serif", fontSize:11,
+                                 fontWeight:b.primary?700:400, color:b.primary?C.olive:C.muted }}>
+                    {b.souls} נפשות ({b.rows})
+                  </span>
+                  <span style={{ marginTop:8, width:"100%", padding:"6px 0", borderRadius:8, textAlign:"center",
+                    fontFamily:"Heebo,sans-serif", fontSize:12, fontWeight:500,
+                    display:"flex", alignItems:"center", justifyContent:"center", gap:4,
+                    background:b.primary?C.olive:"#fff", color:b.primary?C.ivory:C.dark,
+                    border:b.primary?"none":`1px solid ${C.border}` }}>
+                    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    {busyExport === b.scope ? "מכין…" : b.primary ? "הורד עכשיו" : "הורד הכל"}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* "Did it work?" is the first question after a download on a phone,
+                and a toast that has already gone cannot answer it. */}
+            {exportDone && (
+              <div style={{ marginTop:12, background:C.cream, borderRadius:12, padding:"10px 12px",
+                            display:"flex", alignItems:"center", gap:8, border:`1px solid ${C.border}` }}>
+                <span style={{ fontSize:14 }}>✅</span>
+                <span style={{ fontFamily:"Heebo,sans-serif", fontSize:12, color:C.dark }}>
+                  הקובץ ירד — <span style={{ color:C.muted }}>{exportDone}</span>
+                </span>
+              </div>
+            )}
+            {exportErr && (
+              <div style={{ marginTop:12, background:"rgba(180,85,45,0.08)", borderRadius:12, padding:"10px 12px",
+                            fontFamily:"Heebo,sans-serif", fontSize:12, color:"#B4552D" }}>
+                {exportErr}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* E3-S9: Filter chip row */}
       <div role="group" aria-label="סנן אורחים" className="guest-chip-scroll" style={{ display:"flex", gap:"8px", padding:"12px 16px", overflowX:"auto", scrollbarWidth:"none" }}>

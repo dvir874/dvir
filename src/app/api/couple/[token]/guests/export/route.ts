@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
  * token is already the couple's key to their own dashboard, and this contains
  * nothing they cannot already see on the guest screen. */
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ token: string }> },
 ): Promise<NextResponse> {
   const { token } = await params;
@@ -47,11 +47,19 @@ export async function GET(
 
   const out = guestExport(guests);
 
+  /* Which sheet the couple asked for. The screen offers two downloads with two
+     different counts beside them — "רק מאושרים · 158 נפשות" and "כל הרשימה" —
+     and a file that silently contains both makes those two buttons a lie.
+     Anything unrecognised gives both, which is what a bare link should do. */
+  const scope = req.nextUrl.searchParams.get("scope");
+  const sheets = (
+    scope === "confirmed" ? [["מאושרי הגעה", out.confirmed]] :
+    scope === "all"       ? [["כל האורחים", out.all]] :
+    [["מאושרי הגעה", out.confirmed], ["כל האורחים", out.all]]
+  ) as readonly (readonly [string, typeof out.all])[];
+
   const wb = XLSX.utils.book_new();
-  for (const [title, rows] of [
-    ["מאושרי הגעה", out.confirmed],
-    ["כל האורחים", out.all],
-  ] as const) {
+  for (const [title, rows] of sheets) {
     const ws = XLSX.utils.aoa_to_sheet([[...EXPORT_HEADERS], ...rows]);
     /* Widths in characters. Without them every column opens at the default and
        the names — the one column anybody reads — arrive truncated. */
@@ -62,7 +70,11 @@ export async function GET(
 
   const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
   const name = coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name ?? "");
-  const filename = exportFilename(name, new Date().toISOString());
+  const filename = exportFilename(
+    scope === "confirmed" ? `${name} — מאושרי הגעה`
+    : scope === "all"     ? `${name} — כל האורחים`
+    : name,
+    new Date().toISOString());
 
   return new NextResponse(new Uint8Array(buf), {
     headers: {
