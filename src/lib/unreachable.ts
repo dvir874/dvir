@@ -67,7 +67,7 @@ export const REASON_TEXT: Record<Reason, string> = {
 
 /** What each reason actually asks of Dvir, so the report says what to DO. */
 export const REASON_ACTION: Record<Reason, string> = {
-  no_whatsapp: "צריך מספר אחר מהזוג, או שיחת טלפון",
+  no_whatsapp: "SMS — הקישור פותח הודעה מוכנה בטלפון שלך",
   opted_out:   "רק הודעה אישית מהמספר שלך",
   experiment:  "הודעה אישית ממך תפתח להם את הערוץ",
 };
@@ -128,6 +128,34 @@ export function askedOutcome(
   return { asked: asked.length, resolved: asked.length - stillStuck.length, stillStuck };
 }
 
+/** The link that actually reaches this person.
+ *
+ * Not one link for everyone, and this was wrong when the report was first
+ * written. A guest whose number has no WhatsApp account cannot be reached by a
+ * WhatsApp link — /s/ opens a chat with a number that will never see it, which
+ * is worse than no link at all because it looks like it worked.
+ *
+ * 131026 has exactly one remaining channel and it is SMS. שלמה asked for it by
+ * name on 07/09 for the whole נגר family, six numbers out of one imported
+ * list. The body is deliberately tiny — SMS is billed by length and read on a
+ * lock screen — so it is the couple, and a short link.
+ *
+ * 131050 and 130472 are different: those numbers DO have WhatsApp. One asked
+ * Meta to stop hearing from businesses and the other is in one of Meta's
+ * experiments, and both restrictions are about the BUSINESS number. A personal
+ * message from Dvir's own phone reaches them normally, so they keep /s/. */
+function channelLink(g: UnreachableItem, wedding: string, base: string): string | null {
+  if (!base || !g.send) return null;
+
+  if (g.reason === "no_whatsapp") {
+    const body = `אישור הגעה — ${wedding}\n${base}/r/${g.send.slice(0, 8)}`;
+    /* "&body=" and not "?body=", matching /admin/sms, which is what actually
+       works on the phone Dvir sends from. */
+    return `sms:${g.phone}&body=${encodeURIComponent(body)}`;
+  }
+  return `${base}/s/${g.send}`;
+}
+
 /** One wedding's worth of stuck numbers, as a section of the nightly report. */
 export type ReportSection = {
   wedding: string;
@@ -182,7 +210,8 @@ export function unreachableReport(
       out.push(`${g.name} · ${g.phone}${live.length > 1 ? `  ·  ${g.wedding}` : ""}`);
       /* Its own line: a URL sharing a line with Hebrew text is where
          WhatsApp's link detection gives up. */
-      if (base && g.send) out.push(`${base}/s/${g.send}`);
+      const link = channelLink(g, g.wedding, base);
+      if (link) out.push(link);
     }
     if (rows.length > perReason) {
       out.push(`ועוד ${rows.length - perReason} — הרשימה המלאה ב-/admin`);

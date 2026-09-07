@@ -75,9 +75,10 @@ test("הדוח נותן שורה לאדם, קישור לשורה, ואומר מ�
     [{ wedding: "אבישג ושלמה", items: stuck("1", 131026), outcome: { asked: 24, resolved: 17 } }],
     "https://x.app");
   assert.ok(msg);
-  assert.ok(msg.split("\n").includes("https://x.app/s/tok1"), "הקישור על שורה משלו");
+  /* 131026 has one channel left, so the link is an SMS one — see channelLink. */
+  assert.ok(msg.split("\n").some(l => l.startsWith("sms:")), "הקישור על שורה משלו");
   assert.ok(msg.includes(REASON_TEXT.no_whatsapp));
-  assert.ok(msg.includes("צריך מספר אחר"), "אומר מה לעשות, לא רק מה קרה");
+  assert.ok(msg.includes("SMS"), "אומר מה לעשות, לא רק מה קרה");
   assert.ok(msg.includes("17 מתוך 24"), "סוגר את הלולאה");
 });
 
@@ -130,4 +131,28 @@ test("רשימה ארוכה נחתכת במפורש, לא בשקט", () => {
   assert.ok(msg.includes("(20)"), "המספר האמיתי בכותרת");
   assert.ok(msg.includes("ועוד 8"), "מה שלא נכנס נאמר בקול");
   assert.ok(msg.includes("אורח 11") && !msg.includes("אורח 12"));
+});
+
+/* שלמה, 07/09: send an SMS to the numbers with no WhatsApp — the whole נגר
+   family. And the bug that request exposed: the report was handing every one
+   of them a wa.me link, which opens a chat with a number that will never see
+   it. Worse than no link, because it looks like it worked. */
+test("אין וואטסאפ → קישור SMS, לא קישור וואטסאפ", () => {
+  const msg = unreachableReport(
+    [{ wedding: "אבישג ושלמה", items: stuck("1", 131026) }], "https://x.app")!;
+  const link = msg.split("\n").find(l => l.startsWith("sms:") || l.startsWith("https://"));
+  assert.ok(link?.startsWith("sms:"), "ל-131026 יש ערוץ אחד בלבד");
+  assert.ok(link.includes("body="));
+  assert.ok(decodeURIComponent(link).includes("אבישג ושלמה"), "הזוג בגוף ההודעה");
+  assert.ok(decodeURIComponent(link).includes("/r/tok1"), "קישור קצר, SMS מחויב באורך");
+});
+
+/* Those two numbers DO have WhatsApp. The restriction is on the BUSINESS
+   number, and a personal message from Dvir's own phone reaches them normally. */
+test("ביקשו להפסיק וקבוצת ניסוי → קישור וואטסאפ, ההגבלה היא על המספר העסקי", () => {
+  for (const code of [131050, 130472]) {
+    const msg = unreachableReport([{ wedding: "ח", items: stuck("1", code) }], "https://x.app")!;
+    assert.ok(msg.includes("https://x.app/s/tok1"), `קוד ${code}`);
+    assert.ok(!msg.includes("sms:"), `קוד ${code} — לא SMS`);
+  }
 });
