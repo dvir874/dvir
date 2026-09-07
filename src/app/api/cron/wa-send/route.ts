@@ -1546,7 +1546,7 @@ async function alertUnreachable(
 
   const today = israelToday();
   const { data: evs } = await sb.from("events")
-    .select("id, name, couple_names, unreachable_asked_ids")
+    .select("id, name, couple_names, unreachable_asked_ids, date, address, venue_name, reception_time, chuppah_time")
     .gte("date", today).order("date").limit(4);
 
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app";
@@ -1592,6 +1592,14 @@ async function alertUnreachable(
       wedding: coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name ?? ""),
       items: unreachableGuests(guests, delivery),
       outcome: askedOutcome(ev.unreachable_asked_ids as string[] | null, delivery),
+      /* So a guest with no WhatsApp receives the same invitation everyone else
+         got, rather than a couple's name and a bare link. */
+      event: {
+        date: weddingDateLine(String(ev.date ?? "")),
+        venue: venueLine(ev as Parameters<typeof venueLine>[0]),
+        reception: (ev.reception_time as string | null)?.slice(0, 5),
+        chuppah: (ev.chuppah_time as string | null)?.slice(0, 5),
+      },
     });
   }
 

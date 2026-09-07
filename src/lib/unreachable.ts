@@ -1,3 +1,5 @@
+import { smsInvite, type SmsEvent } from "./sms-invite.ts";
+
 /** The guests the business number cannot reach, and the link to reach them.
  *
  * Dvir, 07/09: "אני רוצה שאני אדע את המספרים שהם לא קיבלו כי המספר העסקי לא
@@ -144,11 +146,15 @@ export function askedOutcome(
  * Meta to stop hearing from businesses and the other is in one of Meta's
  * experiments, and both restrictions are about the BUSINESS number. A personal
  * message from Dvir's own phone reaches them normally, so they keep /s/. */
-function channelLink(g: UnreachableItem, wedding: string, base: string): string | null {
+function channelLink(
+  g: UnreachableItem, wedding: string, base: string, ev?: Omit<SmsEvent, "couple">,
+): string | null {
   if (!base || !g.send) return null;
 
   if (g.reason === "no_whatsapp") {
-    const body = `אישור הגעה — ${wedding}\n${base}/r/${g.send.slice(0, 8)}`;
+    /* The same message /admin/sms sends, from the one builder — see
+       sms-invite.ts. Written twice it was already written differently twice. */
+    const body = smsInvite({ couple: wedding, ...(ev ?? {}) }, g.send, base);
     /* "&body=" and not "?body=", matching /admin/sms, which is what actually
        works on the phone Dvir sends from. */
     return `sms:${g.phone}&body=${encodeURIComponent(body)}`;
@@ -161,6 +167,10 @@ export type ReportSection = {
   wedding: string;
   items: UnreachableItem[];
   outcome?: { asked: number; resolved: number };
+  /* The details that go into an SMS, so a guest with no WhatsApp gets the same
+     invitation everyone else got rather than a bare link. Optional: without
+     them the message still names the couple. */
+  event?: Omit<SmsEvent, "couple">;
 };
 
 /** The whole report, across every upcoming wedding, as one message.
@@ -202,7 +212,7 @@ export function unreachableReport(
   for (const reason of ORDER) {
     const rows = live.flatMap(s => s.items
       .filter(i => i.reason === reason)
-      .map(i => ({ ...i, wedding: s.wedding })));
+      .map(i => ({ ...i, wedding: s.wedding, event: s.event })));
     if (!rows.length) continue;
 
     out.push("", `*${REASON_TEXT[reason]}* (${rows.length})`, `_${REASON_ACTION[reason]}_`);
@@ -210,7 +220,7 @@ export function unreachableReport(
       out.push(`${g.name} · ${g.phone}${live.length > 1 ? `  ·  ${g.wedding}` : ""}`);
       /* Its own line: a URL sharing a line with Hebrew text is where
          WhatsApp's link detection gives up. */
-      const link = channelLink(g, g.wedding, base);
+      const link = channelLink(g, g.wedding, base, g.event);
       if (link) out.push(link);
     }
     if (rows.length > perReason) {

@@ -5,6 +5,7 @@ import { coupleName } from "@/lib/couple-name";
 import { eventTimes } from "@/lib/event-times";
 import { venueLine } from "@/lib/venue";
 import SmsRow from "./SmsRow";
+import { smsInvite } from "@/lib/sms-invite";
 
 export const dynamic = "force-dynamic";
 
@@ -134,14 +135,19 @@ export default async function SmsFallback({
      characters, longer than a segment. /r/<8 chars> is 39, so message and
      link together fit in ONE segment and there is nothing to split.
      
-     The date and the venue are not in it on purpose. The SMS has one job —
-     deliver a link that opens — and the page it opens carries everything
-     else. A message that is complete and unreadable is worth less than a
-     line that works. */
-  const shortBase = (process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app")
-    .replace(/^https?:\/\//, "");
-  const body = (token: string) =>
-    `אישור הגעה — ${couple}\n${shortBase}/r/${token.slice(0, 8)}`;
+     The date and the venue ARE in it now. Dvir, 07/09, having opened one:
+     the guest sees a couple's name and a link and cannot tell it is a wedding
+     invitation. Cost was never the reason they were left out — these are sent
+     by tapping a link on Dvir's own phone, not through a paid gateway — the
+     reason was the split, and putting the URL last solves that directly. See
+     src/lib/sms-invite.ts. */
+  const body = (token: string) => smsInvite({
+    couple,
+    date: when,
+    venue: venueLine(ev as Parameters<typeof venueLine>[0]),
+    reception: (ev.reception_time as string | null)?.slice(0, 5),
+    chuppah: (ev.chuppah_time as string | null)?.slice(0, 5),
+  }, token, process.env.NEXT_PUBLIC_APP_URL);
 
   return (
     <Shell>
