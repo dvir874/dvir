@@ -67,17 +67,67 @@ test("לא ביקשנו כלום — אין מה לסגור", () => {
   assert.deepEqual(askedOutcome(null, new Map()), { asked: 0, resolved: 0, stillStuck: [] });
 });
 
-test("הדוח נותן שורה לאדם וקישור לשורה, ואומר מה לעשות", () => {
-  const items = unreachableGuests([g("1")], new Map([["1", { reached: false, lastCode: 131026 }]]));
-  const msg = unreachableReport("אבישג ושלמה", items, "https://x.app", { asked: 24, resolved: 17 });
+const stuck = (id: string, code: number) =>
+  unreachableGuests([g(id)], new Map([[id, { reached: false, lastCode: code }]]));
+
+test("הדוח נותן שורה לאדם, קישור לשורה, ואומר מה לעשות", () => {
+  const msg = unreachableReport(
+    [{ wedding: "אבישג ושלמה", items: stuck("1", 131026), outcome: { asked: 24, resolved: 17 } }],
+    "https://x.app");
   assert.ok(msg);
-  const lines = msg.split("\n");
-  assert.ok(lines.includes("https://x.app/s/tok1"), "הקישור על שורה משלו");
+  assert.ok(msg.split("\n").includes("https://x.app/s/tok1"), "הקישור על שורה משלו");
   assert.ok(msg.includes(REASON_TEXT.no_whatsapp));
   assert.ok(msg.includes("צריך מספר אחר"), "אומר מה לעשות, לא רק מה קרה");
-  assert.ok(msg.includes("17 כבר נפתרו"), "סוגר את הלולאה");
+  assert.ok(msg.includes("17 מתוך 24"), "סוגר את הלולאה");
 });
 
-test("אין מספרים תקועים — לא נשלחת הודעה", () => {
-  assert.equal(unreachableReport("אבישג ושלמה", [], "https://x.app"), null);
+/* Dvir, 07/09: "אני רוצה שזה לא יגיע רק על לקוח אחד ולא ספציפית על לקוח שנשלח
+   היום — אלא בכללי אם יש מספרים שמחכים להודעה." */
+test("הודעה אחת על כל החתונות, לא אחת לכל לקוח", () => {
+  const msg = unreachableReport([
+    { wedding: "אבישג ושלמה", items: stuck("1", 131026) },
+    { wedding: "אורי ושחר", items: stuck("2", 131026) },
+  ], "https://x.app");
+  assert.ok(msg);
+  assert.ok(msg.includes("אבישג ושלמה") && msg.includes("אורי ושחר"), "שתיהן בהודעה אחת");
+  assert.ok(msg.includes("2 מספרים"), "הסכום חוצה חתונות");
+  assert.ok(msg.includes("ב-2 חתונות"));
+});
+
+/* Grouped by what needs doing rather than by couple: the action is identical
+   for everyone in a group, and that is how the list gets worked through. */
+test("קיבוץ לפי פעולה, עם שם החתונה ליד כל אורח", () => {
+  const msg = unreachableReport([
+    { wedding: "חתונה א", items: stuck("1", 131026) },
+    { wedding: "חתונה ב", items: stuck("2", 130472) },
+  ], "https://x.app")!;
+  const lines = msg.split("\n");
+  assert.equal(lines.filter(l => l.startsWith("*אין וואטסאפ")).length, 1);
+  assert.ok(lines.some(l => l.includes("אורח 1") && l.includes("חתונה א")));
+  assert.ok(lines.some(l => l.includes("אורח 2") && l.includes("חתונה ב")));
+});
+
+/* A wedding with nothing stuck is exactly the one nobody would think to
+   check, so it is read every night — and says nothing when it is clean. */
+test("חתונה נקייה לא מופיעה, ואם כולן נקיות אין הודעה", () => {
+  const msg = unreachableReport([
+    { wedding: "תקועה", items: stuck("1", 131026) },
+    { wedding: "נקייה", items: [] },
+  ], "https://x.app")!;
+  assert.ok(!msg.includes("נקייה"));
+  assert.equal(unreachableReport([{ wedding: "נקייה", items: [] }], "https://x.app"), null);
+  assert.equal(unreachableReport([], "https://x.app"), null);
+});
+
+/* A list silently cut at the bottom reads as "that is all of them", which is
+   the one thing this report must never say. */
+test("רשימה ארוכה נחתכת במפורש, לא בשקט", () => {
+  const many = Array.from({ length: 20 }, (_, i) => ({
+    id: String(i), name: "אורח " + i, phone: "0500000000",
+    reason: "no_whatsapp" as const, send: "t" + i,
+  }));
+  const msg = unreachableReport([{ wedding: "חתונה", items: many }], "https://x.app", 12)!;
+  assert.ok(msg.includes("(20)"), "המספר האמיתי בכותרת");
+  assert.ok(msg.includes("ועוד 8"), "מה שלא נכנס נאמר בקול");
+  assert.ok(msg.includes("אורח 11") && !msg.includes("אורח 12"));
 });

@@ -1551,6 +1551,11 @@ async function alertUnreachable(
 
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app";
 
+  /* Collected across every upcoming wedding and sent once. Four messages on a
+     phone is four notifications to dismiss and no sense of how much is
+     actually waiting; one is a list he can work through and finish. */
+  const sections: Parameters<typeof unreachableReport>[0] = [];
+
   for (const ev of evs ?? []) {
     const { data: gs } = await sb.from("guests")
       .select("id, name, phone, rsvp_token, category")
@@ -1583,16 +1588,18 @@ async function alertUnreachable(
       }
     }
 
-    const items = unreachableGuests(guests, delivery);
-    const outcome = askedOutcome(ev.unreachable_asked_ids as string[] | null, delivery);
-    const body = unreachableReport(
-      coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name ?? ""),
-      items, base, outcome);
-    if (!body) continue;
-
-    try { await sendAdminText(cfg, to, body); }
-    catch { /* an alert must never cost a send */ }
+    sections.push({
+      wedding: coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name ?? ""),
+      items: unreachableGuests(guests, delivery),
+      outcome: askedOutcome(ev.unreachable_asked_ids as string[] | null, delivery),
+    });
   }
+
+  const body = unreachableReport(sections, base);
+  if (!body) return;
+
+  try { await sendAdminText(cfg, to, body); }
+  catch { /* an alert must never cost a send */ }
 }
 
 /* The wedding is over. Two things are still owed — see after-wedding.ts.

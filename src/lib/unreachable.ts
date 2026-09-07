@@ -128,33 +128,74 @@ export function askedOutcome(
   return { asked: asked.length, resolved: asked.length - stillStuck.length, stillStuck };
 }
 
-/** The report, one guest per line with its own link. Free text, so newlines
-    are allowed — a template parameter rejects them, and a list of people to
-    message is unusable as a paragraph. */
-export function unreachableReport(
-  wedding: string, items: UnreachableItem[], base = "",
-  outcome?: { asked: number; resolved: number },
-): string | null {
-  if (!items.length) return null;
+/** One wedding's worth of stuck numbers, as a section of the nightly report. */
+export type ReportSection = {
+  wedding: string;
+  items: UnreachableItem[];
+  outcome?: { asked: number; resolved: number };
+};
 
+/** The whole report, across every upcoming wedding, as one message.
+ *
+ * One message and not one per wedding. Dvir, 07/09: "אני רוצה שזה לא יגיע רק
+ * על לקוח אחד ולא ספציפית על לקוח שנשלח היום — אלא בכללי אם יש מספרים שמחכים
+ * להודעה." Four separate messages on a phone is four notifications to dismiss
+ * and no sense of how much is actually waiting; one is a list he can work
+ * through and finish.
+ *
+ * It is also deliberately independent of what was sent today. A number that
+ * cannot receive is stuck whether or not its wedding had a run — and the
+ * wedding with nothing going out is exactly the one nobody would otherwise
+ * think to check.
+ *
+ * Free text, so newlines are allowed: a template parameter rejects them, and a
+ * list of people to message is unusable as a paragraph. */
+export function unreachableReport(
+  sections: ReportSection[], base = "",
+  /* WhatsApp cuts a text message at about 4,000 characters, and each guest
+     here costs two lines and a URL — roughly ninety characters. Twelve per
+     reason keeps a four-wedding report inside the limit with room to grow.
+     Anything dropped is COUNTED OUT LOUD: a list silently cut at the bottom
+     reads as "that is all of them", which is the one thing it must never say. */
+  perReason = 12,
+): string | null {
+  const live = sections.filter(s => s.items.length);
+  if (!live.length) return null;
+
+  const total = live.reduce((n, s) => n + s.items.length, 0);
   const out: string[] = [
-    `📵 ${wedding}`,
-    `${items.length} מספרים שהמערכת לא יכולה להגיע אליהם`,
+    `📵 ${total} מספרים מחכים להודעה ממך`,
+    live.length > 1 ? `ב-${live.length} חתונות` : live[0].wedding,
   ];
 
-  if (outcome && outcome.asked > 0) {
-    out.push("", `מתוך ${outcome.asked} ששלחנו לזוג לבדיקה — ${outcome.resolved} כבר נפתרו.`);
-  }
-
+  /* Grouped by reason ACROSS weddings, because the action is the same for
+     everyone in a group and Dvir works through it by action, not by couple.
+     The wedding is named beside each guest instead. */
   for (const reason of ORDER) {
-    const list = items.filter(i => i.reason === reason);
-    if (!list.length) continue;
-    out.push("", `*${REASON_TEXT[reason]}* (${list.length})`, `_${REASON_ACTION[reason]}_`);
-    for (const g of list) {
-      out.push(`${g.name} · ${g.phone}`);
+    const rows = live.flatMap(s => s.items
+      .filter(i => i.reason === reason)
+      .map(i => ({ ...i, wedding: s.wedding })));
+    if (!rows.length) continue;
+
+    out.push("", `*${REASON_TEXT[reason]}* (${rows.length})`, `_${REASON_ACTION[reason]}_`);
+    for (const g of rows.slice(0, perReason)) {
+      out.push(`${g.name} · ${g.phone}${live.length > 1 ? `  ·  ${g.wedding}` : ""}`);
       /* Its own line: a URL sharing a line with Hebrew text is where
          WhatsApp's link detection gives up. */
       if (base && g.send) out.push(`${base}/s/${g.send}`);
+    }
+    if (rows.length > perReason) {
+      out.push(`ועוד ${rows.length - perReason} — הרשימה המלאה ב-/admin`);
+    }
+  }
+
+  /* The loop the couple-check opened, closed per wedding at the end rather
+     than at the top — it is good news, and good news does not lead. */
+  const closed = live.filter(s => (s.outcome?.asked ?? 0) > 0);
+  if (closed.length) {
+    out.push("", "*מהמספרים ששלחנו לזוגות לבדיקה*");
+    for (const s of closed) {
+      out.push(`${s.wedding}: ${s.outcome!.resolved} מתוך ${s.outcome!.asked} כבר נפתרו`);
     }
   }
 
