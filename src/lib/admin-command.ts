@@ -66,7 +66,16 @@ const RESUME = /^(המשך|תמשיך|חדש|resume|start)\s+(.{2,40})$/i;
  * שחר" opens with "מה", which is also how half of an ordinary sentence starts.
  * When one of these does not parse, the answer is the help text. */
 const NEAR_COMMAND =
-  /^(סטטוס|מצב|status|מחכה לי|מי צריך|משימות|לא קיבלו|מי לא קיבל|חסרים|עצור|השהה|stop|pause|המשך|תמשיך|resume|start|עזרה|פקודות|help|מה קורה|מה המצב)(?=\s|$)/i;
+  /^(סטטוס|מצב|status|מחכה לי|מי צריך|משימות|לא קיבלו|מי לא קיבל|חסרים|עצור|השהה|stop|pause|המשך|תמשיך|resume|start|עזרה|פקודות|help|מה קורה|מה המצב|אוקי|אוקיי|אוקיים|סבבה|הבנתי|קיבלתי|תודה)(?=\s|$)/i;
+/* The last group are acknowledgements aimed at a machine, and they are here
+   because of a real leak: on 07/09 Dvir typed "אוקי" at 07:34 and it went out
+   verbatim to a guest who had said "אל תחזרו · טעות במספר" an hour earlier.
+   
+   "כן" is deliberately NOT in this list. A guest asks "אפשר להביא ילד?" and
+   the honest reply is one word — blocking that would take away the console's
+   only purpose. "אוקי" is what a person says to a system; "כן" is what they
+   say to a person. The line is not sharp, and it is drawn where the common
+   mistake actually happened. */
 /* (?=\s|$) and not \b — JavaScript's \b is defined over ASCII word
    characters, so a Hebrew letter is not a word character and "סטטוס " never
    produced a boundary at all. The guard silently matched nothing, which is the
@@ -107,6 +116,29 @@ export function parseAdminCommand(
   /* Something that opens like an instruction is an instruction he got wrong,
      never a message meant for a guest. */
   if (NEAR_COMMAND.test(t)) return { kind: "unknown" };
+
+  /* And so is anything shaped like a command he has not learned yet.
+   *
+   * NEAR_COMMAND lists the words this file actually understands, in Hebrew.
+   * It cannot list the ones Dvir will guess. On 07/09 — three days after the
+   * console shipped — he typed "אוקי" at 07:34, "/admin" at 17:43 and "Admin/"
+   * a minute later, and all three went out verbatim to 0507680008: עירית סבן,
+   * who eighty-five minutes earlier had written "אל תחזרו · לא מכירה · טעות
+   * במספר". She read all three.
+   *
+   * That is the single most dangerous recipient in the database — a person who
+   * has already said the number is wrong is the one most likely to report it —
+   * and the business number has already been restricted once, for two days,
+   * with every client stopped.
+   *
+   * Two shapes, both of which are always a command and never a sentence to a
+   * guest: anything opening with a slash, and a lone Latin word. A message
+   * meant for a guest at an Israeli wedding is Hebrew and is more than one
+   * word; "/admin", "menu", "status", "ok" are somebody reaching for a console.
+   * The cost of being wrong here is one help message to Dvir. The cost of the
+   * other error is the number. */
+  if (/^[/\\]/.test(t)) return { kind: "unknown" };
+  if (/^[A-Za-z][A-Za-z0-9_./\\-]*$/.test(t)) return { kind: "unknown" };
 
   /* Anything else is what he wants said to the guest we last raised. Only
      when there IS one — see above. */

@@ -110,3 +110,37 @@ test("a photograph is never forwarded to a guest as the word [image]", () => {
   assert.equal(parseAdminCommand("היי נעם", true, "media").kind, "unknown");
   assert.equal(parseAdminCommand("היי נעם", true, "text").kind, "reply_last");
 });
+
+/* 07/09, three days after the console shipped. Dvir typed "אוקי", "/admin" and
+   "Admin/" while learning it, and all three were forwarded verbatim to עירית
+   סבן — who eighty-five minutes earlier had written "אל תחזרו · לא מכירה ·
+   טעות במספר", and who read all three.
+
+   A person who has already said the number is wrong is the likeliest in the
+   database to report it, and this number has been restricted once already. */
+test("ניחוש של פקודה לא מגיע לאורח", () => {
+  /* The invariant is "never reaches a guest", not "is not understood" —
+     status and help are real commands that work, and must keep working. */
+  for (const guess of ["/admin", "Admin/", "/help", "/status", "\\admin",
+                       "admin", "menu", "status", "ok", "OK", "help",
+                       "אוקי", "אוקיי", "סבבה", "הבנתי", "קיבלתי"]) {
+    assert.notEqual(parseAdminCommand(guess, true, "text").kind, "reply_last",
+      `"${guess}" נשלח לאורח`);
+  }
+});
+
+/* And the line the guard must not cross: a real message to a guest is Hebrew
+   and is a sentence. Blocking those would break the console's only purpose. */
+test("הודעה אמיתית לאורח עדיין עוברת", () => {
+  for (const real of ["אין בעיה, נעדכן", "מצטער על הטעות!", "בשמחה 🤍",
+                      "אנחנו נבדוק ונחזור אליך", "כן"]) {
+    assert.equal(parseAdminCommand(real, true, "text").kind, "reply_last",
+      `"${real}" נחסם בטעות`);
+  }
+});
+
+/* An English word inside a Hebrew sentence is a sentence, not a command. */
+test("מילה לועזית בתוך משפט עברי אינה פקודה", () => {
+  assert.equal(parseAdminCommand("שלחתי לך ב-WhatsApp", true, "text").kind, "reply_last");
+  assert.equal(parseAdminCommand("ok אין בעיה", true, "text").kind, "reply_last");
+});
