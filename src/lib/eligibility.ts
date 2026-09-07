@@ -118,6 +118,25 @@ export interface ContactState {
   delivered: boolean;
   /** ISO timestamp of the last outbound message, successful or failed, or null. */
   lastOutboundAt: string | null;
+  /* The last send Meta actually ACCEPTED — a wamid came back — or undefined
+   * when the caller does not distinguish.
+   *
+   * The quiet period is supposed to measure how long it has been since we last
+   * asked this guest anything. A send Meta rejected outright asked them
+   * nothing: no message exists on their phone, nothing was billed, and the
+   * rolling window does not count it either — rollingWindowUsage has filtered
+   * on wamid since 23/08 for exactly this reason, and attemptsAccepted was
+   * added for it too.
+   *
+   * lastOutboundAt was the one place still treating a rejection as contact. On
+   * 06/09 ninety reminders failed #132000 — a template shape mismatch, our own
+   * bug, nothing left the building — and that pushed 96 of תהל's 110 pending
+   * guests five days into the future. A message nobody received silenced them
+   * until 11/09.
+   *
+   * Undefined keeps the old behaviour, so no existing caller changes until it
+   * starts supplying this. */
+  lastAcceptedAt?: string | null;
   /** Reminders already sent to this guest. Omitted means "not counted", and
       the cap is then not applied — every existing caller keeps its behaviour
       until it passes the number. */
@@ -170,9 +189,11 @@ export function isEligibleNow(c: ContactState, nowMs: number = Date.now()): bool
   /* …and the mirror of it, which was missing: a guest Meta kept accepting for
      and never reported on was exempt from every ceiling here. */
   if (!c.delivered && (c.attemptsAccepted ?? 0) >= MAX_FIRST_CONTACT_ATTEMPTS) return false;
-  if (!c.lastOutboundAt) return true;
+  /* Measured from what actually reached them — see lastAcceptedAt. */
+  const since = c.lastAcceptedAt !== undefined ? c.lastAcceptedAt : c.lastOutboundAt;
+  if (!since) return true;
   const floor = new Date(nowMs - cooldownHours(c) * 3_600_000).toISOString();
-  return c.lastOutboundAt < floor;
+  return since < floor;
 }
 
 /**
@@ -190,8 +211,11 @@ export function eligibleAt(c: ContactState): number | null {
   /* Same cap, same reason — see isEligibleNow above. */
   if ((c.remindersSent ?? 0) >= (c.maxReminders ?? MAX_REMINDERS_PER_GUEST)) return null;
   if (!c.delivered && (c.attemptsAccepted ?? 0) >= MAX_FIRST_CONTACT_ATTEMPTS) return null;
-  if (!c.lastOutboundAt) return 0;               /* due now, and always has been */
-  return new Date(c.lastOutboundAt).getTime() + cooldownHours(c) * 3_600_000;
+  /* The same clock isEligibleNow reads, or this screen and that decision
+     disagree about the same guest — see lastAcceptedAt. */
+  const since = c.lastAcceptedAt !== undefined ? c.lastAcceptedAt : c.lastOutboundAt;
+  if (!since) return 0;                          /* due now, and always has been */
+  return new Date(since).getTime() + cooldownHours(c) * 3_600_000;
 }
 
 /**

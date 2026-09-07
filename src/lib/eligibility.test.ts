@@ -227,3 +227,53 @@ test("קיצור הקירור לא מבטל את תקרת שלוש התזכור�
     remindersSent: 3, reminderCooldownH: 1,
   }, now), false);
 });
+
+/* 06/09: ninety reminders failed #132000 — a template shape mismatch, our own
+   bug. Nothing left the building, nothing was billed, no guest saw anything.
+   And it pushed 96 of תהל's 110 pending guests five days into the future,
+   because the quiet period was measured from the attempt rather than from what
+   Meta accepted. */
+test("שליחה שמטא דחתה לא מתחילה תקופת שקט", () => {
+  const now = Date.parse("2026-09-07T09:00:00+03:00");
+  const c = {
+    delivered: true,
+    lastOutboundAt: "2026-09-06T18:31:00Z",   /* אתמול — נכשלה */
+    lastAcceptedAt: "2026-08-30T18:31:00Z",   /* לפני שבוע — הגיעה */
+    remindersSent: 1,
+  };
+  assert.equal(isEligibleNow(c, now), true, "נמדד ממה שהתקבל, לא מהניסיון");
+
+  /* And the message that DID arrive still holds the floor. */
+  assert.equal(isEligibleNow({ ...c, lastAcceptedAt: "2026-09-06T18:31:00Z" }, now), false);
+});
+
+/* The screen and the decision must read the same clock, or a guest shows one
+   date on /admin and is messaged on another. */
+test("eligibleAt קורא את אותה שעה כמו isEligibleNow", () => {
+  const c = {
+    delivered: true,
+    lastOutboundAt: "2026-09-06T18:31:00Z",
+    lastAcceptedAt: "2026-08-30T18:31:00Z",
+    remindersSent: 1,
+  };
+  const due = eligibleAt(c);
+  assert.ok(due !== null);
+  assert.equal(due, Date.parse("2026-08-30T18:31:00Z") + REMINDER_COOLDOWN_H * 3_600_000);
+});
+
+/* Callers that do not distinguish keep exactly what they had. */
+test("קורא שלא מבחין — התנהגות זהה לקודם", () => {
+  const now = Date.parse("2026-09-07T09:00:00+03:00");
+  const c = { delivered: true, lastOutboundAt: "2026-09-06T18:31:00Z", remindersSent: 1 };
+  assert.equal(isEligibleNow(c, now), false);
+});
+
+/* A guest whose every attempt was rejected has never been reached, and must
+   stay reachable rather than being frozen by our own failures. */
+test("אורח שכל הניסיונות אליו נדחו — עדיין ניתן להשגה", () => {
+  const now = Date.parse("2026-09-07T09:00:00+03:00");
+  assert.equal(isEligibleNow({
+    delivered: false, lastOutboundAt: "2026-09-06T18:31:00Z", lastAcceptedAt: null,
+    remindersSent: 0, attemptsAccepted: 0,
+  }, now), true);
+});

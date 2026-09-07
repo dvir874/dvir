@@ -2999,12 +2999,20 @@ async function runSend(req: NextRequest) {
      exempt from every ceiling and were written to daily — 46 of them, 123
      redundant messages, 42 of which took a slot out of a 250-a-day cap. */
   const acceptedByGuest = new Map<string, number>();
+  /* WHEN Meta last accepted, as opposed to how many times.
+   *
+   * The quiet period before a reminder is supposed to measure how long since we
+   * last asked this guest anything, and a send Meta rejected asked them
+   * nothing. On 06/09 ninety reminders failed #132000 — our own template
+   * mismatch, nothing left the building — and measuring from the attempt
+   * pushed 96 of תהל's 110 pending guests five days out. See lastAcceptedAt. */
+  const acceptedAtByGuest = new Map<string, string>();
   /* How many sends Meta REFUSED outright — see the note below. */
   const refusedByGuest = new Map<string, number>();
   for (let i = 0; i < ids.length; i += 100) {
     const slice = ids.slice(i, i + 100);
     const { data } = await sb.from("wa_messages")
-      .select("guest_id, status, error_code, error, created_at, body, wa_phone")
+      .select("guest_id, status, error_code, error, created_at, body, wa_phone, wamid")
       .eq("direction", "out").in("guest_id", slice);
     (data ?? []).forEach(m => {
       if (!m.guest_id) return;
@@ -3056,6 +3064,10 @@ async function runSend(req: NextRequest) {
           at: m.created_at, status: m.status, code: m.error_code, err: m.error,
           to: (m.wa_phone as string) ?? null,
         });
+      }
+      if (m.wamid) {
+        const seen = acceptedAtByGuest.get(m.guest_id);
+        if (!seen || m.created_at > seen) acceptedAtByGuest.set(m.guest_id, m.created_at as string);
       }
     });
 
@@ -3227,6 +3239,7 @@ async function runSend(req: NextRequest) {
     maxReminders: eventMaxReminders,
     reminderCooldownH: eventCooldown,
     lastOutboundAt: lastByGuest.get(id)?.at ?? null,
+    lastAcceptedAt: acceptedAtByGuest.get(id) ?? null,
     /* Two reminders and no more — see MAX_REMINDERS_PER_GUEST. Passed only
        here, where a reminder is what would be sent; the first-contact groups
        must stay uncapped. */
@@ -3345,10 +3358,12 @@ async function runSend(req: NextRequest) {
 
       const arrived = new Set<string>();
       const accepted = new Map<string, number>();
+      /* WHEN Meta last accepted, for the quiet period — see lastAcceptedAt. */
+      const acceptedAt = new Map<string, string>();
       const latest = new Map<string, { at: string; code: number | null; err: string | null }>();
       for (let i = 0; i < oIds.length; i += 100) {
         const { data } = await sb.from("wa_messages")
-          .select("guest_id, status, error_code, error, created_at, body")
+          .select("guest_id, status, error_code, error, created_at, body, wamid")
           .eq("direction", "out").in("guest_id", oIds.slice(i, i + 100));
         for (const m of data ?? []) {
           const id = m.guest_id as string;
@@ -3370,6 +3385,10 @@ async function runSend(req: NextRequest) {
             accepted.set(id, (accepted.get(id) ?? 0) + 1);
           }
           const at = m.created_at as string;
+          if (m.wamid) {
+            const seenAt = acceptedAt.get(id);
+            if (!seenAt || at > seenAt) acceptedAt.set(id, at);
+          }
           const prev = latest.get(id);
           if (!prev || at > prev.at) latest.set(id, { at, code: m.error_code, err: m.error });
         }
@@ -3402,6 +3421,7 @@ async function runSend(req: NextRequest) {
            see the counter above. Without it this wedding had no cap at all. */
         if (!isEligibleNow({
           delivered: false, lastOutboundAt: l?.at ?? null,
+          lastAcceptedAt: acceptedAt.get(id) ?? null,
           attemptsAccepted: accepted.get(id) ?? 0,
         })) continue;
         targets.push({ id });
@@ -3488,16 +3508,30 @@ async function runSend(req: NextRequest) {
       const otherMax = (other as { max_reminders?: number | null }).max_reminders ?? undefined;
       const otherCooldown = await cooldownOf(sb, other.id as string);
       const remCount = new Map<string, number>();
+      /* WHEN Meta last accepted, for the quiet period — see lastAcceptedAt. */
+      const acceptedAt = new Map<string, string>();
       for (let i = 0; i < oIds.length; i += 100) {
         const { data } = await sb.from("wa_messages")
-          .select("guest_id, status, error_code, error, created_at, body")
+          .select("guest_id, status, error_code, error, created_at, body, wamid")
           .eq("direction", "out").in("guest_id", oIds.slice(i, i + 100));
         for (const m of data ?? []) {
           const id = m.guest_id as string;
           if (!id) continue;
           const at = m.created_at as string;
-          if (String(m.body ?? "").includes("תזכורת")) {
+          /* Accepted reminders only, the same rule the selected wedding has
+             applied since it was written — a reminder Meta refused is not a
+             reminder the guest received, and counting it here spent their
+             allowance on a message that never existed. Measured on 07/09:
+             84 of תהל's guests had three accepted reminders and one #132000
+             rejection, so this read four against a ceiling of four and would
+             have silenced every one of them the first time her wedding was not
+             the selected one. */
+          if (m.wamid && String(m.body ?? "").includes("תזכורת")) {
             remCount.set(id, (remCount.get(id) ?? 0) + 1);
+          }
+          if (m.wamid) {
+            const seenAt = acceptedAt.get(id);
+            if (!seenAt || at > seenAt) acceptedAt.set(id, at);
           }
           if (didArrive(m.status as string) && isRsvpMessage(m.body as string)) {
             arrived.add(id);
@@ -3531,6 +3565,7 @@ async function runSend(req: NextRequest) {
           if (l && ["never", "wait_for_inbound"].includes(policyFor(l.code, l.err).action)) return false;
           return isEligibleNow({
             delivered: true, lastOutboundAt: l?.at ?? null,
+            lastAcceptedAt: acceptedAt.get(id) ?? null,
             remindersSent: remCount.get(id) ?? 0,
             /* That wedding's own ceiling, not the selected one's. */
             maxReminders: otherMax,
