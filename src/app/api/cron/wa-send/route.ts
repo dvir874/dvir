@@ -797,7 +797,19 @@ async function notifyDayOf(
 
     /* The other half of the same choice. A wedding that took the evening
        before does not also get the morning of. */
-    if (!sendsDayOf(await dayMessageOf(sb, ev.id as string))) continue;
+    /* `known` is the whole safety of this pair.
+     *
+     * Written the night before שחר's wedding, when the choice she had just
+     * made was "the morning of". Had the gate read a missing column as "no",
+     * deploying this file before running the migration would have silenced the
+     * one message she asked for, on the morning it was due, with nothing
+     * anywhere saying why — the deploy would have looked clean.
+     *
+     * So an unmigrated database is not a decision. It leaves both messages
+     * exactly as they behaved before this file changed, and only a column that
+     * actually answers is allowed to stop anything. */
+    const choice = await dayMessageOf(sb, ev.id as string);
+    if (choice.known && !sendsDayOf(choice.value)) continue;
 
     const lineFor = await guestLineFactory(sb, ev.id as string);
 
@@ -964,12 +976,16 @@ async function markSent(
  * rather than to silence on the night before a wedding. */
 async function dayMessageOf(
   sb: ReturnType<typeof createServerClient>, eventId: string,
-): Promise<unknown> {
+): Promise<{ known: boolean; value: unknown }> {
   try {
-    const { data } = await sb.from("events")
+    const { data, error } = await sb.from("events")
       .select("day_message").eq("id", eventId).maybeSingle();
-    return (data as { day_message?: string | null } | null)?.day_message ?? null;
-  } catch { return null; }
+    /* A column that does not exist is 42703, and supabase-js reports it in
+       `error` rather than throwing — the same shape that made the max_reminders
+       outage invisible. Both paths lead here. */
+    if (error) return { known: false, value: null };
+    return { known: true, value: (data as { day_message?: string | null } | null)?.day_message ?? null };
+  } catch { return { known: false, value: null }; }
 }
 
 async function guestLineFactory(
@@ -1054,7 +1070,8 @@ async function dayBeforeForEvent(
   /* Only if this wedding chose the evening before — see day-message.ts. Two
      messages carrying the same four facts eighteen hours apart read as a
      system that lost track, so exactly one of the pair ever goes. */
-  if (!sendsDayBefore(await dayMessageOf(sb, ev.id))) return { sent: 0 };
+  const choice = await dayMessageOf(sb, ev.id);
+  if (choice.known && !sendsDayBefore(choice.value)) return { sent: 0 };
 
   const lineFor = await guestLineFactory(sb, ev.id);
 
