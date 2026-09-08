@@ -611,8 +611,21 @@ async function sendCoupleTemplate(
 
 /* Kept for the one wedding whose names the template was approved with — see
    above. Nothing calls it; it is here so the swap is one line to undo. */
+/* `couple` is optional so the older template, which has no body variable, keeps
+   working exactly as it did — passing nothing produces the same request it has
+   always produced.
+   
+   It exists because wedding_gallery_ready_regalifnei has ZERO variables and the
+   names are baked into the approved text: "דביר בן ברוך ומירב ברון", from
+   Dvir's own wedding. It was written for that one wedding and never adapted.
+   
+   Nothing calls this function today — the post-wedding block sends
+   sendPhotosUploadRequest instead, whose template does take the couple as a
+   variable and is correct. So the hardcoded names are a loaded gun with no
+   finger on it, and this parameter is what stops it firing if anyone ever
+   wires the function up. wedding_gallery_ready_v2 is submitted for it. */
 export async function sendGalleryReady(
-  cfg: WhatsAppConfig, phone: string, albumToken: string,
+  cfg: WhatsAppConfig, phone: string, albumToken: string, couple?: string | null,
 ): Promise<SendResult> {
   const to = toE164(phone);
   if (!to) return { ok: false, error: "מספר לא תקין" };
@@ -635,10 +648,17 @@ export async function sendGalleryReady(
           template: {
             name: cfg.galleryTemplateName,
             language: { code: cfg.templateLang },
-            components: [{
-              type: "button", sub_type: "url", index: "0",
-              parameters: [{ type: "text", text: albumToken }],
-            }],
+            components: [
+              /* Only when the caller supplies it: a body component sent to the
+                 zero-variable template is #132000, which fails the whole run. */
+              ...(couple?.trim()
+                ? [{ type: "body", parameters: [{ type: "text", text: safeParam(couple) }] }]
+                : []),
+              {
+                type: "button", sub_type: "url", index: "0",
+                parameters: [{ type: "text", text: albumToken }],
+              },
+            ],
           },
         }),
       },
