@@ -89,12 +89,26 @@ interface WaMessage {
   type?: string;
   text?: { body?: string };
   button?: { text?: string; payload?: string };
-  interactive?: { button_reply?: { title?: string }; list_reply?: { title?: string } };
+  /* The id, not only the title.
+   *
+   * bodyOf reads the title because that is what a guest's tap means — "מגיע/ה"
+   * is the answer. The admin console needs the other half: a menu row carries
+   * a stable id like "m:wed:<uuid>", and a label is not an instruction. Until
+   * today only the title was read, so a menu was not expressible at all. */
+  interactive?: {
+    button_reply?: { id?: string; title?: string };
+    list_reply?: { id?: string; title?: string };
+  };
   /* Meta sends only an id; the file itself is fetched separately and expires.
      Storing "[video]" and dropping the id, as this used to, threw away the
      only handle to a guest's own evidence. */
   image?: WaMedia; video?: WaMedia; audio?: WaMedia;
   document?: WaMedia; sticker?: WaMedia;
+}
+
+/** The id behind a tap, or null when this was typed rather than tapped. */
+function replyIdOf(m: WaMessage): string | null {
+  return m.interactive?.button_reply?.id ?? m.interactive?.list_reply?.id ?? null;
 }
 
 function mediaOf(m: WaMessage): WaMedia | null {
@@ -418,7 +432,8 @@ export async function POST(req: NextRequest) {
       if (isAdminPhone(m.from)) {
         try {
           if (await handleAdminMessage(sb, m.from, bodyOf(m),
-              m.type && m.type !== "text" && m.type !== "button" && m.type !== "interactive" ? "media" : "text")) continue;
+              m.type && m.type !== "text" && m.type !== "button" && m.type !== "interactive" ? "media" : "text",
+              replyIdOf(m))) continue;
         } catch (e) {
           await recordFailure(w, {
             scope: "webhook.admin", runId, ref: m.from, error: e,

@@ -1,11 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { parseAdminCommand, matchEvent, ADMIN_HELP } from "./admin-command";
+import { parseAdminCommand, matchEvent } from "./admin-command";
 import { classifyManualWork, manualWorkMessage, type LastContact } from "./manual-work";
 import { coupleName } from "./couple-name";
 import { isRsvpMessage, didArrive } from "./rsvp-contact";
 import { whatsappInviteLink } from "./phone";
 import { getWhatsAppConfig, toE164 } from "./whatsapp";
-import { sendText } from "./wa-interactive";
+import { sendText, sendButtons, sendList } from "./wa-interactive";
+import { parseMenuId, menuId, asksForMenu, LABEL, ROOT_TEXT, type MenuAction } from "./admin-menu";
 import { APP_URL } from "./app-url";
 
 /* Executing what the admin typed into his phone — see admin-command.ts for the
@@ -46,6 +47,10 @@ export function isAdminPhone(from: string): boolean {
 export async function handleAdminMessage(
   sb: Sb, from: string, said: string,
   kind: "text" | "media" = "text",
+  /* The id behind a tap. A menu row carries "m:wed:<uuid>"; a typed sentence
+     carries nothing. This is the whole difference between an instruction and
+     a guess — see admin-menu.ts. */
+  replyId: string | null = null,
 ): Promise<boolean> {
   const cfg = getWhatsAppConfig();
   if (!cfg) return false;
@@ -53,10 +58,24 @@ export async function handleAdminMessage(
   const say = (body: string) => sendText(cfg, to, body);
 
   let target: { id: string; name: string; phone: string } | null = null;
+  /* Free text reaches a guest only while a reply is ARMED — that is, only
+     after Dvir tapped "לענות לאורח" and then tapped a name, within the last
+     half hour. It used to be enough that a pointer existed, and a pointer
+     exists after every distress alert, which is how "אוקי" and "איזה אורחים
+     לא יודעי" were sent to עירית סבן.
+  
+     Before 20260909_admin_console_mode.sql runs, `mode` is undefined and this
+     is false: deploying ahead of the migration makes the console safer rather
+     than broken. */
+  let armed = false;
   try {
     const { data } = await sb.from("admin_context")
-      .select("guest_id").eq("admin_phone", to).maybeSingle();
-    const gid = (data as { guest_id?: string } | null)?.guest_id;
+      .select("guest_id, mode, mode_at").eq("admin_phone", to).maybeSingle();
+    const ctx = data as { guest_id?: string; mode?: string | null; mode_at?: string | null } | null;
+    const gid = ctx?.guest_id;
+    armed = ctx?.mode === "reply"
+      && !!ctx?.mode_at
+      && Date.now() - new Date(ctx.mode_at).getTime() < 30 * 60_000;
     if (gid) {
       const { data: g } = await sb.from("guests")
         .select("id, name, phone, do_not_contact").eq("id", gid).maybeSingle();
@@ -73,14 +92,279 @@ export async function handleAdminMessage(
     }
   } catch { /* migration not run — no target, free text is refused below */ }
 
-  const cmd = parseAdminCommand(said, !!target, kind);
+  /* A tap is unambiguous and is answered before anything is parsed. */
+  const tap = parseMenuId(replyId);
+  if (tap) { await renderScreen(sb, cfg, to, tap); return true; }
+
+  /* And a word that means "show me what I can do" opens the same thing. */
+  if (asksForMenu(said)) { await renderScreen(sb, cfg, to, { screen: "root" }); return true; }
+
+  const cmd = parseAdminCommand(said, armed && !!target, kind);
 
   switch (cmd.kind) {
     case "help":
-      await say(ADMIN_HELP);
+      await renderScreen(sb, cfg, to, { screen: "root" });
       return true;
 
-    case "status": {
+    case "status":
+      await say(await statusText(sb));
+      return true;
+
+    case "work":
+      await say(await waitingText(sb));
+      return true;
+
+    case "missing":
+      await say(await missingText(sb, { name: cmd.event }));
+      return true;
+
+    case "pause":
+    case "resume":
+      await say(await pauseText(sb, { name: cmd.event }, cmd.kind === "pause"));
+      return true;
+
+    case "reply":
+    case "reply_last": {
+      const phone = cmd.kind === "reply" ? cmd.phone : target!.phone;
+      const name  = cmd.kind === "reply" ? null : target!.name;
+      const dest  = toE164(phone);
+      if (!dest) { await say("המספר לא תקין."); return true; }
+
+      const res = await sendText(cfg, dest, cmd.text);
+      if (!res.ok) {
+        /* Meta only allows free text inside 24 hours of the guest's own last
+           message. Saying which rule stopped it is the difference between a
+           system he trusts and one he retries at. */
+        await say(`❌ לא נשלח${name ? ` ל${name}` : ""}: ${res.error ?? "שגיאה"}. `
+          + `אפשר לענות בטקסט חופשי רק עד 24 שעות אחרי ההודעה שלהם.`);
+        return true;
+      }
+
+      /* Logged like any other outbound so it appears in the thread — and NOT
+         as status "auto", because a person really did answer. */
+      try {
+        const { data: g } = await sb.from("guests")
+          .select("id, event_id, name").eq("phone", toLocal(phone)).maybeSingle();
+        await sb.from("wa_messages").insert({
+          event_id: (g as { event_id?: string } | null)?.event_id ?? null,
+          guest_id: (g as { id?: string } | null)?.id ?? null,
+          wa_phone: dest, direction: "out", body: cmd.text,
+          wamid: res.messageId ?? null, status: "sent",
+        });
+      } catch { /* the message went out; the log is a nicety */ }
+
+      /* One tap, one reply. Leaving it armed would mean the next thing he
+         types — a question to the system, a note to himself — goes to the same
+         guest, which is the failure this whole change exists to remove. */
+      await disarm(sb, to);
+      await say(`✓ נשלח${name ? ` ל${name}` : ` ל-${phone}`}`);
+      return true;
+    }
+
+    default:
+      /* Not understood is a menu, not a message to a stranger.
+       *
+       * This said ADMIN_HELP, which was correct, but only ever reached when
+       * the blocklist happened to catch the phrasing. Everything it missed
+       * fell through to reply_last instead. With the fallthrough gone, this is
+       * where every unrecognised sentence lands — so it should be the thing he
+       * actually wanted, which is the list of what he can do. */
+      await renderScreen(sb, cfg, to, { screen: "root" });
+      return true;
+  }
+}
+
+/* ── The menu ──────────────────────────────────────────────────────────────
+ *
+ * Dvir asked for "תפריט אופציות מה לעשות ממש מסודר מקצה לקצה והכול בפלאפון",
+ * and the safety argument is the same as the convenience one: a tap carries an
+ * id we issued, a sentence carries whatever a person happened to type. See
+ * admin-menu.ts.
+ *
+ * Everything here is a free-form WhatsApp message, which Meta allows only
+ * inside 24 hours of HIS last message to the business number. That is not a
+ * limitation in practice — the menu only ever appears in answer to something
+ * he just sent — but it is why alerts remain templates.
+ */
+
+type Cfg = NonNullable<ReturnType<typeof getWhatsAppConfig>>;
+
+/** Upcoming weddings, newest deadline first, without the demo rows. */
+async function upcoming(sb: Sb, limit = 9) {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+  const { data } = await sb.from("events")
+    .select("id, name, couple_names, date, send_paused_until")
+    .gte("date", today).order("date").limit(limit);
+  return (data ?? []) as {
+    id: string; name?: string | null; couple_names?: string | null;
+    date: string; send_paused_until?: string | null;
+  }[];
+}
+
+function titleOf(e: { name?: string | null; couple_names?: string | null }): string {
+  return String(coupleName(e as Parameters<typeof coupleName>[0]) ?? e.name ?? "חתונה");
+}
+
+/** WhatsApp truncates silently: 24 for a list row, 20 for a button. */
+function fit(text: string, n: number): string {
+  const c = [...text];
+  return c.length <= n ? text : c.slice(0, n - 1).join("") + "…";
+}
+
+async function disarm(sb: Sb, adminPhone: string): Promise<void> {
+  try {
+    await sb.from("admin_context")
+      .update({ mode: null, mode_at: null }).eq("admin_phone", adminPhone);
+  } catch { /* the columns arrive with 20260909_admin_console_mode.sql */ }
+}
+
+async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promise<void> {
+  const say = (body: string) => sendText(cfg, to, body);
+  const back = { id: menuId({ screen: "root" }), title: LABEL.back };
+
+  switch (a.screen) {
+    case "root":
+    case "help":
+      /* Leaving the menu disarms any half-finished reply: going back to the
+         top is how a person says "not that". */
+      await disarm(sb, to);
+      await sendList(cfg, to, ROOT_TEXT, "בחר", [
+        { id: menuId({ screen: "weddings" }),   title: LABEL.weddings },
+        { id: menuId({ screen: "waiting" }),    title: LABEL.waiting },
+        { id: menuId({ screen: "missing" }),    title: LABEL.missing },
+        { id: menuId({ screen: "pick_reply" }), title: LABEL.pickReply },
+      ]);
+      return;
+
+    case "weddings": {
+      const evs = await upcoming(sb);
+      if (!evs.length) { await say("אין חתונות קרובות."); return; }
+      await sendList(cfg, to, "איזו חתונה?", "בחר חתונה",
+        evs.map(e => ({ id: menuId({ screen: "wedding", id: e.id }), title: fit(titleOf(e), 24) })));
+      return;
+    }
+
+    case "wedding": {
+      const evs = await upcoming(sb, 20);
+      const e = evs.find(x => x.id === a.id);
+      if (!e) { await say("החתונה הזאת כבר לא ברשימה."); return; }
+
+      const { data: gs } = await sb.from("guests")
+        .select("status, category").eq("event_id", e.id).limit(900);
+      const real = (gs ?? []).filter(g => g.category !== "demo");
+      const days = Math.max(0, Math.ceil(
+        (new Date(String(e.date)).getTime() - Date.now()) / 86_400_000));
+      const paused = !!e.send_paused_until
+        && new Date(e.send_paused_until).getTime() > Date.now();
+
+      const text = `${titleOf(e)}\n${days} ימים\n`
+        + `${real.filter(g => g.status === "confirmed").length} מגיעים · `
+        + `${real.filter(g => g.status === "declined").length} לא מגיעים · `
+        + `${real.filter(g => g.status === "pending").length} ממתינים`
+        + (paused ? "\n\n⏸ השליחה מושהית" : "");
+
+      await sendButtons(cfg, to, text, [
+        paused
+          ? { id: menuId({ screen: "resume", id: e.id }), title: LABEL.resume }
+          : { id: menuId({ screen: "pause",  id: e.id }), title: LABEL.pause },
+        { id: menuId({ screen: "missing", id: e.id }), title: LABEL.missing },
+        back,
+      ]);
+      return;
+    }
+
+    case "pause":
+    case "resume":
+      await say(await pauseText(sb, { id: a.id }, a.screen === "pause"));
+      await renderScreen(sb, cfg, to, { screen: "wedding", id: a.id });
+      return;
+
+    case "missing":
+      await say(await missingText(sb, a.id ? { id: a.id } : undefined));
+      await sendButtons(cfg, to, "עוד משהו?", [back]);
+      return;
+
+    case "waiting":
+      await say(await waitingText(sb));
+      await sendButtons(cfg, to, "עוד משהו?", [back]);
+      return;
+
+    case "pick_reply": {
+      /* Only guests whose own last message is inside Meta's 24-hour window.
+         Offering a name we cannot actually write to would produce a reply he
+         typed, an error he then has to read, and a guest who heard nothing. */
+      const since = new Date(Date.now() - 24 * 3_600_000).toISOString();
+      const { data: ms } = await sb.from("wa_messages")
+        .select("guest_id, created_at").eq("direction", "in")
+        .gte("created_at", since).order("created_at", { ascending: false }).limit(200);
+      const seen = new Set<string>();
+      const ids: string[] = [];
+      for (const m of ms ?? []) {
+        const id = m.guest_id as string | null;
+        if (!id || seen.has(id)) continue;
+        seen.add(id); ids.push(id);
+        if (ids.length >= 10) break;
+      }
+      if (!ids.length) {
+        await say("אף אורח לא כתב ב-24 השעות האחרונות, ומטא מרשה טקסט חופשי רק בחלון הזה.\n\n"
+          + "אפשר לפנות אליהם מהוואטסאפ הפרטי שלך — התפריט ← 📵 לא קיבלו הזמנה נותן קישור מוכן לכל אחד.");
+        await sendButtons(cfg, to, "עוד משהו?", [back]);
+        return;
+      }
+      const { data: gs } = await sb.from("guests")
+        .select("id, name, phone, do_not_contact").in("id", ids);
+      const rows = ids
+        .map(id => (gs ?? []).find(g => g.id === id))
+        .filter((g): g is NonNullable<typeof g> => !!g && !g.do_not_contact)
+        .map(g => ({ id: menuId({ screen: "reply_to", id: g.id as string }),
+                     title: fit(String(g.name ?? g.phone ?? "אורח"), 24) }));
+      if (!rows.length) { await say("אין אף אחד שאפשר לענות לו עכשיו."); return; }
+      await sendList(cfg, to, "למי לענות?", "בחר אורח", rows);
+      return;
+    }
+
+    case "reply_to": {
+      const { data: g } = await sb.from("guests")
+        .select("id, name, phone, do_not_contact").eq("id", a.id).maybeSingle();
+      if (!g) { await say("לא מצאתי את האורח."); return; }
+      if (g.do_not_contact) { await say("האורח הזה ביקש שלא נפנה אליו יותר."); return; }
+      try {
+        await sb.from("admin_context").upsert(
+          { admin_phone: to, guest_id: g.id, mode: "reply", mode_at: new Date().toISOString(),
+            set_at: new Date().toISOString() },
+          { onConflict: "admin_phone" });
+      } catch {
+        await say("צריך להריץ את המיגרציה 20260909_admin_console_mode.sql כדי לענות מהתפריט.");
+        return;
+      }
+      await sendButtons(cfg, to,
+        `כתוב עכשיו את ההודעה ל${g.name} ${g.phone} — מה שתשלח בהודעה הבאה יגיע אליו.`,
+        [{ id: menuId({ screen: "mute", id: g.id as string }), title: LABEL.mute }, back]);
+      return;
+    }
+
+    case "mute": {
+      const { data: g } = await sb.from("guests")
+        .select("id, name, phone").eq("id", a.id).maybeSingle();
+      if (!g) { await say("לא מצאתי את האורח."); return; }
+      await sb.from("guests").update({
+        do_not_contact: true,
+        do_not_contact_at: new Date().toISOString(),
+        do_not_contact_note: "הוסר ידנית על ידי דביר מהתפריט בוואטסאפ",
+      }).eq("id", g.id);
+      await disarm(sb, to);
+      await say(`🔕 ${g.name} הוסר/ה. לא תישלח אליו/ה שום הודעה נוספת.`);
+      await sendButtons(cfg, to, "עוד משהו?", [back]);
+      return;
+    }
+  }
+}
+
+/* Each screen below answers with a string rather than sending it, so the same
+   text serves a typed command and a tapped menu row. They were the bodies of
+   the switch above until the menu needed to reach them too. */
+
+async function statusText(sb: Sb): Promise<string> {
       const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
       const { data: evs } = await sb.from("events")
         .select("id, name, couple_names, date, send_paused_until")
@@ -99,11 +383,10 @@ export async function handleAdminMessage(
           + `${real.filter(g => g.status === "confirmed").length} מגיעים · `
           + `${real.filter(g => g.status === "pending").length} ממתינים${paused ? " · מושהה" : ""}`);
       }
-      await say(lines.length ? lines.join("\n") : "אין חתונות פעילות.");
-      return true;
-    }
+  return lines.length ? lines.join("\n") : "אין חתונות פעילות.";
+}
 
-    case "work": {
+async function waitingText(sb: Sb): Promise<string> {
       const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
       const { data: evs } = await sb.from("events")
         .select("id, name, couple_names, date").gte("date", today).order("date").limit(4);
@@ -145,11 +428,10 @@ export async function handleAdminMessage(
           6, APP_URL);
         if (body) out.push(body);
       }
-      await say(out.length ? out.join("\n\n") : "אין כלום שמחכה לך 🤍");
-      return true;
-    }
+  return out.length ? out.join("\n\n") : "אין כלום שמחכה לך 🤍";
+}
 
-    case "missing": {
+async function missingText(sb: Sb, only?: { name?: string; id?: string }): Promise<string> {
       /* The guests with no invitation, each with a link that opens WhatsApp
          with their own personal RSVP address already written.
          
@@ -162,13 +444,14 @@ export async function handleAdminMessage(
       const { data: evs } = await sb.from("events")
         .select("id, name, couple_names, date").gte("date", today).order("date").limit(12);
       let list = (evs ?? []) as { id: string; name?: string | null; couple_names?: string | null }[];
-      if (cmd.event) {
-        const m = matchEvent(cmd.event, list);
-        if ("none" in m) { await say(`לא מצאתי חתונה בשם "${cmd.event}".`); return true; }
-        if ("ambiguous" in m) {
-          await say(`"${cmd.event}" מתאים ליותר מאחת. תכתוב שם מדויק יותר.`);
-          return true;
-        }
+      if (only?.id) {
+        const hit = list.find(e => e.id === only.id);
+        if (!hit) return "החתונה הזאת כבר לא ברשימה.";
+        list = [hit];
+      } else if (only?.name) {
+        const m = matchEvent(only.name, list);
+        if ("none" in m) return `לא מצאתי חתונה בשם "${only.name}".`;
+        if ("ambiguous" in m) return `"${only.name}" מתאים ליותר מאחת. תכתוב שם מדויק יותר.`;
         list = [m.event];
       }
 
@@ -210,76 +493,40 @@ export async function handleAdminMessage(
         ).join("\n\n") + (missing.length > 10 ? `\n\nועוד ${missing.length - 10} — כתוב "לא קיבלו" שוב` : ""));
       }
 
-      await say(out.length
-        ? out.join("\n\n———\n\n") + "\n\nלחיצה על קישור פותחת וואטסאפ עם ההזמנה שלהם מוכנה. נשלח ממך, לא מהמספר העסקי."
-        : "כולם קיבלו 🤍");
-      return true;
-    }
+  return out.length
+    ? out.join("\n\n———\n\n") + "\n\nלחיצה על קישור פותחת וואטסאפ עם ההזמנה שלהם מוכנה. נשלח ממך, לא מהמספר העסקי."
+    : "כולם קיבלו 🤍";
+}
 
-    case "pause":
-    case "resume": {
+async function pauseText(sb: Sb, which: { name?: string; id?: string }, pause: boolean): Promise<string> {
       const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
       const { data: evs } = await sb.from("events")
         .select("id, name, couple_names, date").gte("date", today).limit(12);
-      const m = matchEvent(cmd.event, (evs ?? []) as { id: string; name?: string | null; couple_names?: string | null }[]);
-      if ("none" in m) { await say(`לא מצאתי חתונה בשם "${cmd.event}".`); return true; }
-      if ("ambiguous" in m) {
-        await say(`"${cmd.event}" מתאים ליותר מאחת: `
-          + m.ambiguous.map(e => coupleName(e as Parameters<typeof coupleName>[0]) ?? e.name).join(" · ")
-          + ". תכתוב שם מדויק יותר.");
-        return true;
+      const list = (evs ?? []) as { id: string; name?: string | null; couple_names?: string | null }[];
+      let chosen: (typeof list)[number] | undefined;
+      if (which.id) {
+        chosen = list.find(e => e.id === which.id);
+        if (!chosen) return "החתונה הזאת כבר לא ברשימה.";
+      } else {
+        const m = matchEvent(which.name ?? "", list);
+        if ("none" in m) return `לא מצאתי חתונה בשם "${which.name}".`;
+        if ("ambiguous" in m)
+          return `"${which.name}" מתאים ליותר מאחת: `
+            + m.ambiguous.map(e => coupleName(e as Parameters<typeof coupleName>[0]) ?? e.name).join(" · ")
+            + ". תכתוב שם מדויק יותר.";
+        chosen = m.event;
       }
+      const m = { event: chosen };
       /* A week, not for ever. A pause nobody remembers to lift is a wedding
          that quietly stops being served — and this one is set from a phone,
          where it is easiest to forget. */
-      const until = cmd.kind === "pause"
+      const until = pause
         ? new Date(Date.now() + 7 * 86_400_000).toISOString() : null;
       await sb.from("events").update({ send_paused_until: until }).eq("id", m.event.id);
       const who = coupleName(m.event as Parameters<typeof coupleName>[0]) ?? m.event.name;
-      await say(cmd.kind === "pause"
-        ? `⏸ ${who} מושהית לשבוע. "המשך ${cmd.event}" מחזיר מיד.`
-        : `▶️ ${who} חזרה לשליחה.`);
-      return true;
-    }
-
-    case "reply":
-    case "reply_last": {
-      const phone = cmd.kind === "reply" ? cmd.phone : target!.phone;
-      const name  = cmd.kind === "reply" ? null : target!.name;
-      const dest  = toE164(phone);
-      if (!dest) { await say("המספר לא תקין."); return true; }
-
-      const res = await sendText(cfg, dest, cmd.text);
-      if (!res.ok) {
-        /* Meta only allows free text inside 24 hours of the guest's own last
-           message. Saying which rule stopped it is the difference between a
-           system he trusts and one he retries at. */
-        await say(`❌ לא נשלח${name ? ` ל${name}` : ""}: ${res.error ?? "שגיאה"}. `
-          + `אפשר לענות בטקסט חופשי רק עד 24 שעות אחרי ההודעה שלהם.`);
-        return true;
-      }
-
-      /* Logged like any other outbound so it appears in the thread — and NOT
-         as status "auto", because a person really did answer. */
-      try {
-        const { data: g } = await sb.from("guests")
-          .select("id, event_id, name").eq("phone", toLocal(phone)).maybeSingle();
-        await sb.from("wa_messages").insert({
-          event_id: (g as { event_id?: string } | null)?.event_id ?? null,
-          guest_id: (g as { id?: string } | null)?.id ?? null,
-          wa_phone: dest, direction: "out", body: cmd.text,
-          wamid: res.messageId ?? null, status: "sent",
-        });
-      } catch { /* the message went out; the log is a nicety */ }
-
-      await say(`✓ נשלח${name ? ` ל${name}` : ` ל-${phone}`}`);
-      return true;
-    }
-
-    default:
-      await say(`לא הבנתי. ${ADMIN_HELP}`);
-      return true;
-  }
+  return pause
+    ? `⏸ ${who} מושהית לשבוע. אפשר להחזיר מיד מהתפריט.`
+    : `▶️ ${who} חזרה לשליחה.`;
 }
 
 /* Storage form, matching every other path that writes a guest. */

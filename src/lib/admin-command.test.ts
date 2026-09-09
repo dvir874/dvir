@@ -144,3 +144,38 @@ test("מילה לועזית בתוך משפט עברי אינה פקודה", () 
   assert.equal(parseAdminCommand("שלחתי לך ב-WhatsApp", true, "text").kind, "reply_last");
   assert.equal(parseAdminCommand("ok אין בעיה", true, "text").kind, "reply_last");
 });
+
+/* ── The contract after 09/09: the second argument means ARMED ────────────
+ *
+ * The blocklist above is a list of what Dvir had already guessed wrong. It
+ * could never be the list of what he would guess NEXT, and on 08/09 at 07:24 —
+ * six and a half hours after that commit — he typed "איזה אורחים לא יודעי" and
+ * the system sent those four words to עירית סבן. It failed only because Meta's
+ * 24-hour window had closed 75 minutes earlier.
+ *
+ * So the caller changed rather than the list. admin-console now passes true
+ * only when he has tapped "לענות לאורח" and then tapped a name, within the last
+ * half hour. Everything below is what a person types at a console, and none of
+ * it is addressed to anybody. */
+test("ניסוחים סבירים של דביר לא מגיעים לאורח כשלא נבחר יעד", () => {
+  for (const typed of [
+    "איזה אורחים לא יודעי",   /* the real one, 08/09 07:24 */
+    "כמה אישרו",
+    "מי לא אישר",
+    "תראה לי סטטוס",
+    "שלח לכולם תזכורת",
+    "מה עם שלמה",
+    "כמה נשאר לשלוח היום",
+  ]) {
+    assert.notEqual(parseAdminCommand(typed, false, "text").kind, "reply_last",
+      `"${typed}" נשלח לאורח`);
+  }
+});
+
+/* And the one path that has ever worked correctly. Across all 1,035 outbound
+   messages since the console shipped there were five free-text sends: four
+   leaks, and one real reply — which went out through this. */
+test("מספר בראש ההודעה עדיין מכתובת במפורש, גם בלי יעד", () => {
+  const c = parseAdminCommand("0508270014 היי בוקר טוב- האם תגיעו לחתונה?", false);
+  assert.equal(c.kind, "reply");
+});

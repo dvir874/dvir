@@ -250,7 +250,7 @@ export async function handleGuestReply(
             event: "🙋 אורח מחכה לך",
             sent: "0", failed: "—", left: "—",
             attention: `${guest.name} ${guest.phone} — ${HUMAN_REASON_TEXT[human.reason!]}. `
-              + `מה שכתב: "${String(said).slice(0, 90).replace(/[\n\t]/g, " ")}" — ענה להודעה הזאת ואעביר לו.`,
+              + `מה שכתב: "${String(said).slice(0, 90).replace(/[\n\t]/g, " ")}" — כתוב "תפריט" ואז ✉️ לענות לאורח.`,
           });
         } catch { /* an alert must never cost the guest their reply */ }
       }
