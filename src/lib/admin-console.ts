@@ -3,7 +3,6 @@ import { parseAdminCommand, matchEvent } from "./admin-command";
 import { classifyManualWork, manualWorkMessage, type LastContact } from "./manual-work";
 import { coupleName } from "./couple-name";
 import { isRsvpMessage, didArrive } from "./rsvp-contact";
-import { whatsappInviteLink } from "./phone";
 import { getWhatsAppConfig, toE164 } from "./whatsapp";
 import { sendText, sendButtons, sendList } from "./wa-interactive";
 import { parseMenuId, menuId, asksForMenu, LABEL, ROOT_TEXT, type MenuAction } from "./admin-menu";
@@ -11,6 +10,7 @@ import { askIntent, stripPrefixes } from "./admin-ask";
 import { askAssistant, type AssistantFacts } from "./ai/assistant";
 import { APP_URL } from "./app-url";
 import { shabbatBlock } from "./shabbat";
+import { chunkBlocks } from "./wa-chunk";
 
 /* Executing what the admin typed into his phone — see admin-command.ts for the
  * grammar and why it is deliberately small.
@@ -118,7 +118,7 @@ export async function handleAdminMessage(
       return true;
 
     case "missing":
-      await say(await missingText(sb, { name: cmd.event }));
+      for (const part of await missingText(sb, { name: cmd.event })) await say(part);
       return true;
 
     case "pause":
@@ -224,6 +224,17 @@ async function answerAsk(sb: Sb, cfg: Cfg, to: string, said: string): Promise<bo
          doing it on the first turns "שלמה" itself into "למה". */
       let m = matchEvent(needle, evs);
       if ("none" in m) m = matchEvent(stripPrefixes(needle), evs);
+
+      /* "מי לא קיבל הזמנה עדיין וצריך ידנית" leaves "עדיין וצריך ידנית" behind
+         after the grammar is stripped, and that matches no wedding — but the
+         question was complete without it. A missing-invitations question with
+         an unrecognised name is still a missing-invitations question, and it
+         should answer for every wedding rather than fall silently to a menu.
+         Only "which wedding" genuinely needs the name. */
+      if ("none" in m && ask.kind === "missing") {
+        await renderScreen(sb, cfg, to, { screen: "missing" });
+        return true;
+      }
 
       if ("event" in m) {
         await renderScreen(sb, cfg, to,
@@ -411,7 +422,7 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
       return;
 
     case "missing":
-      await say(await missingText(sb, a.id ? { id: a.id } : undefined));
+      for (const part of await missingText(sb, a.id ? { id: a.id } : undefined)) await say(part);
       await sendButtons(cfg, to, "עוד משהו?", [back]);
       return;
 
@@ -598,71 +609,113 @@ async function waitingText(sb: Sb): Promise<string> {
   return out.length ? out.join("\n\n") : "אין כלום שמחכה לך 🤍";
 }
 
-async function missingText(sb: Sb, only?: { name?: string; id?: string }): Promise<string> {
-      /* The guests with no invitation, each with a link that opens WhatsApp
-         with their own personal RSVP address already written.
-         
-         "בדיוק כמו שזה נותן לי לשלוח באדמין" — the admin has had this button
-         since the start; it just lived on a screen. Sent from his own number
-         rather than the business one, which is why it works at all: the
-         business number is bound by Meta's 24-hour rule and his is not, and a
-         guest who never received anything has no window open. */
-      const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
-      const { data: evs } = await sb.from("events")
-        .select("id, name, couple_names, date").gte("date", today).order("date").limit(12);
-      let list = (evs ?? []) as { id: string; name?: string | null; couple_names?: string | null }[];
-      if (only?.id) {
-        const hit = list.find(e => e.id === only.id);
-        if (!hit) return "החתונה הזאת כבר לא ברשימה.";
-        list = [hit];
-      } else if (only?.name) {
-        const m = matchEvent(only.name, list);
-        if ("none" in m) return `לא מצאתי חתונה בשם "${only.name}".`;
-        if ("ambiguous" in m) return `"${only.name}" מתאים ליותר מאחת. תכתוב שם מדויק יותר.`;
-        list = [m.event];
-      }
+/* The guests with no invitation, each with their number and a link that opens
+ * WhatsApp with their own personal RSVP address already written.
+ *
+ * Dvir, 09/09: "אני שולח לה אילו אורחים לא קיבלו הזמנה עדיין וצריך ידנית -
+ * היא שולחת לי רשימה עם מספר של כל אחד מהם וקישור שלו."
+ *
+ * Sent from HIS number rather than the business one, which is why it works at
+ * all: the business number is bound by Meta's 24-hour rule and his is not, and
+ * a guest who never received anything has no window open.
+ *
+ * Two things this got wrong until now.
+ *
+ * It showed ten and said `כתוב "לא קיבלו" שוב`, which shows the same ten. שלמה
+ * has thirteen today, so three people were unreachable through the console
+ * entirely — and the message claimed otherwise. Now every one of them is sent,
+ * across as many messages as it takes.
+ *
+ * And it listed a wedding that has not started sending as though its guests
+ * were an oversight. איילת has 223 pending and nobody has been written to yet
+ * — her sending is paused until 13/09 — so 223 links would have buried שלמה's
+ * thirteen, which are the ones that actually need a person. A wedding where
+ * NOBODY has been reached is not manual work; it is a wedding that has not
+ * begun, and it gets one line saying so.
+ */
+async function missingText(sb: Sb, only?: { name?: string; id?: string }): Promise<string[]> {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+  const { data: evs } = await sb.from("events")
+    .select("id, name, couple_names, date, send_paused_until")
+    .gte("date", today).order("date").limit(12);
+  let list = (evs ?? []) as {
+    id: string; name?: string | null; couple_names?: string | null; send_paused_until?: string | null;
+  }[];
+  if (only?.id) {
+    const hit = list.find(e => e.id === only.id);
+    if (!hit) return ["החתונה הזאת כבר לא ברשימה."];
+    list = [hit];
+  } else if (only?.name) {
+    const m = matchEvent(only.name, list);
+    if ("none" in m) return [`לא מצאתי חתונה בשם "${only.name}".`];
+    if ("ambiguous" in m) return [`"${only.name}" מתאים ליותר מאחת. תכתוב שם מדויק יותר.`];
+    list = [m.event];
+  }
 
-      const out: string[] = [];
-      for (const e of list) {
-        const { data: gs } = await sb.from("guests")
-          .select("id, name, phone, rsvp_token, status, category, do_not_contact")
-          .eq("event_id", e.id).eq("status", "pending").limit(900);
-        const real = (gs ?? []).filter(g =>
-          g.category !== "demo" && !g.do_not_contact
-          && String(g.phone ?? "").trim() && g.rsvp_token);
-        if (!real.length) continue;
+  /* The short link, not the full one.
+   *
+   * whatsappInviteLink encodes the entire invitation into a wa.me URL: 719
+   * characters, measured. Four guests to a message, so שלמה's thirteen would
+   * arrive as four messages of walls. /s/<token> is the redirect built for
+   * exactly this — about fifty characters, and it constructs the same wa.me
+   * link at the moment he taps it, which also means the invitation wording can
+   * improve later without every list already sent going stale. */
+  const blocks: string[] = [];
+  let anyLinks = false;
+  for (const e of list) {
+    const { data: gs } = await sb.from("guests")
+      .select("id, name, phone, rsvp_token, status, category, do_not_contact")
+      .eq("event_id", e.id).eq("status", "pending").limit(900);
+    const real = (gs ?? []).filter(g =>
+      g.category !== "demo" && !g.do_not_contact
+      && String(g.phone ?? "").trim() && g.rsvp_token);
+    if (!real.length) continue;
 
-        const ids = real.map(g => g.id as string);
-        const reached = new Set<string>();
-        for (let i = 0; i < ids.length; i += 100) {
-          const { data: ms } = await sb.from("wa_messages")
-            .select("guest_id, status, body").eq("direction", "out")
-            .in("guest_id", ids.slice(i, i + 100));
-          for (const m of ms ?? []) {
-            /* The sixth site of the same predicate. This command exists to find
-               exactly the guest the bug hides, and counted the rides-board
-               notice as an invitation — so it would have answered
-               "כולם קיבלו 🤍" while אשר כהן sat with nothing. */
-            if (m.guest_id && didArrive(m.status as string) && isRsvpMessage(m.body as string)) {
-              reached.add(m.guest_id as string);
-            }
-          }
+    const ids = real.map(g => g.id as string);
+    const reached = new Set<string>();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data: ms } = await sb.from("wa_messages")
+        .select("guest_id, status, body").eq("direction", "out")
+        .in("guest_id", ids.slice(i, i + 100));
+      for (const m of ms ?? []) {
+        /* The sixth site of the same predicate. This command exists to find
+           exactly the guest the bug hides, and counted the rides-board notice
+           as an invitation — so it would have answered "כולם קיבלו 🤍" while
+           אשר כהן sat with nothing. */
+        if (m.guest_id && didArrive(m.status as string) && isRsvpMessage(m.body as string)) {
+          reached.add(m.guest_id as string);
         }
-        const missing = real.filter(g => !reached.has(g.id as string));
-        if (!missing.length) continue;
-
-        const who = coupleName(e as Parameters<typeof coupleName>[0]) ?? e.name;
-        /* Ten at a time. A message with sixty links is one nobody works
-           through, and the rest are one "לא קיבלו" away. */
-        const shown = missing.slice(0, 10);
-        out.push(`${who} — ${missing.length} לא קיבלו:\n` + shown.map(g =>
-          `${g.name} ${g.phone}\n${whatsappInviteLink(String(g.phone), String(g.name), String(g.rsvp_token))}`
-        ).join("\n\n") + (missing.length > 10 ? `\n\nועוד ${missing.length - 10} — כתוב "לא קיבלו" שוב` : ""));
       }
+    }
+    const missing = real.filter(g => !reached.has(g.id as string));
+    if (!missing.length) continue;
 
-  return out.length
-    ? out.join("\n\n———\n\n") + "\n\nלחיצה על קישור פותחת וואטסאפ עם ההזמנה שלהם מוכנה. נשלח ממך, לא מהמספר העסקי."
-    : "כולם קיבלו 🤍";
+    const who = coupleName(e as Parameters<typeof coupleName>[0]) ?? e.name;
+
+    /* Nobody at all has been reached: this wedding has not started. */
+    if (!reached.size && missing.length > 5) {
+      const paused = e.send_paused_until
+        && new Date(e.send_paused_until).getTime() > Date.now()
+        ? ` · מושהית עד ${new Date(e.send_paused_until).toLocaleDateString("he-IL",
+            { timeZone: "Asia/Jerusalem", day: "numeric", month: "numeric" })}`
+        : "";
+      blocks.push(`${who} — עוד לא התחילה שליחה. ${missing.length} ממתינים${paused}.`);
+      continue;
+    }
+
+    anyLinks = true;
+    blocks.push(`${who} — ${missing.length} לא קיבלו:`);
+    for (const g of missing) {
+      blocks.push(`${g.name} ${g.phone}\n${APP_URL}/s/${g.rsvp_token}`);
+    }
+  }
+
+  const chunks = chunkBlocks(blocks);
+  if (!chunks.length) return ["כולם קיבלו 🤍"];
+  if (anyLinks) {
+    chunks.push("לחיצה על קישור פותחת וואטסאפ עם ההזמנה שלהם מוכנה. נשלח ממך, לא מהמספר העסקי.");
+  }
+  return chunks;
 }
 
 async function pauseText(sb: Sb, which: { name?: string; id?: string }, pause: boolean): Promise<string> {
