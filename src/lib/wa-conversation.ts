@@ -6,6 +6,7 @@ import { stateIsLive } from "@/lib/chat-state";
 import { bareCount, changeIntent, unpromptedCount, compositeCount} from "@/lib/guest-count";
 import { decide, type Kind, type GuestView } from "@/lib/wa-decide";
 import { needsHuman, saysNotComing, HUMAN_REASON_TEXT } from "@/lib/needs-human";
+import { optOutRequest, OPT_OUT_REPLY } from "@/lib/opt-out";
 import { pointAdminAt } from "@/lib/admin-console";
 import { sendRunSummary } from "@/lib/whatsapp";
 import { APP_URL } from "@/lib/app-url";
@@ -38,6 +39,11 @@ interface Guest {
   id: string; name: string; phone: string;
   status: string; guest_count: number | null;
   chat_state: string | null; chat_state_at: string | null;
+  /* Read as well as written here since 09/09 — see opt-out.ts. Selected
+     explicitly above; a column named in the type and missing from the select
+     is undefined at runtime and reads as "not opted out", which is the wrong
+     direction to be wrong in. */
+  do_not_contact?: boolean | null;
 }
 
 const ASK_COUNT   = "awaiting_count";
@@ -111,7 +117,7 @@ export async function handleGuestReply(
   if (!cfg) return false;
 
   const { data: g } = await sb.from("guests")
-    .select("id, name, phone, status, guest_count, chat_state, chat_state_at, event_id, rsvp_token")
+    .select("id, name, phone, status, guest_count, chat_state, chat_state_at, event_id, rsvp_token, do_not_contact")
     .eq("id", guestId).maybeSingle();
   if (!g) return false;
 
@@ -149,6 +155,54 @@ export async function handleGuestReply(
     return r;
   };
 
+
+  /* ── they asked us to stop ───────────────────────────────────────
+   *
+   * Before the human-needed check, because this is not a request for a person
+   * — it is a request for silence, and answering it with "מישהו יחזור אליכם"
+   * is one more message to somebody who has just said they want none.
+   *
+   * Until today nothing in production ever wrote do_not_contact. Eleven send
+   * paths read it, one admin button set it, and the button lives on a web page
+   * Dvir does not open. עירית סבן wrote "אל תחזרו / לא מכירה / טעות במספר" on
+   * 07/09 and was still queued for שלמה's next reminder. See opt-out.ts for
+   * why this uses its own narrow list rather than the distress pattern that
+   * already catches her.
+   *
+   * The console is deliberately NOT pointed at them. The distress branch below
+   * calls pointAdminAt, which aims Dvir's next message at the guest — so the
+   * system's answer to "do not come back" was to put that person under his
+   * cursor. Four messages he typed have already gone out that way. */
+  {
+    const optOut = optOutRequest(said);
+    if (optOut.optOut && !guest.do_not_contact) {
+      await sb.from("guests").update({
+        do_not_contact: true,
+        do_not_contact_at: new Date().toISOString(),
+        do_not_contact_note: `ביקש/ה בוואטסאפ: "${String(said).slice(0, 140).replace(/[\n\t]/g, " ")}"`,
+      }).eq("id", guest.id);
+      await setState(sb, guest.id, null);
+
+      if (cfg) {
+        await sayText(cfg, to, OPT_OUT_REPLY);
+        const admin = process.env.ADMIN_ALERT_PHONE;
+        if (admin) {
+          try {
+            await sendRunSummary(cfg, admin, {
+              event: "🔕 אורח ביקש להסיר",
+              sent: "0", failed: "—", left: "—",
+              attention: `${guest.name} ${guest.phone} הוסר/ה אוטומטית ולא יקבל/תקבל שוב. `
+                + `מה שכתב/ה: "${String(said).slice(0, 80).replace(/[\n\t]/g, " ")}" — לא צריך לעשות כלום.`,
+            });
+          } catch { /* an alert must never cost the removal */ }
+        }
+      }
+      return true;
+    }
+    /* Already silenced and writing again — say nothing automatic, and do not
+       re-alert. The flag is the answer. */
+    if (guest.do_not_contact) return true;
+  }
 
   /* ── a person is needed, and nothing automatic will do ───────────
    *

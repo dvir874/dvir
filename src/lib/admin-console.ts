@@ -59,8 +59,17 @@ export async function handleAdminMessage(
     const gid = (data as { guest_id?: string } | null)?.guest_id;
     if (gid) {
       const { data: g } = await sb.from("guests")
-        .select("id, name, phone").eq("id", gid).maybeSingle();
-      if (g) target = { id: g.id as string, name: String(g.name ?? ""), phone: String(g.phone ?? "") };
+        .select("id, name, phone, do_not_contact").eq("id", gid).maybeSingle();
+      /* A guest who has asked us to stop is never a target.
+       *
+       * The distress branch in wa-conversation used to call pointAdminAt on
+       * whoever wrote in — so the system's response to עירית סבן's "אל תחזרו"
+       * was to aim Dvir's next message at her, and four messages he typed went
+       * that way. opt-out.ts now returns before that branch is reached, but
+       * this is the second lock: a pointer set before today, or by any path
+       * added later, still cannot reach somebody who opted out. */
+      if (g && !g.do_not_contact)
+        target = { id: g.id as string, name: String(g.name ?? ""), phone: String(g.phone ?? "") };
     }
   } catch { /* migration not run — no target, free text is refused below */ }
 
