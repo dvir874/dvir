@@ -8,6 +8,7 @@ import { getWhatsAppConfig, toE164 } from "./whatsapp";
 import { sendText, sendButtons, sendList } from "./wa-interactive";
 import { parseMenuId, menuId, asksForMenu, LABEL, ROOT_TEXT, type MenuAction } from "./admin-menu";
 import { askIntent, stripPrefixes } from "./admin-ask";
+import { askAssistant, type AssistantFacts } from "./ai/assistant";
 import { APP_URL } from "./app-url";
 import { shabbatBlock } from "./shabbat";
 
@@ -173,6 +174,20 @@ export async function handleAdminMessage(
        * a screen he did not want. */
       if (kind === "text" && await answerAsk(sb, cfg, to, said)) return true;
 
+      /* And then the part that is not a screen at all.
+       *
+       * "בכל עניין של רגע לפני" is a bigger promise than six intents. The
+       * facts are gathered here, in code, and the sentence is written by a
+       * model that can only read them — it cannot send, cannot write, and
+       * never sees a word a guest typed. When it has nothing, the menu
+       * follows, exactly as before. See ai/assistant.ts. */
+      if (kind === "text" && said.trim().length > 2) {
+        try {
+          const answer = await askAssistant(said, await assistantFacts(sb));
+          if (answer) { await say(answer); return true; }
+        } catch { /* the menu is always a valid answer */ }
+      }
+
       /* Not understood is a menu, not a message to a stranger.
        *
        * This said ADMIN_HELP, which was correct, but only ever reached when
@@ -223,12 +238,69 @@ async function answerAsk(sb: Sb, cfg: Cfg, to: string, said: string): Promise<bo
             id: menuId({ screen: "wedding", id: e.id }), title: fit(titleOf(e), 24) })));
         return true;
       }
-      /* A name that matches nothing is not a question we answered. The menu
-         follows, which is the honest outcome — better than inventing a
-         wedding, and infinitely better than sending those words to a guest. */
+      /* A name that matches nothing is not a question we answered. The
+         assistant gets it before the menu does — "איזו חתונה הכי בסכנה" reads
+         like a wedding name to the router and is a real question to a person. */
       return false;
     }
   }
+}
+
+/* Everything the assistant is allowed to know, assembled from queries.
+ *
+ * Structured facts only — names, counts, dates, money. No guest message text
+ * ever enters this object: a guest can write anything into this system, and
+ * what a guest wrote is not going to end up inside a prompt. See ai/assistant.ts. */
+async function assistantFacts(sb: Sb): Promise<AssistantFacts> {
+  const block = shabbatBlock();
+  const day = israelDay();
+
+  const { data: out } = await sb.from("wa_messages")
+    .select("id").eq("direction", "out").gte("created_at", `${day}T00:00:00Z`).limit(2000);
+  const { data: run } = await sb.from("wa_runs")
+    .select("tier, cap").not("tier", "is", null)
+    .order("created_at", { ascending: false }).limit(1);
+
+  const evs = await upcoming(sb, 12);
+  const weddings: AssistantFacts["weddings"] = [];
+  for (const e of evs) {
+    const { data: gs } = await sb.from("guests")
+      .select("status, guest_count, category, do_not_contact").eq("event_id", e.id).limit(900);
+    const real = (gs ?? []).filter(g => g.category !== "demo" && !g.do_not_contact);
+    const { data: money } = await sb.from("events")
+      .select("price_charged, paid_at").eq("id", e.id).maybeSingle();
+    weddings.push({
+      couple: titleOf(e),
+      date: String(e.date),
+      daysAway: Math.max(0, Math.ceil((new Date(String(e.date)).getTime() - Date.now()) / 86_400_000)),
+      total: real.length,
+      confirmed: real.filter(g => g.status === "confirmed").length,
+      declined: real.filter(g => g.status === "declined").length,
+      pending: real.filter(g => g.status === "pending").length,
+      attendees: real.filter(g => g.status === "confirmed")
+        .reduce((n, g) => n + (Number(g.guest_count) || 1), 0),
+      paused: !!e.send_paused_until && new Date(e.send_paused_until).getTime() > Date.now(),
+      priceCharged: (money as { price_charged?: number | null } | null)?.price_charged ?? null,
+      paid: !!(money as { paid_at?: string | null } | null)?.paid_at,
+    });
+  }
+
+  const { data: muted } = await sb.from("guests")
+    .select("id").eq("do_not_contact", true).limit(500);
+
+  return {
+    today: day,
+    blocked: block.blocked ? (block.reason ?? "blocked") : null,
+    sentToday: (out ?? []).length,
+    cap: Number((run ?? [])[0]?.cap ?? (run ?? [])[0]?.tier ?? 250),
+    weddings,
+    optedOut: (muted ?? []).length,
+  };
+}
+
+/** Israel's calendar date, which is the only date this business runs on. */
+function israelDay(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
 }
 
 /* ── The menu ──────────────────────────────────────────────────────────────
