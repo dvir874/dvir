@@ -8,6 +8,7 @@ import { decide, type Kind, type GuestView } from "@/lib/wa-decide";
 import { needsHuman, saysNotComing, HUMAN_REASON_TEXT } from "@/lib/needs-human";
 import { pointAdminAt } from "@/lib/admin-console";
 import { sendRunSummary } from "@/lib/whatsapp";
+import { APP_URL } from "@/lib/app-url";
 
 /* Answering an invitation without leaving WhatsApp.
  *
@@ -489,7 +490,7 @@ export async function handleGuestReply(
       && /(לא עובד|לא נפתח|נכשל|לא מגיב|לא עובדים|לא מגיבים|שוב|מחדש|שולח)/.test(said)) {
     const token = (guest as { rsvp_token?: string }).rsvp_token;
     if (token) {
-      const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app";
+      const base = APP_URL;
       await sayText(cfg, to,
         `הנה הקישור האישי שלכם שוב 🤍\n${base}/rsvp/${token}\n\n` +
         `אם הוא עדיין לא נפתח — אפשר פשוט לכתוב לנו כאן כמה אתם ונרשום ידנית.`);

@@ -25,6 +25,8 @@
  * copies of the same message is how they drift — this file exists at all
  * because a message written twice was already written differently twice. */
 
+import { APP_URL } from "./app-url.ts";
+
 export type SmsEvent = {
   couple: string;
   /** Already formatted for a person: "יום שלישי, 22 בספטמבר 2026". */
@@ -36,7 +38,7 @@ export type SmsEvent = {
 
 /** The bare host, no scheme — phones linkify it and it saves nine characters. */
 export function smsHost(appUrl: string | undefined): string {
-  return (appUrl ?? "https://regalifnei.vercel.app").replace(/^https?:\/\//, "");
+  return (appUrl ?? APP_URL).replace(/^https?:\/\//, "");
 }
 
 /**

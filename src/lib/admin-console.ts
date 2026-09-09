@@ -6,6 +6,7 @@ import { isRsvpMessage, didArrive } from "./rsvp-contact";
 import { whatsappInviteLink } from "./phone";
 import { getWhatsAppConfig, toE164 } from "./whatsapp";
 import { sendText } from "./wa-interactive";
+import { APP_URL } from "./app-url";
 
 /* Executing what the admin typed into his phone — see admin-command.ts for the
  * grammar and why it is deliberately small.
@@ -132,7 +133,7 @@ export async function handleAdminMessage(
         const body = manualWorkMessage(
           coupleName(e as Parameters<typeof coupleName>[0]) ?? String(e.name ?? ""),
           days, classifyManualWork(real as Parameters<typeof classifyManualWork>[0], contact, days),
-          6, process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app");
+          6, APP_URL);
         if (body) out.push(body);
       }
       await say(out.length ? out.join("\n\n") : "אין כלום שמחכה לך 🤍");

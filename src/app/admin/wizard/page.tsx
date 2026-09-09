@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { THEME_LIST } from "@/lib/themes";
 import type { ThemeId } from "@/lib/themes";
+import { APP_URL } from "@/lib/app-url";
 import {
   parseGuestText, parseCsvText, validateGuests, rowToGuest,
   type ParsedGuest, type GuestValidation, ISSUE_LABEL,
@@ -529,7 +530,7 @@ export default function WizardPage() {
         {step === 5 && result && (() => {
           const phone = result.client_phone?.replace(/\D/g,"").replace(/^0/,"972") ?? "";
           const dashUrl = result.couple_token
-            ? `${typeof window !== "undefined" ? window.location.origin : "https://regalifnei.vercel.app"}/couple/${result.couple_token}`
+            ? `${typeof window !== "undefined" ? window.location.origin : APP_URL}/couple/${result.couple_token}`
             : null;
           const eventDateStr = eventDate_display(eventDate);
 

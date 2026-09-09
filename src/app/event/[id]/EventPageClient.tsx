@@ -76,6 +76,7 @@ function AddToCalendarButton({ event, theme }: { event: EventData; theme: import
   );
 }
 import type { EventTheme } from "@/lib/themes";
+import { APP_URL } from "@/lib/app-url";
 
 interface EventData {
   id: string;
@@ -673,7 +674,7 @@ export default function EventPageClient({
           background: "rgba(197,164,109,0.04)"
         }}>
           <a
-            href="https://regalifnei.vercel.app"
+            href={APP_URL}
             target="_blank"
             rel="noopener noreferrer"
             style={{ fontSize: 12, color: "rgba(197,164,109,0.6)", textDecoration: "none", fontFamily: "Heebo, sans-serif", letterSpacing: "0.05em" }}

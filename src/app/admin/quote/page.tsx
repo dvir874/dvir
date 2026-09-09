@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { Copy, Check, Calculator } from "lucide-react";
 import { recordsFromGuests, PEOPLE_PER_RECORD, PER_RECORD_BASIC, MIN_CHARGE_BASIC } from "@/lib/pricing";
+import { APP_URL } from "@/lib/app-url";
 
 /* Internal quoting tool — builds a ready-to-send price proposal for a couple.
    Not linked from the public site; this is Dvir's own sales aid.
@@ -68,7 +69,7 @@ const ils = (n: number) => `₪${Math.round(n).toLocaleString("he-IL")}`;
    count and every send, and it resets itself on each open, so it can be handed
    to any number of prospects. Replace it when לאל וטל is over: create another
    demo guest on a current event and paste the new token here. */
-const DEMO_LINK = "https://regalifnei.vercel.app/rsvp/1831aeb5-a913-4dfc-ac62-b840684ad66a";
+const DEMO_LINK = `${APP_URL}/rsvp/1831aeb5-a913-4dfc-ac62-b840684ad66a`;
 
 type Pack = "rsvp" | "design";
 

@@ -27,6 +27,7 @@ import { THEME_LIST, DEFAULT_THEME_ID } from "@/lib/themes";
 import type { ThemeId }  from "@/lib/themes";
 import ChatWidget from "@/components/ChatWidget";
 import { C, type Tab } from "./_shared";
+import { APP_URL } from "@/lib/app-url";
 
 export function AdminSidebar({
   activeTab, setActiveTab, pendingCount, recCount, onCreate, eventId, rideMatches,
@@ -882,7 +883,7 @@ export function AdminAgenda({ events, onSelect }: { events: Event[]; onSelect: (
           ?.replace(/\D/g, "").replace(/^0/, "972");
         const coupleToken = (ev as Event & { couple_token?: string }).couple_token;
         const dashUrl = coupleToken
-          ? `https://regalifnei.vercel.app/couple/${coupleToken}`
+          ? `${APP_URL}/couple/${coupleToken}`
           : null;
         const waText = isToday
           ? `🎊 היום זה הגדול!\n${ev.name} — ${new Date(ev.date + "T00:00:00").toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}\n\nמחכים לחגוג איתכם! 🤍\nכל הכבוד על ההכנות — הכל יהיה מושלם!`

@@ -12,6 +12,7 @@ type MealOption = "regular" | "vegetarian" | "vegan" | "mehadrin" | "kids";
 type Screen = "loading" | "error" | "form" | "done" | "wrong-person";
 
 import type { RsvpData as RsvpInitialData } from "@/lib/rsvp-load";
+import { APP_URL } from "@/lib/app-url";
 
 const MEAL_OPTIONS: { value: MealOption; label: string; emoji: string }[] = [
   { value: "regular",    label: "בשרי",       emoji: "🥩" },
@@ -1137,7 +1138,7 @@ export default function RsvpClient({
                * way to know whose couple is worth asking for a referral. Eight
                * characters of the id, matching /r/, because /ref/ truncates the
                * code at forty and a full uuid plus the prefix is forty-one. */
-              href={`https://regalifnei.vercel.app/ref/rsvp-${(guest?.event_id ?? "").slice(0, 8)}`}
+              href={`${APP_URL}/ref/rsvp-${(guest?.event_id ?? "").slice(0, 8)}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{ color: T.goldText, textDecoration: "none", borderBottom: "1px solid rgba(197,164,109,0.4)" }}

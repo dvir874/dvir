@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Analytics from "@/components/Analytics";
+import { APP_URL } from "@/lib/app-url";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://regalifnei.vercel.app'),
+  metadataBase: new URL(APP_URL),
   title: {
     default: 'רגע לפני — ניהול אורחים חכם לחתונות ואירועים',
     template: '%s | רגע לפני',
@@ -30,7 +31,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'he_IL',
-    url: process.env.NEXT_PUBLIC_APP_URL ?? 'https://regalifnei.vercel.app',
+    url: APP_URL,
     siteName: 'רגע לפני',
     title: 'רגע לפני — ניהול אורחים חכם לחתונות',
     description: 'אישורי הגעה, תזכורות אוטומטיות, הושבה ותקציב — הכל במקום אחד. מוכן תוך 48 שעות.',
@@ -81,7 +82,7 @@ export const metadata: Metadata = {
    * that genuinely need one (a filtered or paginated view) can still set it
    * themselves. */
   alternates: {
-    languages: { 'he-IL': process.env.NEXT_PUBLIC_APP_URL ?? 'https://regalifnei.vercel.app' },
+    languages: { 'he-IL': APP_URL },
   },
 };
 
@@ -152,13 +153,13 @@ export default function RootLayout({
               "@type": "LocalBusiness",
               "name": "רגע לפני",
               "description": "מערכת ניהול אורחים לחתונות ואירועים — אישורי הגעה, תזכורות אוטומטיות, הושבה ותקציב.",
-              "url": process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app",
+              "url": APP_URL,
               "telephone": "+972533318177",
               "priceRange": "$$",
               /* The third reference to the share card, missed when the other two were
                  moved off the deleted Satori route. og-image.png returns 404 in
                  production; Google reads this field. */
-              "image": `${process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app"}/og.png`,
+              "image": `${APP_URL}/og.png`,
               "areaServed": { "@type": "Country", "name": "Israel" },
               "availableLanguage": { "@type": "Language", "name": "Hebrew" },
               "serviceType": ["ניהול אורחים", "ניהול חתונה", "אישורי הגעה", "תזכורות אוטומטיות"],
@@ -174,7 +175,7 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "WebSite",
               "name": "רגע לפני",
-              "url": process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app",
+              "url": APP_URL,
             }),
           }}
         />

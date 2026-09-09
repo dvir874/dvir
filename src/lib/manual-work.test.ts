@@ -205,6 +205,7 @@ test("אין עבודה ידנית — לא נשלחת הודעה", () => {
 test("בלי כתובת בסיס עדיין מדווח, פשוט בלי קישורים", () => {
   const msg = manualWorkLines("אורי ושחר", 2,
     [{ id: "1", name: "כוכי", phone: "052", kind: "coming_unreachable", send: "aaa" }], "");
-  assert.ok(msg?.includes("כוכי"));
+  assert.ok(msg);
+  assert.ok(msg.includes("כוכי"));
   assert.ok(!msg.includes("/s/"));
 });

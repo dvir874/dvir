@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { waPrefill } from "@/lib/wa-prefill";
+import { APP_URL } from "@/lib/app-url";
 
 const C = {
   ivory:   "#FDFAF5",
@@ -154,7 +155,7 @@ export default function RecapPage({ params }: { params: Promise<{ token: string 
               `היי! ראיתי שאתם מתחתנים 🤍\n\n`
               + `אנחנו עבדנו עם "רגע לפני" על אישורי ההגעה והכל היה ממש פשוט — `
               + `כל אורח קיבל הזמנה אישית בוואטסאפ, אישר בלחיצה, ואנחנו ראינו הכל בזמן אמת.\n\n`
-              + `שווה לבדוק:\nhttps://regalifnei.vercel.app/?ref=couple`))}`}
+              + `שווה לבדוק:\n${APP_URL}/?ref=couple`))}`}
             target="_blank"
             rel="noopener noreferrer"
             style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px 20px", background: "#25D366", color: "#fff", borderRadius: 12, textDecoration: "none", fontFamily: "Heebo, sans-serif", fontSize: 15, fontWeight: 600 }}

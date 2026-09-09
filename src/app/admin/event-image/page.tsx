@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight } from "lucide-react";
+import { APP_URL } from "@/lib/app-url";
 
 /* Set the invitation card for one event. Deliberately a URL field rather than
    an uploader: Meta fetches the image itself on every send, so it has to live
@@ -111,7 +112,7 @@ function EventImage() {
         </div>
 
         <input value={url} onChange={e=>setUrl(e.target.value)} dir="ltr"
-          placeholder="https://regalifnei.vercel.app/wedding/…jpg"
+          placeholder={`${APP_URL}/wedding/…jpg`}
           style={{ width:"100%", boxSizing:"border-box", padding:"12px 14px", borderRadius:11,
             border:`1.5px solid ${C.border}`, fontSize:14, fontFamily:"inherit", background:"#fff" }}/>
 

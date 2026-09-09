@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { APP_HOST } from "@/lib/app-url";
 
 /* Privacy policy — required by Meta before a developer app can be published,
    and publishing is what turns on production WhatsApp delivery webhooks.
@@ -17,7 +18,7 @@ const SECTIONS: { title: string; body: string[] }[] = [
     title: "1. מי אנחנו",
     body: [
       "\"רגע לפני\" היא מערכת לניהול אירועים — הזמנות דיגיטליות, אישורי הגעה וניהול רשימת מוזמנים. המסמך מסביר איזה מידע נאסף, למה, ומה הזכויות שלכם לגביו.",
-      "המסמך חל על האתר regalifnei.vercel.app, על דפי אישור ההגעה האישיים, ועל ההודעות שנשלחות בוואטסאפ.",
+      `המסמך חל על האתר ${APP_HOST}, על דפי אישור ההגעה האישיים, ועל ההודעות שנשלחות בוואטסאפ.`,
     ],
   },
   {

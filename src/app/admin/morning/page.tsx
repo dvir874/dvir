@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { ArrowRight, RefreshCw, AlertTriangle, MessageSquare } from "lucide-react";
+import { APP_URL } from "@/lib/app-url";
 
 /* "הבוקר של דביר" — the four questions, on one screen.
  *
@@ -304,7 +305,7 @@ export default function MorningPage() {
                         <div style={{ fontSize: 13, color: T.muted }}>{g.reason} · {g.wedding}</div>
                       </div>
                       <a
-                        href={`sms:${g.phone}${/iPhone|iPad|Mac/.test(typeof navigator !== "undefined" ? navigator.userAgent : "") ? "&" : "?"}body=${encodeURIComponent(`שלום ${g.name}, קיבלתם הזמנה לחתונה ולא הצלחנו להעביר אותה בוואטסאפ. לאישור הגעה: https://regalifnei.vercel.app/rsvp/${g.token}`)}`}
+                        href={`sms:${g.phone}${/iPhone|iPad|Mac/.test(typeof navigator !== "undefined" ? navigator.userAgent : "") ? "&" : "?"}body=${encodeURIComponent(`שלום ${g.name}, קיבלתם הזמנה לחתונה ולא הצלחנו להעביר אותה בוואטסאפ. לאישור הגעה: ${APP_URL}/rsvp/${g.token}`)}`}
                         style={{
                           background: T.gold, color: "#fff", textDecoration: "none",
                           fontSize: 14, fontWeight: 600, padding: "8px 16px", borderRadius: 8,

@@ -1,7 +1,9 @@
 import { PHONE_DISPLAY } from '@/lib/constants';
+import { APP_URL } from '@/lib/app-url';
 import { waPrefill } from "./wa-prefill";
 
-/* One base URL for every guest-facing link this file builds.
+/* One base URL for every guest-facing link this file builds — now the same
+ * one the rest of the system builds from. See src/lib/app-url.ts.
  *
  * There were three answers in this one file. whatsappInviteLink and
  * whatsappReminderLink — the two that build the /rsvp/<token> link a guest
@@ -9,19 +11,16 @@ import { waPrefill } from "./wa-prefill";
  * never been registered and does not resolve. The other two fell back to the
  * vercel address, which works.
  *
- * Production sets NEXT_PUBLIC_BASE_URL, so nothing broken has gone out. But a
- * dead default is only dormant, not harmless: it surfaces the moment anything
- * runs without that variable — a preview deploy, a local build, a script — and
- * what it produces is an invitation link that fails silently for the guest and
- * looks like a broken product rather than a missing env var.
+ * This file used to read NEXT_PUBLIC_BASE_URL and the cron sender read
+ * NEXT_PUBLIC_APP_URL, and only the former was ever set in Vercel — so half
+ * the system ran on the variable and half on a literal that happened to say
+ * the same thing. Two names for one fact is how they drift, and the day the
+ * domain changed is exactly the day they would have.
  *
- * Both names are read because the codebase uses both: the cron sender reads
- * NEXT_PUBLIC_APP_URL, everything here reads NEXT_PUBLIC_BASE_URL, and only
- * the latter is set in Vercel. */
-export const SITE_URL =
-  process.env.NEXT_PUBLIC_BASE_URL
-  || process.env.NEXT_PUBLIC_APP_URL
-  || 'https://regalifnei.vercel.app';
+ * NEXT_PUBLIC_BASE_URL is no longer read anywhere. It is still set in Vercel
+ * (to the vercel.app address) and should be deleted, or a future reader will
+ * change it and watch nothing happen. */
+export const SITE_URL = APP_URL;
 
 export function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');

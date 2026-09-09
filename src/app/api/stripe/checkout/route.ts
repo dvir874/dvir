@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { APP_URL } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
     ({ data: event } = await sb.from("events").select("name, client_email, client_phone").eq("id", event_id).single());
   }
 
-  const origin = req.headers.get("origin") ?? "https://regalifnei.vercel.app";
+  const origin = req.headers.get("origin") ?? APP_URL;
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",

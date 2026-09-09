@@ -19,6 +19,7 @@ import { forecastDayBefore, pressingDays, forecastMessage, type ForecastEvent } 
 import { failureAlert } from "@/lib/send-failure";
 import { checkTemplate } from "@/lib/template-check";
 import { sendsDayBefore, sendsDayOf } from "@/lib/day-message";
+import { APP_URL } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
 /* Five minutes, so a run can reach the daily cap instead of a fifth of it.
@@ -827,7 +828,7 @@ async function notifyDayOf(
      * on the morning of the wedding is a wall of %D7%. Forty characters
      * instead, resolved when they tap it. */
     const nav = wazeLink(ev as Parameters<typeof wazeLink>[0])
-      ? `${process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app"}/nav/${ev.id}`
+      ? `${APP_URL}/nav/${ev.id}`
       : null;
     const dayOfLine = (id: string): string | null => {
       const parts = [lineFor(id), nav ? `🚗 ניווט: ${nav}` : null].filter(Boolean);
@@ -1288,7 +1289,7 @@ async function askCoupleAboutUnreachable(
       .map(g => `${String(g.name ?? "").trim()} ${String(g.phone ?? "").trim()}`.trim())
       .filter(Boolean).join(" · ")
       + (stuck.length > 8 ? ` ועוד ${stuck.length - 8}` : "");
-    const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app";
+    const base = APP_URL;
     /* One tap per guest, for the copy that comes to Dvir. The couple gets
        names and numbers; he gets the thing he can act on from a phone. */
     const sendLinks = stuck.slice(0, 6)
@@ -1493,7 +1494,7 @@ async function alertManualWork(
     const items = classifyManualWork(real as Parameters<typeof classifyManualWork>[0], contact, days);
     const body = manualWorkMessage(
       coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name ?? ""), days, items,
-      6, process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app");
+      6, APP_URL);
     if (!body) continue;
 
     /* Free text first, template second, and the order is the feature.
@@ -1509,7 +1510,7 @@ async function alertManualWork(
     try {
       const lines = manualWorkLines(
         coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name ?? ""),
-        days, items, process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app");
+        days, items, APP_URL);
       const sentPlain = lines ? (await sendAdminText(cfg, to, lines)).ok : false;
       if (!sentPlain) {
         await sendRunSummary(cfg, to, {
@@ -1549,7 +1550,7 @@ async function alertUnreachable(
     .select("id, name, couple_names, unreachable_asked_ids, date, address, venue_name, reception_time, chuppah_time")
     .gte("date", today).order("date").limit(4);
 
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app";
+  const base = APP_URL;
 
   /* Collected across every upcoming wedding and sent once. Four messages on a
      phone is four notifications to dismiss and no sense of how much is
@@ -1664,7 +1665,7 @@ async function askAfterWedding(
     return { sent: 0 };
   }
 
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app";
+  const base = APP_URL;
   let sent = 0;
 
   for (const ev of evs) {
@@ -2590,7 +2591,7 @@ async function runSend(req: NextRequest) {
             ridesGroupUrl: (ev.rides_group_url as string | null) ?? undefined,
             sampleRsvpToken: g?.rsvp_token as string | undefined,
             vaultToken: vt?.token as string | undefined,
-            baseUrl: process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app",
+            baseUrl: APP_URL,
           }));
           if (broken) {
             await sendRunSummary(cfg, to, {

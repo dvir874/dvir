@@ -6,6 +6,7 @@ import { shrinkImage } from "@/lib/shrink-image";
 import { use, useEffect, useState, useRef } from "react";
 import { Upload, Loader2, Lock, X } from "lucide-react";
 import { waPrefill } from "@/lib/wa-prefill";
+import { APP_URL } from "@/lib/app-url";
 
 /* The one link the guests of a wedding actually see.
  *
@@ -18,7 +19,7 @@ import { waPrefill } from "@/lib/wa-prefill";
  * Now it follows the same source of truth as robots, the sitemap and the
  * layout, so the day a real domain is pointed at the site this moves with
  * them instead of being the one place left behind. */
-const SITE       = process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app";
+const SITE       = APP_URL;
 const SITE_LABEL = SITE.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
 const T = {

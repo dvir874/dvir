@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
+import { APP_HOST } from "@/lib/app-url";
 
 /* Venue report — one clean printable page for the venue/catering manager:
    total attendees, meal breakdown, tables, special notes. */
@@ -182,7 +183,7 @@ export default function VenueReportPage() {
           )}
 
           <p style={{ fontSize: 12, color: C.muted, textAlign: "center", borderTop: `1px solid ${C.border}`, paddingTop: 12, margin: 0 }}>
-            הנתונים מתעדכנים בזמן אמת במערכת — מומלץ להפיק דוח סופי 3-4 ימים לפני האירוע · regalifnei.vercel.app
+            הנתונים מתעדכנים בזמן אמת במערכת — מומלץ להפיק דוח סופי 3-4 ימים לפני האירוע · {APP_HOST}
           </p>
         </div>
       )}

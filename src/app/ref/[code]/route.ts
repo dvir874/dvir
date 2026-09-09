@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { APP_URL } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export async function GET(
   const { code } = await ctx.params;
   const clean = String(code ?? "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40);
 
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app";
+  const base = APP_URL;
   const res = NextResponse.redirect(
     clean ? `${base}/?ref=${encodeURIComponent(clean)}` : base, 302);
 

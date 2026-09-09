@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
 import { venueLine, wazeLink as wazeLinkFor } from '@/lib/venue';
 import { coupleName } from '@/lib/couple-name';
+import { APP_URL } from "@/lib/app-url";
 import {
   DEFAULT_TEMPLATES, renderTemplate, buildWaLink, type CampaignType,
 } from '@/lib/automation/message-templates';
@@ -28,7 +29,7 @@ export async function GET(
   const event   = evRes.data;
   const guests  = guestRes.data ?? [];
   const bodyTpl = (tmplRes.data as { body?: string } | null)?.body ?? DEFAULT_TEMPLATES[type]?.body ?? '';
-  const appUrl  = process.env.NEXT_PUBLIC_APP_URL ?? 'https://regalifnei.vercel.app';
+  const appUrl  = APP_URL;
   const dateStr = new Date(event.date).toLocaleDateString('he-IL', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });

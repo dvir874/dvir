@@ -1,7 +1,8 @@
 import { MetadataRoute } from 'next';
+import { APP_URL } from "@/lib/app-url";
 
 export default function robots(): MetadataRoute.Robots {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? 'https://regalifnei.vercel.app';
+  const base = APP_URL;
   return {
     rules: [
       {

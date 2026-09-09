@@ -1,8 +1,9 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import { APP_URL } from "@/lib/app-url";
 
-const BASE = process.env.NEXT_PUBLIC_APP_URL ?? 'https://regalifnei.vercel.app';
+const BASE = APP_URL;
 
 const CATEGORY_DATA: Record<string, {
   slug: string;

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Download, X, Loader2, Lock, Unlock, Image as ImageIcon, Video, ChevronLeft, ChevronRight, Link2, Check } from "lucide-react";
 import Link from "next/link";
+import { APP_URL } from "@/lib/app-url";
 
 const G = {
   gold:   "#C5A46D",
@@ -103,7 +104,7 @@ export default function AdminGalleryPage() {
     </div>
   );
 
-  const shareUrl = album ? `${typeof window !== "undefined" ? window.location.origin : "https://regalifnei.vercel.app"}/gallery/${album.public_token}` : "";
+  const shareUrl = album ? `${typeof window !== "undefined" ? window.location.origin : APP_URL}/gallery/${album.public_token}` : "";
 
   return (
     <div dir="rtl" className="min-h-screen" style={{ background: G.ivory }}>

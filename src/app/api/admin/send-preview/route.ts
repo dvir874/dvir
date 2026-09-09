@@ -8,6 +8,7 @@ import { weddingDateLine } from "@/lib/hebrew-date";
 import { getWhatsAppConfig } from "@/lib/whatsapp";
 import { venueLine } from "@/lib/venue";
 import { checkEventLinks, brokenSummary } from "@/lib/link-health";
+import { APP_URL } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
 
@@ -208,7 +209,7 @@ export async function GET() {
       ridesGroupUrl: (ev.rides_group_url as string | null) ?? undefined,
       sampleRsvpToken: g?.rsvp_token as string | undefined,
       vaultToken: vault?.token as string | undefined,
-      baseUrl: process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app",
+      baseUrl: APP_URL,
     });
 
     preview.push({
@@ -225,7 +226,7 @@ export async function GET() {
       headerImage: ev.wa_header_image_url,
       variables: blocked ? null : { couple, date: when, venue, times },
       button: g?.rsvp_token
-        ? { text: "אישור הגעה", url: `https://regalifnei.vercel.app/rsvp/${g.rsvp_token}`, sampleGuest: g.name }
+        ? { text: "אישור הגעה", url: `${APP_URL}/rsvp/${g.rsvp_token}`, sampleGuest: g.name }
         : null,
       message: rendered,
     });

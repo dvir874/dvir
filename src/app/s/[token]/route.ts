@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { whatsappInviteLink, whatsappReminderLink } from "@/lib/phone";
+import { APP_URL } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ export async function GET(
   ctx: { params: Promise<{ token: string }> },
 ): Promise<NextResponse> {
   const { token } = await ctx.params;
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app";
+  const base = APP_URL;
 
   const clean = String(token ?? "").replace(/[^A-Za-z0-9-]/g, "");
   if (!clean) return NextResponse.redirect(base, 302);

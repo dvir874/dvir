@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { waPrefill } from "@/lib/wa-prefill";
+import { APP_HOST } from "@/lib/app-url";
 
 /* פנייה לאולמות — one tap per venue, Dvir sends.
  *
@@ -157,7 +158,7 @@ function coldMsg() {
 
 בנוסף: מנות ילדים נספרות בנפרד, וכל אורח מקבל את מספר השולחן שלו בוואטסאפ בערב שלפני - כך שאין תור בכניסה.
 
-עמוד קצר: regalifnei.vercel.app/venues
+עמוד קצר: ${APP_HOST}/venues
 אשמח לשיחה של עשר דקות.`);
 }
 

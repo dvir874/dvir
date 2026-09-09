@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { APP_HOST } from "@/lib/app-url";
 
 /* Shown inside a mock browser bar on the landing page. It read
    regalifnei.co.il — a domain that does not resolve — so the screenshot the
    site uses to look established named an address that does not exist. */
-const SITE_LABEL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app")
-  .replace(/^https?:\/\//, "").replace(/\/$/, "");
+const SITE_LABEL = APP_HOST;
 
 const TASKS = [
   { id: 1, label: "הזמנת צלם", done: true,  cat: "צלם" },

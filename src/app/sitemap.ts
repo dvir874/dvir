@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next';
+import { APP_URL } from "@/lib/app-url";
 
-const BASE = process.env.NEXT_PUBLIC_APP_URL ?? 'https://regalifnei.vercel.app';
+const BASE = APP_URL;
 
 const CATEGORIES = [
   'wedding', 'birthday', 'barmitzva', 'batmitzva', 'hina', 'brit', 'brita',

@@ -6,6 +6,7 @@ import { eventTimes } from "@/lib/event-times";
 import { venueLine } from "@/lib/venue";
 import SmsRow from "./SmsRow";
 import { smsInvite } from "@/lib/sms-invite";
+import { APP_URL } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
 
@@ -147,7 +148,7 @@ export default async function SmsFallback({
     venue: venueLine(ev as Parameters<typeof venueLine>[0]),
     reception: (ev.reception_time as string | null)?.slice(0, 5),
     chuppah: (ev.chuppah_time as string | null)?.slice(0, 5),
-  }, token, process.env.NEXT_PUBLIC_APP_URL);
+  }, token, APP_URL);
 
   return (
     <Shell>

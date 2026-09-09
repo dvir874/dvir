@@ -141,7 +141,8 @@ test("אין וואטסאפ → קישור SMS, לא קישור וואטסאפ",
   const msg = unreachableReport(
     [{ wedding: "אבישג ושלמה", items: stuck("1", 131026) }], "https://x.app")!;
   const link = msg.split("\n").find(l => l.startsWith("sms:") || l.startsWith("https://"));
-  assert.ok(link?.startsWith("sms:"), "ל-131026 יש ערוץ אחד בלבד");
+  assert.ok(link);
+  assert.ok(link.startsWith("sms:"), "ל-131026 יש ערוץ אחד בלבד");
   assert.ok(link.includes("body="));
   assert.ok(decodeURIComponent(link).includes("אבישג ושלמה"), "הזוג בגוף ההודעה");
   assert.ok(decodeURIComponent(link).includes("/r/tok1"), "קישור קצר, SMS מחויב באורך");

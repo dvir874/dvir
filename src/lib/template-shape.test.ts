@@ -105,7 +105,8 @@ test("משתנה שחוזר בגוף ההודעה נספר פעם אחת", () =>
 test("תבנית שלא נמצאה מדווחת, ולא נחשבת הוכחה שהיא נעלמה", () => {
   const problem = templateProblem("wedding_reminder_buttons_generic", null,
     { header: "IMAGE", bodyVars: 4, button: "NONE" });
-  assert.ok(problem?.includes("לא קיימת"));
+  assert.ok(problem);
+  assert.ok(problem.includes("לא קיימת"));
   /* Phrased as a fact about our lookup, not an instruction to stop sending —
      the caller decides, and it decides to warn. */
   assert.ok(!problem.includes("נעצר"));
@@ -138,6 +139,7 @@ test("מבנה שמטא מסרה וסותר — הוכחה. חיפוש שחזר 
   /* 19:30: nothing came back. The message is still worth saying out loud, but
      it describes our lookup, not the template. */
   const unknown = templateProblem("wedding_reminder_buttons_generic", null, sending);
-  assert.ok(unknown?.includes("לא קיימת"));
+  assert.ok(unknown);
+  assert.ok(unknown.includes("לא קיימת"));
   assert.ok(!unknown.includes("פרמטרים"), "אין מה להשוות בלי הגדרה מצד מטא");
 });

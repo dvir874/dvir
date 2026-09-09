@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { smsInvite, smsHost } from "./sms-invite.ts";
+import { APP_HOST } from "./app-url.ts";
 
 const ev = {
   couple: "תהל שלוש ואביב אדרעי",
@@ -53,5 +54,5 @@ test("חופה בלי קבלת פנים — עדיין שורה תקינה", () 
 
 test("smsHost מוריד את הסכימה", () => {
   assert.equal(smsHost("https://x.app"), "x.app");
-  assert.equal(smsHost(undefined), "regalifnei.vercel.app");
+  assert.equal(smsHost(undefined), APP_HOST);
 });

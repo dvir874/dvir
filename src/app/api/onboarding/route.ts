@@ -4,6 +4,7 @@ import { checkRateLimit, getClientIp, LIMITS } from '@/lib/rate-limit';
 import { DEFAULT_THEME_ID } from '@/lib/themes';
 import type { ParsedGuest } from '@/lib/guest-parser';
 import { getWhatsAppConfig, sendRunSummary } from "@/lib/whatsapp";
+import { APP_URL } from "@/lib/app-url";
 
 interface OnboardingBody {
   // Event details
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
     const to = process.env.ADMIN_ALERT_PHONE;
     const cfg = getWhatsAppConfig();
     if (!to || !cfg) return;
-    const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://regalifnei.vercel.app";
+    const base = APP_URL;
     const phone = String(event.client_phone ?? "").replace(/\D/g, "").replace(/^0/, "972");
     try {
       await sendRunSummary(cfg, to, {
