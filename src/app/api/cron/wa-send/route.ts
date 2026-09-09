@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { shabbatBlock, eveningBeforeBlocked } from "@/lib/shabbat";
+import { todayText } from "@/lib/admin-console";
 import { coupleName, looksLikeCouple } from "@/lib/couple-name";
 import { isEligibleNow, dueWithin, type ContactState } from "@/lib/eligibility";
 import { eventTimes, eventDay} from "@/lib/event-times";
@@ -2199,6 +2200,45 @@ async function notifyGallery(
    which is the one failure the sender itself can never report.
 
    Fails soft and last: bookkeeping must never be able to break sending. */
+
+/* Once a day, on the first run, and never twice.
+ *
+ * The guard is a wa_runs row rather than a timestamp column, because wa_runs
+ * is already the log of what this file did and a second table for one boolean
+ * is a migration nobody would remember. */
+async function morningBrief(
+  sb: ReturnType<typeof createServerClient>,
+  cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+): Promise<void> {
+  const to = process.env.ADMIN_ALERT_PHONE;
+  if (!to) return;
+  /* Only the early run. The crons are in UTC and the first lands at 09:00
+     Israel; anything after noon is not a morning. */
+  if (israelHour() >= 12) return;
+
+  const since = `${israelToday()}T00:00:00Z`;
+  const { data: already } = await sb.from("wa_runs")
+    .select("id").eq("reason", "morning_brief").gte("created_at", since).limit(1);
+  if ((already ?? []).length) return;
+
+  const body = `☀️ בוקר טוב\n\n${await todayText(sb)}\n\nכתוב "תפריט" לכל השאר.`;
+
+  /* Free text when his window is open — which is the good case, and reads like
+     a person. When it is shut, the approved summary template carries it: its
+     own labels are "נשלחו / נכשלו / נותרו במכסה / דורשים טיפול", which is
+     honestly what a morning brief is, so nothing is squeezed into a slot that
+     means something else. */
+  const plain = await sendAdminText(cfg, toE164(to) ?? to, body);
+  if (!plain.ok) {
+    await sendRunSummary(cfg, to, {
+      event: `הבוקר · ${new Date().toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem", day: "numeric", month: "long" })}`,
+      sent: "—", failed: "—", left: "—",
+      attention: (await todayText(sb)).replace(/\n+/g, " · ").slice(0, 900),
+    });
+  }
+  await record(sb, { sent: 0, reason: "morning_brief" });
+}
+
 async function record(
   sb: ReturnType<typeof createServerClient>,
   payload: Record<string, unknown>,
@@ -2574,6 +2614,25 @@ async function runSend(req: NextRequest) {
     /* And the one thing a finished wedding still needs — see
        remindGalleryReady. Every other report in this file looks forward, so
        the morning after a wedding is the one morning nothing is watching. */
+    /* ── The morning message, which is not an alarm ──────────────────
+     *
+     * Dvir, 09/09: "אין מספיק הדדיות בינינו." Everything this system has ever
+     * sent him was an incident — a run that failed, a guest who is stuck, a
+     * number that ran out. A counterpart that only speaks when something is
+     * wrong is not a counterpart.
+     *
+     * So once a day, first run, the business number opens the day: whether
+     * today is even a sending day, what went out yesterday against the
+     * ceiling, where each wedding stands, and what is waiting for him. The
+     * same screen he gets by tapping 📅, sent before he asks.
+     *
+     * It also does something structural. Meta allows free-form text only
+     * inside 24 hours of HIS last message, and this is the message most likely
+     * to make him reply — which reopens the window and makes the whole console
+     * conversational for the rest of the day. */
+    try { await morningBrief(sb, cfg); }
+    catch { /* a greeting must never cost a send */ }
+
     try { await remindGalleryReady(sb, cfg); }
     catch { /* a notification must never cost a send */ }
 

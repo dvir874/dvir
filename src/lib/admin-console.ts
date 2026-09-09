@@ -7,6 +7,7 @@ import { whatsappInviteLink } from "./phone";
 import { getWhatsAppConfig, toE164 } from "./whatsapp";
 import { sendText, sendButtons, sendList } from "./wa-interactive";
 import { parseMenuId, menuId, asksForMenu, LABEL, ROOT_TEXT, type MenuAction } from "./admin-menu";
+import { askIntent, stripPrefixes } from "./admin-ask";
 import { APP_URL } from "./app-url";
 import { shabbatBlock } from "./shabbat";
 
@@ -162,7 +163,16 @@ export async function handleAdminMessage(
       return true;
     }
 
-    default:
+    default: {
+      /* Before the menu: was that a question?
+       *
+       * "אני חושב שעדיין אין מספיק הדדיות בינינו" — 09/09, about this thread.
+       * A menu answers "what can I do"; it does not answer "כמה אישרו לשלמה",
+       * which the console has always been two queries away from knowing. See
+       * admin-ask.ts. Nothing here can address a person: the worst outcome is
+       * a screen he did not want. */
+      if (kind === "text" && await answerAsk(sb, cfg, to, said)) return true;
+
       /* Not understood is a menu, not a message to a stranger.
        *
        * This said ADMIN_HELP, which was correct, but only ever reached when
@@ -172,6 +182,52 @@ export async function handleAdminMessage(
        * actually wanted, which is the list of what he can do. */
       await renderScreen(sb, cfg, to, { screen: "root" });
       return true;
+    }
+  }
+}
+
+/* One question, in his own words, answered with the screen that already knows.
+   Returns false when there was no question in it, and the menu follows. */
+async function answerAsk(sb: Sb, cfg: Cfg, to: string, said: string): Promise<boolean> {
+  const ask = askIntent(said);
+  if (!ask) return false;
+
+  switch (ask.kind) {
+    case "today":    await renderScreen(sb, cfg, to, { screen: "today" });    return true;
+    case "money":    await renderScreen(sb, cfg, to, { screen: "money" });    return true;
+    case "waiting":  await renderScreen(sb, cfg, to, { screen: "waiting" });  return true;
+    case "weddings": await renderScreen(sb, cfg, to, { screen: "weddings" }); return true;
+
+    case "missing":
+    case "wedding": {
+      const evs = await upcoming(sb, 20);
+      const needle = "needle" in ask ? ask.needle : undefined;
+      if (!needle) { await renderScreen(sb, cfg, to, { screen: "missing" }); return true; }
+
+      /* As he wrote it first, then without the Hebrew preposition glued to the
+         front. "לשלמה" only becomes "שלמה" on the second attempt, because
+         doing it on the first turns "שלמה" itself into "למה". */
+      let m = matchEvent(needle, evs);
+      if ("none" in m) m = matchEvent(stripPrefixes(needle), evs);
+
+      if ("event" in m) {
+        await renderScreen(sb, cfg, to,
+          ask.kind === "missing"
+            ? { screen: "missing", id: m.event.id }
+            : { screen: "wedding", id: m.event.id });
+        return true;
+      }
+      if ("ambiguous" in m) {
+        await sendList(cfg, to, `"${needle}" מתאים ליותר מאחת — איזו?`, "בחר חתונה",
+          m.ambiguous.slice(0, 9).map(e => ({
+            id: menuId({ screen: "wedding", id: e.id }), title: fit(titleOf(e), 24) })));
+        return true;
+      }
+      /* A name that matches nothing is not a question we answered. The menu
+         follows, which is the honest outcome — better than inventing a
+         wedding, and infinitely better than sending those words to a guest. */
+      return false;
+    }
   }
 }
 
@@ -571,7 +627,7 @@ async function pauseText(sb: Sb, which: { name?: string; id?: string }, pause: b
 /* "מה יוצא היום" — the question he asked four separate times this week, each
    time by asking me to go and look. Nothing here sends anything; it is the
    day, stated. */
-async function todayText(sb: Sb): Promise<string> {
+export async function todayText(sb: Sb): Promise<string> {
   const lines: string[] = [];
 
   /* Whether the day is open at all comes first, because on a blocked day
@@ -624,7 +680,7 @@ async function todayText(sb: Sb): Promise<string> {
 /* Money, which had no screen at all until today — /api/manager/overview asked
    for two columns that do not exist and answered 500 on every call, so the
    dashboard showed zero. ₪779 was outstanding and invisible. */
-async function moneyText(sb: Sb): Promise<{ text: string; unpaid: { id: string; title: string }[] }> {
+export async function moneyText(sb: Sb): Promise<{ text: string; unpaid: { id: string; title: string }[] }> {
   const { data } = await sb.from("events")
     .select("id, name, couple_names, date, price_charged, paid_at, status")
     .not("price_charged", "is", null).order("date").limit(30);
