@@ -7,6 +7,10 @@ import { bareCount, changeIntent, unpromptedCount, compositeCount} from "@/lib/g
 import { decide, type Kind, type GuestView } from "@/lib/wa-decide";
 import { needsHuman, saysNotComing, HUMAN_REASON_TEXT } from "@/lib/needs-human";
 import { optOutRequest, OPT_OUT_REPLY } from "@/lib/opt-out";
+import { answerQuestion, type FaqFacts } from "@/lib/guest-faq";
+import { coupleName } from "@/lib/couple-name";
+import { eventDay } from "@/lib/event-times";
+import { venueLine, wazeLink } from "@/lib/venue";
 import { pointAdminAt } from "@/lib/admin-console";
 import { sendRunSummary } from "@/lib/whatsapp";
 import { APP_URL } from "@/lib/app-url";
@@ -108,6 +112,42 @@ async function record(
  * the couple's count is wrong with nothing anywhere to show it. Saying so
  * plainly costs one honest message and keeps them in the conversation. */
 const RECORD_FAILED = "משהו אצלנו נתקע ולא הצלחנו לשמור את התשובה 🙏\nתכתבו שוב בבקשה, ואם זה חוזר — נחזור אליכם.";
+
+/* What the bot may tell a guest about their own wedding.
+ *
+ * Loaded lazily and only when a question was actually asked, because every
+ * message this file handles would otherwise pay for a query that almost none
+ * of them need. See guest-faq.ts for what is answered and what deliberately is
+ * not. */
+async function factsFor(sb: Sb, eventId: string | null | undefined): Promise<FaqFacts | null> {
+  if (!eventId) return null;
+  const { data } = await sb.from("events")
+    .select("couple_names, name, date, venue_name, address, reception_time, chuppah_time, "
+          + "dress_code, parking_info, rides_group_url, bit_phone, paybox_link, custom_gift_link, easy2give_link")
+    .eq("id", eventId).maybeSingle();
+  if (!data) return null;
+  const ev = data as unknown as Record<string, unknown>;
+  const day = eventDay(ev.date as string | null);
+  return {
+    couple: coupleName(ev as Parameters<typeof coupleName>[0]) ?? (ev.name as string | null),
+    dateText: day
+      ? day.toLocaleDateString("he-IL",
+          { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+      : null,
+    reception: (ev.reception_time as string | null)?.slice(0, 5) ?? null,
+    chuppah: (ev.chuppah_time as string | null)?.slice(0, 5) ?? null,
+    venue: venueLine(ev as Parameters<typeof venueLine>[0]),
+    wazeUrl: wazeLink(ev as Parameters<typeof wazeLink>[0]),
+    dressCode: (ev.dress_code as string | null) ?? null,
+    parking: (ev.parking_info as string | null) ?? null,
+    ridesUrl: (ev.rides_group_url as string | null) ?? null,
+    /* First link the couple actually set. Bit travels separately because it
+       is a phone number and not something a guest can tap. */
+    giftUrl: [ev.paybox_link, ev.easy2give_link, ev.custom_gift_link]
+      .map(v => (typeof v === "string" ? v.trim() : "")).find(Boolean) ?? null,
+    bitPhone: (ev.bit_phone as string | null) ?? null,
+  };
+}
 
 /** Returns true when the message was part of an RSVP exchange and handled. */
 export async function handleGuestReply(
@@ -344,6 +384,20 @@ export async function handleGuestReply(
 
     const n = parseGuestCount(said);
     if (n === null) {
+      /* A guest mid-headcount who asks something else is asking, not failing.
+       *
+       * "יש חניה?" arriving while we wait for a number used to be answered
+       * with "לא הצלחנו להבין את המספר" — and twice of that is what stops the
+       * automation entirely and puts them in Dvir's pocket. The question is
+       * answered, the number is asked again in the same breath, and the reply
+       * deliberately does NOT contain "לא הצלחנו להבין", so the counter that
+       * counts our failures does not count an answer as one. */
+      const facts = await factsFor(sb, (guest as { event_id?: string }).event_id);
+      const answer = facts ? answerQuestion(said, facts) : null;
+      if (answer) {
+        await sayText(cfg, to, `${answer}\n\nורק שנדע — כמה אתם מגיעים? 🤍`);
+        return true;
+      }
       await sayText(cfg, to, "לא הצלחנו להבין את המספר 🙏\nכתבו בבקשה מספר בלבד — למשל 2");
       return done("count_ask_again");
     }
@@ -567,6 +621,25 @@ export async function handleGuestReply(
       ? `רשמנו שיש לכם מקום ברכב מ${ride.area} 🚗\nאם מישהו משם מחפש טרמפ — נחבר ביניכם.`
       : `רשמנו שאתם מחפשים טרמפ מ${ride.area} 🚗\nאם מישהו משם נוסע — נחבר ביניכם.`);
     return done("ride");
+  }
+
+  /* Last of all: a question about the wedding itself.
+   *
+   * Everything above has failed to read this as an RSVP, which is exactly the
+   * condition under which "מתי זה מתחיל?" or "איך מגיעים?" arrives. The facts
+   * are already in the events row the invitation was built from — the system
+   * knew the answer and was replying that it did not understand.
+   *
+   * Placed here and nowhere else. A "2" is a headcount and an "אני לא מגיע"
+   * is a decline long before this line, and that ordering is what lets the
+   * patterns in guest-faq.ts be generous. */
+  {
+    const facts = await factsFor(sb, (guest as { event_id?: string }).event_id);
+    const answer = facts ? answerQuestion(said, facts) : null;
+    if (answer) {
+      await sayText(cfg, to, answer);
+      return true;
+    }
   }
 
   return false;

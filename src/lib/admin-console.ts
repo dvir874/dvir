@@ -8,6 +8,7 @@ import { getWhatsAppConfig, toE164 } from "./whatsapp";
 import { sendText, sendButtons, sendList } from "./wa-interactive";
 import { parseMenuId, menuId, asksForMenu, LABEL, ROOT_TEXT, type MenuAction } from "./admin-menu";
 import { APP_URL } from "./app-url";
+import { shabbatBlock } from "./shabbat";
 
 /* Executing what the admin typed into his phone — see admin-command.ts for the
  * grammar and why it is deliberately small.
@@ -233,6 +234,8 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
         { id: menuId({ screen: "waiting" }),    title: LABEL.waiting },
         { id: menuId({ screen: "missing" }),    title: LABEL.missing },
         { id: menuId({ screen: "pick_reply" }), title: LABEL.pickReply },
+        { id: menuId({ screen: "today" }),      title: LABEL.today },
+        { id: menuId({ screen: "money" }),      title: LABEL.money },
       ]);
       return;
 
@@ -340,6 +343,42 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
       await sendButtons(cfg, to,
         `כתוב עכשיו את ההודעה ל${g.name} ${g.phone} — מה שתשלח בהודעה הבאה יגיע אליו.`,
         [{ id: menuId({ screen: "mute", id: g.id as string }), title: LABEL.mute }, back]);
+      return;
+    }
+
+    case "today":
+      await say(await todayText(sb));
+      await sendButtons(cfg, to, "עוד משהו?", [back]);
+      return;
+
+    case "money": {
+      const { text, unpaid } = await moneyText(sb);
+      await say(text);
+      if (unpaid.length) {
+        await sendList(cfg, to, "לסמן חתונה כשולמה?", "בחר חתונה",
+          unpaid.slice(0, 9).map(e => ({
+            id: menuId({ screen: "mark_paid", id: e.id }), title: fit(e.title, 24) })));
+      } else {
+        await sendButtons(cfg, to, "עוד משהו?", [back]);
+      }
+      return;
+    }
+
+    case "mark_paid": {
+      const { data: e } = await sb.from("events")
+        .select("id, name, couple_names, price_charged, paid_at").eq("id", a.id).maybeSingle();
+      if (!e) { await say("לא מצאתי את החתונה."); return; }
+      if (e.paid_at) { await say(`${titleOf(e)} כבר מסומנת כשולמה.`); return; }
+      await sb.from("events").update({
+        paid_at: new Date().toISOString(),
+        payment_method: "ידני",
+      }).eq("id", e.id);
+      /* Said out loud because it is not only bookkeeping: after-wedding.ts
+         asks for payment before it asks for a referral, so marking this is
+         what releases the recommendation request for a wedding that is over. */
+      await say(`💰 ${titleOf(e)} — ₪${e.price_charged ?? "?"} סומן כשולם.\n\n`
+        + `אחרי חתונה שהסתיימה, זה גם מה שמשחרר את בקשת ההמלצה לזוג.`);
+      await sendButtons(cfg, to, "עוד משהו?", [back]);
       return;
     }
 
@@ -527,6 +566,89 @@ async function pauseText(sb: Sb, which: { name?: string; id?: string }, pause: b
   return pause
     ? `⏸ ${who} מושהית לשבוע. אפשר להחזיר מיד מהתפריט.`
     : `▶️ ${who} חזרה לשליחה.`;
+}
+
+/* "מה יוצא היום" — the question he asked four separate times this week, each
+   time by asking me to go and look. Nothing here sends anything; it is the
+   day, stated. */
+async function todayText(sb: Sb): Promise<string> {
+  const lines: string[] = [];
+
+  /* Whether the day is open at all comes first, because on a blocked day
+     everything below it is moot and the silence would otherwise look like a
+     fault. See shabbat.ts — it now knows about חגים as well. */
+  const block = shabbatBlock();
+  if (block.blocked) {
+    lines.push(block.reason === "yom_tov" ? "🕯️ היום חג — לא נשלחת שום הודעה."
+      : block.reason === "yom_tov_eve" ? "🕯️ ערב חג — השליחה נעצרה מהצהריים."
+      : block.reason === "shabbat_eve" ? "🕯️ ערב שבת — השליחה נעצרה מהצהריים."
+      : "🕯️ שבת — לא נשלחת שום הודעה.");
+  }
+
+  const since = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+  const { data: out } = await sb.from("wa_messages")
+    .select("status, error_code").eq("direction", "out")
+    .gte("created_at", `${since}T00:00:00Z`).limit(2000);
+  const sent = (out ?? []).length;
+  const failed = (out ?? []).filter(m => m.error_code).length;
+
+  /* The ceiling as the account actually reports it, not as we remember it. */
+  const { data: run } = await sb.from("wa_runs")
+    .select("tier, cap").not("tier", "is", null)
+    .order("created_at", { ascending: false }).limit(1);
+  const cap = Number((run ?? [])[0]?.cap ?? (run ?? [])[0]?.tier ?? 250);
+
+  lines.push(`נשלחו היום ${sent}${failed ? ` · ${failed} נכשלו` : ""} מתוך ${cap}`);
+  if (sent >= cap) lines.push("התקרה נגמרה להיום.");
+
+  for (const e of await upcoming(sb, 8)) {
+    const { data: gs } = await sb.from("guests")
+      .select("status, category, do_not_contact").eq("event_id", e.id).limit(900);
+    const real = (gs ?? []).filter(g => g.category !== "demo" && !g.do_not_contact);
+    if (!real.length) continue;
+    const pending = real.filter(g => g.status === "pending").length;
+    const days = Math.max(0, Math.ceil(
+      (new Date(String(e.date)).getTime() - Date.now()) / 86_400_000));
+    const paused = !!e.send_paused_until
+      && new Date(e.send_paused_until).getTime() > Date.now();
+    const note = paused ? "מושהית"
+      : days === 0 ? "היום החתונה"
+      : days === 1 ? "מחר החתונה"
+      : pending ? `${pending} ממתינים` : "כולם ענו";
+    lines.push(`${titleOf(e)} · ${days} ימים · ${note}`);
+  }
+
+  return lines.join("\n");
+}
+
+/* Money, which had no screen at all until today — /api/manager/overview asked
+   for two columns that do not exist and answered 500 on every call, so the
+   dashboard showed zero. ₪779 was outstanding and invisible. */
+async function moneyText(sb: Sb): Promise<{ text: string; unpaid: { id: string; title: string }[] }> {
+  const { data } = await sb.from("events")
+    .select("id, name, couple_names, date, price_charged, paid_at, status")
+    .not("price_charged", "is", null).order("date").limit(30);
+  const rows = (data ?? []) as {
+    id: string; name?: string | null; couple_names?: string | null;
+    date: string; price_charged?: number | null; paid_at?: string | null; status?: string | null;
+  }[];
+  if (!rows.length) return { text: "אין עדיין חתונות עם מחיר.", unpaid: [] };
+
+  const paid = rows.filter(r => r.paid_at);
+  const owed = rows.filter(r => !r.paid_at);
+  const sum = (xs: typeof rows) => xs.reduce((n, r) => n + (r.price_charged ?? 0), 0);
+
+  const lines = [
+    `נגבה: ₪${sum(paid)}`,
+    `פתוח: ₪${sum(owed)}`,
+    "",
+    ...rows.map(r => `${r.paid_at ? "✓" : "○"} ${titleOf(r)} · ₪${r.price_charged}`
+      + (r.paid_at ? "" : "  ← לא שולם")),
+  ];
+  return {
+    text: lines.join("\n"),
+    unpaid: owed.map(r => ({ id: r.id, title: titleOf(r) })),
+  };
 }
 
 /* Storage form, matching every other path that writes a guest. */

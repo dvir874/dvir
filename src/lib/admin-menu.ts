@@ -37,6 +37,9 @@ export type MenuAction =
   | { screen: "pick_reply" }              /* choose whom to answer */
   | { screen: "reply_to"; id: string }    /* arm a reply to one guest */
   | { screen: "mute"; id: string }        /* do_not_contact, by hand */
+  | { screen: "today" }                   /* מה יוצא היום */
+  | { screen: "money" }                   /* מי שילם ומי לא */
+  | { screen: "mark_paid"; id: string }
   | { screen: "help" };
 
 const PREFIX = "m:";
@@ -54,6 +57,9 @@ export function menuId(a: MenuAction): string {
     case "pick_reply": return `${PREFIX}rep`;
     case "reply_to":   return `${PREFIX}rep:${a.id}`;
     case "mute":       return `${PREFIX}mute:${a.id}`;
+    case "today":      return `${PREFIX}today`;
+    case "money":      return `${PREFIX}money`;
+    case "mark_paid":  return `${PREFIX}paid:${a.id}`;
     case "help":       return `${PREFIX}help`;
   }
 }
@@ -88,6 +94,9 @@ export function parseMenuId(raw: string | null | undefined): MenuAction | null {
     case "wait":  return id ? null : { screen: "waiting" };
     case "rep":   return id ? { screen: "reply_to", id } : { screen: "pick_reply" };
     case "mute":  return id ? { screen: "mute", id } : null;
+    case "today": return id ? null : { screen: "today" };
+    case "money": return id ? null : { screen: "money" };
+    case "paid":  return id ? { screen: "mark_paid", id } : null;
     case "help":  return id ? null : { screen: "help" };
     default: return null;
   }
@@ -116,6 +125,9 @@ export const LABEL = {
   resume:    "▶️ המשך שליחה",
   back:      "⬅️ תפריט",
   mute:      "🔕 להסיר מהרשימה",
+  today:     "📅 מה יוצא היום",
+  money:     "💰 כסף",
+  markPaid:  "✓ סמן כשולם",
 } as const;
 
 /** The one sentence at the top of the root menu. */
