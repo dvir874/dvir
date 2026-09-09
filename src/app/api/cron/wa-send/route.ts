@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
-import { shabbatBlock } from "@/lib/shabbat";
+import { shabbatBlock, eveningBeforeBlocked } from "@/lib/shabbat";
 import { coupleName, looksLikeCouple } from "@/lib/couple-name";
 import { isEligibleNow, dueWithin, type ContactState } from "@/lib/eligibility";
 import { eventTimes, eventDay} from "@/lib/event-times";
@@ -811,7 +811,21 @@ async function notifyDayOf(
      * exactly as they behaved before this file changed, and only a column that
      * actually answers is allowed to stop anything. */
     const choice = await dayMessageOf(sb, ev.id as string);
-    if (choice.known && !sendsDayOf(choice.value)) continue;
+
+    /* …unless last night was חג or שבת, in which case this send is the only
+       one there is.
+     *
+     * A wedding that chose "the evening before" and whose eve falls on יום
+     * כיפור used to get nothing at all: the guard blocked the eve run, and
+     * this gate then declined to cover for it. Both 22/09 weddings sit exactly
+     * there — 361 confirmed guests, and the silence would have looked like a
+     * clean night in the logs.
+     *
+     * Nobody hears it twice: the targets below already exclude everyone with a
+     * day_before_sent row, so on a normal week this branch selects nobody even
+     * when it is entered. See eveningBeforeBlocked. */
+    const eve = eveningBeforeBlocked(String(ev.date ?? ""));
+    if (choice.known && !sendsDayOf(choice.value) && !eve.blocked) continue;
 
     const lineFor = await guestLineFactory(sb, ev.id as string);
 

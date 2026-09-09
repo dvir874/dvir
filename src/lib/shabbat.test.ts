@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { shabbatBlock } from "./shabbat.ts";
+import { shabbatBlock, eveningBeforeBlocked } from "./shabbat.ts";
 
 /* Times are given as UTC and read back in Asia/Jerusalem, which is what the
    sender actually runs against. August is UTC+3. */
@@ -62,4 +62,70 @@ test("in winter 21:00 is late, not early — never inside Shabbat", () => {
      design; what must never happen is the reverse. */
   assert.equal(shabbatBlock(new Date("2026-01-17T15:00:00Z")).blocked, true,  "17:00 IST — still Shabbat");
   assert.equal(shabbatBlock(new Date("2026-01-17T19:15:00Z")).blocked, false, "21:15 IST — open");
+});
+
+/* ── The חגים ────────────────────────────────────────────────────────────
+ *
+ * September 2026 is Tishrei 5787, and three of its dates were about to be sent
+ * on. The last test in this block is the one that matters most: a guard that
+ * swallows the wedding itself is worse than no guard. */
+
+test("ראש השנה — שני הימים חסומים, גם זה שאינו שבת", () => {
+  /* 12/09 is Saturday and was already covered; 13/09 is a SUNDAY, and on that
+     morning איילת's pause expired and 253 first-contact invitations were due. */
+  assert.equal(shabbatBlock(il("2026-09-13T06:15:00Z")).blocked, true, "13/09 08:15 IL");
+  assert.equal(shabbatBlock(il("2026-09-13T06:15:00Z")).reason, "yom_tov");
+  assert.equal(shabbatBlock(il("2026-09-12T08:15:00Z")).blocked, true, "12/09");
+});
+
+test("יום כיפור — היום שבו הייתה יוצאת 'מחר מתחתנים' ל-361 אורחים", () => {
+  const v = shabbatBlock(il("2026-09-21T06:15:00Z")); // Monday 09:15 IL
+  assert.equal(v.blocked, true);
+  assert.equal(v.reason, "yom_tov");
+  /* And the evening run of the same day, which is when the message goes. */
+  assert.equal(shabbatBlock(il("2026-09-21T16:30:00Z")).blocked, true);
+});
+
+test("ערב חג חסום מהצהריים, כמו ערב שבת", () => {
+  /* 20/09 is ערב יום כיפור, a Sunday. Morning sends, afternoon does not. */
+  assert.equal(shabbatBlock(il("2026-09-20T06:15:00Z")).blocked, false, "בוקר ערב כיפור");
+  assert.equal(shabbatBlock(il("2026-09-20T16:30:00Z")).blocked, true, "ערב כיפור אחה״צ");
+  assert.equal(shabbatBlock(il("2026-09-20T16:30:00Z")).reason, "yom_tov_eve");
+});
+
+test("יום החתונה עצמו לא נבלע — 22/09 שולח כרגיל", () => {
+  /* Both weddings are on 22/09, the day after יום כיפור. A guard that blocked
+     it would replace "a message on Yom Kippur" with "no message at all", which
+     is the failure this whole file exists to avoid. */
+  assert.equal(shabbatBlock(il("2026-09-22T06:15:00Z")).blocked, false);
+  assert.equal(shabbatBlock(il("2026-09-22T16:30:00Z")).blocked, false);
+});
+
+test("חול המועד אינו חג — סוכות ממשיך לשלוח", () => {
+  /* 28/09–01/10 are chol hamoed. Weddings happen then and messages are
+     ordinary; blocking a whole week would cost more than it protects. */
+  for (const d of ["2026-09-28", "2026-09-29", "2026-09-30"]) {
+    assert.equal(shabbatBlock(il(`${d}T06:15:00Z`)).blocked, false, d);
+  }
+});
+
+test("שנה שאינה בטבלה נפתחת ולא נסגרת", () => {
+  /* The list ends after 5790. When it runs out the guard must send, not go
+     quiet — a table nobody renewed should cost a courtesy, never a wedding. */
+  assert.equal(shabbatBlock(il("2031-09-17T06:15:00Z")).blocked, false);
+});
+
+/* ── The fallback ──────────────────────────────────────────────────────── */
+
+test("ערב שחסום מדווח ככזה, לפי תאריך החתונה", () => {
+  /* 22/09 — the eve is יום כיפור */
+  assert.equal(eveningBeforeBlocked("2026-09-22").blocked, true);
+  assert.equal(eveningBeforeBlocked("2026-09-22").reason, "yom_tov");
+  /* A Sunday wedding — the eve is Saturday evening, blocked since this file
+     was written and silently costing that wedding its message. */
+  assert.equal(eveningBeforeBlocked("2026-08-16").blocked, true);
+  /* An ordinary Tuesday wedding — the eve is a Monday and sends normally. */
+  assert.equal(eveningBeforeBlocked("2026-08-18").blocked, false);
+  /* Garbage in the column is not a reason to change behaviour. */
+  assert.equal(eveningBeforeBlocked("").blocked, false);
 });
