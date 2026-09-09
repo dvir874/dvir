@@ -22,8 +22,12 @@ interface EventRow {
   client_name?: string | null;
   client_phone?: string | null;
   event_type?: string | null;
-  payment_status?: string | null;
-  payment_amount?: number | null;
+  /* The columns that exist. This screen used to read payment_status and
+     payment_amount, which are columns on vendors, not on events — so every
+     revenue figure below rendered as zero and every event rendered as
+     "טרם שולם", including the one that was paid. */
+  paid_at?: string | null;
+  price_charged?: number | null;
   total: number;
   confirmed: number;
   declined: number;
@@ -124,9 +128,9 @@ export default function DashboardPage() {
   const totalGuests  = events.reduce((s, e) => s + e.total, 0);
   const totalAttend  = events.reduce((s, e) => s + e.attendees, 0);
   const avgResponse  = events.length > 0 ? Math.round(events.reduce((s, e) => s + e.responseRate, 0) / events.length) : 0;
-  const paidEvents   = events.filter(e => e.payment_status === "paid");
-  const totalRevenue = paidEvents.reduce((s, e) => s + (e.payment_amount ?? 0), 0);
-  const pendingRev   = events.filter(e => e.payment_status !== "paid").length;
+  const paidEvents   = events.filter(e => e.paid_at);
+  const totalRevenue = paidEvents.reduce((s, e) => s + (e.price_charged ?? 0), 0);
+  const pendingRev   = events.filter(e => !e.paid_at).length;
   const attention    = events.filter(e => e.needsAttention).length;
 
   /* ── Monthly revenue (last 6 months) ── */
@@ -135,11 +139,14 @@ export default function DashboardPage() {
     const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
     return { label: d.toLocaleDateString("he-IL", { month: "short" }), year: d.getFullYear(), month: d.getMonth(), revenue: 0, count: 0 };
   });
+  /* Bucketed by the day the money arrived, not the day of the wedding. They
+     are months apart — תהל paid on 03/09 for a 22/09 event — and a revenue
+     chart that answers "when is the party" is not a revenue chart. */
   events.forEach(e => {
-    if (e.payment_status !== "paid" || !e.date) return;
-    const d = new Date(e.date);
+    if (!e.paid_at) return;
+    const d = new Date(e.paid_at);
     const m = months.find(m => m.year === d.getFullYear() && m.month === d.getMonth());
-    if (m) { m.revenue += e.payment_amount ?? 0; m.count++; }
+    if (m) { m.revenue += e.price_charged ?? 0; m.count++; }
   });
 
   /* ── RSVP bar chart data (top 8 active events by guest count) ── */
@@ -280,8 +287,8 @@ export default function DashboardPage() {
                 <div style={{ textAlign: "left", flexShrink: 0, minWidth: 60 }}>
                   <p style={{ fontSize: 12, fontWeight: 700, color: C.dark, margin: 0, textAlign: "center" }}>{e.responseRate}%</p>
                   <p style={{ fontSize: 12, color: C.muted, margin: "1px 0 0", textAlign: "center" }}>{e.confirmed}/{e.total}</p>
-                  {e.payment_status === "paid"
-                    ? <p style={{ fontSize: 12, color: C.olive, textAlign: "center", marginTop: 2 }}>₪{fmt(e.payment_amount ?? 0)}</p>
+                  {e.paid_at
+                    ? <p style={{ fontSize: 12, color: C.olive, textAlign: "center", marginTop: 2 }}>₪{fmt(e.price_charged ?? 0)}</p>
                     : <p style={{ fontSize: 12, color: "rgba(239,68,68,0.6)", textAlign: "center", marginTop: 2 }}>טרם שולם</p>}
                 </div>
               </a>
@@ -290,21 +297,21 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Revenue summary per event ── */}
-        {events.some(e => e.payment_status === "paid" || e.payment_amount) && (
+        {events.some(e => e.paid_at || e.price_charged) && (
           <div style={{ background: C.ivory, borderRadius: "1.25rem", border: `1px solid ${C.border}`, padding: "1.25rem" }}>
             <p style={{ ...FRANK, fontSize: "1rem", fontWeight: 700, color: C.dark, marginBottom: "1rem" }}>💳 סיכום הכנסות</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-              {events.filter(e => e.payment_amount || e.payment_status).map(e => (
+              {events.filter(e => e.price_charged || e.paid_at).map(e => (
                 <div key={e.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.6rem 0.875rem", borderRadius: 10,
-                  background: e.payment_status === "paid" ? "rgba(107,123,90,0.06)" : "rgba(239,68,68,0.04)",
-                  border: `1px solid ${e.payment_status === "paid" ? "rgba(107,123,90,0.15)" : "rgba(239,68,68,0.12)"}` }}>
+                  background: e.paid_at ? "rgba(107,123,90,0.06)" : "rgba(239,68,68,0.04)",
+                  border: `1px solid ${e.paid_at ? "rgba(107,123,90,0.15)" : "rgba(239,68,68,0.12)"}` }}>
                   <p style={{ fontSize: 13, color: C.dark, margin: 0 }}>{e.name}</p>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    {e.payment_amount && <span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>₪{fmt(e.payment_amount)}</span>}
+                    {!!e.price_charged && <span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>₪{fmt(e.price_charged)}</span>}
                     <span style={{ fontSize: 12, padding: "2px 8px", borderRadius: 10,
-                      background: e.payment_status === "paid" ? "rgba(107,123,90,0.12)" : "rgba(239,68,68,0.10)",
-                      color: e.payment_status === "paid" ? C.olive : "#EF4444" }}>
-                      {e.payment_status === "paid" ? "שולם ✓" : "טרם שולם"}
+                      background: e.paid_at ? "rgba(107,123,90,0.12)" : "rgba(239,68,68,0.10)",
+                      color: e.paid_at ? C.olive : "#EF4444" }}>
+                      {e.paid_at ? "שולם ✓" : "טרם שולם"}
                     </span>
                   </div>
                 </div>

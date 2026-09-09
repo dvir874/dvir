@@ -2303,8 +2303,8 @@ export default function AdminPage() {
 • ליווי אישי לאורך כל הדרך
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-תשלום: ₪${selectedEvent.payment_amount ?? "____"}
-סטטוס: ${selectedEvent.payment_status === "paid" ? "שולם ✓" : "טרם שולם"}
+תשלום: ₪${selectedEvent.price_charged ?? "____"}
+סטטוס: ${selectedEvent.paid_at ? "שולם ✓" : "טרם שולם"}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 חתימת הלקוח: ________________

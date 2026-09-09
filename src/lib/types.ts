@@ -86,9 +86,17 @@ export interface Event {
   client_email?: string | null;
   notes?: string | null;
   created_at: string;
-  payment_status?: string | null;
-  payment_amount?: number | null;
-  payment_date?: string | null;
+  /* These three used to read payment_status, payment_amount and payment_date.
+     No such columns exist on events — they are columns on vendors — so every
+     reader compiled cleanly and got undefined, and /api/manager/overview,
+     which did name them in its select, answered 500 on every call. A type that
+     claims a column the table does not have is worse than no type: it turns a
+     database error into a silent zero. These are the real ones. */
+  price_charged?: number | null;
+  paid_at?: string | null;
+  payment_method?: string | null;
+  payment_note?: string | null;
+  payment_asked_at?: string | null;
   rsvp_deadline?: string | null;
 }
 
@@ -99,6 +107,12 @@ export interface EventSummary {
   client_name?: string | null;
   client_phone?: string | null;
   event_type?: string | null;
+  /* The two payment columns that exist. Named here so nothing selects the two
+     that don't: /api/manager/overview asked for payment_status and
+     payment_amount, PostgREST answered 42703, and the manager dashboard showed
+     zeros for as long as it has existed. */
+  paid_at?: string | null;
+  price_charged?: number | null;
   total: number; confirmed: number; declined: number; pending: number;
   attendees: number; responseRate: number; openedCount: number;
   openedPending: number; noPhone: number;

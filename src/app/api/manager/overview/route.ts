@@ -18,7 +18,13 @@ export async function GET() {
 
   const { data: events, error } = await supabase
     .from('events')
-    .select('id, name, date, address, couple_token, created_at, status, client_name, client_phone, event_type, payment_status, payment_amount')
+    /* payment_status and payment_amount were selected here and do not exist on
+       events — the columns are paid_at and price_charged. PostgREST answers a
+       select naming an unknown column with 42703 and no rows, so this route
+       returned 500 on every call and /admin/dashboard rendered zeros. It also
+       never forwarded either field, so the revenue figures were undefined even
+       in the version of history where the query worked. */
+    .select('id, name, date, address, couple_token, created_at, status, client_name, client_phone, event_type, paid_at, price_charged')
     .order('date');
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -72,6 +78,8 @@ export async function GET() {
       client_name: ((ev as Record<string, unknown>).client_name as string | null) ?? null,
       client_phone: ((ev as Record<string, unknown>).client_phone as string | null) ?? null,
       event_type: ((ev as Record<string, unknown>).event_type as string | null) ?? null,
+      paid_at: ((ev as Record<string, unknown>).paid_at as string | null) ?? null,
+      price_charged: ((ev as Record<string, unknown>).price_charged as number | null) ?? null,
       total, confirmed: confirmed.length, declined, pending,
       attendees, responseRate, openedCount, openedPending, noPhone,
       healthScore: health.score, healthTier: health.tier, recentActivity,
