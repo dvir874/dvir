@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { shabbatBlock, eveningBeforeBlocked } from "@/lib/shabbat";
 import { todayText } from "@/lib/admin-console";
+import { waitingForYou, waitingLine, waitingHeader, type ThreadView } from "@/lib/needs-you";
+import { needsHuman } from "@/lib/needs-human";
+import { chunkBlocks } from "@/lib/wa-chunk";
 import { coupleName, looksLikeCouple } from "@/lib/couple-name";
 import { isEligibleNow, dueWithin, type ContactState } from "@/lib/eligibility";
 import { eventTimes, eventDay} from "@/lib/event-times";
@@ -2283,6 +2286,125 @@ async function morningBrief(
   else console.error("[morning-brief] undeliverable:", plain.error);
 }
 
+
+/* The guest messages that are Dvir's to answer, on his phone, with the words
+ * the guest used and a link that answers them.
+ *
+ * 10/09: "יש המון הודעות מאורחים של שחר שפספסתי כי המערכת לא שולחת לי אותן
+ * לפלאפון... רק הודעות שהן נועדות לטיפול שלי — עם מה בדיוק האורח כתב שם
+ * וקישור לענות לו."
+ *
+ * The rule already existed and lived on a screen. /api/admin/inbox has
+ * computed needsYou per thread all along; nothing carried it to a phone. See
+ * src/lib/needs-you.ts for why this is not "send me everything".
+ *
+ * The link is /s/<token>, which opens WhatsApp on HIS phone with the message
+ * already addressed — it works whether or not Meta's 24-hour window is open,
+ * which for a guest who wrote hours ago it usually is not.
+ */
+async function alertWaitingGuests(
+  sb: ReturnType<typeof createServerClient>,
+  cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+): Promise<void> {
+  const to = process.env.ADMIN_ALERT_PHONE;
+  if (!to) return;
+
+  /* Two days back. Older than that is not "waiting", it is missed, and it
+     belongs in the morning brief rather than in an alert. */
+  const since = new Date(Date.now() - 2 * 86_400_000).toISOString();
+  const { data: recent } = await sb.from("wa_messages")
+    .select("guest_id, direction, body, created_at, read_at")
+    .not("guest_id", "is", null).gte("created_at", since)
+    .order("created_at", { ascending: true }).limit(2000);
+  if (!(recent ?? []).length) return;
+
+  /* Last inbound and anything after it, per guest. */
+  const lastIn = new Map<string, { body: string; at: string; read: boolean }>();
+  const afterIn = new Map<string, string>();
+  for (const m of recent ?? []) {
+    const id = m.guest_id as string;
+    const at = m.created_at as string;
+    if (m.direction === "in") {
+      lastIn.set(id, { body: String(m.body ?? ""), at, read: !!m.read_at });
+      afterIn.delete(id);
+    } else if (lastIn.has(id)) {
+      if (!afterIn.has(id)) afterIn.set(id, at);
+    }
+  }
+  if (!lastIn.size) return;
+
+  const ids = [...lastIn.keys()];
+  const guests = new Map<string, Record<string, unknown>>();
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data } = await sb.from("guests")
+      .select("id, name, phone, rsvp_token, category, do_not_contact, response_time")
+      .in("id", ids.slice(i, i + 100));
+    for (const g of data ?? []) guests.set(g.id as string, g as Record<string, unknown>);
+  }
+
+  /* Already put on his phone, so the same sentence is never sent twice. */
+  const alerted = new Map<string, string>();
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data } = await sb.from("guest_events")
+      .select("guest_id, created_at").eq("event_type", "needs_you_alerted")
+      .in("guest_id", ids.slice(i, i + 100));
+    for (const r of data ?? []) {
+      const id = r.guest_id as string, at = r.created_at as string;
+      if (!alerted.get(id) || at > alerted.get(id)!) alerted.set(id, at);
+    }
+  }
+
+  const threads: ThreadView[] = [];
+  for (const [id, inb] of lastIn) {
+    const g = guests.get(id);
+    if (!g || g.category === "demo" || g.do_not_contact) continue;
+    const answeredAt = afterIn.get(id) ?? null;
+    const human = needsHuman(inb.body, 0);
+    threads.push({
+      guestId: id,
+      name: String(g.name ?? ""), phone: String(g.phone ?? ""),
+      token: (g.rsvp_token as string | null) ?? null,
+      said: inb.body, saidAt: inb.at,
+      answeredAt, seen: inb.read,
+      recorded: !!(g.response_time
+        && new Date(g.response_time as string).getTime() >= new Date(inb.at).getTime() - 60_000),
+      humanNeeded: human.needed,
+      alertedAt: alerted.get(id) ?? null,
+    });
+  }
+
+  const waiting = waitingForYou(threads);
+  if (!waiting.length) return;
+
+  const blocks = [waitingHeader(waiting.length),
+    ...waiting.map(w => waitingLine(w, APP_URL))];
+  const parts = chunkBlocks(blocks);
+
+  let delivered = false;
+  for (const part of parts) {
+    const r = await sendAdminText(cfg, toE164(to) ?? to, part);
+    if (r.ok) { delivered = true; continue; }
+    /* His window is shut. The template carries the first chunk and says how
+       many more are waiting, rather than dropping them silently. */
+    const r2 = await sendRunSummary(cfg, to, {
+      event: waitingHeader(waiting.length),
+      sent: "0", failed: "—", left: String(waiting.length),
+      attention: part.replace(/\n+/g, " · ").slice(0, 900),
+    });
+    if (r2.ok) delivered = true;
+    break;
+  }
+  if (!delivered) { console.error("[waiting] undeliverable"); return; }
+
+  /* Stamped only after it actually reached him. */
+  for (const w of waiting) {
+    try {
+      await sb.from("guest_events")
+        .insert({ guest_id: w.guestId, event_type: "needs_you_alerted" });
+    } catch { /* one missing stamp costs one repeat, not a lost guest */ }
+  }
+}
+
 async function record(
   sb: ReturnType<typeof createServerClient>,
   payload: Record<string, unknown>,
@@ -2481,6 +2603,12 @@ async function runSend(req: NextRequest) {
    * conversational for the rest of the day. */
   try { await morningBrief(sb, cfg, shabbat); }
   catch { /* a greeting must never cost a send */ }
+
+  /* Guests waiting for a person, above the Shabbat gate for the same reason
+     the brief is: this goes to Dvir's own number, and somebody waiting since
+     Friday afternoon should not wait until Sunday to be mentioned. */
+  try { await alertWaitingGuests(sb, cfg); }
+  catch { /* an alert must never cost a send */ }
 
   if (shabbat.blocked)
     return record(sb, { sent: 0, reason: shabbat.reason, healed, statusesApplied });
