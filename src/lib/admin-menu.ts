@@ -37,6 +37,7 @@ export type MenuAction =
   | { screen: "pick_reply" }              /* choose whom to answer */
   | { screen: "reply_to"; id: string }    /* arm a reply to one guest */
   | { screen: "mute"; id: string }        /* do_not_contact, by hand */
+  | { screen: "unmute"; id: string }      /* and the way back */
   | { screen: "today" }                   /* מה יוצא היום */
   | { screen: "money" }                   /* מי שילם ומי לא */
   | { screen: "mark_paid"; id: string }
@@ -57,6 +58,7 @@ export function menuId(a: MenuAction): string {
     case "pick_reply": return `${PREFIX}rep`;
     case "reply_to":   return `${PREFIX}rep:${a.id}`;
     case "mute":       return `${PREFIX}mute:${a.id}`;
+    case "unmute":     return `${PREFIX}unmute:${a.id}`;
     case "today":      return `${PREFIX}today`;
     case "money":      return `${PREFIX}money`;
     case "mark_paid":  return `${PREFIX}paid:${a.id}`;
@@ -94,6 +96,7 @@ export function parseMenuId(raw: string | null | undefined): MenuAction | null {
     case "wait":  return id ? null : { screen: "waiting" };
     case "rep":   return id ? { screen: "reply_to", id } : { screen: "pick_reply" };
     case "mute":  return id ? { screen: "mute", id } : null;
+    case "unmute": return id ? { screen: "unmute", id } : null;
     case "today": return id ? null : { screen: "today" };
     case "money": return id ? null : { screen: "money" };
     case "paid":  return id ? { screen: "mark_paid", id } : null;
@@ -125,6 +128,11 @@ export const LABEL = {
   resume:    "▶️ המשך שליחה",
   back:      "⬅️ תפריט",
   mute:      "🔕 להסיר מהרשימה",
+  /* Every action in this console must be undoable in one more message —
+     admin-command.ts states that rule and the mute was the one that broke
+     it. A mistap on a moving phone flagged a confirmed guest for ever, and
+     the only undo was a web page this whole week was built to stop needing. */
+  unmute:    "↩️ ביטול ההסרה",
   today:     "📅 מה יוצא היום",
   money:     "💰 כסף",
   markPaid:  "✓ סמן כשולם",

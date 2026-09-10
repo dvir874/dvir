@@ -2209,6 +2209,7 @@ async function notifyGallery(
 async function morningBrief(
   sb: ReturnType<typeof createServerClient>,
   cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+  verdict: { blocked: boolean; reason?: string },
 ): Promise<void> {
   const to = process.env.ADMIN_ALERT_PHONE;
   if (!to) return;
@@ -2221,7 +2222,19 @@ async function morningBrief(
     .select("id").eq("reason", "morning_brief").gte("created_at", since).limit(1);
   if ((already ?? []).length) return;
 
-  const body = `☀️ בוקר טוב\n\n${await todayText(sb)}\n\nכתוב "תפריט" לכל השאר.`;
+  /* The most valuable line it can carry is "nothing goes out today, and here
+     is why" — which is the line it could never carry while it ran below the
+     gate that produced it. */
+  const REST: Record<string, string> = {
+    shabbat: "היום שבת — לא נשלח כלום.",
+    shabbat_eve: "מהצהריים ועד מוצ״ש לא נשלח כלום.",
+    yom_tov: "היום חג — לא נשלח כלום.",
+    yom_tov_eve: "מהצהריים זה ערב חג — לא נשלח כלום.",
+  };
+  const head = verdict.blocked ? `${REST[verdict.reason ?? ""] ?? "היום לא נשלח כלום."}\n\n` : "";
+
+  /* Built before either send, so a failure cannot leave it unbuilt. */
+  const body = `☀️ בוקר טוב\n\n${head}${await todayText(sb)}\n\nכתוב "תפריט" לכל השאר.`;
 
   /* Free text when his window is open — which is the good case, and reads like
      a person. When it is shut, the approved summary template carries it: its
@@ -2229,14 +2242,24 @@ async function morningBrief(
      honestly what a morning brief is, so nothing is squeezed into a slot that
      means something else. */
   const plain = await sendAdminText(cfg, toE164(to) ?? to, body);
-  if (!plain.ok) {
-    await sendRunSummary(cfg, to, {
+  let delivered = plain.ok;
+  if (!delivered) {
+    const tpl = await sendRunSummary(cfg, to, {
       event: `הבוקר · ${new Date().toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem", day: "numeric", month: "long" })}`,
       sent: "—", failed: "—", left: "—",
-      attention: (await todayText(sb)).replace(/\n+/g, " · ").slice(0, 900),
+      attention: body.replace(/\n+/g, " · ").slice(0, 900),
     });
+    delivered = tpl.ok;
   }
-  await record(sb, { sent: 0, reason: "morning_brief" });
+
+  /* The guard row is a record of DELIVERY, not of attempt.
+   *
+   * It used to be written unconditionally, so a morning where both paths
+   * failed — the number restricted, say — was marked done and the later runs
+   * never retried. A system that reports success for a message that reached
+   * nobody is the exact shape this file's other comments were written about. */
+  if (delivered) await record(sb, { sent: 0, reason: "morning_brief" });
+  else console.error("[morning-brief] undeliverable:", plain.error);
 }
 
 async function record(
@@ -2413,6 +2436,31 @@ async function runSend(req: NextRequest) {
    * Saturday, nothing is sent. See src/lib/shabbat.ts for why the window is
    * wider than Shabbat itself. */
   const shabbat = shabbatBlock();
+
+  /* ── The morning message, which is not an alarm ────────────────────────
+   *
+   * Dvir, 09/09: "אין מספיק הדדיות בינינו." Everything this system has ever
+   * sent him was an incident — a run that failed, a guest who is stuck, a
+   * number that ran out. A counterpart that speaks only about failures is not
+   * a counterpart.
+   *
+   * ABOVE the Shabbat gate, and above the Meta-block return, deliberately.
+   * This is a message to Dvir's own number, not a guest send, so no policy
+   * requires it to be inside the sending gate — and it sat below both, which
+   * silenced it on exactly the mornings it exists to describe. Six of the next
+   * twenty-five days are שבת or חג, and those are precisely the mornings when
+   * the answer to its first question, "is today a sending day", is no. Worse:
+   * on the morning Meta restricts the number again, the meta_blocked return
+   * fired first and the one message that would have told him the business had
+   * stopped was the one that did not go.
+   *
+   * It also does something structural. Meta allows free-form text only inside
+   * 24 hours of HIS last message, and this is the message most likely to make
+   * him reply — which reopens the window and makes the whole console
+   * conversational for the rest of the day. */
+  try { await morningBrief(sb, cfg, shabbat); }
+  catch { /* a greeting must never cost a send */ }
+
   if (shabbat.blocked)
     return record(sb, { sent: 0, reason: shabbat.reason, healed, statusesApplied });
 
@@ -2614,25 +2662,6 @@ async function runSend(req: NextRequest) {
     /* And the one thing a finished wedding still needs — see
        remindGalleryReady. Every other report in this file looks forward, so
        the morning after a wedding is the one morning nothing is watching. */
-    /* ── The morning message, which is not an alarm ──────────────────
-     *
-     * Dvir, 09/09: "אין מספיק הדדיות בינינו." Everything this system has ever
-     * sent him was an incident — a run that failed, a guest who is stuck, a
-     * number that ran out. A counterpart that only speaks when something is
-     * wrong is not a counterpart.
-     *
-     * So once a day, first run, the business number opens the day: whether
-     * today is even a sending day, what went out yesterday against the
-     * ceiling, where each wedding stands, and what is waiting for him. The
-     * same screen he gets by tapping 📅, sent before he asks.
-     *
-     * It also does something structural. Meta allows free-form text only
-     * inside 24 hours of HIS last message, and this is the message most likely
-     * to make him reply — which reopens the window and makes the whole console
-     * conversational for the rest of the day. */
-    try { await morningBrief(sb, cfg); }
-    catch { /* a greeting must never cost a send */ }
-
     try { await remindGalleryReady(sb, cfg); }
     catch { /* a notification must never cost a send */ }
 

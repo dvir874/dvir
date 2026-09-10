@@ -12,6 +12,7 @@ test("כל מסך שנשלח חוזר כמו שהוא", () => {
     { screen: "waiting" }, { screen: "pick_reply" },
     { screen: "reply_to", id: "eb625f65-8f6d-4d54-bdb1-e11c27a8e015" },
     { screen: "mute", id: "eb625f65-8f6d-4d54-bdb1-e11c27a8e015" },
+    { screen: "unmute", id: "eb625f65-8f6d-4d54-bdb1-e11c27a8e015" },
     { screen: "today" }, { screen: "money" },
     { screen: "mark_paid", id: "7e1a56b5-1083-4afd-8317-9cd52557534d" },
     { screen: "help" },
@@ -37,6 +38,7 @@ test("מזהה מזויף לא הופך לפעולה על אורח", () => {
   /* A screen that REQUIRES an id gets none, so it is not a screen. */
   assert.equal(parseMenuId("m:pause"), null);
   assert.equal(parseMenuId("m:mute"), null);
+  assert.equal(parseMenuId("m:unmute"), null);
   assert.equal(parseMenuId("m:paid"), null);
   assert.equal(parseMenuId("m:today:x"), null);
   /* One that treats a missing id as "the list" still works. */

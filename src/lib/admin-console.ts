@@ -413,17 +413,32 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
       if (!e) { await say("החתונה הזאת כבר לא ברשימה."); return; }
 
       const { data: gs } = await sb.from("guests")
-        .select("status, category").eq("event_id", e.id).limit(900);
+        .select("status, category, phone, do_not_contact").eq("event_id", e.id).limit(900);
       const real = (gs ?? []).filter(g => g.category !== "demo");
       const days = Math.max(0, Math.ceil(
         (new Date(String(e.date)).getTime() - Date.now()) / 86_400_000));
       const paused = !!e.send_paused_until
         && new Date(e.send_paused_until).getTime() > Date.now();
 
+      /* Say who cannot be reached, rather than leaving two screens to disagree.
+       *
+       * This screen counted every pending guest and the missing-invitations
+       * screen counted only the reachable ones, so ירון's wedding read 253 on
+       * one tap and 223 on the next — thirty guests with no phone number, 35
+       * days out, who can never appear in any list and whom no screen ever
+       * mentioned. The difference between two numbers is not an explanation. */
+      const noPhone = real.filter(g => !String(g.phone ?? "").trim()).length;
+      const removed = real.filter(g => g.do_not_contact).length;
+      const cannot = [
+        noPhone ? `${noPhone} בלי מספר טלפון` : "",
+        removed ? `${removed} הוסרו מהרשימה` : "",
+      ].filter(Boolean).join(" · ");
+
       const text = `${titleOf(e)}\n${days} ימים\n`
         + `${real.filter(g => g.status === "confirmed").length} מגיעים · `
         + `${real.filter(g => g.status === "declined").length} לא מגיעים · `
         + `${real.filter(g => g.status === "pending").length} ממתינים`
+        + (cannot ? `\n\n⚠️ ${cannot} — לא ניתן להגיע אליהם` : "")
         + (paused ? "\n\n⏸ השליחה מושהית" : "");
 
       await sendButtons(cfg, to, text, [
@@ -556,8 +571,21 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
         do_not_contact_note: "הוסר ידנית על ידי דביר מהתפריט בוואטסאפ",
       }).eq("id", g.id);
       await disarm(sb, to);
-      await say(`🔕 ${g.name} הוסר/ה. לא תישלח אליו/ה שום הודעה נוספת.`);
-      await sendButtons(cfg, to, "עוד משהו?", [back]);
+      await sendButtons(cfg, to,
+        `🔕 ${g.name} הוסר/ה. לא תישלח אליו/ה שום הודעה נוספת.`,
+        [{ id: menuId({ screen: "unmute", id: g.id as string }), title: LABEL.unmute }, back]);
+      return;
+    }
+
+    case "unmute": {
+      const { data: g } = await sb.from("guests")
+        .select("id, name").eq("id", a.id).maybeSingle();
+      if (!g) { await say("לא מצאתי את האורח."); return; }
+      await sb.from("guests").update({
+        do_not_contact: false, do_not_contact_at: null,
+        do_not_contact_note: "בוטל ידנית מהתפריט בוואטסאפ",
+      }).eq("id", g.id);
+      await sendButtons(cfg, to, `↩️ ${g.name} חזר/ה לרשימה.`, [back]);
       return;
     }
   }
