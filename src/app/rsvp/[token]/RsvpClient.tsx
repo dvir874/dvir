@@ -1944,9 +1944,15 @@ function GoldConfetti() {
 /* ═══════════════════════════════════════════════════════════════
    Live wedding countdown (dvir_list only) — dark band, gold digits
 ═══════════════════════════════════════════════════════════════ */
+const SSR_NOW = new Date("2026-09-01T00:00:00+03:00").getTime();
 function LiveCountdown({ date }: { date: string }) {
-  const [now, setNow] = useState(() => Date.now());
+  /* Same hydration trap as the landing page's countdown, on the page every
+     guest opens — see src/components/LiveSnapshot.tsx. A mismatch here throws
+     away the server-rendered invitation and redraws it, which is the flash a
+     guest sees before the page settles. */
+  const [now, setNow] = useState(SSR_NOW);
   useEffect(() => {
+    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);

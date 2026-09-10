@@ -17,9 +17,25 @@ const KPIS = [
   { label: "אחוז מענה", value: "86%", Icon: Gauge, bar: "bg-gold" },  /* (287-41)/287 — it said 75%, which is 214/287, i.e. the attendance rate under a "response" label */
 ];
 
+/* Ticking clocks must not start during render.
+ *
+ * `useState(() => Date.now())` runs on the server AND again on the client, a
+ * few hundred milliseconds apart, so the seconds digit differs between the
+ * HTML that was sent and the first frame React draws. That is a hydration
+ * mismatch — React error #418, which the live homepage throws today — and
+ * React's response is to throw away the server markup and re-render the whole
+ * tree. On regalifnei.com that resets the scroll position and leaves the
+ * scroll-triggered counters sitting at their initial values: the section
+ * headed "זה לא מוקאפ" shows 0 מוזמנים · 0 אישרו · ₪0 to a prospect.
+ *
+ * A fixed reference makes both sides render the same first frame; the effect
+ * corrects it on mount, one frame later, with no layout shift. */
+const SSR_NOW = new Date("2026-09-01T00:00:00+03:00").getTime();
+
 function useCountdown(target: number) {
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(SSR_NOW);
   useEffect(() => {
+    setNow(Date.now());
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
