@@ -24,6 +24,7 @@
 
 export type AskIntent =
   | { kind: "today" }
+  | { kind: "yesterday" }
   | { kind: "money" }
   | { kind: "waiting" }
   | { kind: "missing"; needle?: string }
@@ -71,6 +72,11 @@ export function stripPrefixes(needle: string): string {
   return needle.split(/\s+/).map(w => w.replace(/^[ולבכמ]/, "")).filter(w => w.length > 1).join(" ");
 }
 
+/* Tested before TODAY, which matches on "מה יוצא" and therefore swallowed
+   "מה יוצא מחר" and answered it with today's numbers. A question about another
+   day is a question about the schedule, and the schedule is per wedding. */
+const TOMORROW = /(מחר|בימים הקרובים|השבוע|הלאה|הבא)/;
+const YESTERDAY = /(אתמול|שלשום|אמש)/;
 const TODAY   = /(מה יוצא|מה נשלח|מה יצא|כמה נשלחו|מה קורה היום|מה יש היום|מה התוכנית|היום יוצא|כמה שלחנו)/;
 const MONEY   = /(כסף|שילם|שילמו|שולם|לא שולם|חוב|חובות|גבייה|לגבות|תשלום|תשלומים|כמה פתוח|כמה נכנס|הכנסות)/;
 const WAITING = /(מחכה לי|מחכים לי|מי מחכה|צריך אותי|צריכים אותי|טיפול ידני|מה דחוף)/;
@@ -110,6 +116,10 @@ export function askIntent(said: string): AskIntent | null {
   if (!t || t.length > 200) return null;
   if (COURTESY.test(t)) return null;
 
+  /* "מה יוצא מחר" is answered by the per-wedding forecast, which knows the
+     cooldowns, the חגים and the ceiling — not by today's totals. */
+  if (TODAY.test(t) && TOMORROW.test(t))  return { kind: "weddings" };
+  if (TODAY.test(t) && YESTERDAY.test(t)) return { kind: "yesterday" };
   if (TODAY.test(t))   return { kind: "today" };
   if (MONEY.test(t))   return { kind: "money" };
   if (WAITING.test(t)) return { kind: "waiting" };

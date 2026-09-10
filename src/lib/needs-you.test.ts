@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { waitingForYou, waitingLine, waitingHeader } from "./needs-you.ts";
+import { waitingForYou, waitingLine, waitingHeader, isBroadcast } from "./needs-you.ts";
 
 const base = {
   guestId: "g1", name: "נעם חדד", phone: "0527291130", token: "tok-1",
@@ -61,4 +61,20 @@ test("אורח בלי טוקן אומר זאת במקום לתת קישור שב
 test("הכותרת בעברית תקינה גם לאחד", () => {
   assert.match(waitingHeader(1), /אורח אחד/);
   assert.match(waitingHeader(4), /4 אורחים/);
+});
+
+test("שידור לכל האורחים אינו תשובה לשאלה של אחד מהם", () => {
+  /* צורית וצופיה asked how to send a gift on 09/09 at 08:25. Two hours later
+     the gallery announcement went out to all 231 guests, her included, and the
+     thread looked answered. She is still waiting and the couple never got the
+     gift. */
+  assert.equal(isBroadcast("גלריית התמונות מוכנה"), true);
+  assert.equal(isBroadcast("הזמנה לחתונה (תבנית)"), true);
+  assert.equal(isBroadcast("תזכורת אישור הגעה"), true);
+  assert.equal(isBroadcast("היום מתחתנים (תבנית)"), true);
+
+  /* And a real reply still is one. */
+  assert.equal(isBroadcast("מעולה, רשמנו 2 🤍"), false);
+  assert.equal(isBroadcast("היי צורית, אפשר להעביר בביט ל…"), false);
+  assert.equal(isBroadcast(""), false);
 });

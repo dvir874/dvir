@@ -175,8 +175,21 @@ export function matchEvent<E extends { id: string; name?: string | null; couple_
     .filter(w => w.length > 1 && !STOP.has(w));
   if (!words.length) return { none: true };
 
+  /* Whole words, not substrings.
+   *
+   * hay.includes("רון") is true of "ירון פטיניו ואיילת דוד". An alert comes in
+   * about a guest called רון, Dvir types "מה עם רון" to see what is going on
+   * with him, and is shown ירון ואיילת's wedding card — days to go, 223
+   * ממתינים, and a ⏸ עצור שליחה button. He is one tap from pausing a wedding he
+   * never mentioned, on a screen he reached by typing a guest's name.
+   *
+   * Tightening rather than loosening, deliberately: this function also decides
+   * which wedding "עצור" applies to, and its own comment says acting on the
+   * wrong one is worse than asking again. Every real lookup still works —
+   * "שלמה" is a whole word inside "שלמה גור ואבישג בן שוהם". */
   const hits = events.filter(e => {
-    const hay = `${e.couple_names ?? ""} ${e.name ?? ""}`.toLowerCase();
+    const hay = `${e.couple_names ?? ""} ${e.name ?? ""}`.toLowerCase()
+      .split(/[\s,־-]+/).map(w => w.replace(/^ו/, ""));
     return words.every(w => hay.includes(w));
   });
 

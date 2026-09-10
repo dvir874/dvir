@@ -244,6 +244,11 @@ async function answerAsk(sb: Sb, cfg: Cfg, to: string, said: string): Promise<bo
       }
       return true;
     case "today":    await renderScreen(sb, cfg, to, { screen: "today" });    return true;
+    case "yesterday":
+      await sendText(cfg, to,
+        "אין לי מסך של אתמול — מה שיש זה מה יוצא מכאן והלאה, לכל חתונה בנפרד.\n\n"
+        + "כתוב \"תפריט\" ← 📊 מצב החתונות.");
+      return true;
     case "money":    await renderScreen(sb, cfg, to, { screen: "money" });    return true;
     case "waiting":  await renderScreen(sb, cfg, to, { screen: "waiting" });  return true;
     case "weddings": await renderScreen(sb, cfg, to, { screen: "weddings" }); return true;
@@ -313,7 +318,21 @@ async function assistantFacts(sb: Sb): Promise<AssistantFacts> {
     .select("tier, cap").not("tier", "is", null)
     .order("created_at", { ascending: false }).limit(1);
 
-  const evs = await upcoming(sb, 12);
+  /* Weddings that already happened belong here too.
+   *
+   * This read `upcoming()` — date >= today — so אורי ושחר, married on 08/09
+   * with ₪260 still unpaid, did not exist as far as the assistant was
+   * concerned. Ask it "מי לא שילם" and it answers confidently and
+   * incompletely, which is worse than the "אין לי את זה" it replaced.
+   *
+   * Ninety days back: long enough to carry an unpaid wedding and a gallery
+   * still filling up, short enough that the answer stays about this season. */
+  const since = new Date(Date.now() - 90 * 86_400_000).toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+  const { data: pastRows } = await sb.from("events")
+    .select("id, name, couple_names, date, send_paused_until")
+    .gte("date", since).lt("date", day).order("date", { ascending: false }).limit(6);
+
+  const evs = [...await upcoming(sb, 12), ...((pastRows ?? []) as Awaited<ReturnType<typeof upcoming>>)];
   const weddings: AssistantFacts["weddings"] = [];
   for (const e of evs) {
     const { data: gs } = await sb.from("guests")
@@ -324,7 +343,10 @@ async function assistantFacts(sb: Sb): Promise<AssistantFacts> {
     weddings.push({
       couple: titleOf(e),
       date: String(e.date),
-      daysAway: Math.max(0, Math.ceil((new Date(String(e.date)).getTime() - Date.now()) / 86_400_000)),
+      daysAway: Math.ceil((new Date(String(e.date)).getTime() - Date.now()) / 86_400_000),
+      /* Negative means it already happened — the assistant is told so rather
+         than shown a floor of zero that reads like "today". */
+      over: new Date(String(e.date)).getTime() < Date.now() - 86_400_000,
       total: real.length,
       confirmed: real.filter(g => g.status === "confirmed").length,
       declined: real.filter(g => g.status === "declined").length,
@@ -437,7 +459,27 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
     case "wedding": {
       const evs = await upcoming(sb, 20);
       const e = evs.find(x => x.id === a.id);
-      if (!e) { await say("החתונה הזאת כבר לא ברשימה."); return; }
+      if (!e) {
+        /* A wedding that already happened is not "no longer on the list" — it
+         * is the one whose gallery the couple is waiting for. On 10/09 I sent
+         * Dvir the album's public_token for שחר and it 404'd: the album is
+         * private by design, the couple have their own owner_token, and
+         * nothing anywhere told either of us which was which.
+         *
+         * The photos were there the whole time — 68 of them. */
+        const { data: past } = await sb.from("events")
+          .select("id, name, couple_names, date").eq("id", a.id).maybeSingle();
+        if (!past) { await say("החתונה הזאת כבר לא ברשימה."); return; }
+        const { data: album } = await sb.from("gallery_albums")
+          .select("owner_token").eq("event_id", a.id).maybeSingle();
+        await say(`${titleOf(past as Parameters<typeof titleOf>[0])} — החתונה כבר הייתה.\n\n`
+          + (album?.owner_token
+            ? `🖼️ הגלריה של הזוג:\n${APP_URL}/gallery/${album.owner_token}\n\n`
+              + "זה הקישור לזוג. הקישור השני שבמסד הוא לאורחים והאלבום פרטי, אז הוא לא ייפתח."
+            : "אין אלבום לחתונה הזאת."));
+        await sendButtons(cfg, to, "עוד משהו?", [back]);
+        return;
+      }
 
       const { data: gs } = await sb.from("guests")
         .select("status, category, phone, do_not_contact").eq("event_id", e.id).limit(900);
@@ -456,6 +498,19 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
        * mentioned. The difference between two numbers is not an explanation. */
       const noPhone = real.filter(g => !String(g.phone ?? "").trim()).length;
       const removed = real.filter(g => g.do_not_contact).length;
+
+      /* Guests Meta is holding back rather than guests we cannot reach.
+       *
+       * 131049 is the per-recipient marketing ceiling — it has fired 63 times
+       * this week, the last at 08:16 this morning, and it appears on no screen
+       * anywhere. Those guests are not unreachable and nothing is broken; they
+       * simply did not get today's message and will be retried. Saying so is
+       * the difference between a number that looks wrong and a number that is
+       * explained. */
+      const { data: held } = await sb.from("wa_messages")
+        .select("guest_id").eq("event_id", e.id).eq("error_code", 131049)
+        .gte("created_at", new Date(Date.now() - 3 * 86_400_000).toISOString());
+      const heldCount = new Set((held ?? []).map(m => m.guest_id as string).filter(Boolean)).size;
       const cannot = [
         noPhone ? `${noPhone} בלי מספר טלפון` : "",
         removed ? `${removed} הוסרו מהרשימה` : "",
@@ -469,6 +524,7 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
         + `${real.filter(g => g.status === "pending").length} ממתינים`
         + `\n\n${nextSendText(soon, whenText)}`
         + (cannot ? `\n\n⚠️ ${cannot} — לא ניתן להגיע אליהם` : "")
+        + (heldCount ? `\n⏳ ${heldCount} נדחו על ידי מטא (מכסת נמען) — יינסו שוב לבד` : "")
         + (paused ? "\n\n⏸ השליחה מושהית" : "");
 
       await sendButtons(cfg, to, text, [
@@ -647,7 +703,7 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
  * wa-send/route.ts. If those two ever disagree, this screen becomes a
  * confident wrong date told to a paying customer, which is worse than the
  * "אין לי את זה" it replaces. */
-async function nextSendFor(
+export async function nextSendFor(
   sb: Sb,
   ev: { id: string; send_paused_until?: string | null;
         max_reminders?: number | null; reminder_cooldown_h?: number | null },

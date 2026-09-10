@@ -28,7 +28,8 @@ export interface ThreadView {
   said: string;
   /** When they wrote it. */
   saidAt: string;
-  /** Anything we sent after that, if we did. */
+  /** Anything we sent after that which was actually an answer — a broadcast
+      that happened to land later is not one. See isBroadcast. */
   answeredAt?: string | null;
   /** Dvir opened the thread. */
   seen?: boolean;
@@ -38,6 +39,24 @@ export interface ThreadView {
   humanNeeded?: boolean;
   /** We already put this exact message on his phone. */
   alertedAt?: string | null;
+}
+
+/* A broadcast is not an answer.
+ *
+ * צורית וצופיה asked "הי, יש דרך להעביר מתנה תשלום?" on 09/09 at 08:25. Two
+ * hours later the gallery announcement went out to all 231 of שחר's guests,
+ * her included — and because something outbound now sat after her question,
+ * the thread looked answered and she vanished from every list. She is still
+ * waiting, and the couple did not get her gift.
+ *
+ * Every message this system sends in bulk is logged under a fixed label, so
+ * the list is short, closed, and checkable against wa_messages. Anything else
+ * outbound — a status "auto" reply, or free text Dvir typed — really is an
+ * answer to whatever they said. */
+const BROADCAST = /^(הזמנה לחתונה|תזכורת אישור הגעה|היום מתחתנים|מחר מתחתנים|גלריית התמונות מוכנה|בקשת תמונות|תודה על התמונות|קישור לטרמפים|מספר שולחן|תזכורת|בקשת תשלום|בקשת המלצה)/;
+
+export function isBroadcast(body: string | null | undefined): boolean {
+  return BROADCAST.test(String(body ?? "").trim());
 }
 
 export interface Waiting {

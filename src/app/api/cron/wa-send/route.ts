@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { shabbatBlock, eveningBeforeBlocked } from "@/lib/shabbat";
-import { todayText } from "@/lib/admin-console";
-import { waitingForYou, waitingLine, waitingHeader, type ThreadView } from "@/lib/needs-you";
+import { todayText, nextSendFor } from "@/lib/admin-console";
+import { waitingForYou, waitingLine, waitingHeader, isBroadcast, type ThreadView } from "@/lib/needs-you";
 import { needsHuman } from "@/lib/needs-human";
 import { chunkBlocks } from "@/lib/wa-chunk";
 import { coupleName, looksLikeCouple } from "@/lib/couple-name";
@@ -2328,7 +2328,9 @@ async function alertWaitingGuests(
       lastIn.set(id, { body: String(m.body ?? ""), at, read: !!m.read_at });
       afterIn.delete(id);
     } else if (lastIn.has(id)) {
-      if (!afterIn.has(id)) afterIn.set(id, at);
+      /* A broadcast that happened to land after their question is not an
+         answer to it — see isBroadcast. */
+      if (!isBroadcast(m.body as string) && !afterIn.has(id)) afterIn.set(id, at);
     }
   }
   if (!lastIn.size) return;
@@ -2403,6 +2405,52 @@ async function alertWaitingGuests(
         .insert({ guest_id: w.guestId, event_type: "needs_you_alerted" });
     } catch { /* one missing stamp costs one repeat, not a lost guest */ }
   }
+}
+
+
+/** Is the wedding whose gallery is waiting less than a day old? */
+async function freshGallery(
+  sb: ReturnType<typeof createServerClient>,
+): Promise<boolean> {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await sb.from("events")
+    .select("date").lt("date", today).eq("gallery_ready", true)
+    .is("gallery_notified_at", null).order("date", { ascending: false }).limit(1);
+  const d = (data ?? [])[0]?.date as string | undefined;
+  if (!d) return false;
+  return Date.now() - new Date(`${d}T23:59:59+03:00`).getTime() < 24 * 3_600_000;
+}
+
+/* How many guests of a wedding that has NOT happened are due right now.
+ *
+ * The reserve held back for live weddings was a flat thirty. Measured against
+ * what actually happened on 09/09: 213 of the day's 253 messages went to אורי
+ * ושחר, married the day before, while לאל וטל — thirteen days out with 75
+ * people still unanswered — got 29 and תהל got 5. Fifty of לאל's guests were
+ * past their cooldown that morning and 29 of them heard from us.
+ *
+ * Thirty was measured against the uninvited backlog, which is a different
+ * question from "how many reminders come due today". This is that question,
+ * and the answer is the reserve.
+ */
+async function liveDemandNow(
+  sb: ReturnType<typeof createServerClient>,
+): Promise<number> {
+  const today = israelToday();
+  const { data: evs } = await sb.from("events")
+    .select("id, send_paused_until, max_reminders, reminder_cooldown_h")
+    .gte("date", today).limit(8);
+
+  let due = 0;
+  const nowMs = Date.now();
+  for (const ev of (evs ?? []) as Record<string, unknown>[]) {
+    const paused = ev.send_paused_until as string | null;
+    if (paused && new Date(paused).getTime() > nowMs) continue;
+    const soon = await nextSendFor(sb, ev as Parameters<typeof nextSendFor>[1]);
+    /* Only what is due at or before the next run — not the whole backlog. */
+    if (soon.at !== null && soon.at - nowMs < 3 * 3_600_000) due += soon.dueBy;
+  }
+  return due;
 }
 
 async function record(
@@ -2988,7 +3036,19 @@ async function runSend(req: NextRequest) {
    * went out and twenty-four slots that were being held for invitations were
    * simply not used. The reserve exists for exactly the runs where the budget
    * is tight, which is the one case where it leaked. */
-  const galleryRoom = Math.min(GALLERY_PER_RUN, Math.max(0, budget - GALLERY_RESERVE));
+  /* A wedding that has already happened runs on what is left.
+   *
+   * Dvir, 10/09, after seeing the numbers: "שידור לחתונה שעברה צריך לרוץ
+   * אחרון, ורק ממה שנשאר."
+   *
+   * The exception is the first day. This message is worth the most in the
+   * hours after a wedding, when the photos are still open on everyone's phone,
+   * and worth steadily less every day after — so inside the first 24 hours the
+   * old flat reserve stands, and after that the live weddings are counted and
+   * served first. שחר's 213 on 09/09 were sent on day two. */
+  const galleryFresh = await freshGallery(sb);
+  const reserve = galleryFresh ? GALLERY_RESERVE : await liveDemandNow(sb);
+  const galleryRoom = Math.min(GALLERY_PER_RUN, Math.max(0, budget - reserve));
   const gallery = galleryRoom > 0
     ? await notifyGallery(sb, cfg, galleryRoom)
     : { sent: 0 as number, event: undefined as string | undefined };
