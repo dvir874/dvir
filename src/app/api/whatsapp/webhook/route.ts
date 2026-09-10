@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { handleGuestReply } from "@/lib/wa-conversation";
-import { isAdminPhone, handleAdminMessage } from "@/lib/admin-console";
+import { isAdminPhone, handleAdminMessage, handleCoupleMessage } from "@/lib/admin-console";
 import { isRetryableFailure, nextRetryAt } from "@/lib/whatsapp";
 import { failureWriter, newRunId, recordFailure } from "@/lib/failures";
 import { isNewerStatus } from "@/lib/rsvp-contact";
@@ -460,6 +460,24 @@ export async function POST(req: NextRequest) {
 
       const g = guestFor(m.from ?? "");
       if (!g?.id) {
+        /* The couple, before this is called a failure.
+         *
+         * couple_check_numbers_v1 ends with "ואם המספר דווקא נכון — כתבו לנו
+         * כאן ונטפל בזה אחרת." It asks them, in writing, to reply — and the
+         * reply landed here, was recorded as "a number that is not on any
+         * guest list", and was dropped. Seven times, six of them תהל שלוש
+         * answering that exact question, the last one yesterday at 16:52. */
+        try {
+          if (await handleCoupleMessage(sb, m.from ?? "", bodyOf(m),
+              m.type && m.type !== "text" && m.type !== "button" && m.type !== "interactive" ? "media" : "text")) continue;
+        } catch (e) {
+          await recordFailure(w, {
+            scope: "webhook.couple", runId, ref: m.from, error: e,
+            context: { body: bodyOf(m).slice(0, 120) },
+          });
+          continue;
+        }
+
         /* Answered from a number that is not on the list. Previously a silent
            `continue`: the reply sat in the inbox under the sender's WhatsApp
            profile name, indistinguishable from a guest who had been counted. */

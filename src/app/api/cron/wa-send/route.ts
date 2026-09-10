@@ -1240,7 +1240,23 @@ async function askCoupleAboutUnreachable(
     const candidates = (gs ?? []).filter(g =>
       g.category !== "demo" && String(g.phone ?? "").trim()
       && !g.opened_at && !g.do_not_contact);
-    if (!candidates.length) continue;
+
+    /* And the ones with no number at all.
+     *
+     * This required a phone before it would ask about anybody — the same check
+     * that makes every other list work, and the reason thirty-six guests were
+     * invisible to all of them. Thirty are ירון ואיילת's and her sending opens
+     * on 13/09; without a number they will not be reached, will not appear in
+     * any report, and nobody would ever have been told they exist.
+     *
+     * They belong in this message more than anyone already in it. The template
+     * says "יש N מוזמנים שההזמנה לא הצליחה להגיע אליהם, וייתכן שהמספר ברשימה
+     * לא מדויק" — for a row with no number that is not an approximation, and
+     * the couple are the only people in the world who can fix it. */
+    const noNumber = (gs ?? []).filter(g =>
+      g.category !== "demo" && !String(g.phone ?? "").trim() && !g.do_not_contact);
+
+    if (!candidates.length && !noNumber.length) continue;
 
     const ids = candidates.map(g => g.id as string);
     const got = new Set<string>();
@@ -1274,13 +1290,18 @@ async function askCoupleAboutUnreachable(
      * either. So the question goes out only where a wrong number is a real
      * possibility — 131026, meaning that number has no WhatsApp at all, and
      * the silent case where nothing came back. The rest are ours to handle. */
-    const stuck = candidates.filter(g => {
-      if (got.has(g.id as string)) return false;
-      const code = lastFail.get(g.id as string)?.code;
-      if (code === undefined) return true;   /* never attempted */
-      if (code === null) return true;        /* accepted, never delivered */
-      return code === 131026;                /* 131049 · 130472 · 131050 are ours */
-    });
+    const stuck = [
+      ...candidates.filter(g => {
+        if (got.has(g.id as string)) return false;
+        const code = lastFail.get(g.id as string)?.code;
+        if (code === undefined) return true;   /* never attempted */
+        if (code === null) return true;        /* accepted, never delivered */
+        return code === 131026;                /* 131049 · 130472 · 131050 are ours */
+      }),
+      /* A missing number is the one case where "the number may be wrong" is
+         certainly true, and the one the couple can always answer. */
+      ...noNumber,
+    ];
     if (!stuck.length) continue;
 
     /* Nothing new to say, and asked recently: stay quiet. A guest who becomes

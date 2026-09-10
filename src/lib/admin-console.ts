@@ -3,10 +3,11 @@ import { parseAdminCommand, matchEvent } from "./admin-command";
 import { classifyManualWork, manualWorkMessage, type LastContact } from "./manual-work";
 import { coupleName } from "./couple-name";
 import { isRsvpMessage, didArrive } from "./rsvp-contact";
-import { getWhatsAppConfig, toE164 } from "./whatsapp";
+import { getWhatsAppConfig, toE164, sendRunSummary } from "./whatsapp";
 import { sendText, sendButtons, sendList } from "./wa-interactive";
 import { parseMenuId, menuId, asksForMenu, LABEL, ROOT_TEXT, type MenuAction } from "./admin-menu";
 import { askIntent, stripPrefixes } from "./admin-ask";
+import { coupleIntent, COUPLE_REPLY } from "./couple-inbound";
 import { askAssistant, type AssistantFacts } from "./ai/assistant";
 import { APP_URL } from "./app-url";
 import { shabbatBlock } from "./shabbat";
@@ -1088,6 +1089,90 @@ export async function moneyText(sb: Sb): Promise<{ text: string; unpaid: { id: s
     text: lines.join("\n"),
     unpaid: owed.map(r => ({ id: r.id, title: titleOf(r) })),
   };
+}
+
+
+/* ── The couple's own thread ───────────────────────────────────────────────
+ *
+ * A message from a number in events.client_phone. Until today the webhook
+ * classified these as "a reply from a number that is not on any guest list"
+ * and dropped them — seven of them, six from a paying client answering a
+ * question this system had asked her. See src/lib/couple-inbound.ts.
+ *
+ * The couple can read about their own wedding and nothing else, and can cause
+ * exactly two things to happen: an acknowledgement to themselves, and a
+ * message to Dvir. Nothing here reaches a guest.
+ */
+export async function handleCoupleMessage(
+  sb: Sb, from: string, said: string, kind: "text" | "media" = "text",
+): Promise<boolean> {
+  const cfg = getWhatsAppConfig();
+  if (!cfg) return false;
+  const to = toE164(from) ?? from;
+
+  /* Their wedding, by their number. The nearest one that has not happened —
+     a couple with two events on one number is not a case this business has,
+     and answering about the wrong wedding is worse than answering about none. */
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+  const { data: evs } = await sb.from("events")
+    .select("id, name, couple_names, date, client_phone, couple_token")
+    .gte("date", today).order("date").limit(20);
+  const local = toLocal(from);
+  const ev = (evs ?? []).find(e => {
+    const p = String(e.client_phone ?? "").trim();
+    return !!p && (toLocal(p) === local);
+  });
+  if (!ev) return false;
+
+  const couple = coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name ?? "");
+  const intent = coupleIntent(said, kind);
+
+  /* Recorded against their wedding before anything is answered. The reason
+     this file exists is that these messages had nowhere to be. */
+  try {
+    await sb.from("wa_messages").insert({
+      event_id: ev.id, guest_id: null, wa_phone: to,
+      direction: "in", body: String(said ?? "").slice(0, 2000), status: "received",
+    });
+  } catch { /* the answer matters more than the log */ }
+
+  if (intent === "status") {
+    const { data: gs } = await sb.from("guests")
+      .select("status, guest_count, category").eq("event_id", ev.id).limit(900);
+    const real = (gs ?? []).filter(g => g.category !== "demo");
+    const confirmed = real.filter(g => g.status === "confirmed");
+    await sendText(cfg, to,
+      `${couple} 🤍\n\n`
+      + `${confirmed.length} אישרו · ${real.filter(g => g.status === "declined").length} לא מגיעים · `
+      + `${real.filter(g => g.status === "pending").length} עוד לא ענו\n`
+      + `סה״כ ${confirmed.reduce((n, g) => n + (Number(g.guest_count) || 1), 0)} אנשים\n\n`
+      + (ev.couple_token ? `הכול כאן: ${APP_URL}/couple/${ev.couple_token}` : ""));
+  } else {
+    await sendText(cfg, to, COUPLE_REPLY[intent]);
+  }
+
+  /* And Dvir hears what they said, in their words.
+   *
+   * "ואז המערכת תעדכן אותי גם בהודעה אחרי מה הזוג ענה" — 09/09. A status
+   * question he does not need to see; everything else he does, because
+   * everything else is either work for him or a person waiting on him. */
+  const admin = process.env.ADMIN_ALERT_PHONE;
+  if (admin && intent !== "status") {
+    const HEAD: Record<string, string> = {
+      numbers_ok: "✅ הזוג אומר שהמספרים נכונים",
+      numbers_sent: "📇 הזוג שלח מספרים",
+      other: "💬 הזוג כתב",
+    };
+    try {
+      await sendRunSummary(cfg, admin, {
+        event: `${HEAD[intent] ?? "💬 הזוג כתב"} — ${couple}`,
+        sent: "0", failed: "—", left: "—",
+        attention: `"${String(said).slice(0, 120).replace(/[\n\t]/g, " ")}"`
+          + (intent === "numbers_sent" ? " — צריך להזין אותם ידנית." : ""),
+      });
+    } catch { /* an alert must never cost the couple their reply */ }
+  }
+  return true;
 }
 
 /* Storage form, matching every other path that writes a guest. */
