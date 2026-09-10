@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Analytics from "@/components/Analytics";
 import { APP_URL } from "@/lib/app-url";
+import { EMAIL } from "@/lib/constants";
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
@@ -155,6 +156,22 @@ export default function RootLayout({
               "description": "מערכת ניהול אורחים לחתונות ואירועים — אישורי הגעה, תזכורות אוטומטיות, הושבה ותקציב.",
               "url": APP_URL,
               "telephone": "+972533318177",
+              "email": EMAIL,
+              /* The address on the tax certificate, verbatim.
+               *
+               * Google will not show a business in local results, and will not
+               * attach reviews to it, without one — and the venue at גאיה told
+               * Dvir to collect reviews. There was nowhere for them to land.
+               * It must also match the certificate character for character:
+               * Meta compares this page against the document during business
+               * verification, and so does Google against the postcard. */
+              "address": {
+                "@type": "PostalAddress",
+                "streetAddress": "הגר\"א 10",
+                "addressLocality": "חדרה",
+                "postalCode": "38461",
+                "addressCountry": "IL",
+              },
               "priceRange": "$$",
               /* The third reference to the share card, missed when the other two were
                  moved off the deleted Satori route. og-image.png returns 404 in

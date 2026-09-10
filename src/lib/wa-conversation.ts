@@ -343,7 +343,20 @@ export async function handleGuestReply(
        wrote "אני לא מגיע" on 03/09 — three characters more than the label —
        and it fell straight through to the number parser, which answered a
        guest saying he was not coming with a complaint about arithmetic. */
-    if (/^rsvp_no$/.test(said) || saysNotComing(said)) {
+    /* Zero.
+     *
+     * מרים דיין answered the headcount question with "0" and was told we could
+     * not understand the number. It is the clearest possible answer: there is
+     * no reading of "0" beside "how many of you are coming" that means
+     * anything else. parseGuestCount returns null for it — correctly, because
+     * a party of zero is not a party — and the branch below then treated a
+     * complete answer as gibberish.
+     *
+     * Handled here rather than inside parseGuestCount because zero means
+     * "not coming" only in answer to this question. */
+    const isZero = /^0+$/.test(said.trim());
+
+    if (/^rsvp_no$/.test(said) || isZero || saysNotComing(said)) {
       await setState(sb, guest.id, ASK_DECLINE);
       /* The one send whose failure has to be handled.
          The state above says "waiting for them to confirm the decline", and it

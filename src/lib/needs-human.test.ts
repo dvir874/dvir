@@ -92,3 +92,41 @@ test("the ordinary Hebrew way of saying it is a refusal", () => {
     assert.equal(saysNotComing(m), false, m);
   }
 });
+
+/* ── הרבנית מרים דיין, 05/09 ───────────────────────────────────────────
+ *
+ * Every string here is quoted from wa_messages. She wrote four times that she
+ * was not coming, because her mother had died and she is in her year of
+ * mourning, and was answered three times with "לא הצלחנו להבין את המספר".
+ *
+ * Two separate failures, and either alone would have prevented it. */
+
+test("משפט על פטירה אף פעם לא נענה על ידי מכונה", () => {
+  const a = needsHuman("סליחה, בסוף לצערי לא אגיע, כי אנחנו בשנת אבל על אמא היקרה שלנו.");
+  assert.equal(a.needed, true);
+  assert.equal(a.reason, "grief");
+
+  assert.equal(needsHuman("מרים דיין, אמא נפטרה בתחילת חודש אב, ולכן כשאישרתי את הגעתי לחתונה, היה זה לפני פטירתה של אימנו היקרה.").reason, "grief");
+  assert.equal(needsHuman("לא מגיעה בכלל ולכן כתבתי לך את הסיפרה 0  כי אני בשנת אבל על אימי היקר").reason, "grief");
+});
+
+test("'אבל' לבדה היא מילת חיבור, לא אבל", () => {
+  /* The single most common word this pattern could have swallowed. */
+  for (const s of ["אבל אנחנו מגיעים!", "מגיעים אבל רק שנינו", "אבל מתי זה מתחיל?"])
+    assert.notEqual(needsHuman(s).reason, "grief", s);
+});
+
+test("'לא אגיע' — הצורה הטבעית ביותר, ולא הייתה ברשימה", () => {
+  for (const s of ["לא אגיע", "אני לא אגיע", "לצערי לא אגיע", "לא אבוא", "לא אוכל להגיע",
+                   "סליחה, בסוף לצערי לא אגיע, כי אנחנו בשנת אבל על אמא היקרה שלנו."])
+    assert.equal(saysNotComing(s), true, s);
+});
+
+test("המשפט שלה נכנס בגבול האורך — האורך אף פעם לא היה הבעיה", () => {
+  /* 63 characters. The 80-character guard, which exists on purpose, would have
+     let it through from the start. The only thing that failed her was that the
+     list of verbs did not contain the one she used. */
+  const hers = "סליחה, בסוף לצערי לא אגיע, כי אנחנו בשנת אבל על אמא היקרה שלנו.";
+  assert.ok(hers.length <= 80, `${hers.length} תווים`);
+  assert.equal(saysNotComing(hers), true);
+});
