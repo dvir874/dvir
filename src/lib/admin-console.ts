@@ -235,7 +235,14 @@ async function answerAsk(sb: Sb, cfg: Cfg, to: string, said: string): Promise<bo
 
   switch (ask.kind) {
     case "stuck":    await renderScreen(sb, cfg, to, { screen: "stuck" });    return true;
-    case "nophone":  await renderScreen(sb, cfg, to, { screen: "nophone" });  return true;
+    case "nophone":
+      if ("needle" in ask && ask.needle) {
+        for (const part of await noPhoneText(sb, { name: ask.needle })) await sendText(cfg, to, part);
+        await sendButtons(cfg, to, "עוד משהו?", [{ id: menuId({ screen: "root" }), title: LABEL.back }]);
+      } else {
+        await renderScreen(sb, cfg, to, { screen: "nophone" });
+      }
+      return true;
     case "today":    await renderScreen(sb, cfg, to, { screen: "today" });    return true;
     case "money":    await renderScreen(sb, cfg, to, { screen: "money" });    return true;
     case "waiting":  await renderScreen(sb, cfg, to, { screen: "waiting" });  return true;
@@ -496,7 +503,7 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
       return;
 
     case "nophone":
-      for (const part of await noPhoneText(sb)) await say(part);
+      for (const part of await noPhoneText(sb, a.id ? { id: a.id } : undefined)) await say(part);
       await sendButtons(cfg, to, "עוד משהו?", [back]);
       return;
 
@@ -765,14 +772,31 @@ async function stuckText(sb: Sb): Promise<string[]> {
  * There is no link here, because there is nothing to link to. The action is a
  * message to the couple, and it belongs to Dvir's own phone.
  */
-async function noPhoneText(sb: Sb): Promise<string[]> {
+async function noPhoneText(sb: Sb, only?: { name?: string; id?: string }): Promise<string[]> {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
   const { data: evs } = await sb.from("events")
     .select("id, name, couple_names, date, client_phone, send_paused_until")
     .gte("date", today).order("date").limit(12);
 
+  /* He asked about one wedding — "מי הם אלו ללא מספרי טלפון מהחתונה של לאל
+     וטל" — and got all of them. The name he says is the answer he wants. */
+  let list = (evs ?? []) as {
+    id: string; name?: string | null; couple_names?: string | null;
+    date: string; client_phone?: string | null; send_paused_until?: string | null;
+  }[];
+  if (only?.id) {
+    const hit = list.find(e => e.id === only.id);
+    if (!hit) return ["החתונה הזאת כבר לא ברשימה."];
+    list = [hit];
+  } else if (only?.name) {
+    const m = matchEvent(only.name, list);
+    if ("none" in m) return [`(התעלמתי מ"${only.name}")`, ...await noPhoneText(sb)];
+    if ("ambiguous" in m) return [`"${only.name}" מתאים ליותר מאחת. תכתוב שם מדויק יותר.`];
+    list = [m.event as (typeof list)[number]];
+  }
+
   const blocks: string[] = [];
-  for (const e of (evs ?? []) as {
+  for (const e of list as {
     id: string; name?: string | null; couple_names?: string | null;
     date: string; client_phone?: string | null; send_paused_until?: string | null;
   }[]) {

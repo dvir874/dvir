@@ -122,3 +122,17 @@ test("מתי יוצאת התזכורת הבאה", () => {
   /* And it must not swallow the counting question. */
   assert.equal(askIntent("כמה אישרו לשלמה")?.kind, "wedding");
 });
+
+test("מי בלי מספר טלפון — לפי צורת השאלה, לא לפי רשימת ניסוחים", () => {
+  /* The list version missed the first sentence Dvir typed at it, on 10/09:
+     it knew "בלי" and not "ללא", "מספר" and not "מספרי". He was answered
+     "אין לי את זה" while a screen listing those six people already existed. */
+  const a = askIntent("מי הם אלו ללא מספרי טלפון מהחתונה של לאל וטל");
+  assert.equal(a?.kind, "nophone");
+  assert.equal((a as { needle: string }).needle, "לאל וטל", "והחתונה ששאל עליה נשמרת");
+
+  for (const s of [
+    "מי בלי מספר טלפון", "למי אין מספר", "מי אין לו טלפון",
+    "תן לי את השמות של מי שאין לו מספר", "חסר מספר למי",
+  ]) assert.equal(askIntent(s)?.kind, "nophone", s);
+});

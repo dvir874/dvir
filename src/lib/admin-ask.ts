@@ -51,6 +51,8 @@ const FILLER = new Set([
   "אמרו", "אמר", "תקוע", "תקועים", "מספר", "טלפון", "להם", "אנשים", "מוזמנים",
   "מתי", "תזכורת", "תזכורות", "נשלחת", "נשלחות", "יוצאת", "יוצאות", "הבאה", "שואלים",
   "חתונה", "חתונת", "שואל", "שואלת", "עוד",
+  "הם", "אלו", "אלה", "שמות", "השמות", "רשימה", "תן", "תני", "אין", "בלי", "ללא", "חסר",
+  "מספרי", "מספרים", "טלפונים", "פלאפון", "לו", "לה", "שאין", "שלא",
 ]);
 
 /* Things a person says to a machine, which are not questions and not names.
@@ -78,7 +80,16 @@ const MISSING = /(לא קיבל|לא קיבלו|לא הגיע להם|חסרים|
    opened list is the more specific question, so it wins. */
 /* Tested before STANDING, which matches on the bare word "כמה". */
 const STUCK = /(לא אמרו כמה|לא אמר כמה|לא יודעים כמה|תקוע|תקועים|באמצע שיחה|בלי מספר אנשים|כמה הם מגיעים)/;
-const NOPHONE = /(אין מספר|בלי מספר טלפון|חסר מספר|אין להם מספר|למי אין|בלי טלפון)/;
+/* Written as a negation next to the noun rather than as a list of phrasings.
+ *
+ * The list version missed the first sentence Dvir actually typed at it —
+ * "מי הם אלו ללא מספרי טלפון מהחתונה של לאל וטל" — because it knew "בלי" and
+ * not "ללא", and "מספר" and not "מספרי". He got the assistant's honest "אין לי
+ * את זה" while a screen listing those six people by name already existed. A
+ * list of phrasings can only ever contain the ones somebody already thought
+ * of; the shape of the question is the thing to match. */
+const NOPHONE =
+  /(אין|בלי|ללא|חסר|חסרים|שאין|נעדר)\s*(להם|לו|לה|לי|את)?\s*(מספר|מספרי|מספרים|טלפון|טלפונים|פלאפון)|למי אין/;
 /* "מהחתונה של טל ולאל שואלים מתי נשלחת עוד תזכורת" — 10/09. Checked before
    STANDING so that "מתי" wins over the bare "כמה" that a longer sentence
    often also contains. */
