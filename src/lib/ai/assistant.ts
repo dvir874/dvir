@@ -50,6 +50,10 @@ export interface AssistantFacts {
     pending: number;
     attendees: number;
     paused?: boolean;
+    /* The one question a client actually asks. It was missing, and the
+       assistant correctly said so — 'אין לי את זה במערכת' — to Dvir, who was
+       standing in front of טל ולאל at the time. */
+    nextReminder?: string;
     priceCharged?: number | null;
     paid?: boolean;
   }[];

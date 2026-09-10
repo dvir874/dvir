@@ -12,6 +12,10 @@ import { askAssistant, type AssistantFacts } from "./ai/assistant";
 import { APP_URL } from "./app-url";
 import { shabbatBlock } from "./shabbat";
 import { chunkBlocks } from "./wa-chunk";
+import { nextSend, nextSendText, type EligibleAt } from "./next-send";
+import { eligibleAt } from "./eligibility";
+import { CRON_UTC } from "./cron-schedule";
+import { isRsvpMessage as _isRsvp } from "./rsvp-contact";
 
 /* Executing what the admin typed into his phone — see admin-command.ts for the
  * grammar and why it is deliberately small.
@@ -321,6 +325,10 @@ async function assistantFacts(sb: Sb): Promise<AssistantFacts> {
       attendees: real.filter(g => g.status === "confirmed")
         .reduce((n, g) => n + (Number(g.guest_count) || 1), 0),
       paused: !!e.send_paused_until && new Date(e.send_paused_until).getTime() > Date.now(),
+      nextReminder: await (async () => {
+        const n = await nextSendFor(sb, e as Parameters<typeof nextSendFor>[1]);
+        return n.at ? `${whenText(n.at)} (עד ${n.dueBy} אורחים)` : nextSendText(n, whenText);
+      })(),
       priceCharged: (money as { price_charged?: number | null } | null)?.price_charged ?? null,
       paid: !!(money as { paid_at?: string | null } | null)?.paid_at,
     });
@@ -446,10 +454,13 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
         removed ? `${removed} הוסרו מהרשימה` : "",
       ].filter(Boolean).join(" · ");
 
+      const soon = await nextSendFor(sb, e as Parameters<typeof nextSendFor>[1]);
+
       const text = `${titleOf(e)}\n${days} ימים\n`
         + `${real.filter(g => g.status === "confirmed").length} מגיעים · `
         + `${real.filter(g => g.status === "declined").length} לא מגיעים · `
         + `${real.filter(g => g.status === "pending").length} ממתינים`
+        + `\n\n${nextSendText(soon, whenText)}`
         + (cannot ? `\n\n⚠️ ${cannot} — לא ניתן להגיע אליהם` : "")
         + (paused ? "\n\n⏸ השליחה מושהית" : "");
 
@@ -616,6 +627,74 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
       return;
     }
   }
+}
+
+/* When the next reminder for one wedding actually goes out.
+ *
+ * טל ולאל asked on 10/09 and the console answered "אין לי את זה במערכת". Every
+ * part of the answer existed — eligibleAt, the cron slots, the שבת/חג guard —
+ * and nothing had ever put them together, so the one question a client asks
+ * was the one the system could not answer.
+ *
+ * The ContactState here is built the same way the sender builds it in
+ * wa-send/route.ts. If those two ever disagree, this screen becomes a
+ * confident wrong date told to a paying customer, which is worse than the
+ * "אין לי את זה" it replaces. */
+async function nextSendFor(
+  sb: Sb,
+  ev: { id: string; send_paused_until?: string | null;
+        max_reminders?: number | null; reminder_cooldown_h?: number | null },
+): Promise<ReturnType<typeof nextSend>> {
+  const { data: gs } = await sb.from("guests")
+    .select("id, phone, rsvp_token, category, do_not_contact")
+    .eq("event_id", ev.id).eq("status", "pending").limit(900);
+  const real = (gs ?? []).filter(g =>
+    g.category !== "demo" && !g.do_not_contact
+    && String(g.phone ?? "").trim() && g.rsvp_token);
+
+  const ids = real.map(g => g.id as string);
+  const last = new Map<string, string>();
+  const accepted = new Map<string, string>();
+  const reminders = new Map<string, number>();
+  const arrived = new Set<string>();
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data: ms } = await sb.from("wa_messages")
+      .select("guest_id, status, body, created_at, wamid").eq("direction", "out")
+      .in("guest_id", ids.slice(i, i + 100));
+    for (const m of ms ?? []) {
+      const id = m.guest_id as string; if (!id) continue;
+      const at = m.created_at as string;
+      if (!last.get(id) || at > last.get(id)!) last.set(id, at);
+      if (m.wamid && (!accepted.get(id) || at > accepted.get(id)!)) accepted.set(id, at);
+      if (didArrive(m.status as string) && _isRsvp(m.body as string)) arrived.add(id);
+      /* The sender counts a reminder by the same two words — wa-send/route.ts. */
+      if (/תזכורת|עוד לא קיבלנו/.test(String(m.body ?? ""))) {
+        reminders.set(id, (reminders.get(id) ?? 0) + 1);
+      }
+    }
+  }
+
+  const due: EligibleAt[] = real.map(g => eligibleAt({
+    delivered: arrived.has(g.id as string),
+    maxReminders: ev.max_reminders ?? undefined,
+    reminderCooldownH: ev.reminder_cooldown_h ?? undefined,
+    lastOutboundAt: last.get(g.id as string) ?? null,
+    lastAcceptedAt: accepted.get(g.id as string) ?? null,
+    remindersSent: reminders.get(g.id as string) ?? 0,
+  }));
+
+  return nextSend(
+    due, CRON_UTC, at => shabbatBlock(at).blocked, Date.now(),
+    ev.send_paused_until ? new Date(ev.send_paused_until).getTime() : null,
+  );
+}
+
+/** "יום חמישי, 10.9, 16:00" — how a person says a moment. */
+function whenText(ms: number): string {
+  return new Date(ms).toLocaleString("he-IL", {
+    timeZone: "Asia/Jerusalem", weekday: "long",
+    day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit",
+  });
 }
 
 /* Confirmed, asked how many, and never answered.

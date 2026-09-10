@@ -108,3 +108,17 @@ test("שתי הרשימות החדשות — תקועים וחסרי מספר", 
      wedding called "אמר". */
   assert.equal(askIntent("כמה אישרו לשלמה")?.kind, "wedding");
 });
+
+test("מתי יוצאת התזכורת הבאה", () => {
+  /* His clients asked him this on 10/09 and the console had no answer at all. */
+  const a = askIntent("מהחתונה של טל ולאל שואלים מתי נשלחת עוד תזכורת");
+  assert.equal(a?.kind, "wedding");
+  assert.equal((a as { needle: string }).needle, "טל ולאל",
+    "כל מילות השאלה נופלות, כולל אלה שהודבקה להן אות בהתחלה");
+
+  for (const s of ["מתי התזכורת הבאה", "מתי יוצאות תזכורות", "מתי נשלחת עוד תזכורת"])
+    assert.equal(askIntent(s)?.kind, "weddings", s);
+
+  /* And it must not swallow the counting question. */
+  assert.equal(askIntent("כמה אישרו לשלמה")?.kind, "wedding");
+});

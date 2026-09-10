@@ -49,6 +49,8 @@ const FILLER = new Set([
   "פתח", "פתחו", "ראו", "ראה", "ענו", "ענה", "אישרו", "החליטו", "עדיין",
   "נכנס", "נכנסו", "אישר", "השיבו", "התלבט", "צריך", "ידנית", "איזה", "אילו",
   "אמרו", "אמר", "תקוע", "תקועים", "מספר", "טלפון", "להם", "אנשים", "מוזמנים",
+  "מתי", "תזכורת", "תזכורות", "נשלחת", "נשלחות", "יוצאת", "יוצאות", "הבאה", "שואלים",
+  "חתונה", "חתונת", "שואל", "שואלת", "עוד",
 ]);
 
 /* Things a person says to a machine, which are not questions and not names.
@@ -77,6 +79,10 @@ const MISSING = /(לא קיבל|לא קיבלו|לא הגיע להם|חסרים|
 /* Tested before STANDING, which matches on the bare word "כמה". */
 const STUCK = /(לא אמרו כמה|לא אמר כמה|לא יודעים כמה|תקוע|תקועים|באמצע שיחה|בלי מספר אנשים|כמה הם מגיעים)/;
 const NOPHONE = /(אין מספר|בלי מספר טלפון|חסר מספר|אין להם מספר|למי אין|בלי טלפון)/;
+/* "מהחתונה של טל ולאל שואלים מתי נשלחת עוד תזכורת" — 10/09. Checked before
+   STANDING so that "מתי" wins over the bare "כמה" that a longer sentence
+   often also contains. */
+const WHEN_NEXT = /(מתי.*(תזכורת|נשלח|יוצא|שולח)|תזכורת הבאה|התזכורת הבאה|מתי הבאה|מתי עוד|השליחה הבאה|מתי יוצאות)/;
 const OPENED = /(פתח|פתחו|ראו|ראה|נכנס|נכנסו|לא ענו|לא אישרו|לא השיבו|התלבט)/;
 /* A question about where a wedding stands. Broad on purpose — nothing reaches
    this file until every command and every menu id has already failed. */
@@ -100,14 +106,22 @@ export function askIntent(said: string): AskIntent | null {
   /* The name, if he named one: everything that is not grammar. */
   const rest = t
     .split(/[\s,.?!״"'־-]+/)
-    /* Also without a leading ו. Hebrew glues "and" onto the next word, so
-       "ולא" and "וצריך" are grammar wearing a disguise — and leaving them in
-       the needle is enough to lose the wedding he named, because matchEvent
-       requires every word to hit. */
-    .filter(w => w.length > 1 && !FILLER.has(w) && !FILLER.has(w.replace(/^ו/, "")))
+    /* Also without the letters Hebrew glues onto the front of a word. "ולא",
+       "וצריך", "התזכורת" and "מהחתונה" are all grammar wearing a disguise, and
+       leaving one in the needle is enough to lose the wedding he named —
+       matchEvent requires every remaining word to hit.
+    
+       Safe because FILLER is a fixed allowlist: a name is dropped only if the
+       stripped form is itself a filler word, and no name in this business
+       reduces to one. */
+    .filter(w => w.length > 1
+      && !FILLER.has(w)
+      && !FILLER.has(w.replace(/^[והבלמכש]/, ""))
+      && !FILLER.has(w.replace(/^[ומ]?ה/, "")))
     .join(" ")
     .trim();
 
+  if (WHEN_NEXT.test(t)) return rest ? { kind: "wedding", needle: rest } : { kind: "weddings" };
   if (NOPHONE.test(t)) return rest ? { kind: "nophone", needle: rest } : { kind: "nophone" };
   if (STUCK.test(t)) return rest ? { kind: "stuck", needle: rest } : { kind: "stuck" };
   if (OPENED.test(t)) return rest ? { kind: "opened", needle: rest } : { kind: "opened" };
