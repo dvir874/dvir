@@ -28,6 +28,8 @@ export type AskIntent =
   | { kind: "waiting" }
   | { kind: "missing"; needle?: string }
   | { kind: "opened"; needle?: string }
+  | { kind: "stuck"; needle?: string }
+  | { kind: "nophone"; needle?: string }
   /** A named wedding — the console resolves the name with matchEvent. */
   | { kind: "wedding"; needle: string }
   | { kind: "weddings" };
@@ -46,6 +48,7 @@ const FILLER = new Set([
   "קיבל", "קיבלו", "הזמנה", "הזמנות", "נשלח", "נשלחו", "שלחנו", "לא", "כן",
   "פתח", "פתחו", "ראו", "ראה", "ענו", "ענה", "אישרו", "החליטו", "עדיין",
   "נכנס", "נכנסו", "אישר", "השיבו", "התלבט", "צריך", "ידנית", "איזה", "אילו",
+  "אמרו", "אמר", "תקוע", "תקועים", "מספר", "טלפון", "להם", "אנשים", "מוזמנים",
 ]);
 
 /* Things a person says to a machine, which are not questions and not names.
@@ -71,6 +74,9 @@ const MISSING = /(לא קיבל|לא קיבלו|לא הגיע להם|חסרים|
 /* Checked BEFORE missing, because "פתחו ולא ענו" contains "לא ענו" and not
    "לא קיבלו" — but "מי ראה את ההזמנה ולא קיבל החלטה" contains both. The
    opened list is the more specific question, so it wins. */
+/* Tested before STANDING, which matches on the bare word "כמה". */
+const STUCK = /(לא אמרו כמה|לא אמר כמה|לא יודעים כמה|תקוע|תקועים|באמצע שיחה|בלי מספר אנשים|כמה הם מגיעים)/;
+const NOPHONE = /(אין מספר|בלי מספר טלפון|חסר מספר|אין להם מספר|למי אין|בלי טלפון)/;
 const OPENED = /(פתח|פתחו|ראו|ראה|נכנס|נכנסו|לא ענו|לא אישרו|לא השיבו|התלבט)/;
 /* A question about where a wedding stands. Broad on purpose — nothing reaches
    this file until every command and every menu id has already failed. */
@@ -102,6 +108,8 @@ export function askIntent(said: string): AskIntent | null {
     .join(" ")
     .trim();
 
+  if (NOPHONE.test(t)) return rest ? { kind: "nophone", needle: rest } : { kind: "nophone" };
+  if (STUCK.test(t)) return rest ? { kind: "stuck", needle: rest } : { kind: "stuck" };
   if (OPENED.test(t)) return rest ? { kind: "opened", needle: rest } : { kind: "opened" };
   if (MISSING.test(t)) return rest ? { kind: "missing", needle: rest } : { kind: "missing" };
   if (STANDING.test(t)) return rest ? { kind: "wedding", needle: rest } : { kind: "weddings" };

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
-import { whatsappInviteLink, whatsappReminderLink } from "@/lib/phone";
+import { whatsappInviteLink, whatsappReminderLink, whatsappCountLink } from "@/lib/phone";
 import { APP_URL } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +34,7 @@ export async function GET(
 
   const sb = createServerClient();
   const { data: g } = await sb.from("guests")
-    .select("name, phone, rsvp_token, status, event_id")
+    .select("name, phone, rsvp_token, status, event_id, chat_state")
     .eq("rsvp_token", clean).maybeSingle();
 
   /* A dead token opens WhatsApp with nothing rather than an error page — he is
@@ -49,9 +49,19 @@ export async function GET(
   if (answered) {
     const { data: ev } = await sb.from("events")
       .select("name, couple_names").eq("id", g.event_id as string).maybeSingle();
-    link = whatsappReminderLink(
-      String(g.phone), String(g.name ?? ""), String(g.rsvp_token),
-      String(ev?.couple_names ?? ev?.name ?? ""));
+    const who = String(ev?.couple_names ?? ev?.name ?? "");
+
+    /* Confirmed, and stuck on "how many".
+     *
+     * They tapped "מגיע/ה", were asked the headcount, and stopped — eleven of
+     * them across the live weddings, the oldest since 20/08. Sending them the
+     * reminder text, which opens "עוד לא קיבלנו את אישור ההגעה שלכם", tells
+     * somebody who confirmed three weeks ago that we never heard from them.
+     * The open question is the number, so ask for the number. */
+    link = String(g.chat_state ?? "").startsWith("awaiting_count")
+      ? whatsappCountLink(String(g.phone), String(g.name ?? ""), who)
+      : whatsappReminderLink(
+          String(g.phone), String(g.name ?? ""), String(g.rsvp_token), who);
   } else {
     link = whatsappInviteLink(String(g.phone), String(g.name ?? ""), String(g.rsvp_token));
   }

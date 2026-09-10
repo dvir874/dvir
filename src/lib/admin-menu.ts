@@ -34,6 +34,8 @@ export type MenuAction =
   | { screen: "resume"; id: string }
   | { screen: "missing"; id?: string }
   | { screen: "opened"; id?: string }     /* saw the page, never answered */
+  | { screen: "stuck"; id?: string }      /* mid-conversation, for weeks */
+  | { screen: "nophone"; id?: string }    /* no number at all */
   | { screen: "waiting" }                 /* מחכים לי */
   | { screen: "pick_reply" }              /* choose whom to answer */
   | { screen: "reply_to"; id: string }    /* arm a reply to one guest */
@@ -56,6 +58,8 @@ export function menuId(a: MenuAction): string {
     case "resume":     return `${PREFIX}go:${a.id}`;
     case "missing":    return a.id ? `${PREFIX}miss:${a.id}` : `${PREFIX}miss`;
     case "opened":     return a.id ? `${PREFIX}open:${a.id}` : `${PREFIX}open`;
+    case "stuck":      return a.id ? `${PREFIX}stuck:${a.id}` : `${PREFIX}stuck`;
+    case "nophone":    return a.id ? `${PREFIX}noph:${a.id}` : `${PREFIX}noph`;
     case "waiting":    return `${PREFIX}wait`;
     case "pick_reply": return `${PREFIX}rep`;
     case "reply_to":   return `${PREFIX}rep:${a.id}`;
@@ -96,6 +100,8 @@ export function parseMenuId(raw: string | null | undefined): MenuAction | null {
     case "go":    return id ? { screen: "resume", id } : null;
     case "miss":  return id ? { screen: "missing", id } : { screen: "missing" };
     case "open":  return id ? { screen: "opened", id } : { screen: "opened" };
+    case "stuck": return id ? { screen: "stuck", id } : { screen: "stuck" };
+    case "noph":  return id ? { screen: "nophone", id } : { screen: "nophone" };
     case "wait":  return id ? null : { screen: "waiting" };
     case "rep":   return id ? { screen: "reply_to", id } : { screen: "pick_reply" };
     case "mute":  return id ? { screen: "mute", id } : null;
@@ -130,6 +136,14 @@ export const LABEL = {
      answered — 52 of them at שלמה's alone. They are not unreachable and they
      are not uninterested; they were interrupted. */
   opened:    "👀 פתחו ולא ענו",
+  /* Confirmed, asked how many, never answered — the oldest since 20/08. They
+     are counted as coming with a headcount nobody confirmed, and that number
+     is what the caterer is told. */
+  stuck:     "🔢 לא אמרו כמה",
+  /* 36 guests with no number at all, 30 of them at איילת's — whose sending
+     opens on 13/09. They are filtered out of every other list by the very
+     check that makes those lists work. */
+  nophone:   "☎️ חסר מספר",
   pickReply: "✉️ לענות לאורח",
   help:      "❓ עזרה",
   pause:     "⏸ עצור שליחה",

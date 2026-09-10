@@ -229,6 +229,8 @@ async function answerAsk(sb: Sb, cfg: Cfg, to: string, said: string): Promise<bo
   if (!ask) return false;
 
   switch (ask.kind) {
+    case "stuck":    await renderScreen(sb, cfg, to, { screen: "stuck" });    return true;
+    case "nophone":  await renderScreen(sb, cfg, to, { screen: "nophone" });  return true;
     case "today":    await renderScreen(sb, cfg, to, { screen: "today" });    return true;
     case "money":    await renderScreen(sb, cfg, to, { screen: "money" });    return true;
     case "waiting":  await renderScreen(sb, cfg, to, { screen: "waiting" });  return true;
@@ -400,6 +402,8 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
         { id: menuId({ screen: "waiting" }),    title: LABEL.waiting },
         { id: menuId({ screen: "missing" }),    title: LABEL.missing },
         { id: menuId({ screen: "opened" }),     title: LABEL.opened },
+        { id: menuId({ screen: "stuck" }),      title: LABEL.stuck },
+        { id: menuId({ screen: "nophone" }),    title: LABEL.nophone },
         { id: menuId({ screen: "pick_reply" }), title: LABEL.pickReply },
         { id: menuId({ screen: "today" }),      title: LABEL.today },
         { id: menuId({ screen: "money" }),      title: LABEL.money },
@@ -471,6 +475,16 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
 
     case "opened":
       for (const part of await openedText(sb, a.id ? { id: a.id } : undefined)) await say(part);
+      await sendButtons(cfg, to, "עוד משהו?", [back]);
+      return;
+
+    case "stuck":
+      for (const part of await stuckText(sb)) await say(part);
+      await sendButtons(cfg, to, "עוד משהו?", [back]);
+      return;
+
+    case "nophone":
+      for (const part of await noPhoneText(sb)) await say(part);
       await sendButtons(cfg, to, "עוד משהו?", [back]);
       return;
 
@@ -601,6 +615,111 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
       return;
     }
   }
+}
+
+/* Confirmed, asked how many, and never answered.
+ *
+ * Eleven guests on the live weddings sit in chat_state 'awaiting_count' — the
+ * oldest since 20/08, three weeks. They tapped "מגיע/ה", the system asked the
+ * headcount, and the conversation stopped there.
+ *
+ * No screen in this console shows them, and each of the three that could
+ * excludes them structurally: classifyManualWork returns early for anyone
+ * status=confirmed, and both missingText and openedText filter on
+ * status=pending. So they are counted as coming, with full confidence, on a
+ * number nobody confirmed — six of the eleven are still carrying the default
+ * of 1, and that default is what the caterer is told.
+ *
+ * Their 24-hour windows shut weeks ago, so the business number cannot write to
+ * them at all. The link is the /s/ redirect, which now asks for the count
+ * rather than claiming we never got their RSVP — see src/app/s/[token]/route.ts.
+ *
+ * Guests already status=declined are excluded even when their state flag is
+ * stale: two of them are, and asking a person who declined "did you get our
+ * message" is the same "system that lost you" this file keeps trying to avoid.
+ */
+async function stuckText(sb: Sb): Promise<string[]> {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+  const { data: evs } = await sb.from("events")
+    .select("id, name, couple_names, date").gte("date", today).order("date").limit(12);
+
+  const blocks: string[] = [];
+  let any = false;
+  for (const e of (evs ?? []) as { id: string; name?: string | null; couple_names?: string | null }[]) {
+    const { data: gs } = await sb.from("guests")
+      .select("id, name, phone, status, guest_count, chat_state, chat_state_at, rsvp_token, category, do_not_contact")
+      .eq("event_id", e.id).not("chat_state", "is", null)
+      .order("chat_state_at", { ascending: true }).limit(200);
+    const real = (gs ?? []).filter(g =>
+      g.category !== "demo" && !g.do_not_contact && g.status !== "declined"
+      && String(g.phone ?? "").trim() && g.rsvp_token);
+    if (!real.length) continue;
+
+    any = true;
+    blocks.push(`${coupleName(e as Parameters<typeof coupleName>[0]) ?? e.name} — ${real.length} תקועים:`);
+    for (const g of real) {
+      const since = g.chat_state_at
+        ? new Date(g.chat_state_at as string).toLocaleDateString("he-IL",
+            { timeZone: "Asia/Jerusalem", day: "numeric", month: "numeric" })
+        : "";
+      const what = String(g.chat_state ?? "").startsWith("awaiting_count")
+        ? `נשאל כמה · נספר כ-${g.guest_count ?? 1}` : "באמצע ביטול";
+      blocks.push(`${g.name} ${g.phone}\n${what}${since ? ` · מ-${since}` : ""}\n${APP_URL}/s/${g.rsvp_token}`);
+    }
+  }
+
+  const chunks = chunkBlocks(blocks);
+  if (!chunks.length) return ["אף אחד לא תקוע באמצע שיחה 🤍"];
+  if (any) chunks.push("הם אמרו שהם מגיעים ולא אמרו כמה. המספר שמופיע הוא ניחוש, וזה מה שהאולם מקבל.");
+  return chunks;
+}
+
+/* The guests with no phone number at all.
+ *
+ * Thirty-six across two live weddings — thirty of them at ירון ואיילת's, whose
+ * sending opens on 13/09. Every other list filters them out with the very
+ * check that makes those lists work: missingText requires a phone before it
+ * will call anybody missing. So they are not "not reached yet"; they are
+ * impossible, and no screen has ever mentioned them.
+ *
+ * There is no link here, because there is nothing to link to. The action is a
+ * message to the couple, and it belongs to Dvir's own phone.
+ */
+async function noPhoneText(sb: Sb): Promise<string[]> {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+  const { data: evs } = await sb.from("events")
+    .select("id, name, couple_names, date, client_phone, send_paused_until")
+    .gte("date", today).order("date").limit(12);
+
+  const blocks: string[] = [];
+  for (const e of (evs ?? []) as {
+    id: string; name?: string | null; couple_names?: string | null;
+    date: string; client_phone?: string | null; send_paused_until?: string | null;
+  }[]) {
+    const { data: gs } = await sb.from("guests")
+      .select("name, phone, status, category").eq("event_id", e.id).limit(900);
+    const real = (gs ?? []).filter(g =>
+      g.category !== "demo" && !String(g.phone ?? "").trim());
+    if (!real.length) continue;
+
+    const who = coupleName(e as Parameters<typeof coupleName>[0]) ?? e.name;
+    const starts = e.send_paused_until && new Date(e.send_paused_until).getTime() > Date.now()
+      ? ` השליחה מתחילה ב-${new Date(e.send_paused_until).toLocaleDateString("he-IL",
+          { timeZone: "Asia/Jerusalem", day: "numeric", month: "numeric" })}.`
+      : "";
+    blocks.push(`${who} — ${real.length} בלי מספר טלפון.${starts}`);
+    /* Names only, in one block: without a number there is nothing to tap, and
+       the point is to hand the list to the couple. */
+    blocks.push(real.map(g => g.name).join(" · "));
+    blocks.push(e.client_phone
+      ? `לשאול את הזוג — https://wa.me/${String(e.client_phone).replace(/\D/g, "").replace(/^0/, "972")}`
+      : "אין מספר טלפון של הזוג הזה במערכת — אי אפשר לשאול אותם.");
+  }
+
+  const chunks = chunkBlocks(blocks);
+  if (!chunks.length) return ["לכל האורחים יש מספר טלפון 🤍"];
+  chunks.push("בלי מספר הם לא יקבלו כלום ולא יופיעו באף רשימה אחרת. השמות האלה צריכים לחזור מהזוג.");
+  return chunks;
 }
 
 /* The warmest list in the system, and the one that had no screen.

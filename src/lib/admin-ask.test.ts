@@ -96,3 +96,15 @@ test("הרשימה החמה — מי פתח ולא ענה", () => {
   /* And it must not swallow the other list: "לא קיבלו" has no opening in it. */
   assert.equal(askIntent("מי לא קיבל הזמנה")?.kind, "missing");
 });
+
+test("שתי הרשימות החדשות — תקועים וחסרי מספר", () => {
+  for (const s of ["מי לא אמר כמה", "מי תקוע", "מי תקועים באמצע שיחה", "מי לא אמרו כמה"])
+    assert.equal(askIntent(s)?.kind, "stuck", s);
+  for (const s of ["למי אין מספר", "מי בלי מספר טלפון", "חסר מספר למי"])
+    assert.equal(askIntent(s)?.kind, "nophone", s);
+
+  /* STUCK is tested before STANDING, which matches the bare word "כמה" —
+     without that ordering "מי לא אמר כמה" becomes a wedding lookup for a
+     wedding called "אמר". */
+  assert.equal(askIntent("כמה אישרו לשלמה")?.kind, "wedding");
+});

@@ -67,6 +67,31 @@ export function whatsappThankYouLink(
   return `https://wa.me/${normalized}?text=${encodeURIComponent(waPrefill(message))}`;
 }
 
+/* The one for a guest who already said they are coming and never said how many.
+ *
+ * Eleven guests on live weddings are sitting in chat_state 'awaiting_count',
+ * the oldest since 20/08 — three weeks. They tapped "מגיע/ה", were asked how
+ * many, and stopped. They are status=confirmed, so every screen counts them as
+ * coming and the caterer is told whatever the import guessed: six of the
+ * eleven are still carrying the default of 1.
+ *
+ * Until now the /s/ redirect gave them whatsappReminderLink, whose text is
+ * "עוד לא קיבלנו את אישור ההגעה שלכם" — telling somebody who confirmed three
+ * weeks ago that we never heard from them. That is not a smaller version of
+ * the right message; it is a different and wrong one, and it reads as a system
+ * that lost them.
+ */
+export function whatsappCountLink(
+  phone: string,
+  name: string,
+  eventName: string,
+): string {
+  const message =
+    `היי ${name}! 🤍\n\nרק לוודא לקראת ${eventName} — כמה אתם מגיעים?\n\n`
+    + `אפשר לענות כאן במספר בלבד.`;
+  return `https://wa.me/${normalizePhone(phone)}?text=${encodeURIComponent(waPrefill(message))}`;
+}
+
 export function whatsappReminderLink(
   phone: string,
   name: string,
