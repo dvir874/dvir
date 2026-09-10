@@ -27,6 +27,7 @@ export type AskIntent =
   | { kind: "money" }
   | { kind: "waiting" }
   | { kind: "missing"; needle?: string }
+  | { kind: "opened"; needle?: string }
   /** A named wedding — the console resolves the name with matchEvent. */
   | { kind: "wedding"; needle: string }
   | { kind: "weddings" };
@@ -43,6 +44,8 @@ const FILLER = new Set([
   "אורחים", "אורח", "חתונה", "החתונה", "חתונת", "אירוע", "האירוע",
   "היום", "מחר", "אתמול", "השבוע",
   "קיבל", "קיבלו", "הזמנה", "הזמנות", "נשלח", "נשלחו", "שלחנו", "לא", "כן",
+  "פתח", "פתחו", "ראו", "ראה", "ענו", "ענה", "אישרו", "החליטו", "עדיין",
+  "נכנס", "נכנסו", "אישר", "השיבו", "התלבט", "צריך", "ידנית", "איזה", "אילו",
 ]);
 
 /* Things a person says to a machine, which are not questions and not names.
@@ -65,6 +68,10 @@ const TODAY   = /(מה יוצא|מה נשלח|מה יצא|כמה נשלחו|מה
 const MONEY   = /(כסף|שילם|שילמו|שולם|לא שולם|חוב|חובות|גבייה|לגבות|תשלום|תשלומים|כמה פתוח|כמה נכנס|הכנסות)/;
 const WAITING = /(מחכה לי|מחכים לי|מי מחכה|צריך אותי|צריכים אותי|טיפול ידני|מה דחוף)/;
 const MISSING = /(לא קיבל|לא קיבלו|לא הגיע להם|חסרים|לא נשלח להם|מי לא קיבל)/;
+/* Checked BEFORE missing, because "פתחו ולא ענו" contains "לא ענו" and not
+   "לא קיבלו" — but "מי ראה את ההזמנה ולא קיבל החלטה" contains both. The
+   opened list is the more specific question, so it wins. */
+const OPENED = /(פתח|פתחו|ראו|ראה|נכנס|נכנסו|לא ענו|לא אישרו|לא השיבו|התלבט)/;
 /* A question about where a wedding stands. Broad on purpose — nothing reaches
    this file until every command and every menu id has already failed. */
 const STANDING = /(כמה|מצב|סטטוס|מה עם|איך הולך|כמה אישרו|כמה מגיעים|כמה ממתינים|כמה ענו)/;
@@ -87,10 +94,15 @@ export function askIntent(said: string): AskIntent | null {
   /* The name, if he named one: everything that is not grammar. */
   const rest = t
     .split(/[\s,.?!״"'־-]+/)
-    .filter(w => w.length > 1 && !FILLER.has(w))
+    /* Also without a leading ו. Hebrew glues "and" onto the next word, so
+       "ולא" and "וצריך" are grammar wearing a disguise — and leaving them in
+       the needle is enough to lose the wedding he named, because matchEvent
+       requires every word to hit. */
+    .filter(w => w.length > 1 && !FILLER.has(w) && !FILLER.has(w.replace(/^ו/, "")))
     .join(" ")
     .trim();
 
+  if (OPENED.test(t)) return rest ? { kind: "opened", needle: rest } : { kind: "opened" };
   if (MISSING.test(t)) return rest ? { kind: "missing", needle: rest } : { kind: "missing" };
   if (STANDING.test(t)) return rest ? { kind: "wedding", needle: rest } : { kind: "weddings" };
 

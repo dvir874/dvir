@@ -234,11 +234,16 @@ async function answerAsk(sb: Sb, cfg: Cfg, to: string, said: string): Promise<bo
     case "waiting":  await renderScreen(sb, cfg, to, { screen: "waiting" });  return true;
     case "weddings": await renderScreen(sb, cfg, to, { screen: "weddings" }); return true;
 
+    case "opened":
     case "missing":
     case "wedding": {
       const evs = await upcoming(sb, 20);
       const needle = "needle" in ask ? ask.needle : undefined;
-      if (!needle) { await renderScreen(sb, cfg, to, { screen: "missing" }); return true; }
+      if (!needle) {
+        await renderScreen(sb, cfg, to,
+          ask.kind === "opened" ? { screen: "opened" } : { screen: "missing" });
+        return true;
+      }
 
       /* As he wrote it first, then without the Hebrew preposition glued to the
          front. "לשלמה" only becomes "שלמה" on the second attempt, because
@@ -252,16 +257,17 @@ async function answerAsk(sb: Sb, cfg: Cfg, to: string, said: string): Promise<bo
          an unrecognised name is still a missing-invitations question, and it
          should answer for every wedding rather than fall silently to a menu.
          Only "which wedding" genuinely needs the name. */
-      if ("none" in m && ask.kind === "missing") {
-        await renderScreen(sb, cfg, to, { screen: "missing" });
+      if ("none" in m && (ask.kind === "missing" || ask.kind === "opened")) {
+        await renderScreen(sb, cfg, to,
+          ask.kind === "opened" ? { screen: "opened" } : { screen: "missing" });
         return true;
       }
 
       if ("event" in m) {
         await renderScreen(sb, cfg, to,
-          ask.kind === "missing"
-            ? { screen: "missing", id: m.event.id }
-            : { screen: "wedding", id: m.event.id });
+          ask.kind === "missing" ? { screen: "missing", id: m.event.id }
+          : ask.kind === "opened" ? { screen: "opened", id: m.event.id }
+          : { screen: "wedding", id: m.event.id });
         return true;
       }
       if ("ambiguous" in m) {
@@ -393,6 +399,7 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
         { id: menuId({ screen: "weddings" }),   title: LABEL.weddings },
         { id: menuId({ screen: "waiting" }),    title: LABEL.waiting },
         { id: menuId({ screen: "missing" }),    title: LABEL.missing },
+        { id: menuId({ screen: "opened" }),     title: LABEL.opened },
         { id: menuId({ screen: "pick_reply" }), title: LABEL.pickReply },
         { id: menuId({ screen: "today" }),      title: LABEL.today },
         { id: menuId({ screen: "money" }),      title: LABEL.money },
@@ -459,6 +466,11 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
 
     case "missing":
       for (const part of await missingText(sb, a.id ? { id: a.id } : undefined)) await say(part);
+      await sendButtons(cfg, to, "עוד משהו?", [back]);
+      return;
+
+    case "opened":
+      for (const part of await openedText(sb, a.id ? { id: a.id } : undefined)) await say(part);
       await sendButtons(cfg, to, "עוד משהו?", [back]);
       return;
 
@@ -589,6 +601,69 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
       return;
     }
   }
+}
+
+/* The warmest list in the system, and the one that had no screen.
+ *
+ * Eighty-one guests across three weddings tapped their invitation, opened the
+ * RSVP page, and never answered — fifty-two of them at שלמה's alone, four
+ * weeks out. They are not unreachable and they are not uninterested: they are
+ * the people who were already holding the page and got interrupted.
+ *
+ * Every other list in this console is about a failure — nobody could reach
+ * them, the number is wrong, they asked us to stop. This one is about
+ * attention that was already given and not collected, which is why it is worth
+ * a person's time more than any of them.
+ *
+ * Ordered by when they opened it, most recent first: somebody who read it this
+ * morning is a different conversation from somebody who read it in August.
+ */
+async function openedText(sb: Sb, only?: { name?: string; id?: string }): Promise<string[]> {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+  const { data: evs } = await sb.from("events")
+    .select("id, name, couple_names, date")
+    .gte("date", today).order("date").limit(12);
+  let list = (evs ?? []) as { id: string; name?: string | null; couple_names?: string | null }[];
+  if (only?.id) {
+    const hit = list.find(e => e.id === only.id);
+    if (!hit) return ["החתונה הזאת כבר לא ברשימה."];
+    list = [hit];
+  } else if (only?.name) {
+    const m = matchEvent(only.name, list);
+    if ("none" in m) return [`(התעלמתי מ"${only.name}")`, ...await openedText(sb)];
+    if ("ambiguous" in m) return [`"${only.name}" מתאים ליותר מאחת. תכתוב שם מדויק יותר.`];
+    list = [m.event];
+  }
+
+  const blocks: string[] = [];
+  let any = false;
+  for (const e of list) {
+    const { data: gs } = await sb.from("guests")
+      .select("id, name, phone, rsvp_token, opened_at, category, do_not_contact")
+      .eq("event_id", e.id).eq("status", "pending")
+      .not("opened_at", "is", null)
+      .order("opened_at", { ascending: false }).limit(400);
+    const real = (gs ?? []).filter(g =>
+      g.category !== "demo" && !g.do_not_contact
+      && String(g.phone ?? "").trim() && g.rsvp_token);
+    if (!real.length) continue;
+
+    any = true;
+    const who = coupleName(e as Parameters<typeof coupleName>[0]) ?? e.name;
+    blocks.push(`${who} — ${real.length} פתחו ולא ענו:`);
+    for (const g of real) {
+      const when = g.opened_at
+        ? new Date(g.opened_at as string).toLocaleDateString("he-IL",
+            { timeZone: "Asia/Jerusalem", day: "numeric", month: "numeric" })
+        : "";
+      blocks.push(`${g.name} ${g.phone}${when ? ` · פתח ${when}` : ""}\n${APP_URL}/s/${g.rsvp_token}`);
+    }
+  }
+
+  const chunks = chunkBlocks(blocks);
+  if (!chunks.length) return ["אין אף אחד שפתח ולא ענה 🤍"];
+  if (any) chunks.push("אלה האנשים שכבר החזיקו את הדף. הודעה אישית מהמספר שלך סוגרת את רובם.");
+  return chunks;
 }
 
 /* Each screen below answers with a string rather than sending it, so the same

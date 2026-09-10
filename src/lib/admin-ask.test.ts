@@ -78,6 +78,21 @@ test("שום ניסוח אינו הופך להודעה לאורח", () => {
      branch anywhere in it that addresses a person. */
   for (const s of ["שלח לכולם תזכורת", "כמה אישרו", "מי לא אישר", "תראה לי סטטוס"]) {
     const a = askIntent(s);
-    assert.ok(a === null || ["today","money","waiting","missing","wedding","weddings"].includes(a.kind), s);
+    assert.ok(a === null || ["today","money","waiting","missing","opened","wedding","weddings"].includes(a.kind), s);
   }
+});
+
+test("הרשימה החמה — מי פתח ולא ענה", () => {
+  /* 81 guests across three weddings tapped their invitation, read the page and
+     never answered — 52 of them at שלמה's. Every other list in this console is
+     about a failure; this one is about attention already given. */
+  for (const s of ["מי פתח ולא ענה", "מי ראה ולא אישר", "מי נכנס ולא ענה", "מי פתחו ולא ענו"])
+    assert.equal(askIntent(s)?.kind, "opened", s);
+
+  const withName = askIntent("מי פתח ולא ענה אצל שלמה");
+  assert.equal(withName?.kind, "opened");
+  assert.equal((withName as { needle?: string }).needle, "שלמה");
+
+  /* And it must not swallow the other list: "לא קיבלו" has no opening in it. */
+  assert.equal(askIntent("מי לא קיבל הזמנה")?.kind, "missing");
 });

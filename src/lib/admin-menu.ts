@@ -33,6 +33,7 @@ export type MenuAction =
   | { screen: "pause"; id: string }
   | { screen: "resume"; id: string }
   | { screen: "missing"; id?: string }
+  | { screen: "opened"; id?: string }     /* saw the page, never answered */
   | { screen: "waiting" }                 /* מחכים לי */
   | { screen: "pick_reply" }              /* choose whom to answer */
   | { screen: "reply_to"; id: string }    /* arm a reply to one guest */
@@ -54,6 +55,7 @@ export function menuId(a: MenuAction): string {
     case "pause":      return `${PREFIX}pause:${a.id}`;
     case "resume":     return `${PREFIX}go:${a.id}`;
     case "missing":    return a.id ? `${PREFIX}miss:${a.id}` : `${PREFIX}miss`;
+    case "opened":     return a.id ? `${PREFIX}open:${a.id}` : `${PREFIX}open`;
     case "waiting":    return `${PREFIX}wait`;
     case "pick_reply": return `${PREFIX}rep`;
     case "reply_to":   return `${PREFIX}rep:${a.id}`;
@@ -93,6 +95,7 @@ export function parseMenuId(raw: string | null | undefined): MenuAction | null {
     case "pause": return id ? { screen: "pause", id } : null;
     case "go":    return id ? { screen: "resume", id } : null;
     case "miss":  return id ? { screen: "missing", id } : { screen: "missing" };
+    case "open":  return id ? { screen: "opened", id } : { screen: "opened" };
     case "wait":  return id ? null : { screen: "waiting" };
     case "rep":   return id ? { screen: "reply_to", id } : { screen: "pick_reply" };
     case "mute":  return id ? { screen: "mute", id } : null;
@@ -122,6 +125,11 @@ export const LABEL = {
   weddings:  "📊 מצב החתונות",
   waiting:   "🙋 מחכים לי",
   missing:   "📵 לא קיבלו הזמנה",
+  /* The warmest list in the system and the one with no screen: 81 guests
+     across three weddings tapped their invitation, read the page, and never
+     answered — 52 of them at שלמה's alone. They are not unreachable and they
+     are not uninterested; they were interrupted. */
+  opened:    "👀 פתחו ולא ענו",
   pickReply: "✉️ לענות לאורח",
   help:      "❓ עזרה",
   pause:     "⏸ עצור שליחה",
