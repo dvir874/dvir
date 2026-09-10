@@ -114,7 +114,7 @@ export async function handleAdminMessage(
       return true;
 
     case "work":
-      await say(await waitingText(sb));
+      for (const part of chunkBlocks((await waitingText(sb)).split("\n\n"))) await say(part);
       return true;
 
     case "missing":
@@ -131,7 +131,32 @@ export async function handleAdminMessage(
       const phone = cmd.kind === "reply" ? cmd.phone : target!.phone;
       const name  = cmd.kind === "reply" ? null : target!.name;
       const dest  = toE164(phone);
+
+      /* Arming is consumed by the ATTEMPT, never by the result.
+       *
+       * disarm used to run only after a successful send. So when the Graph
+       * call timed out or Meta refused it, Dvir read "❌ לא נשלח" and typed the
+       * natural next thing — "מוזר, ננסה שוב", "למה זה לא עובד" — and that
+       * private note went to the guest, because mode was still 'reply' and
+       * minutes fresh. A failed send is exactly the moment he starts talking
+       * to himself. */
+      await disarm(sb, to);
       if (!dest) { await say("המספר לא תקין."); return true; }
+
+      /* A number he typed is an explicit address and needs no tap — but it
+         must still respect a promise this system made on its own authority.
+         opt-out.ts tells a guest "הסרנו אתכם מהרשימה ולא נשלח שוב", and the
+         alert that follows carries their number, which is precisely how Dvir
+         would come to type it. */
+      if (cmd.kind === "reply") {
+        const { data: flagged } = await sb.from("guests")
+          .select("name, do_not_contact").eq("phone", toLocal(phone)).maybeSingle();
+        if ((flagged as { do_not_contact?: boolean } | null)?.do_not_contact) {
+          await say(`${(flagged as { name?: string }).name ?? phone} ביקש/ה שלא נפנה יותר, `
+            + `והמערכת כבר הבטיחה לו/ה את זה. לא נשלח.`);
+          return true;
+        }
+      }
 
       const res = await sendText(cfg, dest, cmd.text);
       if (!res.ok) {
@@ -156,10 +181,6 @@ export async function handleAdminMessage(
         });
       } catch { /* the message went out; the log is a nicety */ }
 
-      /* One tap, one reply. Leaving it armed would mean the next thing he
-         types — a question to the system, a note to himself — goes to the same
-         guest, which is the failure this whole change exists to remove. */
-      await disarm(sb, to);
       await say(`✓ נשלח${name ? ` ל${name}` : ` ל-${phone}`}`);
       return true;
     }
@@ -427,7 +448,11 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
       return;
 
     case "waiting":
-      await say(await waitingText(sb));
+      /* Chunked for the same reason the missing list is: this is already at
+         85% of Meta's 4096-character body limit with four weddings live, and
+         Meta rejects the whole call above it rather than truncating — which
+         Dvir would see as a bare "עוד משהו?" button and no list at all. */
+      for (const part of chunkBlocks((await waitingText(sb)).split("\n\n"))) await say(part);
       await sendButtons(cfg, to, "עוד משהו?", [back]);
       return;
 
@@ -647,7 +672,18 @@ async function missingText(sb: Sb, only?: { name?: string; id?: string }): Promi
     list = [hit];
   } else if (only?.name) {
     const m = matchEvent(only.name, list);
-    if ("none" in m) return [`לא מצאתי חתונה בשם "${only.name}".`];
+    /* A name that matches nothing is usually not a name.
+     *
+     * parseAdminCommand's MISSING pattern captures whatever trails the
+     * trigger, so "מי לא קיבל הזמנה" — the most natural way to ask this —
+     * arrives here as a wedding called "הזמנה" and used to be answered with
+     * `לא מצאתי חתונה בשם "הזמנה"` and nothing else: no list, no menu, no way
+     * back, while 20 guests across three weddings were waiting to be reached.
+     * The question was complete without the word. Answer it for everyone, and
+     * say which word was ignored so a genuine typo is still visible. */
+    if ("none" in m) {
+      return [`(התעלמתי מ"${only.name}" — לא מצאתי חתונה בשם הזה)`, ...await missingText(sb)];
+    }
     if ("ambiguous" in m) return [`"${only.name}" מתאים ליותר מאחת. תכתוב שם מדויק יותר.`];
     list = [m.event];
   }

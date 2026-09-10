@@ -429,6 +429,21 @@ export async function POST(req: NextRequest) {
        * off or the message is not a command, it falls through to exactly the
        * behaviour it had. See admin-command.ts for the deliberately small
        * grammar — nothing here deletes, imports, or sends to everybody. */
+      /* A re-delivery of something already handled.
+       *
+       * This guard used to sit BELOW the admin branch, so it covered guests
+       * and not Dvir. Meta retries the whole POST when the handler misses its
+       * deadline, and the admin branch is the one that sends free text to a
+       * guest: two overlapping passes, or a first pass that dies between
+       * sendText and disarm, and the guest receives the same unsolicited
+       * message twice seconds apart — which is the exact pattern behind the
+       * 131048 restriction that stopped every client for two days on 9/8.
+       *
+       * It also re-ran every tap. Those writes are individually idempotent,
+       * but the screens are not: one retry is a second copy of the whole
+       * missing-invitations list. */
+      if (m.id && seenBefore.has(m.id)) continue;
+
       if (isAdminPhone(m.from)) {
         try {
           if (await handleAdminMessage(sb, m.from, bodyOf(m),
@@ -455,10 +470,6 @@ export async function POST(req: NextRequest) {
         });
         continue;
       }
-      /* A re-delivery of something already handled. The row is refreshed above;
-         the conversation must not run a second time. */
-      if (m.id && seenBefore.has(m.id)) continue;
-
       try {
         await handleGuestReply(sb, g.id, m.from, bodyOf(m), m.button?.payload);
       } catch (e1) {

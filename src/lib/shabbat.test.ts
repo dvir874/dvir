@@ -121,11 +121,36 @@ test("ערב שחסום מדווח ככזה, לפי תאריך החתונה", ()
   /* 22/09 — the eve is יום כיפור */
   assert.equal(eveningBeforeBlocked("2026-09-22").blocked, true);
   assert.equal(eveningBeforeBlocked("2026-09-22").reason, "yom_tov");
-  /* A Sunday wedding — the eve is Saturday evening, blocked since this file
-     was written and silently costing that wedding its message. */
-  assert.equal(eveningBeforeBlocked("2026-08-16").blocked, true);
+  /* A Sunday wedding — the eve is Saturday, and the 21:30 run is after
+     havdalah, so it is NOT blocked. This asserted the opposite while
+     EVE_SEND_HOUR was 19: the guard reported a failure that never happened,
+     and the wedding-morning fallback stayed open for every Sunday wedding for
+     ever, overriding the couple's own "מחר מתחתנים" choice. */
+  assert.equal(eveningBeforeBlocked("2026-08-16").blocked, false);
+  /* But an eve that really is a חג still reports blocked — see below. */
+  assert.equal(eveningBeforeBlocked("2026-09-22").blocked, true);
   /* An ordinary Tuesday wedding — the eve is a Monday and sends normally. */
   assert.equal(eveningBeforeBlocked("2026-08-18").blocked, false);
   /* Garbage in the column is not a reason to change behaviour. */
   assert.equal(eveningBeforeBlocked("").blocked, false);
+});
+
+test("חג חוסם את כל היום, גם אחרי צאת החג", () => {
+  /* Shabbat opens at 21:00 because Dvir asked for מוצ״ש — the best sending
+     hour of the week. A חג has no such case, and the symmetry had a price:
+     the 21:30 cron on 21/09 is מוצאי יום כיפור, and it would have carried
+     "מחר מתחתנים" to 361 confirmed guests while people were breaking the fast. */
+  assert.equal(shabbatBlock(il("2026-09-21T18:30:00Z")).blocked, true, "21:30 IL ביום כיפור");
+  assert.equal(shabbatBlock(il("2026-09-21T20:30:00Z")).blocked, true, "23:30 IL ביום כיפור");
+  /* And מוצ״ש is still open, which is the whole reason the two differ. */
+  assert.equal(shabbatBlock(il("2026-08-15T18:30:00Z")).blocked, false, "21:30 IL במוצ״ש");
+});
+
+test("ערב חתונה שנופל בחג מדווח חסום, וערב שבת של חתונת ראשון לא", () => {
+  /* The question is "could the eve message have gone out AT ALL", so the hour
+     asked about is the last one that can carry it — 21:00, since real runs
+     land at 21:30 and 22:30 Israel time. */
+  assert.equal(eveningBeforeBlocked("2026-09-22").blocked, true, "הערב הוא יום כיפור");
+  assert.equal(eveningBeforeBlocked("2026-09-22").reason, "yom_tov");
+  assert.equal(eveningBeforeBlocked("2026-08-16").blocked, false, "ערב שבת של חתונת ראשון — 21:30 שולח");
 });

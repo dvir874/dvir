@@ -107,7 +107,20 @@ function weekdayOf(iso: string): number {
 export function blockedAt(dateIL: string, hour: number): ShabbatVerdict {
   const day = weekdayOf(dateIL);
 
-  if (YOM_TOV.has(dateIL) && hour < MOTZASH_HOUR) return { blocked: true, reason: "yom_tov" };
+  /* A חג blocks the whole civil day, not until 21:00 like Shabbat.
+   *
+   * מוצ״ש at 21:00 is a deliberate exception that Dvir asked for: it is the
+   * best sending hour of the Israeli week and the guard used to eat it. There
+   * is no equivalent case on מוצאי חג, and the cost of the symmetry was
+   * concrete — the 21:30 run on 21/09 is 21:30 on מוצאי יום כיפור, and it
+   * would have carried "מחר מתחתנים" to 361 confirmed guests while people were
+   * breaking their fast. That is the single message most likely in this system
+   * to be reported, from a number Meta is reviewing.
+   *
+   * Blocking to midnight also keeps eveningBeforeBlocked honest: it asks about
+   * hour 21, the last hour a message can go out, and on a חג the answer has to
+   * be "no" so the wedding-morning send covers the gap. */
+  if (YOM_TOV.has(dateIL)) return { blocked: true, reason: "yom_tov" };
   if (YOM_TOV.has(nextDay(dateIL)) && hour >= EVE_HOUR) return { blocked: true, reason: "yom_tov_eve" };
 
   if (day === 5 && hour >= EVE_HOUR) return { blocked: true, reason: "shabbat_eve" };
@@ -146,8 +159,19 @@ export function shabbatBlock(now: Date = new Date()): ShabbatVerdict {
   return blockedAt(dateIL, hour);
 }
 
-/** The hour the evening-before message goes out. */
-export const EVE_SEND_HOUR = 19;
+/** The LAST hour on the eve at which a message can still go out.
+ *
+ * This asked about 19:00, and the sending window runs to 21:00 — the crons put
+ * real runs at 21:30 and 22:30 Israel time. So a Saturday eve was reported
+ * blocked (Shabbat is blocked until 21:00) when the 21:30 run would in fact
+ * have sent, and every Sunday wedding was told its eve had failed. The
+ * wedding-morning fallback then stayed open for them permanently, which turns
+ * a couple's explicit "מחר מתחתנים" choice into "היום מתחתנים" for anybody who
+ * confirmed overnight.
+ *
+ * The question this file is asked is "could the eve message have gone out at
+ * all", so the hour must be the last one that could carry it, not the first. */
+export const EVE_SEND_HOUR = 21;
 
 /**
  * Would the evening-before run, the night before this wedding, have been
