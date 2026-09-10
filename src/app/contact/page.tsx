@@ -21,17 +21,21 @@ export const metadata: Metadata = {
   description: "פרטי העסק ודרכי יצירת קשר עם רגע לפני — מערכת אישורי הגעה לחתונות ואירועים",
 };
 
-/* BUSINESS_ID stays null until the VAT certificate exists. Rendering a
-   placeholder number would be worse than rendering nothing: the reviewer
-   compares it against the document, and a mismatch reads as fabrication. */
-const BUSINESS_ID: string | null = null;
+/* Filled 10/09/2026. The certificate this was waiting for was issued on
+   06/09 — אישור עוסק פטור, רשות המסים, מספר 212845523, שם העוסק בן ברוך דביר,
+   כינוי העסק רגע לפני, מען הגר"א 10 חדרה. Every field below is copied from it
+   verbatim, because a page that says something different from the document is
+   worse than a page that says nothing: this is the page a reviewer, a venue or
+   a couple checks when they want to know who they are paying. */
+const BUSINESS_ID: string | null = "212845523";
 
 const DETAILS: { label: string; value: string; href?: string }[] = [
   { label: "שם העסק", value: "רגע לפני" },
   { label: "בעל העסק", value: "דביר בן ברוך" },
-  ...(BUSINESS_ID ? [{ label: "מספר עוסק", value: BUSINESS_ID }] : []),
+  ...(BUSINESS_ID ? [{ label: "מספר עוסק פטור", value: BUSINESS_ID }] : []),
+  { label: "כתובת", value: "הגר\"א 10, חדרה" },
   { label: "טלפון ווואטסאפ", value: "053-331-8177", href: "https://wa.me/972533318177" },
-  { label: "דוא״ל", value: "dvir874@gmail.com", href: "mailto:dvir874@gmail.com" },
+  { label: "דוא״ל", value: "dvir@regalifnei.com", href: "mailto:dvir@regalifnei.com" },
   { label: "אזור פעילות", value: "ישראל" },
 ];
 

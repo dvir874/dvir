@@ -223,7 +223,7 @@ function EventPageSection() {
                 className="flex-1 mx-3 rounded-md px-3 py-1 text-[12px] text-center"
                 style={{ background: G.white, border: `1px solid ${G.borderSoft}`, color: G.darkMuted, fontFamily: "Heebo, sans-serif" }}
               >
-                raga-lifnei.co.il/noaanduri2026
+                regalifnei.com/rsvp/noaanduri
               </div>
             </div>
 
@@ -429,19 +429,19 @@ const REMINDERS = [
     timing: "4 שבועות לפני האירוע",
     label:  "תזכורת ראשונה",
     sent:   "כל המוזמנים שלא אישרו",
-    msg:    "שלום 😊\nהגעתם להזמנה לחתונת נועה ואורי. ואנחנו שמחים!\nעדיין לא אישרתם הגעה?\nלחצו על הקישור ואשרו בקלות:\nraga-lifnei.co.il/noaanduri2026\nנשמח לראותכם! 🤍",
+    msg:    "שלום 😊\nהגעתם להזמנה לחתונת נועה ואורי. ואנחנו שמחים!\nעדיין לא אישרתם הגעה?\nלחצו על הקישור ואשרו בקלות:\nregalifnei.com/rsvp/noaanduri\nנשמח לראותכם! 🤍",
   },
   {
     timing: "2 שבועות לפני האירוע",
     label:  "תזכורת שנייה",
     sent:   "שעדיין לא הגיבו",
-    msg:    "היי! 👋\nאנחנו ב-14 ימים בלבד מחתונת נועה ואורי 🥂\nאם עוד לא אישרתם הגעה. נשמח מאוד לדעת!\nraga-lifnei.co.il/noaanduri2026\nתודה רבה! 💛",
+    msg:    "היי! 👋\nאנחנו ב-14 ימים בלבד מחתונת נועה ואורי 🥂\nאם עוד לא אישרתם הגעה. נשמח מאוד לדעת!\nregalifnei.com/rsvp/noaanduri\nתודה רבה! 💛",
   },
   {
     timing: "שבוע לפני האירוע",
     label:  "תזכורת אחרונה",
     sent:   "ממתינים אחרונים",
-    msg:    "האירוע כבר ממש בפתח! 🎉\nחתונת נועה ואורי. 16 אוקטובר, אולם המלכות.\nזו ההזדמנות האחרונה לאשר הגעה:\nraga-lifnei.co.il/noaanduri2026\nמחכים לראותכם! 🤍",
+    msg:    "האירוע כבר ממש בפתח! 🎉\nחתונת נועה ואורי. 16 אוקטובר, אולם המלכות.\nזו ההזדמנות האחרונה לאשר הגעה:\nregalifnei.com/rsvp/noaanduri\nמחכים לראותכם! 🤍",
   },
 ];
 

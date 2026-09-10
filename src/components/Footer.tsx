@@ -80,7 +80,7 @@ export default function Footer() {
                 <Phone size={16} color="#C5A46D" />
               </a>
               <a
-                href="mailto:dvir874@gmail.com"
+                href="mailto:dvir@regalifnei.com"
                 className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
                 style={{ background: "rgba(107,123,90,0.25)" }}
                 aria-label="מייל"

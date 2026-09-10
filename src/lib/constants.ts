@@ -4,17 +4,18 @@ export const WA_PHONE = "972533318177";
    hardcode the digits rather than import this, the site shipped both. */
 export const PHONE_DISPLAY = "053-331-8177";
 export const PHONE_HREF = "tel:0533318177";
-/* TODO(dvir): a personal gmail address on a page that calls itself
+/* Done, 10/09/2026.
+   
+   This was a TODO for months: a personal gmail on a page that calls itself
    "ניהול חתונה יוקרתי" undercuts the positioning more than any design choice
-   on the site.
-
-   This used to say the fix was dvir@regalifnei.co.il. It is not: that domain
-   was never registered — it has no DNS record — so the mailbox it named could
-   not have been created. Buying a domain is the actual first step, and it is
-   the same step that would let the site stop publishing a vercel.app address
-   to paying couples. Everything reads this constant, so it stays a one-line
-   change once a real address exists. */
-export const EMAIL = "dvir874@gmail.com";
+   on the site. The blocker was never the constant — it was that the domain in
+   the old TODO, regalifnei.co.il, had never been registered, so the mailbox it
+   named could not exist.
+   
+   regalifnei.com was bought on 09/09 and this address routes through
+   Cloudflare Email Routing to the same inbox. It is also the address Meta sent
+   the business-verification code to. */
+export const EMAIL = "dvir@regalifnei.com";
 
 function waUrl(source: string, message?: string) {
   const text = message ?? `שלום דביר, הגעתי דרך אתר רגע לפני (${source}) ואני מעוניין לשמוע פרטים.`;

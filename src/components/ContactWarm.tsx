@@ -118,7 +118,7 @@ export default function ContactWarm() {
             {[
               { Icon: MessageCircle, label: "וואטסאפ", val: "053-331-8177", sub: "זמין 07:00–22:00", href: `https://wa.me/${WA_PHONE}`, tone: "bg-olive text-white" },
               { Icon: Phone, label: "טלפון", val: "053-331-8177", sub: "שיחה או SMS", href: "tel:0533318177", tone: "bg-gold text-white" },
-              { Icon: Mail, label: "אימייל", val: "dvir874@gmail.com", sub: "מענה תוך 24 שעות", href: "mailto:dvir874@gmail.com", tone: "bg-olive text-white" },
+              { Icon: Mail, label: "אימייל", val: "dvir@regalifnei.com", sub: "מענה תוך 24 שעות", href: "mailto:dvir@regalifnei.com", tone: "bg-olive text-white" },
             ].map(({ Icon, label, val, sub, href, tone }) => (
               <a key={label} href={href} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-card bg-surface-raised p-4 shadow-card">
                 <div className="text-right">

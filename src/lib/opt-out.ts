@@ -62,6 +62,16 @@ function clean(said: string): string {
 const ASKS_TO_STOP =
   /(אל ת(שלח|שלחו|חזרו|פנו|צרו)|לא לשלוח|לא לפנות|תפסיקו לשלוח|הפסיקו לשלוח|(תסירו|הסירו|תסיר|הסר|תורידו|תוריד|הורד)\s*(אותי|אותנו)|הסירו אותי|תסירו אותי|^stop$|^unsubscribe$)/i;
 
+/* The word the site tells them to send.
+ *
+ * /contact says, to guests: 'השיבו "הסר" להודעה'. Nothing matched a bare
+ * "הסר" — the pattern above needs "הסר אותי" — so a guest who followed the
+ * instruction printed on the website was not removed, and the page was the
+ * only place that had promised they would be. On its own, as the whole
+ * message, it can only mean one thing; inside a sentence it cannot, which is
+ * why this is anchored and the pattern above is not. */
+const BARE_STOP = /^(הסר|הסירו|להסיר|תסיר|תסירו|הסירני|עצור|עצרו)[.!]?$/;
+
 /* Someone telling us we have the wrong person. "טעות" alone is not this —
    it is also how you report a jacket taken by mistake. */
 const WRONG_NUMBER =
@@ -93,6 +103,8 @@ export function optOutRequest(said: string): OptOut {
   /* A long message is a person telling us something, not asking to leave. The
      lost-jacket report is 110 characters; every real opt-out here is under 40. */
   if (t.length > 200) return { optOut: false };
+
+  if (BARE_STOP.test(t)) return { optOut: true, phrase: t };
 
   const stop = t.match(ASKS_TO_STOP);
   if (stop) return { optOut: true, phrase: stop[0] };

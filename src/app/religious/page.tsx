@@ -2,15 +2,28 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "אישורי הגעה לחתונה דתית — הפרדה, מהדרין והזמנות צנועות",
-  description: "מערכת אישורי הגעה והושבה שמותאמת לחתונות דתיות וחרדיות: הושבה נפרדת לעזרת גברים ונשים, מנות מהדרין, והזמנות מעוצבות ללא תמונות.",
+  title: "אישורי הגעה לחתונה דתית — בלי הודעות בשבת ובחג",
+  description: "מערכת אישורי הגעה שמותאמת לחתונות דתיות וחרדיות: לא נשלחת שום הודעה בשבת ובחג, דוח מנות לאולם, והזמנות מעוצבות ללא תמונות.",
 };
 
 const C = { ivory: "#FDFAF5", cream: "#F6F1E8", gold: "#C5A46D", goldT: "#8B6914", dark: "#1C1008", muted: "rgba(28,16,8,0.55)", border: "#E8E0D4" };
 
 const FEATURES = [
-  { emoji: "🕍", title: "הושבה נפרדת", desc: "בונים את מפת ההושבה בשני אזורים — עזרת גברים ועזרת נשים — וכל מוזמן מקבל את השולחן הנכון שלו." },
-  { emoji: "🍖", title: "מנות מהדרין", desc: "אפשרות מהדרין מובנית בטופס האישור, ודוח מנות מסודר לאולם עם הפירוט המלא." },
+  /* These two replaced claims the product does not make good on.
+   *
+   * "הושבה נפרדת לעזרת גברים ונשים" needs to know who is a man and who is a
+   * woman, and the system has no such field — `side` is bride's side or
+   * groom's side, which is a different question.
+   *
+   * "אפשרות מהדרין מובנית בטופס האישור" needs the meal picker, and
+   * RsvpClient.tsx opens with `const SHOW_MEAL_CHOICE = false`. No guest of
+   * any wedding has ever been shown it; every meal_preference in the database
+   * came from an import and every one of them says "regular".
+   *
+   * What went in instead is true, was built for exactly this audience, and is
+   * the reason a religious couple would choose this over anything else. */
+  { emoji: "🕯️", title: "שבת וחג — שקט מוחלט", desc: "המערכת לא שולחת דבר מצהרי ערב שבת ועד צאתה, ולא בראש השנה, יום כיפור, סוכות, פסח ושבועות. לא תזכורת, לא הזמנה, לא הודעת יום החתונה." },
+  { emoji: "🍽️", title: "דוח מנות לאולם", desc: "פירוט מלא לפי סוג מנה — רגיל, צמחוני, ילדים — מוכן להעביר לקייטרינג, מתעדכן עם כל אישור." },
   { emoji: "🖼️", title: "הזמנה צנועה", desc: "עיצובי הזמנות מכובדים ללא תמונות זוג — טיפוגרפיה, עיטורים וברכת בס\"ד." },
   { emoji: "📵", title: "בלי אפליקציות", desc: "האורח מאשר בקישור פשוט — עובד גם בטלפון כשר תומך דפדפן, בלי להתקין כלום." },
   { emoji: "👨‍👩‍👧‍👦", title: "משפחות גדולות", desc: "אישור עד 15 נפשות בהזמנה אחת, עם פירוט מנות לכל בני המשפחה כולל מנות ילדים." },
@@ -33,7 +46,7 @@ export default function ReligiousPage() {
           <span style={{ color: C.goldT }}>שמכבד את הדרך שלכם</span>
         </h1>
         <p style={{ fontSize: 16, color: C.muted, lineHeight: 1.8, margin: "0 0 28px" }}>
-          אישורי הגעה, הושבה נפרדת, מנות מהדרין והזמנות צנועות —<br />
+          אישורי הגעה שלא מגיעות בשבת ובחג, דוח מנות לאולם והזמנות צנועות —<br />
           מערכת אחת שבנויה גם לחתונה של תורה.
         </p>
         <a href={wa} target="_blank" rel="noopener noreferrer"

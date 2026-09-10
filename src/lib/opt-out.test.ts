@@ -81,3 +81,15 @@ test("תווי כיווניות בלתי נראים לא מבטלים את הז�
 test("הודעה ארוכה אינה בקשת הסרה", () => {
   assert.equal(optOutRequest("שלום, ".repeat(40) + "טעות במספר").optOut, false);
 });
+
+test("המילה שהאתר עצמו אומר לאורח לשלוח", () => {
+  /* /contact tells guests, in writing: השיבו "הסר" להודעה. Nothing matched a
+     bare הסר — the pattern needs "הסר אותי" — so a guest who did exactly what
+     the website told them to do stayed on the list. */
+  for (const s of ["הסר", "הסירו", "להסיר", "תסירו", "עצור", "הסר."])
+    assert.equal(optOutRequest(s).optOut, true, s);
+
+  /* Only as the whole message. Inside a sentence the same word is ordinary. */
+  assert.equal(optOutRequest("אפשר להסיר את המנה הצמחונית?").optOut, false);
+  assert.equal(optOutRequest("תסירו לי את הילד מהרשימה, הוא לא מגיע").optOut, false);
+});

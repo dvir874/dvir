@@ -17,7 +17,16 @@ import Script from "next/script";
  * Guest routes are listed rather than inferred, so a new one is a deliberate
  * decision rather than an accident of URL shape.
  */
-const GUEST_PREFIXES = ["/rsvp", "/gallery", "/memory", "/event", "/couple", "/send"];
+const GUEST_PREFIXES = [
+  "/rsvp", "/gallery", "/memory", "/event", "/couple", "/send",
+  /* Added 10/09 after an audit found the list was six of eighteen. Every one
+     of these renders to somebody whose number was handed over by the couple,
+     and each was loading GA4 while the privacy policy said none of them did.
+     /r and /s are redirects with no layout, and are listed anyway so that a
+     page added under them later starts out covered. */
+  "/r", "/s", "/join", "/rides", "/shuttle", "/wall", "/status",
+  "/survey", "/thanks", "/w", "/report", "/approval",
+];
 
 export default function Analytics() {
   const pathname = usePathname() ?? "";

@@ -172,6 +172,15 @@ function FeatureCard({ emoji, title, desc, children, delay = 0 }:
 }
 
 /* ── Testimonial card ─────────────────────────────────── */
+/* The 16th of October, this year or next — whichever is still ahead. */
+function nextDemoDate(): Date {
+  const now = new Date();
+  const thisYear = new Date(now.getFullYear(), 9, 16, 19, 0, 0);
+  return thisYear.getTime() > now.getTime()
+    ? thisYear
+    : new Date(now.getFullYear() + 1, 9, 16, 19, 0, 0);
+}
+
 function TestiCard({ quote, name, emoji, rot }: { quote: string; name: string; emoji: string; rot: string }) {
   const { ref, visible } = useScrollReveal();
   return (
@@ -198,7 +207,13 @@ function TestiCard({ quote, name, emoji, rot }: { quote: string; name: string; e
 
 /* ── Main component ───────────────────────────────────── */
 export default function DemoPage() {
-  const eventDate = new Date("2025-09-15T19:00:00");
+  /* A demo wedding must always be in the future.
+   *
+   * This was a fixed 15.9.2025, so the "לוח בקרה חי" on the demo page has been
+   * counting down to a date in the past — 00:00:00:00 — for a year. A prospect
+   * who clicks "ראו איך זה עובד" is shown a product whose headline feature is
+   * visibly stopped. Anchored forward instead, so it can never expire again. */
+  const eventDate = nextDemoDate();
   const { time, mounted } = useCountdown(eventDate);
   const { ref: heroRef, visible: heroVisible } = useScrollReveal();
   const rsvpBars = [
@@ -397,8 +412,16 @@ export default function DemoPage() {
           maxWidth: 700, margin: "0 auto",
           display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center",
         }}>
-          <StatCard target={180} suffix="+" label="זוגות מאושרים" />
-          <StatCard target={98} suffix="%" label="שביעות רצון" />
+          {/* Measured, not invented.
+            *
+            * This bar said "180+ זוגות מאושרים · 98% שביעות רצון". Five
+            * weddings have run and one client has paid; there is not a single
+            * testimonial in the database and both feedback tables are empty.
+            * A number a prospect can check is worth more than a number that
+            * flatters, and these two are checkable: אורי ושחר, 08/09/2026 —
+            * 312 guests invited, 94% of them answered. */}
+          <StatCard target={94} suffix="%" label="ענו בחתונה האחרונה" />
+          <StatCard target={312} suffix="" label="אורחים באותה חתונה" />
           <StatCard target={3} suffix=" דק׳" label="הגדרה בלבד" />
         </div>
       </section>
@@ -428,7 +451,7 @@ export default function DemoPage() {
                 border: "1px solid rgba(197,164,109,0.2)", padding: 16, textAlign: "center",
               }}>
                 <div style={{ ...FRANK, fontSize: 18, color: GOLD, marginBottom: 4 }}>נועה ויוני 💛</div>
-                <div style={{ ...HEEBO, fontSize: 12, color: "rgba(255,255,255,0.5)" }}>15.9.2025 · 19:00</div>
+                <div style={{ ...HEEBO, fontSize: 12, color: "rgba(255,255,255,0.5)" }}>{`${nextDemoDate().getDate()}.${nextDemoDate().getMonth() + 1}.${nextDemoDate().getFullYear()}`} · 19:00</div>
                 <div style={{ ...HEEBO, fontSize: 12, color: GOLD, marginTop: 6 }}>✦ אולם האירועים</div>
               </div>
             </FeatureCard>

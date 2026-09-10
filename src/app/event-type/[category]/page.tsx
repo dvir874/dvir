@@ -182,7 +182,7 @@ export default async function CategoryPage({ params }: Props) {
                 color: "white", fontWeight: 700, fontSize: 16, textDecoration: "none",
               }}
             >
-              התחל עכשיו — חינם
+              קבלו הצעת מחיר
             </Link>
             <Link
               href="/event/demo"

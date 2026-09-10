@@ -46,7 +46,7 @@ export default function FooterWarm() {
             כל החתונה שלכם במקום אחד — עם ליווי אישי מהרגע הראשון.
           </p>
           <div className="mt-5 flex gap-3">
-            <a href="mailto:dvir874@gmail.com" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20"><Mail className="w-4 h-4" /></a>
+            <a href="mailto:dvir@regalifnei.com" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20"><Mail className="w-4 h-4" /></a>
             <a href="tel:0533318177" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gold text-ink"><Phone className="w-4 h-4" /></a>
             <a href={WA_URL_FOOTER} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-olive"><MessageCircle className="w-4 h-4" /></a>
           </div>
@@ -83,7 +83,7 @@ export default function FooterWarm() {
           <h4 className="mb-4 font-display text-lg font-bold text-white">יצירת קשר</h4>
           <ul className="font-body text-[14px] text-white/60 [&_a]:inline-flex [&_a]:min-h-[44px] [&_a]:items-center">
             <li dir="ltr" className="text-right">053-331-8177</li>
-            <li>dvir874@gmail.com</li>
+            <li>dvir@regalifnei.com</li>
             <li><a href={WA_URL_FOOTER} className="hover:text-primary-soft">וואטסאפ</a></li>
           </ul>
           <p className="mt-4 font-body text-[14px] text-white/55">הצעת מחיר אישית · מותאמת לאירוע ולכמות המוזמנים</p>
