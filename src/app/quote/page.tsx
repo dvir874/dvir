@@ -1,11 +1,22 @@
 "use client";
-import { useSearchParams } from "next/navigation";
+import { redirect, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
+import { APP_HOST } from "@/lib/app-url";
 import { BASE_PRICE, FULL_PACKAGE_PRICE, ADDONS, DEPOSIT_AMOUNT } from "@/lib/pricing";
 
 const DISCOUNT_PCT = 10;
 const DVIR_PHONE = "972533318177";
+
+/** The admin panel passes the wedding date straight from the DB as an ISO
+    string, so a formal quote used to print "תאריך החתונה: 2026-11-12". Anything
+    that is not an ISO date is passed through untouched — Dvir sometimes types
+    the date by hand into the link. */
+function heDate(raw: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw.trim());
+  if (!m) return raw;
+  return `${Number(m[3])}.${Number(m[2])}.${m[1]}`;
+}
 
 function addDays(days: number): string {
   const d = new Date();
@@ -15,6 +26,17 @@ function addDays(days: number): string {
 
 function QuoteContent() {
   const params = useSearchParams();
+
+  /* The empty state of a quote generator is a quote. With no query string this
+     page used to render a finished document — "לכבוד: הזוג היקר", ₪249, a
+     validity date, the letterhead — to anyone who arrived from /about, from a
+     shared link whose params WhatsApp had stripped, or from Google. They would
+     read the cheapest number in the pricing model as the price. A quote is a
+     document about a specific couple; with no couple there is nothing to show,
+     so send them to the calculator instead. */
+  const QUOTE_KEYS = ["name", "date", "addons", "package", "coupon"] as const;
+  if (!QUOTE_KEYS.some(k => params.get(k))) redirect("/pricing");
+
   const name = params.get("name") ?? "הזוג היקר";
   const date = params.get("date") ?? "";
   const coupon = params.get("coupon") ?? "";
@@ -119,7 +141,7 @@ function QuoteContent() {
         {/* To */}
         <div style={{ marginBottom: 32 }}>
           <p style={{ fontSize: 16, color: "#1C1008", fontWeight: 500 }}>לכבוד: <strong style={{ color: "#C5A46D" }}>{name}</strong></p>
-          {date && <p style={{ fontSize: 15, color: "#555", marginTop: 6 }}>תאריך החתונה: <strong>{date}</strong></p>}
+          {date && <p style={{ fontSize: 15, color: "#555", marginTop: 6 }}>תאריך החתונה: <strong>{heDate(date)}</strong></p>}
         </div>
 
         {/* Divider */}
@@ -142,14 +164,14 @@ function QuoteContent() {
             ? Object.entries(ADDONS).filter(([, ad]) => !ad.physical).map(([key, a]) => ({ key, ...a }))
             : selectedAddons
           ).map((a) => (
-            <div key={a.key} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(197,164,109,0.12)", fontSize: 15, color: "#333" }}>
+            <div key={a.key} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(197,164,109,0.12)", fontSize: 15, color: "#1C1008" }}>
               <span>✓ {a.label}</span>
               <span style={{ fontWeight: 600, color: "#6B7B5A", whiteSpace: "nowrap" }}>{isFullPackage ? "כלול" : a.price === 0 ? "חינם" : `₪${a.price}`}</span>
             </div>
           ))}
 
           {/* Always free */}
-          <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(197,164,109,0.12)", fontSize: 15, color: "#333" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(197,164,109,0.12)", fontSize: 15, color: "#1C1008" }}>
             <span>✓ אפשרות תשלום בביט לאורחים</span>
             <span style={{ fontWeight: 600, color: "#6B7B5A" }}>חינם</span>
           </div>
@@ -207,7 +229,7 @@ function QuoteContent() {
           </div>
           <div style={{ textAlign: "left" }}>
             <p style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: 20, color: "#C5A46D", fontWeight: 700 }}>רגע לפני</p>
-            <p style={{ fontSize: 12, color: "#aaa" }}>ragalifnei.co.il</p>
+            <p style={{ fontSize: 12, color: "#aaa" }}>{APP_HOST}</p>
           </div>
         </div>
       </div>

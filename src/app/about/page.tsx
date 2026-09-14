@@ -120,7 +120,7 @@ export default function AboutPage() {
               </p>
 
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 30 }}>
-                <Link href="/quote" style={{
+                <Link href="/pricing" style={{
                   background: C.gold, color: "#fff", borderRadius: 99,
                   padding: "14px 30px", fontSize: 15, fontWeight: 700,
                   minHeight: 44, display: "inline-flex", alignItems: "center",
