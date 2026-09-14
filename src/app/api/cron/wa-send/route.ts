@@ -1297,7 +1297,19 @@ async function askCoupleAboutUnreachable(
       ...candidates.filter(g => {
         if (got.has(g.id as string)) return false;
         const code = lastFail.get(g.id as string)?.code;
-        if (code === undefined) return true;   /* never attempted */
+        /* Never attempted at all — no outbound row exists for this guest.
+         *
+         * This returned true, and on 14/09 it asked ירון ואיילת to check 252
+         * phone numbers before a single invitation had been sent to any of
+         * them. Their sending was due to open on 13/09, which was the second
+         * day of Rosh Hashana and blocked every slot; by the time the cron ran
+         * on the 14th the daily cap had gone to two weddings nearer their date,
+         * so their list had not been touched. Every one of those numbers was
+         * fine, and איילת wrote back asking what was going on.
+         *
+         * "We could not reach them" and "we have not tried yet" are different
+         * sentences, and only one of them is the couple's to answer. */
+        if (code === undefined) return false;
         if (code === null) return true;        /* accepted, never delivered */
         return code === 131026;                /* 131049 · 130472 · 131050 are ours */
       }),
