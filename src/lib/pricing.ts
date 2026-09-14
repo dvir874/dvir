@@ -114,8 +114,43 @@ export function digitalAddonEntries() {
  * And it is close to what he already charges without a model: אמיר landed on
  * 0.98₪ a record, שחר on 0.78₪, שלמה on 1.28₪. */
 
+/* ── 14/09/2026: repriced against the market, in two steps ────────────────
+ *
+ * Measured from mit4mit's "אישורי הגעה וסידורי הושבה" category — 179 vendors,
+ * prices taken from verified couple reviews rather than from anyone's own
+ * marketing page:
+ *
+ *   WiWi          ₪483   software only, seating exported to an outside tool
+ *   My Invite     ₪488
+ *   נבוא          ₪676   ₪1.80–2.40 a record, billed after the event
+ *   DIGINET       ₪728   ₪1.04 a record on the automated tier
+ *   Easy2Give     ₪986
+ *   הסדרנית       ₪1,470 seating done FOR the couple + staff at the venue
+ *   צ׳ק ליסט      ₪1,858
+ *   חתונל׳ה       ₪3,997 full event management on the day
+ *   Seatup        ₪4,957 a production company, not a comparable
+ *
+ * What the ladder actually prices is human labour, and whether a human stands
+ * in the hall. Software alone tops out around ₪1,000 however good it is.
+ *
+ * נבוא is the true comparable — the same feature list almost exactly, rides
+ * and gifts included — at ₪1.80–2.40. At ₪1 a record שחר's 336 records billed
+ * ₪336 where נבוא would have billed ₪605–806 and DIGINET ₪728, and neither of
+ * them gives her the founder's phone number. The messages for that wedding
+ * cost ₪63.
+ *
+ * Being the cheapest in a market with no reviews yet is not an advantage, it
+ * is a signal. So: halfway now, the rest once there is proof to stand on.
+ *
+ *   STEP 1 (here)   basic 1.25 · full 2.00 · floors 390 / 590
+ *   STEP 2          basic 1.50 · full 2.50 · floors 450 / 690
+ *
+ * Step 2 is gated on ten reviews on mit4mit, not on a date. Ten verified
+ * couples is the point where the price stops being a claim about the service
+ * and starts being corroborated by people who paid it. */
+
 /** Automated end to end: invitation, three reminders, day-before, thank-you + gallery. */
-export const PER_RECORD_BASIC = 1;
+export const PER_RECORD_BASIC = 1.25;
 
 /** Everything in BASIC, plus Dvir calling every guest still silent after the
     reminders — about a third of the list. */
@@ -129,8 +164,8 @@ export const PER_RECORD_RIDES = 0.5;
     the per-record price stops describing the work. Quoted out loud with the
     rate — a couple told "1₪ a record" who receives a bill for 290 is right to
     feel misled. */
-export const MIN_CHARGE_BASIC = 290;
-export const MIN_CHARGE_FULL  = 490;
+export const MIN_CHARGE_BASIC = 390;
+export const MIN_CHARGE_FULL  = 590;
 export const MIN_CHARGE_RIDES = 100;
 
 /** Share of records still unanswered once every reminder has been sent — the
@@ -157,7 +192,9 @@ export function quoteFor(records: number, pkg: PackageId, rides = false): Quote 
   const rate = pkg === "full" ? PER_RECORD_FULL : PER_RECORD_BASIC;
   const floor = pkg === "full" ? MIN_CHARGE_FULL : MIN_CHARGE_BASIC;
 
-  const base = Math.max(floor, n * rate);
+  /* Rounded: a rate of 1.25 turns 223 records into 278.75, and a price said
+     out loud on the phone does not have agurot in it. */
+  const base = Math.max(floor, Math.round(n * rate));
   const lines = [{
     label: pkg === "full" ? "אישורי הגעה + ליווי אישי" : "אישורי הגעה דיגיטליים",
     amount: base,
@@ -166,13 +203,13 @@ export function quoteFor(records: number, pkg: PackageId, rides = false): Quote 
   if (rides) {
     lines.push({
       label: "קבוצת טרמפים",
-      amount: Math.max(MIN_CHARGE_RIDES, n * PER_RECORD_RIDES),
+      amount: Math.max(MIN_CHARGE_RIDES, Math.round(n * PER_RECORD_RIDES)),
     });
   }
 
   return {
     records: n, pkg, rides, lines,
-    atMinimum: n * rate < floor,
+    atMinimum: Math.round(n * rate) < floor,
     total: lines.reduce((s, l) => s + l.amount, 0),
     calls: pkg === "full" ? Math.round(n * SILENT_SHARE) : 0,
   };
