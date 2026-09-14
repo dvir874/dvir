@@ -13,7 +13,7 @@ const config: Config = {
         cream: "#F6F1E8",
         olive: "#6B7B5A",
         gold: "#C5A46D",
-        dark: "#333333",
+        dark: "#1C1008",   // was #333333 — single brand ink
         "cream-dark": "#EDE6D6",
         "gold-light": "#D4BC8A",
         "olive-dark": "#556249",

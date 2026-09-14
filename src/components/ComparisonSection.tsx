@@ -53,10 +53,10 @@ export default function ComparisonSection() {
               className="grid grid-cols-3 text-center text-xs font-bold uppercase tracking-wide"
               style={{ background: "rgba(197,164,109,0.08)", borderBottom: "1px solid rgba(197,164,109,0.18)" }}
             >
-              <div className="py-4 px-4 text-right" style={{ color: "rgba(51,51,51,0.45)", fontFamily: "Heebo, sans-serif" }}>
+              <div className="py-4 px-4 text-right" style={{ color: "rgba(28,16,8,0.45)", fontFamily: "Heebo, sans-serif" }}>
                 תכונה
               </div>
-              <div className="py-4 px-2 border-r border-gold/10" style={{ color: "rgba(51,51,51,0.45)", fontFamily: "Heebo, sans-serif" }}>
+              <div className="py-4 px-2 border-r border-gold/10" style={{ color: "rgba(28,16,8,0.45)", fontFamily: "Heebo, sans-serif" }}>
                 ניהול ידני
               </div>
               <div className="py-4 px-2" style={{ color: "#C5A46D", fontFamily: "Frank Ruhl Libre, serif", fontSize: "0.85rem", letterSpacing: 0 }}>
@@ -71,15 +71,15 @@ export default function ComparisonSection() {
                 className="grid grid-cols-3 items-center"
                 style={{ borderBottom: i < rows.length - 1 ? "1px solid rgba(197,164,109,0.10)" : undefined }}
               >
-                <div className="py-3.5 px-4 text-sm text-right" style={{ color: "#333333", fontFamily: "Heebo, sans-serif" }}>
+                <div className="py-3.5 px-4 text-sm text-right" style={{ color: "#1C1008", fontFamily: "Heebo, sans-serif" }}>
                   {row.label}
                 </div>
 
                 {/* "Them" column. ✓ muted when true, ✕ red when false */}
                 <div className="py-3.5 flex justify-center border-r" style={{ borderColor: "rgba(197,164,109,0.10)" }}>
                   {row.them ? (
-                    <span className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "rgba(51,51,51,0.06)" }}>
-                      <Check size={13} style={{ color: "rgba(51,51,51,0.35)" }} strokeWidth={2.5} />
+                    <span className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "rgba(28,16,8,0.06)" }}>
+                      <Check size={13} style={{ color: "rgba(28,16,8,0.35)" }} strokeWidth={2.5} />
                     </span>
                   ) : (
                     <span className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "rgba(200,60,60,0.08)" }}>
@@ -109,7 +109,7 @@ export default function ComparisonSection() {
               style={{
                 background: "linear-gradient(135deg, rgba(197,164,109,0.08), rgba(107,123,90,0.06))",
                 borderTop: "1px solid rgba(197,164,109,0.15)",
-                color: "rgba(51,51,51,0.60)",
+                color: "rgba(28,16,8,0.60)",
                 fontFamily: "Heebo, sans-serif",
               }}
             >

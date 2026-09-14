@@ -59,7 +59,7 @@ export default function Header() {
                     className="relative text-sm font-medium transition-colors duration-200 py-1 group"
                     style={{
                       fontFamily: "Heebo, sans-serif",
-                      color: active ? "#C5A46D" : "rgba(51,51,51,0.72)",
+                      color: active ? "#C5A46D" : "rgba(28,16,8,0.72)",
                     }}
                   >
                     {link.label}
@@ -129,7 +129,7 @@ export default function Header() {
                     className="text-right py-3 px-3 rounded-xl font-medium text-base transition-all duration-200"
                     style={{
                       fontFamily: "Heebo, sans-serif",
-                      color: active ? "#C5A46D" : "rgba(51,51,51,0.72)",
+                      color: active ? "#C5A46D" : "rgba(28,16,8,0.72)",
                       background: active ? "rgba(197,164,109,0.08)" : "transparent",
                       borderRight: active ? "3px solid #C5A46D" : "3px solid transparent",
                     }}

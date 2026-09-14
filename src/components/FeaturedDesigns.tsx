@@ -11,8 +11,8 @@ const G = {
   goldMuted: "rgba(197,164,109,0.65)",
   olive:     "#6B7B5A",
   oliveMuted:"rgba(107,123,90,0.65)",
-  dark:      "#333333",
-  darkMuted: "rgba(51,51,51,0.55)",
+  dark:      "#1C1008",
+  darkMuted: "rgba(28,16,8,0.55)",
   border:    "rgba(197,164,109,0.18)",
   borderSoft:"rgba(197,164,109,0.10)",
 };

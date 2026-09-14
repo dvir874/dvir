@@ -153,7 +153,7 @@ export default async function CategoryPage({ params }: Props) {
 
   const G = {
     gold: "#C5A46D", olive: "#6B7B5A", cream: "#F6F1E8",
-    ivory: "#FDFAF5", dark: "#333333", border: "rgba(197,164,109,0.18)",
+    ivory: "#FDFAF5", dark: "#1C1008", border: "rgba(197,164,109,0.18)",
   };
 
   return (
@@ -170,7 +170,7 @@ export default async function CategoryPage({ params }: Props) {
           <h1 style={{ fontFamily: "Frank Ruhl Libre, serif", fontSize: "clamp(28px,5vw,42px)", color: G.dark, fontWeight: 700, lineHeight: 1.3, marginBottom: 20 }}>
             ניהול אורחים ל{data.he}
           </h1>
-          <p style={{ fontSize: 17, color: "rgba(51,51,51,0.65)", lineHeight: 1.7, marginBottom: 36 }}>
+          <p style={{ fontSize: 17, color: "rgba(28,16,8,0.65)", lineHeight: 1.7, marginBottom: 36 }}>
             {data.description}
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
@@ -222,7 +222,7 @@ export default async function CategoryPage({ params }: Props) {
           {data.faq.map((item) => (
             <div key={item.q} style={{ background: "white", border: `1px solid ${G.border}`, borderRadius: 16, padding: "20px 24px" }}>
               <p style={{ fontWeight: 700, color: G.dark, fontSize: 16, marginBottom: 8 }}>{item.q}</p>
-              <p style={{ color: "rgba(51,51,51,0.6)", fontSize: 15, lineHeight: 1.6 }}>{item.a}</p>
+              <p style={{ color: "rgba(28,16,8,0.6)", fontSize: 15, lineHeight: 1.6 }}>{item.a}</p>
             </div>
           ))}
         </div>

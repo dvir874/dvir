@@ -263,7 +263,7 @@ export default function SeatingFloorPlan({
                 width: 20, height: 20, borderRadius: "50%",
                 background: "rgba(255,255,255,0.9)", border: "1px solid rgba(197,164,109,0.3)",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer", color: "rgba(51,51,51,0.45)", padding: 0,
+                cursor: "pointer", color: "rgba(28,16,8,0.45)", padding: 0,
               }}
             >
               <Trash2 size={10} />

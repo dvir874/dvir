@@ -74,7 +74,7 @@ export default function HowItWorks() {
                 style={{
                   background: "rgba(197,164,109,0.08)",
                   border: "1px solid rgba(197,164,109,0.22)",
-                  color: "rgba(51,51,51,0.60)",
+                  color: "rgba(28,16,8,0.60)",
                   fontFamily: "Heebo, sans-serif",
                 }}
               >

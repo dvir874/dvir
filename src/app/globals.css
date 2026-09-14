@@ -35,7 +35,7 @@ html { forced-color-adjust: none; }
   --cream: #F6F1E8;
   --olive: #6B7B5A;
   --gold: #C5A46D;
-  --dark: #333333;
+  --dark: #1C1008;          /* was #333333 — brand law is one ink; see docs/design/stitch-briefs */
 
   /* SYS-02 Design token system — use these in all new components */
   --color-ivory:          #FDFAF5;

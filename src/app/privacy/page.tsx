@@ -90,7 +90,7 @@ export default function PrivacyPage() {
               {s.title}
             </h2>
             {s.body.map((p, i) => (
-              <p key={i} style={{ fontSize: 15, lineHeight: 1.8, color: "#333", marginBottom: 8 }}>{p}</p>
+              <p key={i} style={{ fontSize: 15, lineHeight: 1.8, color: "#1C1008", marginBottom: 8 }}>{p}</p>
             ))}
           </section>
         ))}

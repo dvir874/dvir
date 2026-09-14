@@ -63,7 +63,7 @@ export default function ComparePage() {
           </table>
         </div>
 
-        <p style={{ fontSize: 14, lineHeight: 1.9, color: "#333", margin: "28px 0" }}>
+        <p style={{ fontSize: 14, lineHeight: 1.9, color: "#1C1008", margin: "28px 0" }}>
           <strong>שורה תחתונה:</strong> שירותי SMS זולים אבל נותנים רק את הבסיס. מוקדים טלפוניים יקרים
           ומתאימים למי שרוצה שיחה אנושית עם כל אורח. מערכת דיגיטלית מלאה נותנת את שני העולמות —
           אוטומציה + ליווי אישי — במחיר של שירות ה-SMS.

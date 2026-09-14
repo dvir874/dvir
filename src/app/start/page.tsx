@@ -21,8 +21,8 @@ const C = {
   ivory: "#FDFAF5",
   gold:  "#C5A46D",
   olive: "#6B7B5A",
-  dark:  "#333333",
-  muted: "rgba(51,51,51,0.55)",
+  dark:  "#1C1008",
+  muted: "rgba(28,16,8,0.55)",
   border:"rgba(197,164,109,0.22)",
 };
 const FRANK = { fontFamily: "Frank Ruhl Libre, serif" };
@@ -598,7 +598,7 @@ export default function StartPage() {
                 type="button"
                 onClick={() => setStep("event")}
                 className="flex-1 py-3.5 rounded-2xl text-sm font-semibold transition-all hover:opacity-80"
-                style={{ background: "rgba(51,51,51,0.07)", color: C.muted, ...HEEBO }}
+                style={{ background: "rgba(28,16,8,0.07)", color: C.muted, ...HEEBO }}
               >
                 חזרה
               </button>
@@ -734,7 +734,7 @@ export default function StartPage() {
                 type="button"
                 onClick={() => setStep("guests")}
                 className="flex-1 py-3.5 rounded-2xl text-sm font-semibold transition-all hover:opacity-80"
-                style={{ background: "rgba(51,51,51,0.07)", color: C.muted, ...HEEBO }}
+                style={{ background: "rgba(28,16,8,0.07)", color: C.muted, ...HEEBO }}
               >
                 חזרה
               </button>

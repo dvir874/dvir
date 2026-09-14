@@ -19,8 +19,8 @@ const G = {
   goldMuted:  "rgba(197,164,109,0.65)",
   olive:      "#6B7B5A",
   oliveMuted: "rgba(107,123,90,0.65)",
-  dark:       "#333333",
-  darkMuted:  "rgba(51,51,51,0.55)",
+  dark:       "#1C1008",
+  darkMuted:  "rgba(28,16,8,0.55)",
   border:     "rgba(197,164,109,0.18)",
   borderSoft: "rgba(197,164,109,0.10)",
 };
@@ -315,7 +315,7 @@ function RsvpSection() {
   const statusCfg = {
     confirmed: { bg: "rgba(107,123,90,0.11)", color: G.olive,    label: "אישר הגעה"  },
     pending:   { bg: "rgba(197,164,109,0.12)", color: G.gold,    label: "ממתין"       },
-    declined:  { bg: "rgba(51,51,51,0.07)",    color: G.darkMuted, label: "לא מגיע" },
+    declined:  { bg: "rgba(28,16,8,0.07)",    color: G.darkMuted, label: "לא מגיע" },
   };
 
   return (
@@ -344,7 +344,7 @@ function RsvpSection() {
             {[
               { label: "אישרו הגעה",  value: confirmed, icon: <CheckCircle size={14} />, color: G.olive,    bg: "rgba(107,123,90,0.09)"  },
               { label: "ממתינים",     value: pending,   icon: <Clock       size={14} />, color: G.gold,     bg: "rgba(197,164,109,0.09)" },
-              { label: "לא מגיעים",  value: declined,  icon: <XCircle     size={14} />, color: G.darkMuted, bg: "rgba(51,51,51,0.05)"   },
+              { label: "לא מגיעים",  value: declined,  icon: <XCircle     size={14} />, color: G.darkMuted, bg: "rgba(28,16,8,0.05)"   },
             ].map((s) => (
               <div
                 key={s.label}
@@ -412,7 +412,7 @@ function RsvpSection() {
             })}
           </div>
 
-          <p className="text-center text-xs mt-4" style={{ color: "rgba(51,51,51,0.38)", fontFamily: "Heebo, sans-serif" }}>
+          <p className="text-center text-xs mt-4" style={{ color: "rgba(28,16,8,0.38)", fontFamily: "Heebo, sans-serif" }}>
             * נתונים לדוגמה בלבד. כך נארגן את האישורים עבורכם
           </p>
         </div>

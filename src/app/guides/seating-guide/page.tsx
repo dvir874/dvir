@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 const C = { ivory: "#FDFAF5", cream: "#F6F1E8", gold: "#C5A46D", goldT: "#8B6914", dark: "#1C1008", muted: "rgba(28,16,8,0.55)", border: "#E8E0D4" };
 const H2: React.CSSProperties = { fontFamily: "'Frank Ruhl Libre', serif", fontSize: 24, fontWeight: 700, color: C.goldT, margin: "36px 0 12px" };
-const P: React.CSSProperties = { fontSize: 16, lineHeight: 1.9, color: "#333", margin: "0 0 14px" };
+const P: React.CSSProperties = { fontSize: 16, lineHeight: 1.9, color: "#1C1008", margin: "0 0 14px" };
 
 export default function SeatingGuide() {
   return (
