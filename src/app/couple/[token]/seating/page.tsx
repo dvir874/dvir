@@ -390,7 +390,7 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
                   🏛️ האולם שלכם
                 </h2>
                 <p style={{ fontSize: 13.5, color: "rgba(28,16,8,0.55)", lineHeight: 1.6, margin: 0, maxWidth: 460 }}>
-                  קחו את שרטוט האולם שקיבלתם מהמקום והעתיקו ממנו את המספרים.
+                  צריך רק שני מספרים: כמה שולחנות, וכמה יושבים בשולחן. יש לכם תרשים מהאולם? העתיקו ממנו. אין? שאלו אותם בטלפון — הם יודעים לענות תוך דקה.
                 </p>
               </div>
               {data.tables.length > 0 && (
@@ -401,16 +401,24 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
             </div>
 
             {/* The notice that would have caught my own mistake. Its own card,
-                its own border, and the phrase carrying the risk underlined. */}
+                its own border, and the phrase carrying the risk underlined.
+
+                It used to read "שימו לב אם יש בשרטוט יותר מעמוד אחד", and the
+                line above it opened "קחו את שרטוט האולם שקיבלתם מהמקום" — both
+                assuming a drawing the couple already holds. Plenty do not have
+                one and do not know they can ask. איילת asked how to arrange
+                seating and would have been sent looking for a document she may
+                never have been given. The screen needs two numbers, and the
+                venue answers both on the phone. */}
             <div style={{ background: "rgba(192,80,80,0.06)", borderRight: "3px solid #C05050", borderRadius: 12, padding: "12px 14px", marginBottom: "1.1rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
                 <span style={{ fontSize: 14 }}>📕</span>
                 <strong style={{ fontSize: 13.5, color: "#1C1008" }}>דגש קריטי לפני שמתחילים</strong>
               </div>
               <p style={{ fontSize: 13, color: "rgba(28,16,8,0.62)", lineHeight: 1.65, margin: 0 }}>
-                שימו לב אם יש בשרטוט{" "}
-                <span style={{ color: "#C05050", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 3 }}>יותר מעמוד אחד</span>
-                {" "}(מפלסים, חצר, מרפסת).
+                שאלו את האולם אם יש{" "}
+                <span style={{ color: "#C05050", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 3 }}>יותר מאזור אחד</span>
+                {" "}— מפלס, גלריה, חצר, רחבה. זה מה שהכי מפספסים, ואז מגלים באמצע שחסרים שולחנות.
               </p>
             </div>
 
