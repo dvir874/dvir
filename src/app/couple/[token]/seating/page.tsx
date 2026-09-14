@@ -93,6 +93,28 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
   const [showSimulator,  setShowSimulator]  = useState(false);
   const [simExpanded,    setSimExpanded]    = useState<string | null>(null);
 
+  /* The room-plan fields live up here with the other hooks, above the
+     `if (loading) return` below.
+
+     They used to sit further down, next to the markup that reads them. That
+     put seven useState calls after an early return: on the first render
+     loading was true and eleven hooks ran, and the moment the fetch came back
+     React reached the twelfth and threw "Rendered more hooks than during the
+     previous render". Every couple who opened הושבה got משהו השתבש — the
+     screen failed as soon as its data arrived, so it never once worked. */
+  const [roomCount, setRoomCount] = useState("");
+  const [roomCap, setRoomCap] = useState("12");
+  const [roomExcept, setRoomExcept] = useState("");
+  const [roomZones, setRoomZones] = useState("");
+  const [roomOpen, setRoomOpen] = useState(false);
+  const [roomSaving, setRoomSaving] = useState(false);
+  /* The designed "הדגמת חוסר" control. It shows the couple what a half-entered
+     plan looks like before they can mistake one for a complete room — the
+     state I was actually in when I told שחר 119 of her guests had nowhere to
+     sit. Saving is blocked while it is on, because the number on screen is
+     not the number they typed. */
+  const [roomDemoShort, setRoomDemoShort] = useState(false);
+
   const load = useCallback(async () => {
     const res = await fetch(`/api/couple/${token}/seating`);
     const d = await res.json();
@@ -190,18 +212,6 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
    * Two fields rather than 38 rows: nobody types "12" thirty-eight times. The
    * exceptions field is where the real plan differs — table 24 seats ten, 35
    * and 38 seat nine — and it is exactly what a person reads off the drawing. */
-  const [roomCount, setRoomCount] = useState("");
-  const [roomCap, setRoomCap] = useState("12");
-  const [roomExcept, setRoomExcept] = useState("");
-  const [roomZones, setRoomZones] = useState("");
-  const [roomOpen, setRoomOpen] = useState(false);
-  const [roomSaving, setRoomSaving] = useState(false);
-  /* The designed "הדגמת חוסר" control. It shows the couple what a half-entered
-     plan looks like before they can mistake one for a complete room — the
-     state I was actually in when I told שחר 119 of her guests had nowhere to
-     sit. Saving is blocked while it is on, because the number on screen is
-     not the number they typed. */
-  const [roomDemoShort, setRoomDemoShort] = useState(false);
 
   /* "24=10, 35=9" and "1-7=מרכז, 8-15=מפלס א" read the same way. */
   const parseRanges = (text: string): Map<number, string> => {
