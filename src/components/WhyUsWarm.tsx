@@ -29,7 +29,10 @@ export default function WhyUsWarm() {
           <p className="font-body text-[13px] font-semibold uppercase tracking-[0.22em] text-gold">למה רגע לפני</p>
           <h2 className="mt-4 font-display text-4xl lg:text-[56px] font-black leading-tight text-ink">
             לא עוד כלי לאישורי הגעה.
-            <span className="block italic font-light text-gold">מערכת שמנהלת את כל החתונה.</span>
+            {/* The softer second voice now comes from weight and colour, as the
+                approved hero does it. Was italic on a font with no italic axis, in
+                gold at 2.26:1 — at this size the payoff line of the headline. */}
+            <span className="block font-normal text-gold-large">מערכת שמנהלת את כל החתונה.</span>
           </h2>
           <OliveSprig />
           <p className="font-body text-lg font-light text-ink/55">

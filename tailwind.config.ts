@@ -26,6 +26,14 @@ const config: Config = {
         primary: "#C5A46D",
         "primary-soft": "#E5C188",
         "primary-deep": "#A07840",
+
+        /* Gold by role, from the approved Stitch hero. Gold is not one colour:
+           #C5A46D is an object colour only — fills, hairlines, icon grounds —
+           and measures 2.26:1 on ivory, which no text may sit at. Text under
+           24px takes gold-text (4.88:1); a heading accent takes gold-large
+           (3.84:1, which clears the large-text bar and still reads as gold). */
+        "gold-text": "#8B6914",
+        "gold-large": "#A07840",
         secondary: "#6B7B5A",
         success: "#6B7B5A",
         "success-soft": "#DCE6D1",

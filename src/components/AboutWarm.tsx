@@ -40,7 +40,10 @@ export default function AboutWarm() {
             <h2 className="mt-4 font-display text-4xl lg:text-6xl font-black leading-tight text-ink">
               תכנון חתונה —<br />בלי כאב ראש
             </h2>
-            <p className="mt-3 font-display text-xl italic text-ink/50">כל מה שצריך, במקום אחד</p>
+            {/* Was `italic text-ink/50`: Frank Ruhl Libre has no italic axis so the
+                browser sheared the Hebrew, and ink/50 measures 3.49:1 — one of the
+                three rungs of the muted ladder that fail AA. */}
+            <p className="mt-3 font-display text-xl text-ink/70">כל מה שצריך, במקום אחד</p>
 
             <div className="mt-8 space-y-5 font-body text-[15px] font-light leading-relaxed text-ink/70">
               <p>תכנון חתונה יכול להיות אחד הדברים היפים בחיים — אבל לרוב הוא הופך לרשימות אינסופיות בוואטסאפ, אקסלים שמתפרקים, ושיחות טלפון שלא נגמרות.</p>
