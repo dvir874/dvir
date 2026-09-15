@@ -43,6 +43,12 @@ interface Guest {
   notes: string | null;
 }
 
+/* Twelve, because thirty-five chips is six rows of them and the screen's own
+   floating actions sit on top of whatever is under them at that scroll
+   position. The rest are in the list below, which is where a couple working
+   through them will end up anyway. */
+const NO_PHONE_SHOWN = 12;
+
 export default function GuestCenterPage() {
   const { token } = useParams<{ token: string }>();
   const router = useRouter();
@@ -150,6 +156,13 @@ export default function GuestCenterPage() {
 
   const unseated = guests.filter(g => !g.table_number && g.status === "confirmed").reduce((s,g) => s+g.guest_count, 0);
 
+  /* The guests nobody can reach, as their own number rather than a line inside
+     a warning strip. Thirty of ירון ואיילת's list are in this state — אבא, אמא,
+     הרב אבי, half the grandparents — and איילת asked what to do about them the
+     morning her invitations were due out. The approved Stitch screen answers
+     that by giving them a section of their own instead of a clause. */
+  const noPhoneList = guests.filter(g => !g.phone?.trim());
+
   const filtered = guests.filter(g => {
     const matchSearch = !search || g.name.toLowerCase().includes(search.toLowerCase()) || (g.phone ?? "").includes(search);
     let matchStatus = true;
@@ -199,6 +212,64 @@ export default function GuestCenterPage() {
           </div>
         )}
       </div>
+
+      {/* ── Guests with no number at all — approved Stitch screen
+             "רגע לפני — ניהול מוזמנים והשלמת טלפונים", 14/09.
+
+             This was a clause inside the issues strip: "📵 30 ללא טלפון" beside
+             two names and an ellipsis. A number that cannot be dialled is not a
+             data-quality warning, it is the one task on this screen that only
+             the couple can do — and the sender will never reach these people,
+             so every other count on the page is quietly wrong until it is done.
+
+             Tapping a name opens the same editor the rest of the list uses.
+             Nothing new to learn, and the number lands where the sender reads
+             it. */}
+      {!loading && noPhoneList.length > 0 && (
+        <div style={{ padding: "16px 20px 0" }}>
+          <div style={{ background: "#FFFFFF", border: "1px solid rgba(178,76,76,0.22)", borderRadius: 16, padding: "14px 16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <h3 style={{ fontFamily: "Frank Ruhl Libre,serif", fontSize: 17, fontWeight: 700, color: C.dark, margin: 0 }}>
+                חסרי טלפון
+              </h3>
+              <span style={{ background: "rgba(178,76,76,0.12)", color: "#8F3B3B", borderRadius: 9999, padding: "2px 9px", fontFamily: "Heebo,sans-serif", fontSize: 12, fontWeight: 700 }}>
+                {noPhoneList.length}
+              </span>
+            </div>
+
+            <p style={{ fontFamily: "Heebo,sans-serif", fontSize: 13.5, lineHeight: 1.65, color: "rgba(28,16,8,0.70)", margin: "0 0 12px" }}>
+              אליהם אין לנו דרך להגיע — הם לא יקבלו הזמנה ולא יופיעו באף ספירה.
+              לחצו על שם כדי להשלים מספר.
+            </p>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+              {noPhoneList.slice(0, NO_PHONE_SHOWN).map(g => (
+                <button
+                  key={g.id}
+                  onClick={() => openDetail(g)}
+                  style={{ background: C.cream, border: "1px solid rgba(197,164,109,0.35)", borderRadius: 9999, padding: "8px 13px", minHeight: 40, cursor: "pointer", fontFamily: "Heebo,sans-serif", fontSize: 13, fontWeight: 600, color: C.dark }}
+                >
+                  {g.name}
+                </button>
+              ))}
+              {noPhoneList.length > NO_PHONE_SHOWN && (
+                <span style={{ alignSelf: "center", fontFamily: "Heebo,sans-serif", fontSize: 13, fontWeight: 600, color: "rgba(28,16,8,0.55)", padding: "0 4px" }}>
+                  ועוד {noPhoneList.length - NO_PHONE_SHOWN} ברשימה למטה
+                </span>
+              )}
+            </div>
+
+            {/* The answer איילת actually needed: a guest she knows is coming does
+                not have to wait for an invitation to be counted. Marking them
+                מאושר puts them into the headcount, the meal report and the
+                automatic seating exactly as if they had answered themselves. */}
+            <p style={{ fontFamily: "Heebo,sans-serif", fontSize: 12.5, lineHeight: 1.6, color: "rgba(28,16,8,0.62)", margin: "12px 0 0", paddingTop: 10, borderTop: "1px solid rgba(197,164,109,0.18)" }}>
+              💡 יודעים שמישהו מהם מגיע? סמנו אותו כ&quot;מאושר&quot; וכתבו כמה אנשים —
+              הוא ייספר בדוח המנות וייכנס לסידור ההושבה האוטומטי, בדיוק כאילו אישר בעצמו.
+            </p>
+          </div>
+        </div>
+      )}
 
 
       {/* Download the list, in the one place the couple already looks.
@@ -354,7 +425,6 @@ export default function GuestCenterPage() {
       {/* List health — missing phones, invalid numbers, duplicates */}
       {!loading && guests.length > 0 && (() => {
         const norm = (p: string) => p.replace(/\D/g, "").replace(/^972/, "0");
-        const noPhone = guests.filter(g => !g.phone?.trim());
         /* The same rule the importer and the sender use — see lib/phone.ts.
            This used to demand ten digits starting 05, which called סטיב ומריאן's
            American number invalid on שחר's own screen while the sender was
@@ -373,7 +443,7 @@ export default function GuestCenterPage() {
           else seen.set(n, g.name);
         }
         const issues = [
-          noPhone.length > 0 && `📵 ${noPhone.length} ללא טלפון — לא יקבלו הזמנה (${noPhone.slice(0,2).map(g=>g.name).join(", ")}${noPhone.length>2?"...":""})`,
+          /* Moved out of this strip and into a section of its own, above. */
           badPhone.length > 0 && `⚠️ ${badPhone.length} מספרים לא תקינים (${badPhone.slice(0,2).map(g=>g.name).join(", ")}${badPhone.length>2?"...":""})`,
           dupes.length > 0 && `👯 ${dupes.length} כפילויות אפשריות — אותו מספר (${dupes.slice(0,2).join(" · ")}${dupes.length>2?"...":""})`,
         ].filter(Boolean) as string[];
