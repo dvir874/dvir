@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { shabbatBlock, eveningBeforeBlocked } from "@/lib/shabbat";
+import { smsProvider, smsSegments } from "@/lib/sms-gateway";
+import { smsInvite } from "@/lib/sms-invite";
 import { todayText, nextSendFor } from "@/lib/admin-console";
 import { waitingForYou, waitingLine, waitingHeader, isBroadcast, type ThreadView } from "@/lib/needs-you";
 import { needsHuman } from "@/lib/needs-human";
@@ -83,6 +85,10 @@ export const maxDuration = 300;
 const EVENT_WINDOW = 12;
 /* Ceiling per run for the rides-group message. Sixty clears a 334-guest
    wedding in six runs — one day — without ever taking a run whole. */
+/* A different channel with a different economics: an SMS costs agurot and is
+   not counted by Meta's ceiling, so the only reason to bound this is the run's
+   own clock. Sixty is a wedding's worth of no-WhatsApp guests in one pass. */
+const SMS_PER_RUN = 60;
 const RIDES_GROUP_PER_RUN = 60;
 
 /* The thank-you: ceiling, and the room left behind it for invitations. */
@@ -2991,12 +2997,130 @@ async function runSend(req: NextRequest) {
     } catch { /* an alert must never cost a send */ }
   }
 
+  /** The guests WhatsApp cannot reach, reached by SMS instead.
+ *
+ * 131026 means the number has no WhatsApp at all. Until now that guest became
+ * Dvir's problem: /admin/sms builds the message and he taps `sms:` links on his
+ * own phone, one per guest, for every wedding. Thirty of ירון ואיילת's list are
+ * in that state. DIGINET and M-event both do this automatically.
+ *
+ * Deliberately a separate pass rather than a branch inside the send loop. The
+ * WhatsApp path is the thing that must not break, and nothing here can reach
+ * into it: it reads what already failed, sends on a different channel, and
+ * spends none of the WhatsApp budget — a text message costs agurot and is not
+ * counted by Meta's ceiling.
+ *
+ * Silent until configured. With no SMS credentials `smsProvider()` returns null
+ * and this returns immediately, so the manual flow continues exactly as today.
+ *
+ * Idempotent on the record: a guest with an "sms" row is never sent a second
+ * one, because the alternative is a guest receiving the same invitation every
+ * twelve hours until the wedding. */
+async function sendSmsFallback(
+  sb: ReturnType<typeof createServerClient>,
+): Promise<{ sent: number; failed: number; dry: number }> {
+  const provider = smsProvider();
+  if (!provider) return { sent: 0, failed: 0, dry: 0 };
+
+  const out = { sent: 0, failed: 0, dry: 0 };
+  const today = israelToday();
+
+  const { data: evs } = await sb.from("events")
+    .select("id, name, couple_names, date, venue_name, address, reception_time, chuppah_time, send_paused_until")
+    .gte("date", today).order("date").limit(EVENT_WINDOW);
+
+  const nowMs = Date.now();
+  for (const ev of evs ?? []) {
+    if (out.sent + out.dry >= SMS_PER_RUN) break;
+    const paused = ev.send_paused_until as string | null;
+    if (paused && new Date(paused).getTime() > nowMs) continue;
+
+    const { data: gs } = await sb.from("guests")
+      .select("id, name, phone, rsvp_token, category, do_not_contact")
+      .eq("event_id", ev.id as string).eq("status", "pending");
+    const pool = (gs ?? []).filter(g =>
+      g.category !== "demo" && !g.do_not_contact
+      && String(g.phone ?? "").trim() && g.rsvp_token);
+    if (!pool.length) continue;
+
+    const ids = pool.map(g => g.id as string);
+    /* Latest outbound per guest, and whether an SMS already went out. */
+    const last = new Map<string, { at: string; code: number | null }>();
+    const already = new Set<string>();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data: ms } = await sb.from("wa_messages")
+        .select("guest_id, status, error_code, created_at")
+        .eq("direction", "out").in("guest_id", ids.slice(i, i + 100));
+      (ms ?? []).forEach(m => {
+        const id = m.guest_id as string; if (!id) return;
+        if (String(m.status) === "sms") { already.add(id); return; }
+        const at = m.created_at as string;
+        const prev = last.get(id);
+        if (!prev || at > prev.at) last.set(id, { at, code: (m.error_code as number | null) ?? null });
+      });
+    }
+
+    const couple = (ev.couple_names as string | null)?.trim() || String(ev.name ?? "");
+    const when = ev.date
+      ? new Date(String(ev.date)).toLocaleDateString("he-IL",
+          { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+      : null;
+    const venue = [ev.venue_name, ev.address].map(v => String(v ?? "").trim())
+      .filter(Boolean).join(", ") || null;
+
+    for (const g of pool) {
+      if (out.sent + out.dry >= SMS_PER_RUN) break;
+      const id = g.id as string;
+      if (already.has(id)) continue;
+      if (last.get(id)?.code !== 131026) continue;
+
+      const body = smsInvite({
+        couple, date: when, venue,
+        reception: (ev.reception_time as string | null)?.slice(0, 5),
+        chuppah: (ev.chuppah_time as string | null)?.slice(0, 5),
+      }, String(g.rsvp_token), APP_URL);
+
+      const res = await provider.send(String(g.phone), body);
+
+      if (!res.ok && "dryRun" in res) {
+        out.dry++;
+        console.log("[sms dry-run]", JSON.stringify({
+          to: String(g.phone), segments: smsSegments(body), request: res.request,
+        }));
+        continue;   /* nothing was transmitted, so nothing is recorded */
+      }
+
+      try {
+        await sb.from("wa_messages").insert({
+          event_id: ev.id, guest_id: id, wa_phone: toE164(String(g.phone)) ?? "",
+          direction: "out", body: "הזמנה ב-SMS",
+          status: res.ok ? "sms" : "failed",
+          ...(res.ok ? {} : { error: `sms: ${res.error}`.slice(0, 300) }),
+        });
+      } catch { /* the send happened; the record is the lesser loss */ }
+
+      if (res.ok) out.sent++; else out.failed++;
+    }
+  }
+  return out;
+}
+
   /* One message to the couple about guests nobody can reach — see
      askCoupleAboutUnreachable. After the day-before, which must never wait for
      anything, and before the guest sends: it costs a single message and can
      spare every send after it from going to a number that does not exist. */
   const coupleAsk = await askCoupleAboutUnreachable(sb, cfg, budget);
   budget = Math.max(0, budget - coupleAsk.sent);
+
+  /* The guests WhatsApp cannot reach — see sendSmsFallback.
+     Spends no WhatsApp budget and is a no-op until SMS credentials exist, so
+     it neither competes with the sends below nor changes anything today. */
+  let sms = { sent: 0, failed: 0, dry: 0 };
+  try { sms = await sendSmsFallback(sb); }
+  catch (e) { console.error("[sms fallback]", (e as Error).message); }
+  if (sms.sent || sms.failed || sms.dry) {
+    console.log("[sms]", JSON.stringify(sms));
+  }
 
   /* Table numbers the couple asked us to send — see sendTableNumbers. Ahead of
      the invitations because a guest who already answered and is already seated
