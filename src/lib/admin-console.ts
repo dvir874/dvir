@@ -1170,6 +1170,20 @@ async function pauseText(sb: Sb, which: { name?: string; id?: string }, pause: b
 /* "מה יוצא היום" — the question he asked four separate times this week, each
    time by asking me to go and look. Nothing here sends anything; it is the
    day, stated. */
+/* One line each, because this goes in a morning message and not a report.
+   The codes that fix themselves are still named — Dvir asked to KNOW, and
+   "מטא תנסה שוב מחר" is the difference between a thing he must do and a thing
+   he can ignore, which is the whole point of naming them at all. */
+const FAIL_SHORT: Record<number, string> = {
+  131026: "אין וואטסאפ — שלח SMS",
+  131047: "חלון נסגר — צריך תבנית",
+  131048: "המספר מוגבל — הודעה אישית ממך",
+  131049: "מכסת מטא לנמען — תנסה שוב מחר לבד",
+  131050: "ביקשו להפסיק — לא שולחים",
+  131053: "תקלת מדיה — שלנו לתקן",
+  130472: "מטא חוסמת — הודעה אישית ממך תפתח",
+};
+
 export async function todayText(sb: Sb): Promise<string> {
   const lines: string[] = [];
 
@@ -1186,7 +1200,7 @@ export async function todayText(sb: Sb): Promise<string> {
 
   const since = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
   const { data: out } = await sb.from("wa_messages")
-    .select("status, error_code").eq("direction", "out")
+    .select("status, error_code, guest_id").eq("direction", "out")
     .gte("created_at", `${since}T00:00:00Z`).limit(2000);
   const sent = (out ?? []).length;
   const failed = (out ?? []).filter(m => m.error_code).length;
@@ -1199,6 +1213,49 @@ export async function todayText(sb: Sb): Promise<string> {
 
   lines.push(`נשלחו היום ${sent}${failed ? ` · ${failed} נכשלו` : ""} מתוך ${cap}`);
   if (sent >= cap) lines.push("התקרה נגמרה להיום.");
+
+  /* Who failed, not how many.
+   *
+   * This line said "5 נכשלו" and stopped there, so the only way to learn which
+   * five was to open /admin and read the delivery column. Dvir did exactly that
+   * on 14/09, found five guests of שלמה ואבישג nobody had told him about, and
+   * said: "לא ידעתי את זה עד שלא נכנסתי לאדמין אבל זה לא מה שרציתי — רציתי שזה
+   * יהיה דרך הווטסאפ של רגע לפני".
+   *
+   * A count is not information he can act on. A name and a number is.
+   *
+   * The nightly unreachable report already does this properly, with a link per
+   * guest — but it runs once, after 21:00, and covers only the three permanent
+   * reasons. Everything that failed this morning for a reason that resolves
+   * itself was invisible until night, and the ones that do not resolve were
+   * invisible until the next evening. This is the morning half. */
+  const failedIds = (out ?? []).filter(m => m.error_code && m.guest_id)
+    .map(m => m.guest_id as string);
+  if (failedIds.length) {
+    const uniq = [...new Set(failedIds)].slice(0, 40);
+    const { data: fg } = await sb.from("guests")
+      .select("id, name, phone").in("id", uniq);
+    const byId = new Map((fg ?? []).map(g => [g.id as string, g]));
+    /* Latest code per guest: a number that failed at 06:00 and delivered at
+       13:00 is not stuck, and naming it sends him after someone who is fine. */
+    const latest = new Map<string, number>();
+    (out ?? []).forEach(m => {
+      const id = m.guest_id as string;
+      if (id && m.error_code) latest.set(id, m.error_code as number);
+      else if (id && !m.error_code) latest.delete(id);
+    });
+    const rows = [...latest.entries()]
+      .map(([id, code]) => ({ g: byId.get(id), code }))
+      .filter(r => r.g);
+    if (rows.length) {
+      lines.push("");
+      lines.push(`📵 ${rows.length} לא קיבלו — צריך אותך:`);
+      for (const r of rows.slice(0, 8)) {
+        lines.push(`${r.g!.name} · ${r.g!.phone} · ${FAIL_SHORT[r.code] ?? `שגיאה ${r.code}`}`);
+      }
+      if (rows.length > 8) lines.push(`ועוד ${rows.length - 8}`);
+    }
+  }
 
   for (const e of await upcoming(sb, 8)) {
     const { data: gs } = await sb.from("guests")
