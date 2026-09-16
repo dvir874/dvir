@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { checkPhone } from "@/lib/phone-il";
+import { coupleDelivery } from "@/lib/guest-delivery";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,48 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
     .order("name");
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data ?? []);
+
+  /* Why the invitation has not arrived, in the couple's terms — see
+     guest-delivery.ts.
+     
+     איילת asked on 15/09 to see who had not received one, because a message
+     had told her there were 41 and shown her none of them. The list itself is
+     not the answer: of the twenty on her wedding that failed, sixteen are
+     Meta's own limits and resolve without anyone lifting a finger. Handing her
+     all twenty repeats what was done to שלמה, who was given sixteen numbers of
+     which ten were fine.
+     
+     So the field carries the split rather than the failure, and the screen
+     shows only the bucket she can answer.
+     
+     Attached to each row instead of returned beside them: the page assigns the
+     response straight into its guest list, and a new shape would have to be
+     unpacked in a screen a couple is using right now. */
+  const rows = data ?? [];
+  const ids = rows.map(g => g.id as string).filter(Boolean);
+  /* Latest outbound per guest, and whether anything ever arrived. Judged on the
+     most recent attempt — a number that failed this morning and delivered this
+     afternoon is not stuck. */
+  const last = new Map<string, { at: string; code: number | null }>();
+  const reached = new Set<string>();
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data: ms } = await sb.from("wa_messages")
+      .select("guest_id, status, error_code, created_at")
+      .eq("direction", "out").in("guest_id", ids.slice(i, i + 100));
+    (ms ?? []).forEach(m => {
+      const id = m.guest_id as string;
+      if (!id) return;
+      if (["delivered", "read"].includes(String(m.status))) reached.add(id);
+      const at = m.created_at as string;
+      const prev = last.get(id);
+      if (!prev || at > prev.at) last.set(id, { at, code: (m.error_code as number | null) ?? null });
+    });
+  }
+
+  return NextResponse.json(rows.map(g => ({
+    ...g,
+    delivery: coupleDelivery(last.get(g.id as string)?.code ?? null, reached.has(g.id as string)),
+  })));
 }
 
 /* POST — one guest, added by the couple.

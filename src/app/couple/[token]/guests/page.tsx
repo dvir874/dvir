@@ -2,6 +2,7 @@
 import { isPlausiblePhone } from "@/lib/phone-validate";
 
 import { useEffect, useState, useCallback } from "react";
+import { inProgressLine, type CoupleDelivery } from "@/lib/guest-delivery";
 import { useParams, useRouter } from "next/navigation";
 import HelpButton from "@/components/HelpButton";
 const C = {
@@ -41,6 +42,8 @@ interface Guest {
   source_group?: string | null;
   table_number: number | null;
   notes: string | null;
+  /* Attached by the API — see lib/guest-delivery.ts. */
+  delivery?: CoupleDelivery;
 }
 
 /* Twelve, because thirty-five chips is six rows of them and the screen's own
@@ -48,6 +51,43 @@ interface Guest {
    position. The rest are in the list below, which is where a couple working
    through them will end up anyway. */
 const NO_PHONE_SHOWN = 12;
+
+/** One group of guests inside the "what needs you" card.
+ *
+ * Both groups are the same shape — a heading, one sentence saying what the
+ * couple can do about it, and names that open the editor the rest of the list
+ * already uses. Written once because two copies of a chip row is how they
+ * drift, which this file has already seen with the failure strip. */
+function GuestNeedGroup({ title, note, list, onPick, top }: {
+  title: string;
+  note: string;
+  list: { id: string; name: string }[];
+  onPick: (g: never) => void;
+  top?: boolean;
+}) {
+  return (
+    <div style={top ? { marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(197,164,109,0.18)" } : undefined}>
+      <p style={{ fontFamily: "Heebo,sans-serif", fontSize: 13, fontWeight: 700, color: C.dark, margin: "0 0 4px" }}>{title}</p>
+      <p style={{ fontFamily: "Heebo,sans-serif", fontSize: 13.5, lineHeight: 1.65, color: "rgba(28,16,8,0.70)", margin: "0 0 10px" }}>{note}</p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+        {list.slice(0, NO_PHONE_SHOWN).map(g => (
+          <button
+            key={g.id}
+            onClick={() => onPick(g as never)}
+            style={{ background: C.cream, border: "1px solid rgba(197,164,109,0.35)", borderRadius: 9999, padding: "8px 13px", minHeight: 44, cursor: "pointer", fontFamily: "Heebo,sans-serif", fontSize: 13, fontWeight: 600, color: C.dark }}
+          >
+            {g.name}
+          </button>
+        ))}
+        {list.length > NO_PHONE_SHOWN && (
+          <span style={{ alignSelf: "center", fontFamily: "Heebo,sans-serif", fontSize: 13, fontWeight: 600, color: "rgba(28,16,8,0.55)", padding: "0 4px" }}>
+            ועוד {list.length - NO_PHONE_SHOWN} ברשימה למטה
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function GuestCenterPage() {
   const { token } = useParams<{ token: string }>();
@@ -162,6 +202,12 @@ export default function GuestCenterPage() {
      morning her invitations were due out. The approved Stitch screen answers
      that by giving them a section of their own instead of a clause. */
   const noPhoneList = guests.filter(g => !g.phone?.trim());
+  /* A real number with no WhatsApp on it. The only failure where a different
+     number is a genuine answer, and the only one the couple can give. */
+  const needsNumberList = guests.filter(g => g.delivery === "needs_number");
+  /* Meta's own limits — counted, never listed. See guest-delivery.ts. */
+  const inProgressCount = guests.filter(g => g.delivery === "in_progress").length;
+  const needsYou = noPhoneList.length + needsNumberList.length;
 
   const filtered = guests.filter(g => {
     const matchSearch = !search || g.name.toLowerCase().includes(search.toLowerCase()) || (g.phone ?? "").includes(search);
@@ -225,48 +271,68 @@ export default function GuestCenterPage() {
              Tapping a name opens the same editor the rest of the list uses.
              Nothing new to learn, and the number lands where the sender reads
              it. */}
-      {!loading && noPhoneList.length > 0 && (
+      {/* What needs the couple, and what does not.
+       *
+       * This card was "חסרי טלפון" — one group, and a fair question from
+       * איילת on 15/09 that it could not answer: a message had told her 41
+       * guests had not received the invitation and shown her none of them.
+       *
+       * The list she asked for is not the answer. Of the twenty on her wedding
+       * that failed, sixteen are Meta's own limits and clear themselves. Giving
+       * her all twenty is what was done to שלמה, who was handed sixteen numbers
+       * of which ten were perfectly fine and wrote back asking who we meant.
+       *
+       * So the card answers "what needs you" instead of "who is missing", and
+       * the two questions are kept apart: names where a couple can act, a
+       * sentence where they cannot. Guests who asked Meta to stop appear in
+       * neither — a second number for them would route around a stop request. */}
+      {!loading && (needsYou > 0 || inProgressCount > 0) && (
         <div style={{ padding: "16px 20px 0" }}>
-          <div style={{ background: "#FFFFFF", border: "1px solid rgba(178,76,76,0.22)", borderRadius: 16, padding: "14px 16px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <div style={{ background: "#FFFFFF", border: `1px solid ${needsYou ? "rgba(178,76,76,0.22)" : "rgba(197,164,109,0.25)"}`, borderRadius: 16, padding: "14px 16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: needsYou ? 12 : 6 }}>
               <h3 style={{ fontFamily: "Frank Ruhl Libre,serif", fontSize: 17, fontWeight: 700, color: C.dark, margin: 0 }}>
-                חסרי טלפון
+                {needsYou ? "מה צריך אתכם" : "הכול מטופל"}
               </h3>
-              <span style={{ background: "rgba(178,76,76,0.12)", color: "#8F3B3B", borderRadius: 9999, padding: "2px 9px", fontFamily: "Heebo,sans-serif", fontSize: 12, fontWeight: 700 }}>
-                {noPhoneList.length}
-              </span>
-            </div>
-
-            <p style={{ fontFamily: "Heebo,sans-serif", fontSize: 13.5, lineHeight: 1.65, color: "rgba(28,16,8,0.70)", margin: "0 0 12px" }}>
-              אליהם אין לנו דרך להגיע — הם לא יקבלו הזמנה ולא יופיעו באף ספירה.
-              לחצו על שם כדי להשלים מספר.
-            </p>
-
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-              {noPhoneList.slice(0, NO_PHONE_SHOWN).map(g => (
-                <button
-                  key={g.id}
-                  onClick={() => openDetail(g)}
-                  style={{ background: C.cream, border: "1px solid rgba(197,164,109,0.35)", borderRadius: 9999, padding: "8px 13px", minHeight: 40, cursor: "pointer", fontFamily: "Heebo,sans-serif", fontSize: 13, fontWeight: 600, color: C.dark }}
-                >
-                  {g.name}
-                </button>
-              ))}
-              {noPhoneList.length > NO_PHONE_SHOWN && (
-                <span style={{ alignSelf: "center", fontFamily: "Heebo,sans-serif", fontSize: 13, fontWeight: 600, color: "rgba(28,16,8,0.55)", padding: "0 4px" }}>
-                  ועוד {noPhoneList.length - NO_PHONE_SHOWN} ברשימה למטה
+              {needsYou > 0 && (
+                <span style={{ background: "rgba(178,76,76,0.12)", color: "#8F3B3B", borderRadius: 9999, padding: "2px 9px", fontFamily: "Heebo,sans-serif", fontSize: 12, fontWeight: 700 }}>
+                  {needsYou}
                 </span>
               )}
             </div>
 
-            {/* The answer איילת actually needed: a guest she knows is coming does
-                not have to wait for an invitation to be counted. Marking them
-                מאושר puts them into the headcount, the meal report and the
-                automatic seating exactly as if they had answered themselves. */}
-            <p style={{ fontFamily: "Heebo,sans-serif", fontSize: 12.5, lineHeight: 1.6, color: "rgba(28,16,8,0.62)", margin: "12px 0 0", paddingTop: 10, borderTop: "1px solid rgba(197,164,109,0.18)" }}>
-              💡 יודעים שמישהו מהם מגיע? סמנו אותו כ&quot;מאושר&quot; וכתבו כמה אנשים —
-              הוא ייספר בדוח המנות וייכנס לסידור ההושבה האוטומטי, בדיוק כאילו אישר בעצמו.
-            </p>
+            {noPhoneList.length > 0 && (
+              <GuestNeedGroup
+                title={`בלי מספר טלפון · ${noPhoneList.length}`}
+                note="אליהם אין לנו דרך להגיע — הם לא יקבלו הזמנה ולא יופיעו באף ספירה. לחצו על שם כדי להשלים מספר."
+                list={noPhoneList}
+                onPick={openDetail}
+              />
+            )}
+
+            {needsNumberList.length > 0 && (
+              <GuestNeedGroup
+                title={`יש מספר, אבל אין עליו וואטסאפ · ${needsNumberList.length}`}
+                note="שלחנו, והמספר הזה לא מחובר לוואטסאפ. יש לכם מספר אחר בשבילם? לחצו על שם כדי לעדכן. אם אין — דביר ישלח להם SMS."
+                list={needsNumberList}
+                onPick={openDetail}
+                top={noPhoneList.length > 0}
+              />
+            )}
+
+            {/* A sentence and not a list: these clear without anybody doing
+                anything, and a list invites work that would be wasted. */}
+            {inProgressLine(inProgressCount) && (
+              <p style={{ fontFamily: "Heebo,sans-serif", fontSize: 13, lineHeight: 1.6, color: "rgba(28,16,8,0.62)", margin: `${needsYou ? 12 : 0}px 0 0`, ...(needsYou ? { paddingTop: 10, borderTop: "1px solid rgba(197,164,109,0.18)" } : {}) }}>
+                ⏳ {inProgressLine(inProgressCount)}
+              </p>
+            )}
+
+            {noPhoneList.length > 0 && (
+              <p style={{ fontFamily: "Heebo,sans-serif", fontSize: 12.5, lineHeight: 1.6, color: "rgba(28,16,8,0.62)", margin: "12px 0 0", paddingTop: 10, borderTop: "1px solid rgba(197,164,109,0.18)" }}>
+                💡 יודעים שמישהו מהם מגיע? סמנו אותו כ&quot;מאושר&quot; וכתבו כמה אנשים —
+                הוא ייספר בדוח המנות וייכנס לסידור ההושבה האוטומטי, בדיוק כאילו אישר בעצמו.
+              </p>
+            )}
           </div>
         </div>
       )}
