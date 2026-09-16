@@ -16,16 +16,25 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
   const eventId = await getEventId(token);
   if (!eventId) return NextResponse.json({ error: "not found" }, { status: 404 });
 
-  const [tablesRes, assignmentsRes, guestsRes] = await Promise.all([
+  const [tablesRes, assignmentsRes, guestsRes, eventRes] = await Promise.all([
     sb.from("seating_tables").select("*").eq("event_id", eventId).order("sort_order"),
     sb.from("seating_assignments").select("*").eq("event_id", eventId),
     sb.from("guests").select("id, name, guest_count, status, phone, source_group, side").eq("event_id", eventId).order("name"),
+    /* The screen addresses the couple by name and counts down to their date,
+       and neither was ever sent here — the same gap that left the greeting off
+       the guests screen. Selected narrowly: this endpoint answers to a token
+       anyone with the link holds, so it carries what the page prints and
+       nothing else. */
+    sb.from("events").select("name, couple_names, date, venue_name").eq("id", eventId).maybeSingle(),
   ]);
 
   return NextResponse.json({
     tables: tablesRes.data ?? [],
     assignments: assignmentsRes.data ?? [],
     guests: guestsRes.data ?? [],
+    /* null rather than absent when the row cannot be read, so the page keeps
+       the shape it expects and simply shows no greeting. */
+    event: eventRes.data ?? null,
   });
 }
 
