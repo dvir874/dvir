@@ -1568,13 +1568,13 @@ async function alertManualWork(
       const lines = manualWorkLines(
         coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name ?? ""),
         days, items, APP_URL);
-      const sentPlain = lines ? (await sendAdminText(cfg, to, lines)).ok : false;
+      const sentPlain = lines ? (await sendAdminText(cfg, to, lines, "manual_work")).ok : false;
       if (!sentPlain) {
         await sendRunSummary(cfg, to, {
           event: "🙋 מחכה לך",
           sent: String(items.length), failed: "—", left: String(days),
           attention: body,
-        });
+        }, "manual_work");
       }
     } catch { /* an alert must never cost a send */ }
   }
@@ -1673,7 +1673,7 @@ async function alertUnreachable(
      The fallback cannot carry the links: a template parameter rejects the
      newline that puts each one on its own line. It carries the count and the
      names, which is enough to know to open /admin/sms. */
-  const plain = await sendAdminText(cfg, to, body).catch(() => ({ ok: false as const }));
+  const plain = await sendAdminText(cfg, to, body, "unreachable").catch(() => ({ ok: false as const }));
   if (plain.ok) return;
 
   const total = sections.reduce((n, x) => n + x.items.length, 0);
@@ -1683,7 +1683,7 @@ async function alertUnreachable(
       event: "📵 מספרים תקועים",
       sent: String(total), failed: "—", left: "—",
       attention: `${total} מספרים מחכים להודעה ממך — ${names}. הרשימה עם הקישורים ב-/admin/sms`,
-    });
+    }, "unreachable");
   } catch { /* an alert must never cost a send */ }
 }
 
@@ -1846,7 +1846,7 @@ async function alertCapacityAhead(
       + (others.length
           ? `\nגם ${others.map(d => `${d.date.slice(8, 10)}/${d.date.slice(5, 7)}`).join(" · ")} על הגבול.`
           : ""),
-  });
+  }, "capacity_ahead");
 
   await sb.from("wa_runs").insert({
     reason: "capacity_alert", sent: 0, failed: 0, cap,
@@ -1903,7 +1903,7 @@ async function alertIncompleteEvents(
         + (gaps.includes("רשימת אורחים")
             ? "בלי רשימה לא נשלח כלום."
             : "בלי אלה השליחה לא מתחילה."),
-    });
+    }, "incomplete_events");
     await sb.from("events")
       .update({ setup_alert_at: new Date().toISOString() }).eq("id", ev.id as string);
   }
@@ -1974,7 +1974,7 @@ async function remindGalleryReady(
       attention: `החתונה הייתה לפני ${daysAgo} ${daysAgo === 1 ? "יום" : "ימים"}. `
         + `${count} אורחים ביקשו לשתף תמונות ומחכים לקישור. `
         + `כשהאלבום מוכן — /admin, כפתור "התמונות עלו".`,
-    });
+    }, "gallery_reminder");
     await sb.from("events")
       .update({ setup_alert_at: new Date().toISOString() }).eq("id", ev.id as string);
   }
@@ -2283,14 +2283,14 @@ async function morningBrief(
      own labels are "נשלחו / נכשלו / נותרו במכסה / דורשים טיפול", which is
      honestly what a morning brief is, so nothing is squeezed into a slot that
      means something else. */
-  const plain = await sendAdminText(cfg, toE164(to) ?? to, body);
+  const plain = await sendAdminText(cfg, toE164(to) ?? to, body, "morning_brief");
   let delivered = plain.ok;
   if (!delivered) {
     const tpl = await sendRunSummary(cfg, to, {
       event: `הבוקר · ${new Date().toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem", day: "numeric", month: "long" })}`,
       sent: "—", failed: "—", left: "—",
       attention: body.replace(/\n+/g, " · ").slice(0, 900),
-    });
+    }, "morning_brief");
     delivered = tpl.ok;
   }
 
@@ -2402,7 +2402,7 @@ async function alertWaitingGuests(
 
   let delivered = false;
   for (const part of parts) {
-    const r = await sendAdminText(cfg, toE164(to) ?? to, part);
+    const r = await sendAdminText(cfg, toE164(to) ?? to, part, "waiting_guests");
     if (r.ok) { delivered = true; continue; }
     /* His window is shut. The template carries the first chunk and says how
        many more are waiting, rather than dropping them silently. */
@@ -2410,7 +2410,7 @@ async function alertWaitingGuests(
       event: waitingHeader(waiting.length),
       sent: "0", failed: "—", left: String(waiting.length),
       attention: part.replace(/\n+/g, " · ").slice(0, 900),
-    });
+    }, "waiting_guests");
     if (r2.ok) delivered = true;
     break;
   }

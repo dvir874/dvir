@@ -824,6 +824,13 @@ export async function rollingWindowUsage(
      Filtered here rather than in the query because this client carries `never`
      for its Database generic, and chaining .not() past .gte() collapses the
      row type to never. */
+  /* Dvir's own number is counted here, unlike in recentPeakRecipients, and the
+     difference is deliberate. That function asks "how far did we reach, so how
+     much may we grow" — an alert is not reach. This one asks "how much of
+     Meta's window is spent", and a utility template to him opens a
+     conversation with a unique recipient exactly like any other. Counting it
+     costs at most one slot a day and errs toward sending less, which is the
+     direction this function is documented to fail in. */
   const recipients = new Set(
     data.filter(r => r.wamid).map(r => r.wa_phone).filter(Boolean),
   ).size;
@@ -1070,9 +1077,20 @@ export async function recentPeakRecipients(
      finished intact, which means yesterday at the earliest. */
   const todayKey = new Date().toISOString().slice(0, 10);
 
+  /* Dvir's own number is not reach.
+   *
+   * Since the alerts started being recorded, every day he is alerted carries
+   * his number as one more "recipient" — and this function's answer is
+   * multiplied to set tomorrow's ceiling. One phantom recipient a day is small
+   * and it points the wrong way: it grants headroom nobody earned, on a number
+   * that was restricted at 82 on 9/8. Excluded from the peak, but NOT from
+   * `burned` above — an alert that came back 131048 is real evidence the
+   * number is restricted, and that day should still be disqualified. */
+  const admin = toE164(process.env.ADMIN_ALERT_PHONE ?? "");
+
   const byDay = new Map<string, Set<string>>();
   for (const r of data) {
-    if (!r.wa_phone) continue;
+    if (!r.wa_phone || (admin && r.wa_phone === admin)) continue;
     const d = r.created_at.slice(0, 10);
     if (burned.has(d) || d === todayKey) continue;
     (byDay.get(d) ?? byDay.set(d, new Set()).get(d)!).add(r.wa_phone);
@@ -1425,7 +1443,84 @@ export function safeParam(text: string): string {
  *
  * Returns the outcome so a caller can react, and falls back to plain text when
  * the template is refused — Dvir's own 24-hour window is open whenever he has
- * used the console, and a degraded alert beats none. */
+ * used the console, and a degraded alert beats none.
+ *
+ * The log was the last part of that still missing, and it was the part that
+ * mattered: a caller can only react while it is running, and nobody was
+ * watching at 07:00. Measured 15/09 — his number had zero outbound rows in
+ * wa_messages, ever. The alerts now write one, through logAdminNotice below. */
+
+/* The record of an alert, written where the alert actually leaves.
+ *
+ * Deliberately here rather than in the eight alert functions. Those eight were
+ * the ones found missing, but they are not the whole set: twenty-eight call
+ * sites reach Dvir through sendAdminText and sendRunSummary, and every one of
+ * them was equally invisible. Logging at the two doors means the next alert
+ * anyone writes is on the record without remembering to put it there — which
+ * is the point, since the agreed next step was to record these BEFORE adding
+ * more of them.
+ *
+ * Three rules, all of them the same rule: an alert must never be made worse by
+ * the attempt to record it.
+ *   · It never throws. A lost row must not cost Dvir the message.
+ *   · It builds its own client, so no call site had to change to gain a log.
+ *   · If `kind` is missing because the migration has not run, it writes the row
+ *     again without it. The record survives the deploy order; CLAUDE.md
+ *     forbids shipping anything that breaks when new data is not there yet.
+ *
+ * event_id and guest_id stay null: this is not part of any couple's thread, and
+ * null is what keeps these rows out of the per-event inbox, which filters on
+ * event_id and would otherwise show Dvir a conversation with himself. */
+export interface AdminNotice {
+  phone: string;
+  body: string;
+  label?: string;
+  messageId?: string | null;
+  error?: string;
+}
+
+/** The row an alert becomes. Separated from the write so the decisions in it
+ *  can be tested without a database — the rest of this file's tests cover the
+ *  pure choices for the same reason. */
+export function adminNoticeRow(n: AdminNotice): Record<string, unknown> | null {
+  const wa_phone = toE164(n.phone);
+  if (!wa_phone) return null;
+  return {
+    /* Both null, and both load-bearing. The per-event inbox selects on
+       event_id, so a null keeps these out of every couple's thread — Dvir
+       should not open שחר's conversation and find the morning brief in it. */
+    event_id: null, guest_id: null,
+    wa_phone,
+    direction: "out",
+    body: n.body.slice(0, 4000),
+    wamid: n.messageId ?? null,
+    status: n.error ? "failed" : "sent",
+    error: n.error ? n.error.slice(0, 300) : null,
+    /* `admin` alone when the caller named no alert, so the prefix — the thing
+       every query filters on — is never the part that goes missing. */
+    kind: n.label ? `admin_${n.label}` : "admin",
+  };
+}
+
+async function logAdminNotice(n: AdminNotice): Promise<void> {
+  try {
+    const row = adminNoticeRow(n);
+    if (!row) return;
+
+    const { createServerClient } = await import("@/lib/supabase-server");
+    const sb = createServerClient();
+
+    const { error } = await sb.from("wa_messages").insert(row);
+    if (error) {
+      /* Almost certainly the column, because the row is otherwise the same
+         shape every other send writes. Drop it and keep the record. */
+      const withoutKind = { ...row };
+      delete withoutKind.kind;
+      await sb.from("wa_messages").insert(withoutKind);
+    }
+  } catch { /* the alert went out; the record is the lesser loss */ }
+}
+
 /** A plain WhatsApp message to Dvir, no template.
  *
  * Only reaches him inside the 24-hour window his own messages to the business
@@ -1437,6 +1532,9 @@ export function safeParam(text: string): string {
  * report does not matter". */
 export async function sendAdminText(
   cfg: WhatsAppConfig, phone: string, body: string,
+  /* Which alert this is, for the record. Optional so the four existing call
+     sites keep compiling; every one of them passes it. */
+  label?: string,
 ): Promise<SendResult> {
   try {
     const res = await fetch(
@@ -1450,11 +1548,25 @@ export async function sendAdminText(
           text: { preview_url: false, body: body.slice(0, 4000) },
         }),
       });
-    if (res.ok) return { ok: true };
     const json = await res.json().catch(() => ({}));
-    return { ok: false, error: String(json?.error?.error_user_msg ?? json?.error?.message ?? res.status) };
+    if (res.ok) {
+      /* The wamid is read now, where it used to be thrown away with the whole
+         response body. It is what lets the delivery webhook find this row and
+         mark it delivered or read — so an alert stops being "we called out"
+         and becomes "it arrived", which is the question actually being asked.
+         It also keeps these rows out of the stale-send count in /admin, which
+         looks for outbound rows that never moved past "sent". */
+      const messageId = json?.messages?.[0]?.id ?? null;
+      await logAdminNotice({ phone, body, label, messageId });
+      return { ok: true, messageId: messageId ?? undefined };
+    }
+    const error = String(json?.error?.error_user_msg ?? json?.error?.message ?? res.status);
+    await logAdminNotice({ phone, body, label, error });
+    return { ok: false, error };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "network" };
+    const error = e instanceof Error ? e.message : "network";
+    await logAdminNotice({ phone, body, label, error });
+    return { ok: false, error };
   }
 }
 
@@ -1462,9 +1574,16 @@ export async function sendRunSummary(
   cfg: WhatsAppConfig,
   to: string,
   v: { event: string; sent: string; failed: string; left: string; attention: string },
+  /* As in sendAdminText: optional, so all twenty-four call sites keep
+     compiling, and the ones that are named alerts pass it. */
+  label?: string,
 ): Promise<SendResult> {
   const phone = toE164(to);
   if (!phone) return { ok: false, error: "מספר לא תקין" };
+
+  /* What a reader of the log needs to see, which is what he saw on his phone —
+     not the five template slots it was assembled from. */
+  const logBody = `${v.event}\n${v.attention}`;
 
   const name = process.env.WHATSAPP_TEMPLATE_RUN_SUMMARY?.trim()
     || "sending_run_summary_utility";
@@ -1487,10 +1606,20 @@ export async function sendRunSummary(
       }),
     });
     const json = await res.json().catch(() => ({}));
-    if (res.ok) return { ok: true, messageId: json?.messages?.[0]?.id };
+    if (res.ok) {
+      const messageId = json?.messages?.[0]?.id ?? null;
+      await logAdminNotice({ phone, body: logBody, label, messageId });
+      return { ok: true, messageId: messageId ?? undefined };
+    }
 
     const error = json?.error?.error_user_msg ?? json?.error?.message ?? `HTTP ${res.status}`;
     console.error(`[run-summary] ${name}: ${error}`);
+    /* The rejected template gets its own row before the fallback is tried.
+       Two rows for one alert is not noise — it is the whole chain: Meta
+       refused the template at 07:00, the plain text carried it a second
+       later. Collapsing that into one row loses the refusal, which is the
+       only part anyone would need to act on. */
+    await logAdminNotice({ phone, body: logBody, label, error: String(error) });
 
     /* One fallback, in plain text. Only works inside the 24-hour window, which
        is open whenever he has written to the business number — and if it is
@@ -1505,11 +1634,19 @@ export async function sendRunSummary(
         text: { preview_url: false, body: plain },
       }),
     }).catch(() => null);
-    if (alt?.ok) return { ok: true };
+    if (alt?.ok) {
+      const altJson = await alt.json().catch(() => ({}));
+      await logAdminNotice({
+        phone, body: plain, label,
+        messageId: altJson?.messages?.[0]?.id ?? null,
+      });
+      return { ok: true };
+    }
     return { ok: false, error };
   } catch (e) {
     const error = e instanceof Error ? e.message : "network";
     console.error(`[run-summary] ${error}`);
+    await logAdminNotice({ phone, body: logBody, label, error });
     return { ok: false, error };
   }
 }

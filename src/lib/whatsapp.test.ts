@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { toE164, warmupCap, policyFor, isRetryableFailure,
+import { toE164, warmupCap, policyFor, isRetryableFailure, adminNoticeRow,
          WARMUP_COLD_START, WARMUP_MULTIPLIER, WARMUP_MAX_DAILY_STEP } from "./whatsapp.ts";
 
 /* whatsapp.ts is 1,140 lines and decides who receives a message and who never
@@ -83,4 +83,58 @@ test("a restriction stops the run, not just the message", () => {
 test("permanent failures are not retried", () => {
   assert.equal(isRetryableFailure(131026), false);
   assert.equal(isRetryableFailure(131050), false);
+});
+
+
+/* ── the record an alert leaves ──────────────────────────────────────────
+   Measured 15/09: zero outbound rows for Dvir's number, ever. Eight alert
+   paths sent and wrote nothing, so a failed alert and a quiet day were the
+   same event in the database. These cover what the row has to get right. */
+
+test("an alert is written against no event and no guest", () => {
+  /* The per-event inbox selects on event_id. A non-null here would put the
+     morning brief inside a couple's own conversation thread. */
+  const row = adminNoticeRow({ phone: "972533318177", body: "הבוקר", label: "morning_brief" })!;
+  assert.equal(row.event_id, null);
+  assert.equal(row.guest_id, null);
+  assert.equal(row.direction, "out");
+  assert.equal(row.wa_phone, "972533318177");
+});
+
+test("the alert is named, so a failure can be found without reading bodies", () => {
+  assert.equal(adminNoticeRow({ phone: "0533318177", body: "x", label: "manual_work" })!.kind,
+    "admin_manual_work");
+  /* Unnamed still keeps the prefix every query filters on. */
+  assert.equal(adminNoticeRow({ phone: "0533318177", body: "x" })!.kind, "admin");
+});
+
+test("a refused alert is recorded as failed, with Meta's reason", () => {
+  const row = adminNoticeRow({ phone: "0533318177", body: "x", label: "unreachable",
+                               error: "Template name does not exist" })!;
+  assert.equal(row.status, "failed");
+  assert.equal(row.error, "Template name does not exist");
+  assert.equal(row.wamid, null);
+});
+
+test("an accepted alert carries the wamid, which is how delivery finds it", () => {
+  /* The webhook updates by wamid alone. Without it the row would sit at
+     "sent" for ever and show up as a stale send in /admin. */
+  const row = adminNoticeRow({ phone: "0533318177", body: "x", messageId: "wamid.ABC" })!;
+  assert.equal(row.status, "sent");
+  assert.equal(row.wamid, "wamid.ABC");
+  assert.equal(row.error, null);
+});
+
+test("a long report is truncated rather than rejected by the column", () => {
+  const row = adminNoticeRow({ phone: "0533318177", body: "x".repeat(9000),
+                               error: "e".repeat(900) })!;
+  assert.equal((row.body as string).length, 4000);
+  assert.equal((row.error as string).length, 300);
+});
+
+test("an unusable admin number writes nothing at all", () => {
+  /* wa_phone is NOT NULL. ADMIN_ALERT_PHONE unset or malformed must not throw
+     inside a send path. */
+  assert.equal(adminNoticeRow({ phone: "", body: "x" }), null);
+  assert.equal(adminNoticeRow({ phone: "—", body: "x" }), null);
 });
