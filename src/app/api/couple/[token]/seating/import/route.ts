@@ -196,16 +196,23 @@ export async function POST(
   const existing = new Map<string, string>();
   for (const t of (tableRows ?? []) as TableRow[]) existing.set(clean(t.name), t.id);
 
+  /* People, not records. A capacity floor counted in households would build
+     table 16 with four chairs for the eleven the sheet seats there. */
   const seatedAt = new Map<string, number>();
-  for (const { entry } of seat.values())
-    seatedAt.set(entry.table as string, (seatedAt.get(entry.table as string) ?? 0) + 1);
+  for (const { guest, entry } of seat.values()) {
+    const t = entry.table as string;
+    seatedAt.set(t, (seatedAt.get(t) ?? 0) + Math.max(1, guest.guest_count ?? 1));
+  }
 
   const toCreate = parsed.tables
     .filter((t) => !existing.has(t.table))
     .map((t, i) => ({
       name: t.table,
       capacity: tableCapacity(t, seatedAt.get(t.table) ?? 0),
-      sort_order: i,
+      /* The venue's own number, so the couple's grid comes out in the order
+         the room is in. Falls back to position for a table named rather than
+         numbered — sort_order is not what a guest is ever told either way. */
+      sort_order: /^\d{1,3}$/.test(t.table) ? parseInt(t.table, 10) : existing.size + i,
       zone: null as string | null,
     }));
 
