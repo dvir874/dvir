@@ -33,7 +33,7 @@
 
 export type FaqTopic =
   | "when" | "where" | "how_to_get" | "dress" | "parking"
-  | "rides" | "couple" | "gift" | "kids";
+  | "rides" | "couple" | "gift" | "kids" | "table";
 
 /** Everything this file may say, drawn from the event the guest was invited to. */
 export interface FaqFacts {
@@ -52,6 +52,9 @@ export interface FaqFacts {
   /* Bit is a phone number, not a link, and it is the way most Israeli
      guests actually send money. */
   bitPhone?: string | null;
+  /* The table THIS guest sits at — the only per-guest fact in here, and the
+     reason FaqFacts is built per reply rather than per event. */
+  table?: string | null;
 }
 
 /* Each topic is a question a person asks out loud. Deliberately generous,
@@ -66,6 +69,10 @@ const PATTERNS: [FaqTopic, RegExp][] = [
   ["gift",       /(מתנה|מתנות|ביט|צ'ק|מעטפה|להעביר כסף|העברה בנקאית)/i],
   ["kids",       /(ילדים|ילד שלי|תינוק|עגלה|בייביסיטר|אפשר להביא את הילד)/i],
   ["couple",     /(מי מתחתן|של מי החתונה|מי המזמין|מי הזמין|חתונה של מי|מי זה)/i],
+  /* Before "where", and that order is the whole rule: "איפה אני יושב" matches
+     the interrogative in `where` too, and would be answered with the address
+     of a hall the guest is already standing in. */
+  ["table",      /(שולחן|שולחנות|איפה (אני|אנחנו|אנו) (יושב|יושבת|יושבים|נשב)|היכן אני יושב|הושבה|מקום ישיבה|איפה נשב|איפה לשבת|איפה אשב)/i],
   ["where",      /(איפה|היכן|כתובת|מיקום|באיזה אולם|איזה אולם|מה המקום|איפה זה)/i],
   ["when",       /(מתי|באיזו שעה|באיזה שעה|מה השעה|שעה מתחיל|מתי מתחילים|מתי זה|באיזו שעה זה)/i],
 ];
@@ -138,6 +145,24 @@ export function faqAnswer(topic: FaqTopic, f: FaqFacts): string | null {
 
     case "couple":
       return f.couple?.trim() ? `החתונה של ${f.couple.trim()} 🤍` : null;
+
+    case "table": {
+      /* A number only, and never a name.
+       *
+       * The same rule venueTableNumbers enforces on the outbound send: a sign
+       * in the hall says "14", and a guest handed "משפחת ביטון" has been given
+       * something to look for that does not exist. When the plan names its
+       * tables, this says nothing and the guest reaches a person who can walk
+       * them there.
+       *
+       * Null is also the answer before the couple has seated anybody, which is
+       * most of the months this question can be asked in. Inventing a
+       * reassurance ("עוד לא סידרו") would be answering on the couple's behalf
+       * about a decision they have not made. */
+      const t = String(f.table ?? "").trim();
+      if (!/^\d{1,3}$/.test(t)) return null;
+      return `🪑 השולחן שלכם: ${t}`;
+    }
 
     case "kids":
       /* Never answered from data — whether children are invited is the

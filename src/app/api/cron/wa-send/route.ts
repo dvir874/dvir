@@ -17,6 +17,7 @@ import {
 import { checkEventLinks, brokenSummary } from "@/lib/link-health";
 import { chooseEvents, MAX_EVENTS_PER_RUN, type WindowEvent } from "@/lib/send-window";
 import { dayOfWindow, dayOfTargets } from "@/lib/day-of";
+import { foldTold, tableAction, tableSentEvent, TABLE_SENT } from "@/lib/table-told";
 import { isRsvpMessage, isInvitation, didArrive, isNewerStatus } from "@/lib/rsvp-contact";
 import { classifyManualWork, manualWorkMessage, manualWorkLines, type LastContact } from "@/lib/manual-work";
 import { unreachableGuests, unreachableReport, askedOutcome } from "@/lib/unreachable";
@@ -855,7 +856,7 @@ async function notifyDayOf(
       ? `${APP_URL}/nav/${ev.id}`
       : null;
     const dayOfLine = (id: string): string | null => {
-      const parts = [lineFor(id), nav ? `🚗 ניווט: ${nav}` : null].filter(Boolean);
+      const parts = [lineFor(id).line, nav ? `🚗 ניווט: ${nav}` : null].filter(Boolean);
       return parts.length ? parts.join(" · ") : null;
     };
 
@@ -881,6 +882,13 @@ async function notifyDayOf(
         sentTotal++;
         /* The one row that stops this being sent again — see markSent. */
         await markSent(sb, g.id, "day_of_sent");
+        /* And the number this card carried, for the same reason the eve card
+         * records it: sendTableNumbers runs later in the SAME invocation, and
+         * without this row a guest gets "היום מתחתנים · 🪑 שולחן 12" and then a
+         * second message saying "🪑 שולחן 12" — on the morning of the wedding.
+         * The eve path was fixed for this and this one was not. */
+        const carriedToday = lineFor(g.id as string).table;
+        if (carriedToday) await markSent(sb, g.id, tableSentEvent(carriedToday));
         if (res.messageId) {
           await sb.from("wa_messages").insert({
             event_id: ev.id, guest_id: g.id, wa_phone: toE164(g.phone as string) ?? "",
@@ -1038,7 +1046,7 @@ async function dayMessageOf(
 async function guestLineFactory(
   sb: ReturnType<typeof createServerClient>,
   eventId: string,
-): Promise<(guestId: string) => string | null> {
+): Promise<(guestId: string) => { line: string | null; table: string | null }> {
   /* The table number travels only if the couple asked for it.
    *
    * tables_send_requested_at is the couple's opt-in — the button on their
@@ -1102,18 +1110,30 @@ async function guestLineFactory(
    * the answer is not to block it. Both messages are worth sending — one is the
    * details, the other is "it is tomorrow" with the חופה time and navigation —
    * and only the repeated fact needs removing. */
-  const toldAlready = new Set<string>();
+  /* By table, not merely "told something" — see table-told.ts. A guest moved
+     after the send holds a number this card would otherwise decline to
+     correct, on the one evening left to correct it. */
+  const toldRows = new Map<string, string[]>();
   try {
     const { data } = await sb.from("guest_events")
-      .select("guest_id").eq("event_type", "table_number_sent")
+      .select("guest_id, event_type").like("event_type", `${TABLE_SENT}%`)
       .in("guest_id", [...tableByGuest.keys()]);
-    (data ?? []).forEach(r => r.guest_id && toldAlready.add(r.guest_id as string));
+    for (const r of data ?? []) {
+      const g = r.guest_id as string;
+      if (!g) continue;
+      toldRows.set(g, [...(toldRows.get(g) ?? []), String(r.event_type ?? "")]);
+    }
   } catch { /* no dedupe row is not a reason to hold the message */ }
 
-  return (guestId: string): string | null => {
-    const t = toldAlready.has(guestId) ? null : tableByGuest.get(guestId);
-    const parts = [t ? `🪑 שולחן ${t}` : null, note?.trim() || null].filter(Boolean);
-    return parts.length ? parts.join(" · ") : null;
+  /* `table` is the number this line actually carried, and null when it carried
+     none — which is what the caller records, so the row names what the guest
+     now holds rather than merely that they were written to. */
+  return (guestId: string): { line: string | null; table: string | null } => {
+    const seated = tableByGuest.get(guestId);
+    const act = seated ? tableAction(foldTold(toldRows.get(guestId) ?? []), seated) : null;
+    const table = act?.send ? seated! : null;
+    const parts = [table ? `🪑 שולחן ${table}` : null, note?.trim() || null].filter(Boolean);
+    return { line: parts.length ? parts.join(" · ") : null, table };
   };
 }
 
@@ -1166,7 +1186,7 @@ async function dayBeforeForEvent(
     const batch = await Promise.all(
       todo.slice(i, i + SEND_CONCURRENCY).map(async g => ({
         g, res: await sendDayBefore(cfg, g.phone as string, couple, rec, chu, venue,
-          lineFor(g.id as string)),
+          lineFor(g.id as string).line),
       })),
     );
     for (const { g, res } of batch) {
@@ -1192,9 +1212,11 @@ async function dayBeforeForEvent(
        *
        * Recorded here rather than filtered there, because the number the guest
        * now holds came from this message and this is where that is known. */
-      if ((lineFor(g.id as string) ?? "").includes("שולחן")) {
-        /* The one row that stops this being sent again — see markSent. */
-        await markSent(sb, g.id, "table_number_sent");
+      const carried = lineFor(g.id as string).table;
+      if (carried) {
+        /* The one row that stops this being sent again — see markSent. It
+           names the table, so a guest moved afterwards is not silenced by it. */
+        await markSent(sb, g.id, tableSentEvent(carried));
       }
       if (res.messageId) {
         await sb.from("wa_messages").insert({
@@ -2096,34 +2118,66 @@ async function sendTableNumbers(
       (tables ?? []) as { id: string; name?: string | null }[]) ?? new Map<string, string>();
 
     const ids = [...new Set((seats ?? []).map(a => a.guest_id as string))];
-    const already = new Set<string>();
+    /* What each of them has been told, BY TABLE — see table-told.ts. The set
+       used to be "has been told something", which is why moving a guest left
+       them holding the old number with nothing able to correct it. */
+    const toldRows = new Map<string, string[]>();
     for (let i = 0; i < ids.length; i += 100) {
+      /* The underscores in the name are LIKE wildcards, so this matches a
+         little more than it reads — harmless, because foldTold keeps only the
+         exact row and the `name:` form and discards everything else. */
       const { data } = await sb.from("guest_events")
-        .select("guest_id").eq("event_type", "table_number_sent")
+        .select("guest_id, event_type").like("event_type", `${TABLE_SENT}%`)
         .in("guest_id", ids.slice(i, i + 100));
-      (data ?? []).forEach(r => r.guest_id && already.add(r.guest_id as string));
+      for (const r of data ?? []) {
+        const g = r.guest_id as string;
+        if (!g) continue;
+        toldRows.set(g, [...(toldRows.get(g) ?? []), String(r.event_type ?? "")]);
+      }
     }
+    const actionFor = (guestId: string, table: string) =>
+      tableAction(foldTold(toldRows.get(guestId) ?? []), table);
 
     const { data: gs } = await sb.from("guests")
       .select("id, phone, category, do_not_contact, status")
       .eq("event_id", ev.id as string).eq("status", "confirmed");
     const byId = new Map((gs ?? []).map(g => [g.id as string, g]));
 
-    const todo = (seats ?? [])
-      .filter(a => !already.has(a.guest_id as string))
-      .map(a => ({ a, g: byId.get(a.guest_id as string) }))
+    const seated = (seats ?? [])
+      .map(a => ({ a, g: byId.get(a.guest_id as string),
+                   table: tableName.get(a.table_id as string) }))
       .filter(x => x.g && x.g.category !== "demo"
         && String(x.g.phone ?? "").trim() && !x.g.do_not_contact
-        && tableName.get(x.a.table_id as string))
-      .slice(0, Math.min(budget, TABLES_PER_RUN));
+        && x.table);
+
+    /* A guest already holding their current number sends nothing — but the row
+       that says which number they hold is written now, so the NEXT move is
+       caught. See THE OLD ROWS in table-told.ts.
+       Batched, not one call each: this walks every seated guest, and טל's
+       wedding alone is 371 of them. A failed adoption is not worth a retry —
+       the next run computes the same thing again. */
+    const pending: typeof seated = [];
+    const adopt: { guest_id: string; event_type: string }[] = [];
+    for (const x of seated) {
+      const act = actionFor(x.g!.id as string, x.table!);
+      if (act.send) { pending.push(x); continue; }
+      if (act.record) adopt.push({ guest_id: x.g!.id as string, event_type: act.record });
+    }
+    for (let i = 0; i < adopt.length; i += 200) {
+      await sb.from("guest_events").insert(adopt.slice(i, i + 200));
+    }
+
+    const todo = pending.slice(0, Math.min(budget, TABLES_PER_RUN));
     if (!todo.length) continue;
 
     let sent = 0;
     for (let i = 0; i < todo.length; i += SEND_CONCURRENCY) {
       const batch = await Promise.all(todo.slice(i, i + SEND_CONCURRENCY).map(async x => ({
         x,
+        /* x.table is what the action above was computed from, so the number
+           sent and the number recorded cannot drift apart. */
         res: await sendTableNumber(cfg, String(x.g!.phone), couple, dateText, venue,
-          receptionLine, tableName.get(x.a.table_id as string)!),
+          receptionLine, x.table!),
       })));
       for (const { x, res } of batch) {
         if (!res.ok) {
@@ -2133,8 +2187,10 @@ async function sendTableNumbers(
           continue;
         }
         sent++;
-        /* The one row that stops this being sent again — see markSent. */
-        await markSent(sb, x.g!.id, "table_number_sent");
+        /* The one row that stops this being sent again — see markSent. It
+           names the table, so "again" means this table and a move does not
+           inherit it. */
+        await markSent(sb, x.g!.id, tableSentEvent(x.table!));
         /* And this message IS the day-before card for this guest.
          *
          * It now carries the date, the venue, both times, the navigation and

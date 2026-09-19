@@ -14,8 +14,13 @@ export const dynamic = "force-dynamic";
  * number in budget-sized batches, on a template Meta approved weeks ago and
  * nothing has ever called, with delivery reports like every other message.
  *
- * Idempotent by design: guest_events carries table_number_sent per guest, so
- * pressing it again reaches only people seated since, or moved since.
+ * Idempotent by design: guest_events carries `table_number_sent:<table>` per
+ * guest, so pressing it again reaches only people seated since, or moved since.
+ *
+ * "or moved since" was written here before it was true. The row was a bare
+ * `table_number_sent` and recorded only THAT a guest had been told, so moving
+ * somebody left them holding the old number and this button could not correct
+ * it. The table is in the row now — see table-told.ts.
  */
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;

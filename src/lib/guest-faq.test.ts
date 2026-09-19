@@ -74,3 +74,41 @@ test("שעה בלי תאריך ותאריך בלי שעה — שניהם עונ�
   assert.ok(faqAnswer("when", { dateText: "יום שני" })?.includes("יום שני"));
   assert.equal(faqAnswer("when", {}), null);
 });
+
+/* ── שאלת השולחן ─────────────────────────────────────────────────────── */
+
+test("שאלת שולחן מזוהה על פני 'איפה'", () => {
+  /* הבעיה בסדר: "איפה אני יושב" תופס גם את where, והאורח היה מקבל את
+     הכתובת של אולם שהוא כבר עומד בתוכו. */
+  assert.equal(faqTopic("איפה אני יושב?"), "table");
+  assert.equal(faqTopic("איפה אנחנו יושבים"), "table");
+  assert.equal(faqTopic("באיזה שולחן אנחנו"), "table");
+  assert.equal(faqTopic("יודעים כבר מה השולחן שלנו?"), "table");
+  assert.equal(faqTopic("איפה נשב"), "table");
+  /* ושאלת מקום רגילה נשארת מה שהיא. */
+  assert.equal(faqTopic("איפה האולם"), "where");
+  assert.equal(faqTopic("מה הכתובת"), "where");
+});
+
+test("שאלה על ילדים נשארת אצל אדם גם כשהיא מזכירה שולחן", () => {
+  assert.equal(faqTopic("יש שולחן לילדים?"), "kids");
+});
+
+test("מספר שולחן נענה, שם שולחן לא", () => {
+  assert.equal(faqAnswer("table", { table: "12" }), "🪑 השולחן שלכם: 12");
+  /* אותו כלל שvenueTableNumbers אוכף בשליחה: שלט באולם אומר "14", ואורח
+     שקיבל "משפחת ביטון" קיבל משהו לחפש שלא קיים. */
+  assert.equal(faqAnswer("table", { table: "משפחת ביטון" }), null);
+  assert.equal(faqAnswer("table", { table: "שולחן 12" }), null);
+});
+
+test("לפני שסודרו שולחנות — שותקים, ולא ממציאים הרגעה", () => {
+  assert.equal(faqAnswer("table", {}), null);
+  assert.equal(faqAnswer("table", { table: null }), null);
+  assert.equal(faqAnswer("table", { table: "  " }), null);
+});
+
+test("התשובה השלמה — מה שהאורח שאל ומה שאפשר לומר", () => {
+  assert.equal(answerQuestion("באיזה שולחן אני?", { table: "7" }), "🪑 השולחן שלכם: 7");
+  assert.equal(answerQuestion("באיזה שולחן אני?", {}), null, "אין ישיבה — אין תשובה");
+});

@@ -7,7 +7,8 @@ import { bareCount, changeIntent, unpromptedCount, compositeCount} from "@/lib/g
 import { decide, type Kind, type GuestView } from "@/lib/wa-decide";
 import { needsHuman, saysNotComing, HUMAN_REASON_TEXT } from "@/lib/needs-human";
 import { optOutRequest, OPT_OUT_REPLY } from "@/lib/opt-out";
-import { answerQuestion, type FaqFacts } from "@/lib/guest-faq";
+import { answerQuestion, faqTopic, type FaqFacts } from "@/lib/guest-faq";
+import { tableSentEvent } from "@/lib/table-told";
 import { coupleName } from "@/lib/couple-name";
 import { eventDay } from "@/lib/event-times";
 import { venueLine, wazeLink } from "@/lib/venue";
@@ -119,7 +120,31 @@ const RECORD_FAILED = "משהו אצלנו נתקע ולא הצלחנו לשמו
  * message this file handles would otherwise pay for a query that almost none
  * of them need. See guest-faq.ts for what is answered and what deliberately is
  * not. */
-async function factsFor(sb: Sb, eventId: string | null | undefined): Promise<FaqFacts | null> {
+/* The number on the sign, for this guest.
+ *
+ * Read the way rsvp-load.ts reads it, and bidi-stripped the way the send path
+ * strips it: a name pasted from an RTL document carries invisible marks that
+ * survive a trim and would fail the digits test in guest-faq while looking
+ * identical on screen.
+ *
+ * Allowed to fail. A guest asking anything else must not lose their reply
+ * because the seating tables could not be read. */
+async function tableFor(sb: Sb, guestId: string): Promise<string | null> {
+  try {
+    const { data: a } = await sb.from("seating_assignments")
+      .select("table_id").eq("guest_id", guestId).maybeSingle();
+    if (!a?.table_id) return null;
+    const { data: t } = await sb.from("seating_tables")
+      .select("name").eq("id", a.table_id as string).maybeSingle();
+    const name = String(t?.name ?? "")
+      .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, "").trim();
+    return name || null;
+  } catch { return null; }
+}
+
+async function factsFor(
+  sb: Sb, eventId: string | null | undefined, guestId?: string,
+): Promise<FaqFacts | null> {
   if (!eventId) return null;
   const { data } = await sb.from("events")
     .select("couple_names, name, date, venue_name, address, reception_time, chuppah_time, "
@@ -146,6 +171,7 @@ async function factsFor(sb: Sb, eventId: string | null | undefined): Promise<Faq
     giftUrl: [ev.paybox_link, ev.easy2give_link, ev.custom_gift_link]
       .map(v => (typeof v === "string" ? v.trim() : "")).find(Boolean) ?? null,
     bitPhone: (ev.bit_phone as string | null) ?? null,
+    table: guestId ? await tableFor(sb, guestId) : null,
   };
 }
 
@@ -647,10 +673,22 @@ export async function handleGuestReply(
    * is a decline long before this line, and that ordering is what lets the
    * patterns in guest-faq.ts be generous. */
   {
-    const facts = await factsFor(sb, (guest as { event_id?: string }).event_id);
+    const facts = await factsFor(sb, (guest as { event_id?: string }).event_id, guest.id);
     const answer = facts ? answerQuestion(said, facts) : null;
     if (answer) {
       await sayText(cfg, to, answer);
+      /* A guest who asked where they sit and was told now HOLDS that number,
+       * so the send that carries it has nothing left to say to them. Recorded
+       * in the same row shape that send uses, which also means the correction
+       * still reaches them if the couple moves them afterwards.
+       *
+       * Deliberately narrow: only when this reply was the table, and only when
+       * the table is the one they are sitting at right now. */
+      if (faqTopic(said) === "table" && facts?.table) {
+        await sb.from("guest_events")
+          .insert({ guest_id: guest.id, event_type: tableSentEvent(facts.table!) })
+          .then(undefined, () => {});
+      }
       return true;
     }
   }
