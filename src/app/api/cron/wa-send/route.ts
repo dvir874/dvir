@@ -2044,10 +2044,29 @@ async function sendTableNumbers(
     if (paused && new Date(paused).getTime() > nowMs) continue;
 
     const couple = coupleName(ev as Parameters<typeof coupleName>[0]);
-    const venue = venueLine(ev as Parameters<typeof venueLine>[0]);
+    const venueName = venueLine(ev as Parameters<typeof venueLine>[0]);
     const reception = String(ev.reception_time ?? "").trim();
     const day = eventDay(String(ev.date ?? ""));
-    if (!couple || !venue || !reception || !day) continue;
+    if (!couple || !venueName || !reception || !day) continue;
+
+    /* This message replaces the day-before card rather than preceding it, so it
+     * has to carry what the card carried — see the markSent below.
+     *
+     * Dvir, 19/09: one message instead of two, because the second was a paid
+     * conversation per guest for a fact they already held, and with two
+     * weddings on 22/09 the 250-a-day ceiling is the real cost, not the money.
+     *
+     * Three of the template's five parameters are free text, so the חופה time
+     * and the Waze link fit without a new template — which matters, because a
+     * new one needs Meta's approval and the wedding is on Tuesday. The
+     * navigation goes beside the address, which is where a person looks for it.
+     * safeParam is applied inside sendTableNumber. */
+    const chuppah = String(ev.chuppah_time ?? "").trim().slice(0, 5);
+    const receptionLine = chuppah
+      ? `קבלת פנים ${reception.slice(0, 5)} · חופה ${chuppah}`
+      : `קבלת פנים ${reception.slice(0, 5)}`;
+    const nav = wazeLink(ev as Parameters<typeof wazeLink>[0]);
+    const venue = nav ? `${venueName} · ${nav}` : venueName;
     const dateText = day.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
 
     /* Only guests who are actually at a table. */
@@ -2104,7 +2123,7 @@ async function sendTableNumbers(
       const batch = await Promise.all(todo.slice(i, i + SEND_CONCURRENCY).map(async x => ({
         x,
         res: await sendTableNumber(cfg, String(x.g!.phone), couple, dateText, venue,
-          reception, tableName.get(x.a.table_id as string)!),
+          receptionLine, tableName.get(x.a.table_id as string)!),
       })));
       for (const { x, res } of batch) {
         if (!res.ok) {
@@ -2116,6 +2135,14 @@ async function sendTableNumbers(
         sent++;
         /* The one row that stops this being sent again — see markSent. */
         await markSent(sb, x.g!.id, "table_number_sent");
+        /* And this message IS the day-before card for this guest.
+         *
+         * It now carries the date, the venue, both times, the navigation and
+         * the table — everything "מחר מתחתנים" would have said, minus a claim
+         * about tomorrow that is wrong when this goes out two days early. A
+         * second card would be the same facts again at a second conversation's
+         * cost, which is the thing this change exists to stop. */
+        await markSent(sb, x.g!.id, "day_before_sent");
         if (res.messageId) {
           await sb.from("wa_messages").insert({
             event_id: ev.id, guest_id: x.g!.id, wa_phone: toE164(String(x.g!.phone)) ?? "",
