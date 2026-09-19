@@ -1090,8 +1090,28 @@ async function guestLineFactory(
     }
   } catch { /* no seating is not a reason to hold the message */ }
 
+  /* A table this guest was already told is not told again.
+   *
+   * The dedupe ran one way only: the card marked table_number_sent when it
+   * carried the number, so the separate send skipped. The reverse was open, and
+   * whichever fired first was decided by the clock — press the button on a
+   * Sunday and a guest got "🪑 שולחן 12" alone, then the whole card repeating
+   * "🪑 שולחן 12" the next evening.
+   *
+   * טל ולאל asked for the early send precisely because Monday is יום כיפור, so
+   * the answer is not to block it. Both messages are worth sending — one is the
+   * details, the other is "it is tomorrow" with the חופה time and navigation —
+   * and only the repeated fact needs removing. */
+  const toldAlready = new Set<string>();
+  try {
+    const { data } = await sb.from("guest_events")
+      .select("guest_id").eq("event_type", "table_number_sent")
+      .in("guest_id", [...tableByGuest.keys()]);
+    (data ?? []).forEach(r => r.guest_id && toldAlready.add(r.guest_id as string));
+  } catch { /* no dedupe row is not a reason to hold the message */ }
+
   return (guestId: string): string | null => {
-    const t = tableByGuest.get(guestId);
+    const t = toldAlready.has(guestId) ? null : tableByGuest.get(guestId);
     const parts = [t ? `🪑 שולחן ${t}` : null, note?.trim() || null].filter(Boolean);
     return parts.length ? parts.join(" · ") : null;
   };
