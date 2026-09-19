@@ -174,14 +174,24 @@ test("חג שאחריו חג עדיין חסום ב-21:00", () => {
   assert.equal(blockedAt("2026-09-12", 21).reason, "yom_tov_eve");
 });
 
-test("ערב חג עדיין נחסם מהצהריים", () => {
-  assert.equal(blockedAt("2026-09-20", 11).blocked, false);
-  assert.equal(blockedAt("2026-09-20", 12).reason, "yom_tov_eve");
-});
-
 test("ערב חתונה שחל בחג כבר לא מדווח כחסום", () => {
   /* The consequence of the release: the wedding-morning fallback no longer
      fires for a wedding whose eve is a חג, because the 21:00 day-before send
      is what covers those guests now. */
   assert.equal(eveningBeforeBlocked("2026-09-22").blocked, false);
+});
+
+test("ערב חג נחסם מ-16:00, וערב שבת עדיין מהצהריים", () => {
+  /* Dvir, 19/09: "גיפור נכנס ב-18:00 — האם אפשר שתהיה שליחה מחר ב-15:00?"
+     The noon cutoff was shared with Friday and cost the 13:30 run on the one
+     afternoon that mattered. Every חג falls in spring or autumn and none has
+     ever begun in Israel before about 17:00; a December Friday at 16:15 has no
+     equivalent among them, so only the חג side moves. */
+  assert.equal(blockedAt("2026-09-20", 13).blocked, false, "13:00 בערב כיפור");
+  assert.equal(blockedAt("2026-09-20", 15).blocked, false, "15:00 בערב כיפור");
+  assert.equal(blockedAt("2026-09-20", 16).reason, "yom_tov_eve", "16:00 כבר חסום");
+
+  /* Friday keeps midday — this is the case that makes one shared number wrong. */
+  assert.equal(blockedAt("2026-12-25", 12).reason, "shabbat_eve", "שישי בחורף בצהריים");
+  assert.equal(blockedAt("2026-12-25", 11).blocked, false);
 });

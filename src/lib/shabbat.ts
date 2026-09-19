@@ -50,8 +50,33 @@
    same hour clears the end of a חג. */
 const MOTZASH_HOUR = 21;
 
-/* Erev — Friday and erev חג alike — is blocked from midday. */
+/* Friday is blocked from midday.
+ *
+ * Deliberately far from the actual זמן: Israel's earliest candle-lighting is
+ * around 16:15 on a late-December Friday, and one number has to clear every
+ * Friday of the year without computing anything. In summer it is six hours
+ * early, which is the error worth making — a message that waits is a message,
+ * one that lands after candle-lighting is a phone call. */
 const EVE_HOUR = 12;
+
+/* Erev חג is blocked from 16:00, not from midday.
+ *
+ * It shared EVE_HOUR with Friday, and Dvir asked on 19/09 whether a send could
+ * still go out at 14:00 or 15:00 on ערב יום כיפור. It could not, and the noon
+ * cutoff was costing two of the eight daily runs on the one afternoon that
+ * mattered — 13:30 and 16:00 Israel — in a window already narrowed by the חג
+ * that follows.
+ *
+ * The two dates are not the same problem. Every חג in the Jewish year falls in
+ * spring or autumn, so the earliest a חג has ever begun in Israel is around
+ * 17:00 — a late-October Simchat Torah after the clock change. A December
+ * Friday at 16:15 has no equivalent among them, which is the whole reason
+ * Friday keeps the earlier hour.
+ *
+ * 16:00 leaves an hour on the earliest חג of any year and nearly two on Yom
+ * Kippur 2026, and a run finishes in minutes. The 13:30 run now sends; the
+ * 16:00 run does not, and that margin is the point. */
+const YOM_TOV_EVE_HOUR = 16;
 
 /* Days on which work is forbidden in Israel: ראש השנה (two days), יום כיפור,
    סוכות א׳, שמיני עצרת, פסח א׳ ו-ז׳, שבועות. Chol HaMoed is not here on
@@ -133,7 +158,7 @@ export function blockedAt(dateIL: string, hour: number): ShabbatVerdict {
    * the wedding-morning fallback no longer fires for it. The day-before send
    * at 21:00 is what covers those guests now. */
   if (YOM_TOV.has(dateIL) && hour < MOTZASH_HOUR) return { blocked: true, reason: "yom_tov" };
-  if (YOM_TOV.has(nextDay(dateIL)) && hour >= EVE_HOUR) return { blocked: true, reason: "yom_tov_eve" };
+  if (YOM_TOV.has(nextDay(dateIL)) && hour >= YOM_TOV_EVE_HOUR) return { blocked: true, reason: "yom_tov_eve" };
 
   if (day === 5 && hour >= EVE_HOUR) return { blocked: true, reason: "shabbat_eve" };
   /* Saturday is blocked until 21:00, not until midnight.
