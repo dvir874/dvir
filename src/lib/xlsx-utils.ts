@@ -1,5 +1,33 @@
 import * as XLSX from 'xlsx';
 import type { Guest } from './types';
+/* With the .ts, the way xlsx-blocks.ts imports phone-validate: node --test
+   strips types but does not resolve an extensionless relative import, and
+   `npm test` loads this file through iplan-export.test.ts. */
+import { parseSeatingSheets, type Grid, type SeatingParse } from './seating-grid.ts';
+
+/* The seating plan, from whichever sheet of the workbook holds it.
+ *
+ * Read as a grid rather than through sheet_to_json, which the guest importer
+ * above uses: that reads ONE header row into object keys, and a seating sheet
+ * is three blocks side by side under repeated headers — "שם" four times over,
+ * which collapse into a single key and take two thirds of the wedding with
+ * them. It also has no header row at all half the time. seating-grid.ts reads
+ * the shapes; this only hands it the cells.
+ *
+ * Every sheet is offered, because the plan arrives as one sheet per family. */
+export function parseSeatingFromXlsx(buffer: ArrayBuffer): SeatingParse {
+  const workbook = XLSX.read(buffer, { type: 'array' });
+  const sheets = workbook.SheetNames.map((name) => ({
+    name,
+    /* defval keeps empty cells in place — the column a value sits in is the
+       whole meaning of these sheets, and a ragged row shifts a table number
+       onto the wrong household. */
+    grid: XLSX.utils.sheet_to_json<Grid[number]>(workbook.Sheets[name], {
+      header: 1, blankrows: true, defval: null, raw: true,
+    }) as Grid,
+  }));
+  return parseSeatingSheets(sheets);
+}
 
 export function parseGuestsFromXlsx(
   buffer: ArrayBuffer
