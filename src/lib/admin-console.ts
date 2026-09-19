@@ -16,6 +16,7 @@ import { nextSend, nextSendText, type EligibleAt } from "./next-send";
 import { eligibleAt } from "./eligibility";
 import { CRON_UTC } from "./cron-schedule";
 import { isRsvpMessage as _isRsvp } from "./rsvp-contact";
+import { mealTally, type MealRow } from "./meal-tally";
 
 /* Executing what the admin typed into his phone — see admin-command.ts for the
  * grammar and why it is deliberately small.
@@ -209,7 +210,10 @@ export async function handleAdminMessage(
        * follows, exactly as before. See ai/assistant.ts. */
       if (kind === "text" && said.trim().length > 2) {
         try {
-          const answer = await askAssistant(said, await assistantFacts(sb));
+          const [f, recent] = await Promise.all([
+            assistantFacts(sb), recentAdminQuestions(sb, [from, to], said),
+          ]);
+          const answer = await askAssistant(said, f, recent);
           if (answer) { await say(answer); return true; }
         } catch { /* the menu is always a valid answer */ }
       }
@@ -308,6 +312,45 @@ async function answerAsk(sb: Sb, cfg: Cfg, to: string, said: string): Promise<bo
  * Structured facts only — names, counts, dates, money. No guest message text
  * ever enters this object: a guest can write anything into this system, and
  * what a guest wrote is not going to end up inside a prompt. See ai/assistant.ts. */
+/* The questions he asked just before this one.
+ *
+ * "ומה עם תהל?" is how the second question actually gets asked from a phone,
+ * and on its own it is not a question at all. His own thread already holds the
+ * first one — every inbound message is written to wa_messages by the webhook.
+ *
+ * Forty minutes, because this is a memory of a conversation and not a history
+ * of the week: a question from this morning is not context for one asked now,
+ * and carrying it makes the assistant answer about the wrong wedding.
+ *
+ * Only his side. Ours carries the alerts, and an alert quotes what a guest
+ * wrote — see the note on askAssistant's `recent`.
+ *
+ * Allowed to fail: a question with no memory is still answered. */
+async function recentAdminQuestions(
+  sb: Sb, phones: string[], current: string,
+): Promise<string[]> {
+  try {
+    const since = new Date(Date.now() - 40 * 60_000).toISOString();
+    /* Both spellings of his number. The webhook files the row under whatever
+       Meta sent; this function is called with the normalised form. */
+    const { data } = await sb.from("wa_messages")
+      .select("body, created_at")
+      .in("wa_phone", [...new Set(phones.filter(Boolean))])
+      .eq("direction", "in").gte("created_at", since)
+      .order("created_at", { ascending: false }).limit(8);
+
+    const rows = (data ?? []).map(r => String(r.body ?? "").trim()).filter(Boolean);
+    /* The message being answered right now is already in the table — the
+       webhook writes it before this runs — so it is dropped rather than
+       repeated back as though he had asked it twice. Matched on the text
+       rather than taken off the end, because if that write failed the newest
+       row is a real earlier question and throwing it away loses the context
+       this function exists to supply. */
+    if (rows[0] === current.trim()) rows.shift();
+    return rows.reverse();
+  } catch { return []; }
+}
+
 async function assistantFacts(sb: Sb): Promise<AssistantFacts> {
   const block = shabbatBlock();
   const day = israelDay();
@@ -333,11 +376,60 @@ async function assistantFacts(sb: Sb): Promise<AssistantFacts> {
     .gte("date", since).lt("date", day).order("date", { ascending: false }).limit(6);
 
   const evs = [...await upcoming(sb, 12), ...((pastRows ?? []) as Awaited<ReturnType<typeof upcoming>>)];
+
+  /* Seating for every wedding at once.
+   *
+   * Three queries for eighteen weddings rather than three each. This whole
+   * function runs inside the webhook Meta retries when it is slow, and the
+   * model call after it already owns twenty seconds of that budget — so a new
+   * fact is only worth having if it costs a constant number of round trips.
+   *
+   * Each is allowed to fail on its own: seating is the newest thing here, and
+   * an assistant that cannot say how many tables there are is still an
+   * assistant. A missing table means "no plan", which is also the truth. */
+  const evIds = evs.map(e => e.id as string);
+  const tableCount = new Map<string, number>();
+  const seatedIds = new Map<string, Set<string>>();
+  const numbersAsked = new Set<string>();
+  if (evIds.length) {
+    try {
+      const { data } = await sb.from("seating_tables").select("event_id").in("event_id", evIds);
+      for (const r of data ?? []) {
+        const k = r.event_id as string;
+        tableCount.set(k, (tableCount.get(k) ?? 0) + 1);
+      }
+    } catch { /* no plan is a fact too */ }
+    try {
+      const { data } = await sb.from("seating_assignments")
+        .select("event_id, guest_id").in("event_id", evIds);
+      for (const r of data ?? []) {
+        const k = r.event_id as string;
+        let set = seatedIds.get(k);
+        if (!set) seatedIds.set(k, (set = new Set()));
+        if (r.guest_id) set.add(r.guest_id as string);
+      }
+    } catch { /* as above */ }
+    try {
+      /* Its own select, so a database without 20260902_table_numbers.sql costs
+         this one flag and not every fact on the page — selecting a column that
+         does not exist fails the WHOLE query with 42703. */
+      const { data } = await sb.from("events")
+        .select("id, tables_send_requested_at").in("id", evIds);
+      for (const r of data ?? []) {
+        if (r.tables_send_requested_at) numbersAsked.add(r.id as string);
+      }
+    } catch { /* unknown reads as not-yet-asked, which is the safer default */ }
+  }
+
   const weddings: AssistantFacts["weddings"] = [];
   for (const e of evs) {
+    /* meal_preference and meal_counts ride the query that was already being
+       made — the caterer's question costs no extra round trip. */
     const { data: gs } = await sb.from("guests")
-      .select("status, guest_count, category, do_not_contact").eq("event_id", e.id).limit(900);
+      .select("id, status, guest_count, category, do_not_contact, meal_preference, meal_counts")
+      .eq("event_id", e.id).limit(900);
     const real = (gs ?? []).filter(g => g.category !== "demo" && !g.do_not_contact);
+    const confirmedRows = real.filter(g => g.status === "confirmed");
     const { data: money } = await sb.from("events")
       .select("price_charged, paid_at").eq("id", e.id).maybeSingle();
     weddings.push({
@@ -360,6 +452,20 @@ async function assistantFacts(sb: Sb): Promise<AssistantFacts> {
       })(),
       priceCharged: (money as { price_charged?: number | null } | null)?.price_charged ?? null,
       paid: !!(money as { paid_at?: string | null } | null)?.paid_at,
+      meals: mealTally(confirmedRows as MealRow[]),
+      seating: (() => {
+        const seated = seatedIds.get(e.id as string) ?? new Set<string>();
+        return {
+          tables: tableCount.get(e.id as string) ?? 0,
+          seatedRecords: seated.size,
+          /* Counted by asking which confirmed records are missing from the
+             plan, not by subtracting one total from another: assignments can
+             also point at guests who have since declined, and a subtraction
+             would quietly report a wedding as fully seated when it is not. */
+          unseatedConfirmed: confirmedRows.filter(g => !seated.has(g.id as string)).length,
+          numbersSent: numbersAsked.has(e.id as string),
+        };
+      })(),
     });
   }
 

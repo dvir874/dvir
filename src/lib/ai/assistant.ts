@@ -58,6 +58,18 @@ export interface AssistantFacts {
     nextReminder?: string;
     priceCharged?: number | null;
     paid?: boolean;
+    /* What the caterer is being ordered against. The header of this file names
+       "כמה מנות ילדים יש לתהל?" as a question it exists to answer, and the
+       facts carried no meal at all — so it answered "אין לי את זה" to the one
+       question a caterer telephones about. Only confirmed guests are counted:
+       a meal is ordered for somebody who said yes. */
+    meals?: { regular: number; vegetarian: number; vegan: number;
+              mehadrin: number; kids: number; unknown: number };
+    /* Seating, now that it is real. Couples seat in Excel and the app could
+       not read it until the import; with a plan in the database, "כמה שולחנות
+       יש לטל" and "מי עוד לא משובץ" are facts rather than guesses. */
+    seating?: { tables: number; seatedRecords: number; unseatedConfirmed: number;
+                numbersSent: boolean };
   }[];
   waiting?: number;
   optedOut?: number;
@@ -72,7 +84,10 @@ const SYSTEM = `את/ה העוזר/ת האישי/ת של דביר, שמנהל א
 - אתה לא שולח הודעות ולא משנה כלום. אם דביר מבקש פעולה — לשלוח, לעצור, לסמן, למחוק — הפנה/י אותו לתפריט: "כתוב תפריט".
 - אל תמציא/י שמות אורחים, שמות אולמות או תאריכים.
 - חתונה עם over=true כבר התקיימה. אל תדבר/י עליה בלשון עתיד, אבל כן לכלול אותה בשאלות על כסף, תמונות או סיכומים.
-- בלי אימוג'ים מלבד 🤍 במידת הצורך, ובלי סימני קריאה מיותרים.`;
+- בלי אימוג'ים מלבד 🤍 במידת הצורך, ובלי סימני קריאה מיותרים.
+- meals סופר רק מי שאישר הגעה, לפי מספר אנשים ולא לפי רשומות. unknown = אישרו ולא בחרו מנה.
+- seating.seatedRecords הוא מספר ההזמנות שמשובצות לשולחן, לא מספר האנשים. numbersSent=false פירושו שהזוג עוד לא ביקש לשלוח לאורחים את מספר השולחן.
+- ההודעות הקודמות של דביר בשיחה הזו מצורפות כדי שתבין/י המשך שיחה ("ומה עם תהל?"). ענה/י על ההודעה האחרונה בלבד.`;
 
 /**
  * The answer, or null when there is no key, no question, or the call failed.
@@ -82,6 +97,19 @@ const SYSTEM = `את/ה העוזר/ת האישי/ת של דביר, שמנהל א
  */
 export async function askAssistant(
   question: string, facts: AssistantFacts,
+  /* What he asked just before this, oldest first.
+   *
+   * "ומה עם תהל?" is not a question on its own, and it is how a person writing
+   * from a phone actually asks the second one. Without the turn before it the
+   * model either guesses a subject or says it has nothing — and both read as a
+   * tool that is not listening.
+   *
+   * HIS OWN MESSAGES ONLY, and deliberately. Our side of this thread carries
+   * the alerts, and an alert quotes what a guest wrote ("מה שכתב: ..."). Rule
+   * 3 of this file is that a guest's words never enter a prompt, so the replies
+   * stay out and the questions come in. The facts are re-sent in full every
+   * call, so nothing is lost by leaving our answers behind. */
+  recent: readonly string[] = [],
 ): Promise<string | null> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return null;
@@ -99,10 +127,21 @@ export async function askAssistant(
         model: process.env.ANTHROPIC_ASSISTANT_MODEL ?? "claude-sonnet-5",
         max_tokens: 600,
         system: SYSTEM,
-        messages: [{
-          role: "user",
-          content: `העובדות הנוכחיות של המערכת:\n${JSON.stringify(facts, null, 1)}\n\nהשאלה של דביר:\n${q}`,
-        }],
+        /* The API is stateless, so the thread is rebuilt on every call. The
+           facts go with the LAST message rather than the first: they change
+           between turns, and an older copy sitting above a newer one is how a
+           model answers with yesterday's number. */
+        messages: [
+          ...recent
+            .map(t => String(t ?? "").trim().slice(0, 300))
+            .filter(Boolean)
+            .slice(-5)
+            .map(text => ({ role: "user" as const, content: text })),
+          {
+            role: "user" as const,
+            content: `העובדות הנוכחיות של המערכת:\n${JSON.stringify(facts, null, 1)}\n\nהשאלה של דביר:\n${q}`,
+          },
+        ],
       }),
     });
     if (!res.ok) return null;
