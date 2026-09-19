@@ -51,6 +51,9 @@ const FILLER = new Set([
   "נכנס", "נכנסו", "אישר", "השיבו", "התלבט", "צריך", "ידנית", "איזה", "אילו",
   "אמרו", "אמר", "תקוע", "תקועים", "מספר", "טלפון", "להם", "אנשים", "מוזמנים",
   "מתי", "תזכורת", "תזכורות", "נשלחת", "נשלחות", "יוצאת", "יוצאות", "הבאה", "שואלים",
+  /* From the 18/09 question, so the needle is the wedding and not the grammar. */
+  "מתוכננת", "מתוכנן", "שליחה", "שליחות", "נוספת", "נוסף", "צפויה", "צפוי", "תצא",
+  "הודעה", "הודעות",
   "חתונה", "חתונת", "שואל", "שואלת", "עוד",
   "הם", "אלו", "אלה", "שמות", "השמות", "רשימה", "תן", "תני", "אין", "בלי", "ללא", "חסר",
   "מספרי", "מספרים", "טלפונים", "פלאפון", "לו", "לה", "שאין", "שלא",
@@ -100,6 +103,19 @@ const NOPHONE =
    STANDING so that "מתי" wins over the bare "כמה" that a longer sentence
    often also contains. */
 const WHEN_NEXT = /(מתי.*(תזכורת|נשלח|יוצא|שולח)|תזכורת הבאה|התזכורת הבאה|מתי הבאה|מתי עוד|השליחה הבאה|מתי יוצאות)/;
+/* The same question without the word "מתי".
+ *
+ * Dvir, 18/09 13:24: "האם מתוכננת שליחה נוספת לחתונה של טל?" — seven words, no
+ * "מתי", so WHEN_NEXT missed it and it fell to the bare-name rule at the
+ * bottom, which requires four words or fewer. It returned null, and he got
+ * nothing back at all.
+ *
+ * The four-word cap is right for a BARE NAME — "שלמה", "תהל ואביב" — because a
+ * longer sentence with no question word in it is not somebody naming a wedding.
+ * But a fully-formed question is exactly where a person lands when the short
+ * form did not work, and it must not be the one shape that fails. */
+const SEND_PLANNED =
+  /((מתוכננ|צפוי|יוצא|תצא|יש|האם יש)\w*\s+(עוד\s+)?(שליחה|הודעה|תזכורת)|שליחה נוספת|הודעה נוספת|תזכורת נוספת|עוד שליחה|עוד הודעה)/;
 const OPENED = /(פתח|פתחו|ראו|ראה|נכנס|נכנסו|לא ענו|לא אישרו|לא השיבו|התלבט)/;
 /* A question about where a wedding stands. Broad on purpose — nothing reaches
    this file until every command and every menu id has already failed. */
@@ -142,7 +158,8 @@ export function askIntent(said: string): AskIntent | null {
     .join(" ")
     .trim();
 
-  if (WHEN_NEXT.test(t)) return rest ? { kind: "wedding", needle: rest } : { kind: "weddings" };
+  if (WHEN_NEXT.test(t) || SEND_PLANNED.test(t))
+    return rest ? { kind: "wedding", needle: rest } : { kind: "weddings" };
   if (NOPHONE.test(t)) return rest ? { kind: "nophone", needle: rest } : { kind: "nophone" };
   if (STUCK.test(t)) return rest ? { kind: "stuck", needle: rest } : { kind: "stuck" };
   if (OPENED.test(t)) return rest ? { kind: "opened", needle: rest } : { kind: "opened" };

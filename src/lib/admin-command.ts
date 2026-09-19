@@ -187,10 +187,22 @@ export function matchEvent<E extends { id: string; name?: string | null; couple_
    * which wedding "עצור" applies to, and its own comment says acting on the
    * wrong one is worse than asking again. Every real lookup still works —
    * "שלמה" is a whole word inside "שלמה גור ואבישג בן שוהם". */
+  /* Hebrew glues prepositions onto names, and the needle arrives carrying them.
+   *
+   * Only "ו" was stripped, so "מתי נשלחת עוד תזכורת לטל ולאל" produced the
+   * needle "לטל ולאל" and matched nothing at all — the single most natural way
+   * to ask about a wedding returned "לא נמצא". Verified 19/09: matchEvent("טל")
+   * found לאל וטל and matchEvent("לטל ולאל") found nothing.
+   *
+   * Both forms are accepted rather than the stripped one replacing the raw, so
+   * this only ever adds matches and can never lose a name whose first letter
+   * happens to be one of these. Still tightening-safe: every word must hit. */
+  const bare = (w: string) => w.replace(/^[ולבמהשכ]/, "");
   const hits = events.filter(e => {
     const hay = `${e.couple_names ?? ""} ${e.name ?? ""}`.toLowerCase()
-      .split(/[\s,־-]+/).map(w => w.replace(/^ו/, ""));
-    return words.every(w => hay.includes(w));
+      .split(/[\s,־-]+/)
+      .flatMap(w => [w, w.replace(/^ו/, "")]);
+    return words.every(w => hay.includes(w) || hay.includes(bare(w)));
   });
 
   if (hits.length === 1) return { event: hits[0] };

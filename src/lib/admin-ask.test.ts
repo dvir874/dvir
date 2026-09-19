@@ -136,3 +136,29 @@ test("מי בלי מספר טלפון — לפי צורת השאלה, לא לפ�
     "תן לי את השמות של מי שאין לו מספר", "חסר מספר למי",
   ]) assert.equal(askIntent(s)?.kind, "nophone", s);
 });
+
+
+test("a full question about a further send reaches the wedding, not the void", () => {
+  /* Dvir, 18/09 13:24: "האם מתוכננת שליחה נוספת לחתונה של טל?" — seven words
+     and no "מתי", so WHEN_NEXT missed it and it fell to the bare-name rule,
+     which caps at four words. It returned null and he got nothing back at all.
+
+     The four-word cap is correct for a bare name; it is wrong as the last
+     resort for a fully-formed question, which is exactly where a person lands
+     when the short form did not work. */
+  assert.deepEqual(askIntent("האם מתוכננת שליחה נוספת לחתונה של טל?"),
+    { kind: "wedding", needle: "טל" });
+  assert.deepEqual(askIntent("יש עוד שליחה לטל ולאל?"),
+    { kind: "wedding", needle: "לטל ולאל" });
+  assert.deepEqual(askIntent("צפויה עוד הודעה לשלמה"),
+    { kind: "wedding", needle: "לשלמה" });   /* the ל is matchEvent's to strip */
+});
+
+test("the same question with no wedding named asks about all of them", () => {
+  assert.deepEqual(askIntent("האם מתוכננת שליחה נוספת"), { kind: "weddings" });
+});
+
+test("courtesy is still not a question about a send", () => {
+  /* The new pattern must not turn "תודה על השליחה" into a forecast request. */
+  assert.equal(askIntent("תודה רבה"), null);
+});
