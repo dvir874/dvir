@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { shabbatBlock, eveningBeforeBlocked } from "./shabbat.ts";
+import { shabbatBlock, eveningBeforeBlocked, blockedAt } from "./shabbat.ts";
 
 /* Times are given as UTC and read back in Asia/Jerusalem, which is what the
    sender actually runs against. August is UTC+3. */
@@ -118,31 +118,33 @@ test("שנה שאינה בטבלה נפתחת ולא נסגרת", () => {
 /* ── The fallback ──────────────────────────────────────────────────────── */
 
 test("ערב שחסום מדווח ככזה, לפי תאריך החתונה", () => {
-  /* 22/09 — the eve is יום כיפור */
-  assert.equal(eveningBeforeBlocked("2026-09-22").blocked, true);
-  assert.equal(eveningBeforeBlocked("2026-09-22").reason, "yom_tov");
+  /* 22/09 — the eve is יום כיפור, and since the 21:00 release it is no longer
+     reported blocked: the day-before send at 21:00 covers those guests now,
+     so the wedding-morning fallback must not also fire. */
+  assert.equal(eveningBeforeBlocked("2026-09-22").blocked, false);
   /* A Sunday wedding — the eve is Saturday, and the 21:30 run is after
      havdalah, so it is NOT blocked. This asserted the opposite while
      EVE_SEND_HOUR was 19: the guard reported a failure that never happened,
      and the wedding-morning fallback stayed open for every Sunday wedding for
      ever, overriding the couple's own "מחר מתחתנים" choice. */
   assert.equal(eveningBeforeBlocked("2026-08-16").blocked, false);
-  /* But an eve that really is a חג still reports blocked — see below. */
-  assert.equal(eveningBeforeBlocked("2026-09-22").blocked, true);
+  /* An eve that is the first day of a two-day חג IS still blocked, because
+     21:00 on it is the eve of the second day. */
+  assert.equal(eveningBeforeBlocked("2026-09-13").blocked, true);
   /* An ordinary Tuesday wedding — the eve is a Monday and sends normally. */
   assert.equal(eveningBeforeBlocked("2026-08-18").blocked, false);
   /* Garbage in the column is not a reason to change behaviour. */
   assert.equal(eveningBeforeBlocked("").blocked, false);
 });
 
-test("חג חוסם את כל היום, גם אחרי צאת החג", () => {
-  /* Shabbat opens at 21:00 because Dvir asked for מוצ״ש — the best sending
-     hour of the week. A חג has no such case, and the symmetry had a price:
-     the 21:30 cron on 21/09 is מוצאי יום כיפור, and it would have carried
-     "מחר מתחתנים" to 361 confirmed guests while people were breaking the fast. */
-  assert.equal(shabbatBlock(il("2026-09-21T18:30:00Z")).blocked, true, "21:30 IL ביום כיפור");
-  assert.equal(shabbatBlock(il("2026-09-21T20:30:00Z")).blocked, true, "23:30 IL ביום כיפור");
-  /* And מוצ״ש is still open, which is the whole reason the two differ. */
+test("חג חוסם עד 21:00, ואז נפתח כמו מוצ״ש", () => {
+  /* This asserted a block to midnight, and the reasoning was that מוצאי חג has
+     no equivalent claim to מוצ״ש — the 21:30 cron on 21/09 is מוצאי יום כיפור
+     and would carry "מחר מתחתנים" while people break the fast. Dvir was shown
+     that on 19/09 and decided the other way; see shabbat.ts. */
+  assert.equal(shabbatBlock(il("2026-09-21T15:00:00Z")).blocked, true, "18:00 IL ביום כיפור");
+  assert.equal(shabbatBlock(il("2026-09-21T17:00:00Z")).blocked, true, "20:00 IL ביום כיפור");
+  assert.equal(shabbatBlock(il("2026-09-21T18:30:00Z")).blocked, false, "21:30 IL במוצאי כיפור");
   assert.equal(shabbatBlock(il("2026-08-15T18:30:00Z")).blocked, false, "21:30 IL במוצ״ש");
 });
 
@@ -150,7 +152,36 @@ test("ערב חתונה שנופל בחג מדווח חסום, וערב שבת �
   /* The question is "could the eve message have gone out AT ALL", so the hour
      asked about is the last one that can carry it — 21:00, since real runs
      land at 21:30 and 22:30 Israel time. */
-  assert.equal(eveningBeforeBlocked("2026-09-22").blocked, true, "הערב הוא יום כיפור");
-  assert.equal(eveningBeforeBlocked("2026-09-22").reason, "yom_tov");
+  assert.equal(eveningBeforeBlocked("2026-09-22").blocked, false, "מוצאי כיפור שולח מ-21:00");
   assert.equal(eveningBeforeBlocked("2026-08-16").blocked, false, "ערב שבת של חתונת ראשון — 21:30 שולח");
+  /* An eve that is the FIRST day of a two-day חג is still blocked at 21:00,
+     because 21:00 on it is the eve of the second day. */
+  assert.equal(eveningBeforeBlocked("2026-09-13").blocked, true, "ערב שהוא יום א׳ של ר״ה");
+});
+
+test("מוצאי חג נפתח ב-21:00, כמו מוצ״ש", () => {
+  /* Dvir, 19/09, having been shown the argument for blocking the whole civil
+     day: he wants תהל ואביב's details going out at 21:00 on מוצאי כיפור. */
+  assert.equal(blockedAt("2026-09-21", 20).blocked, true);
+  assert.equal(blockedAt("2026-09-21", 21).blocked, false);
+  assert.equal(blockedAt("2026-09-21", 23).blocked, false);
+});
+
+test("חג שאחריו חג עדיין חסום ב-21:00", () => {
+  /* The release must not open the eve of the next day. Rosh Hashana 5787 runs
+     12–13/09, so 21:00 on the first day is the eve of the second. */
+  assert.equal(blockedAt("2026-09-12", 21).blocked, true);
+  assert.equal(blockedAt("2026-09-12", 21).reason, "yom_tov_eve");
+});
+
+test("ערב חג עדיין נחסם מהצהריים", () => {
+  assert.equal(blockedAt("2026-09-20", 11).blocked, false);
+  assert.equal(blockedAt("2026-09-20", 12).reason, "yom_tov_eve");
+});
+
+test("ערב חתונה שחל בחג כבר לא מדווח כחסום", () => {
+  /* The consequence of the release: the wedding-morning fallback no longer
+     fires for a wedding whose eve is a חג, because the 21:00 day-before send
+     is what covers those guests now. */
+  assert.equal(eveningBeforeBlocked("2026-09-22").blocked, false);
 });

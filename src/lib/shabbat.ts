@@ -107,20 +107,32 @@ function weekdayOf(iso: string): number {
 export function blockedAt(dateIL: string, hour: number): ShabbatVerdict {
   const day = weekdayOf(dateIL);
 
-  /* A חג blocks the whole civil day, not until 21:00 like Shabbat.
+  /* A חג is blocked until 21:00, the same as Shabbat.
    *
-   * מוצ״ש at 21:00 is a deliberate exception that Dvir asked for: it is the
-   * best sending hour of the Israeli week and the guard used to eat it. There
-   * is no equivalent case on מוצאי חג, and the cost of the symmetry was
-   * concrete — the 21:30 run on 21/09 is 21:30 on מוצאי יום כיפור, and it
-   * would have carried "מחר מתחתנים" to 361 confirmed guests while people were
-   * breaking their fast. That is the single message most likely in this system
-   * to be reported, from a number Meta is reviewing.
+   * This used to run to midnight, and the reasoning written here was that
+   * מוצאי חג has no equivalent claim to מוצ״ש: the 21:30 run on 21/09 would
+   * have carried "מחר מתחתנים" to hundreds of confirmed guests while people
+   * were breaking the Yom Kippur fast, which is the message in this system
+   * most likely to be reported, from a number Meta is reviewing.
    *
-   * Blocking to midnight also keeps eveningBeforeBlocked honest: it asks about
-   * hour 21, the last hour a message can go out, and on a חג the answer has to
-   * be "no" so the wedding-morning send covers the gap. */
-  if (YOM_TOV.has(dateIL)) return { blocked: true, reason: "yom_tov" };
+   * Dvir was shown that argument on 19/09 and decided against it: he wants
+   * תהל ואביב's details going out at 21:00 on מוצאי כיפור. It is his number
+   * and his risk, and the reasoning above is left in full so the trade is
+   * visible to whoever reads this next rather than buried in a diff.
+   *
+   * 21:00 and not the actual זמן, for the same reason Shabbat uses 21:00: Yom
+   * Kippur ends around 19:30 in September and the latest חג in the year leaves
+   * well before 21:00, so one number clears every date without computing
+   * anything, and erring late is the error worth making.
+   *
+   * The fall-through below stays correct for a chained חג: if tomorrow is also
+   * יום טוב, or this is a Friday, the eve rules catch hour 21 and block it.
+   *
+   * Consequence worth knowing: eveningBeforeBlocked asks about hour 21, so a
+   * wedding whose eve is a חג no longer reports its evening as blocked, and
+   * the wedding-morning fallback no longer fires for it. The day-before send
+   * at 21:00 is what covers those guests now. */
+  if (YOM_TOV.has(dateIL) && hour < MOTZASH_HOUR) return { blocked: true, reason: "yom_tov" };
   if (YOM_TOV.has(nextDay(dateIL)) && hour >= EVE_HOUR) return { blocked: true, reason: "yom_tov_eve" };
 
   if (day === 5 && hour >= EVE_HOUR) return { blocked: true, reason: "shabbat_eve" };
