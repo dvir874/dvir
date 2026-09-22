@@ -45,6 +45,10 @@ export type Kind =
   | "change_same"            /* ...that matches what they already said */
   | "link_resend"            /* "הקישור לא עובד" */
   | "ride"                   /* an offer or a request, in words */
+  | "ride_area"              /* the answer to our own "מאיפה אתם" */
+  | "ride_ask_area"          /* a lift, with no town we recognise — ask once */
+  | "decline_free_text"      /* "מתנצלת לא אגיע", at any stage */
+  | "correction_reopen"      /* "טעיתי", with no question of ours open */
   | "human";                 /* nothing we understand */
 
 export interface Decision {
@@ -60,6 +64,8 @@ export interface Decision {
 export const ASK_COUNT = "awaiting_count";
 export const ASK_DECLINE = "awaiting_decline_confirm";
 export const ASK_CHANGE = "awaiting_count_change";
+/** We asked a guest where they are travelling from, and are waiting. */
+export const ASK_RIDE = "awaiting_ride_area";
 
 export interface GuestView {
   status: "pending" | "confirmed" | "declined";
@@ -67,6 +73,9 @@ export interface GuestView {
   /** null when no question of ours is open, or when it has expired. */
   liveState: string | null;
   hasToken: boolean;
+  /** Which side of a lift they were asking about, when we asked them where
+   *  from. Remembered so the answer keeps its meaning. */
+  rideRole?: "offer" | "seek" | null;
 }
 
 /** The parsers wa-conversation already uses, passed in rather than imported. */
@@ -82,7 +91,38 @@ export interface Parsers {
   /** "נעדכן ל-4" — a change asked for in words. */
   changeIntent: (s: string) => number | null;
   ride: (s: string) => { area: string; role: "offer" | "seek" } | null;
+  /** A lift, without needing to recognise the town.
+   *
+   * detectRideIntent needs BOTH a role word and a town from a fixed list, so
+   * "מחפש טרמפ מצומת גולני" and "אני מברור חיל ומחפשת טרמפ" both came back
+   * null — neither town is on the list. Those two were asked where they were
+   * from four times between them, answered every time, and were asked again.
+   * This half only reads the role, so the question can be asked once and the
+   * answer accepted whatever the place is called. */
+  rideTopic?: (s: string) => "offer" | "seek" | null;
 }
+
+/* A refusal in a guest's own words, at any point in the conversation.
+ *
+ * אילת ועמית wrote "מתנצלת לא אגיע" one minute after "מחר מתחתנים" and stayed
+ * recorded as attending until a person read the thread thirteen hours later,
+ * because nothing listens to free text once a guest is confirmed. Their seat
+ * and their meal were held for a wedding they had already withdrawn from.
+ *
+ * Deliberately narrow. It matches a refusal to ATTEND and nothing else:
+ * "לא עובד הקישור" is a broken link, "לא יודע אם אגיע" is uncertainty, and
+ * neither may cancel anybody. Every alternative below names the verb. */
+const REFUSAL =
+  /(^|\s)(לא\s+(אגיע|נגיע|מגיע|מגיעים|נגיעה|אוכל להגיע|נוכל להגיע|נוכל|אוכל|נצליח להגיע)|מתנצל(ת|ים)?\s+(לא|שלא)|לא\s+נצליח\s+להגיע|נאלץ(ים|נו)?\s+לוותר|אין\s+באפשרות(נו|י)|לצערי\s+לא)/;
+
+/* Taking a refusal back, however long afterwards.
+ *
+ * "רגע, טעיתי" is one of our own button labels and it worked perfectly for
+ * חנה לוי, who tapped it inside the same second. ענר זגורי wrote the same two
+ * words three hours later, followed by "אגיע ב״ה", and neither reached
+ * anything: the question had closed and free text has nowhere to go. He stayed
+ * declined through his own wedding day. */
+const CORRECTION = /(^|\s)(רגע,?\s*טעיתי|טעיתי|בטעות|טעות\s*שלי|סליחה,?\s*טעות|לא\s+התכוונתי)/;
 
 const YES = /^rsvp_yes$/;
 const NO = /^rsvp_no$/;
@@ -132,12 +172,42 @@ export function decide(guest: GuestView, said: string, p: Parsers): Decision {
     return { kind: "decline_cancelled" };
   }
 
+  /* We asked where they are travelling from, so whatever comes back IS the
+     answer — the place does not have to be a town we already knew.
+     קדם פריד answered "אני מברור חיל. מחפשת טרמפ" and was asked the same
+     question again, three times, because neither ברור חיל nor צומת גולני is
+     on the town list. A question we asked and a reply we then ignore is worse
+     than never asking.
+
+     An attendance answer still outranks it: somebody who writes "לא אגיע"
+     here has stopped talking about lifts. */
+  if (guest.liveState === ASK_RIDE) {
+    if (NO.test(t) || t === "לא מגיע" || REFUSAL.test(t)) return { kind: "decline_free_text" };
+    const role = p.ride(t)?.role ?? p.rideTopic?.(t) ?? guest.rideRole ?? "seek";
+    const area = t.replace(/^(אני\s+)?(מ|ב)?/, "").trim();
+    return area ? { kind: "ride_area", ride: { area: t, role } } : { kind: "ride_ask_area" };
+  }
+
+  /* ── 1½ · taking a refusal back, however long afterwards ────────── */
+  /* Before the buttons, because "רגע, טעיתי" IS a button label and the guest
+     who sends it late means exactly what the guest who taps it early means. */
+  if (guest.status === "declined" && CORRECTION.test(t)) {
+    return { kind: "correction_reopen" };
+  }
+
   /* ── 2 · a first tap ────────────────────────────────────────────── */
   if (YES.test(t) || t === "מגיע") return { kind: "yes_first_tap" };
   /* Always double-checked. A tap is instant and cannot be taken back, and a
      guest who declines by accident is removed from a wedding they meant to
      attend. A stray "מגיע" merely goes unanswered at the next question. */
   if (NO.test(t) || t === "לא מגיע") return { kind: "no_first_tap" };
+
+  /* ── 2½ · a refusal in their own words, at any stage ────────────── */
+  /* Above every rule that reads numbers, because "לא נוכל להגיע, סליחה על
+     ה-2" must cancel rather than propose a headcount, and above the ride and
+     link rules for the same reason. Below the buttons only because a button
+     is not ambiguous and does not need to be re-read. */
+  if (REFUSAL.test(t)) return { kind: "decline_free_text" };
 
   /* ── 3 · a list selection with no state ─────────────────────────── */
   const pick = LIST_PICK.exec(t);
@@ -171,6 +241,9 @@ export function decide(guest: GuestView, said: string, p: Parsers): Decision {
   /* ── 7 · a lift, in ordinary words ──────────────────────────────── */
   const ride = p.ride(t);
   if (ride) return { kind: "ride", ride };
+  /* A lift we understood the intent of but not the place. Asked once, with
+     ASK_RIDE set, so the answer lands somewhere — see the branch above. */
+  if (p.rideTopic?.(t)) return { kind: "ride_ask_area" };
 
   /* ── 8 · a person reads it ──────────────────────────────────────── */
   return { kind: "human" };
