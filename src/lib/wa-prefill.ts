@@ -53,6 +53,14 @@ export function waPrefill(text: string): string {
       .replace(/[\p{Extended_Pictographic}️‍⃣]/gu, "")
       .replace(/ {2,}/g, " ")
       .replace(/ +$/g, "");
+    /* A line that OPENED with an emoji opens with a space once it is gone.
+     *
+     * "📍 גן האירועים" became " גן האירועים", and five of those in a row read
+     * as a message that was pasted wrong — which is the whole failure this
+     * file exists to prevent. Only a gap the strip created is closed: a line
+     * the author actually indented keeps its indent, because the test is what
+     * the original line started with, not what is left of it. */
+    if (!/^\s/.test(line)) s = s.replace(/^ +/, "");
     /* Emptied by the strip rather than written empty. */
     return line.trim() && !s.trim() ? null : s;
   }).filter(s => s !== null) as string[];

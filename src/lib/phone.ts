@@ -144,6 +144,51 @@ export function whatsappWeeklySummaryLink(
   return `https://wa.me/${normalized}?text=${encodeURIComponent(waPrefill(message))}`;
 }
 
+/* ── The same message, on the day itself ── */
+/*
+ * whatsappDayBeforeLink opens "מחר זה קורה", which on the morning of the
+ * wedding is wrong for every guest who reads it. This is the one Dvir taps
+ * from an alert at 09:00 on the day — see src/app/s/[token]/route.ts, which
+ * picks between them by the event date rather than by which alert linked here.
+ *
+ * Both times, not one. A guest who was never reached knows neither when to
+ * arrive nor when the חופה is, and "17:45" alone has sent people to a חופה
+ * they thought started then.
+ */
+export function whatsappDayOfLink(
+  phone: string,
+  guestName: string,
+  eventName: string,
+  reception: string | null,
+  chuppah: string | null,
+  address: string | null,
+  /** Table number or the couple's own note — whatever the guest still needs. */
+  note?: string | null,
+  /** A short redirect to the navigation, e.g. APP_URL/nav/<event id>.
+   *
+   * Without it the Waze URL is built from the address inline, and a Hebrew
+   * address encodes to about a hundred and eighty characters of percent signs
+   * sitting in the middle of the message. The cron already learned this and
+   * sends /nav/<id> instead — forty characters, resolved on tap. Optional so
+   * callers with no event id still get a working link rather than none. */
+  navUrl?: string | null,
+): string {
+  const normalized = normalizePhone(phone);
+  let message =
+    `💍 משפחה וחברים יקרים!\n\n` +
+    `${guestName}, היום זה קורה! 🎉\n${eventName}`;
+  const times = [reception?.trim() ? `קבלת פנים ${reception.trim().slice(0, 5)}` : null,
+                 chuppah?.trim() ? `חופה ${chuppah.trim().slice(0, 5)}` : null]
+    .filter(Boolean).join(" · ");
+  if (times) message += `\n🥂 ${times}`;
+  if (address) message += `\n📍 ${address}`;
+  const nav = navUrl?.trim() || (address ? `https://waze.com/ul?q=${encodeURIComponent(address)}` : "");
+  if (nav) message += `\n🚗 ניווט: ${nav}`;
+  if (note?.trim()) message += `\n${note.trim()}`;
+  message += `\n\nמחכים לראותכם! 🤍`;
+  return `https://wa.me/${normalized}?text=${encodeURIComponent(waPrefill(message))}`;
+}
+
 /* ── Day-before reminder to a guest (with Waze) ── */
 export function whatsappDayBeforeLink(
   phone: string,

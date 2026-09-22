@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
-import { whatsappInviteLink, whatsappReminderLink, whatsappCountLink } from "@/lib/phone";
+import { whatsappInviteLink, whatsappReminderLink, whatsappCountLink, whatsappDayOfLink } from "@/lib/phone";
+import { venueLine } from "@/lib/venue";
 import { APP_URL } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
@@ -41,15 +42,46 @@ export async function GET(
      walking between meetings and a 404 helps nobody. */
   if (!g?.phone) return NextResponse.redirect("https://wa.me/", 302);
 
+  const { data: ev } = await sb.from("events")
+    .select("name, couple_names, date, venue_name, address, reception_time, chuppah_time")
+    .eq("id", g.event_id as string).maybeSingle();
+  const who = String(ev?.couple_names ?? ev?.name ?? "");
+
+  /* On the day itself, every other wording is wrong.
+   *
+   * This route only ever produced an invitation, a reminder or a headcount
+   * question — all three written for a guest who has days left to answer. On
+   * 22/09 Dvir tapped it for two guests who had hours, and what he needed to
+   * send was when to arrive and where. "אתם מוזמנים" on the morning of the
+   * חופה is worse than no message.
+   *
+   * Decided by the event date rather than by which alert linked here, so it is
+   * right no matter where the tap came from. In Israel, because a wedding is a
+   * date in Israel and UTC is a different day for three hours every night —
+   * the same reason israelToday exists in the cron. */
+  const todayIL = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+  const isToday = String(ev?.date ?? "") === todayIL;
+
   /* A guest who already answered gets the reminder wording rather than a fresh
      invitation; sending "אתם מוזמנים" to somebody who confirmed last week
      reads as a system that lost them. */
   const answered = g.status && g.status !== "pending";
   let link: string;
-  if (answered) {
-    const { data: ev } = await sb.from("events")
-      .select("name, couple_names").eq("id", g.event_id as string).maybeSingle();
-    const who = String(ev?.couple_names ?? ev?.name ?? "");
+  if (isToday) {
+    /* No table number here, unlike the cron's own day-of message: that line
+       comes from guestLineFactory, which lives inside the cron route and would
+       have to be lifted out to be reused. The two guests this was built for
+       needed the hour and the address; a table number is one more line in a
+       chat that is now open. Worth lifting when the first seated guest needs
+       it. */
+    link = whatsappDayOfLink(
+      String(g.phone), String(g.name ?? ""), who,
+      (ev?.reception_time as string | null) ?? null,
+      (ev?.chuppah_time as string | null) ?? null,
+      venueLine(ev as Parameters<typeof venueLine>[0]) || null,
+      null,
+      `${base}/nav/${g.event_id}`);
+  } else if (answered) {
 
     /* Confirmed, and stuck on "how many".
      *
