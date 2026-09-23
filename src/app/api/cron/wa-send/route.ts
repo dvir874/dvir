@@ -931,6 +931,50 @@ async function notifyDayOf(
   };
 }
 
+/** Who still does not know when to arrive — counted, and reported, even when
+ *  there is no allowance left to tell them.
+ *
+ * This lived inline in runSend, BELOW the `usage.blocked` early return. So on
+ * 22/09, the day two weddings shared, all twenty-four runs stopped at
+ * window_full and the alert never ran — on the one day it existed for. The
+ * budget guard inside notifyDayOf was only half the bug; this was the other
+ * half, and removing the first without this would still have reported nothing.
+ *
+ * Sending to Dvir while the window is "full" works because Meta's ceiling
+ * counts distinct RECIPIENTS in 24 hours, not messages, and his own number is
+ * already inside that window every day — the morning brief puts it there. A
+ * further message to somebody already counted adds nobody.
+ *
+ * Once a day. notifyDayOf's own window is 08:00–15:00, which four runs fall
+ * inside, and the same list four times is how an alert stops being read.
+ */
+async function reportDayOfGaps(
+  sb: ReturnType<typeof createServerClient>,
+  cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+  budget: number,
+): Promise<{ sent: number; event?: string; unreached?: number; waiting?: DayOfWaiting[] }> {
+  const dayOf = await notifyDayOf(sb, cfg, budget);
+  if (!dayOf.unreached || !process.env.ADMIN_ALERT_PHONE) return dayOf;
+
+  const since = `${israelToday()}T00:00:00Z`;
+  const { data: already } = await sb.from("wa_runs")
+    .select("id").eq("reason", "day_of_gap_alert").gte("created_at", since).limit(1);
+  if ((already ?? []).length) return dayOf;
+
+  try {
+    await sendRunSummary(cfg, process.env.ADMIN_ALERT_PHONE, {
+      event: `📞 ${dayOf.event ?? "החתונה היום"}`,
+      sent: String(dayOf.sent), failed: "—", left: String(dayOf.unreached),
+      /* Names, numbers, and a tap that opens the draft — see day-of-alert.ts
+         for why the count on its own was never the deliverable. */
+      attention: dayOfAlertText(dayOf.unreached, dayOf.waiting ?? [], APP_URL),
+    });
+    await sb.from("wa_runs").insert({ sent: 0, reason: "day_of_gap_alert" })
+      .then(() => {}, () => {});
+  } catch { /* an alert must never cost a send */ }
+  return dayOf;
+}
+
 /* A send that Meta refused, written down.
  *
  * Five loops in this file ended in `if (!res.ok) continue;` — the photo
@@ -3002,6 +3046,11 @@ async function runSend(req: NextRequest) {
 
 
   if (usage.blocked) {
+    /* No allowance left, which is a reason to send nothing and never a reason
+       to look at nothing. A guest who does not know when to arrive, on the day
+       itself, outranks the ceiling that stopped us telling them — and this is
+       the exact state that produced twenty-four silent runs on 22/09. */
+    await reportDayOfGaps(sb, cfg, 0).catch(() => {});
     return record(sb, {
       sent: 0, reason: "window_full", healed,
       recipients: usage.recipients, cap, quality: health.quality,
@@ -3059,22 +3108,9 @@ async function runSend(req: NextRequest) {
      everything else — see notifyDayOf. A guest who still does not know when to
      arrive on the day itself outranks every invitation and every reminder in
      the system, because for them the wedding is in a few hours. */
-  const dayOf = await notifyDayOf(sb, cfg, budget);
+  const dayOf = await reportDayOfGaps(sb, cfg, budget);
   budget = Math.max(0, budget - dayOf.sent);
 
-  /* Anyone the day-of could not reach needs a telephone, and there are hours
-     rather than days left to make the call. */
-  if (dayOf.unreached && process.env.ADMIN_ALERT_PHONE) {
-    try {
-      await sendRunSummary(cfg, process.env.ADMIN_ALERT_PHONE, {
-        event: `📞 ${dayOf.event ?? "החתונה היום"}`,
-        sent: String(dayOf.sent), failed: "—", left: String(dayOf.unreached),
-        /* Names, numbers, and a tap that opens the draft — see day-of-alert.ts
-           for why the count on its own was never the deliverable. */
-        attention: dayOfAlertText(dayOf.unreached, dayOf.waiting ?? [], APP_URL),
-      });
-    } catch { /* an alert must never cost a send */ }
-  }
 
   /** The guests WhatsApp cannot reach, reached by SMS instead.
  *
