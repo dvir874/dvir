@@ -46,11 +46,19 @@ interface Guest {
   delivery?: CoupleDelivery;
 }
 
-/* Twelve, because thirty-five chips is six rows of them and the screen's own
-   floating actions sit on top of whatever is under them at that scroll
-   position. The rest are in the list below, which is where a couple working
-   through them will end up anyway. */
-const NO_PHONE_SHOWN = 12;
+/* All of them, however many there are.
+ *
+ * This was twelve, to keep the card from becoming six rows of chips, and it
+ * said "ועוד 25 ברשימה למטה" for the remainder. There is no such list: the one
+ * below filters by status, side and group, and has no filter for a missing
+ * phone at all. So the card named twelve of איילת's thirty-seven and sent her
+ * to look for the other twenty-five somewhere they could not be found.
+ *
+ * She wrote back on 23/09: "לא נפתח לי על כולם. אני רואה אולי 12."
+ *
+ * A promise the screen cannot keep is worse than a long card — the couple who
+ * believes it stops looking. Six rows of chips is a scroll; twenty-five
+ * invisible guests are twenty-five people nobody invites. */
 
 /** One group of guests inside the "what needs you" card.
  *
@@ -70,7 +78,7 @@ function GuestNeedGroup({ title, note, list, onPick, top }: {
       <p style={{ fontFamily: "Heebo,sans-serif", fontSize: 13, fontWeight: 700, color: C.dark, margin: "0 0 4px" }}>{title}</p>
       <p style={{ fontFamily: "Heebo,sans-serif", fontSize: 13.5, lineHeight: 1.65, color: "rgba(28,16,8,0.70)", margin: "0 0 10px" }}>{note}</p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-        {list.slice(0, NO_PHONE_SHOWN).map(g => (
+        {list.map(g => (
           <button
             key={g.id}
             onClick={() => onPick(g as never)}
@@ -79,11 +87,6 @@ function GuestNeedGroup({ title, note, list, onPick, top }: {
             {g.name}
           </button>
         ))}
-        {list.length > NO_PHONE_SHOWN && (
-          <span style={{ alignSelf: "center", fontFamily: "Heebo,sans-serif", fontSize: 13, fontWeight: 600, color: "rgba(28,16,8,0.55)", padding: "0 4px" }}>
-            ועוד {list.length - NO_PHONE_SHOWN} ברשימה למטה
-          </span>
-        )}
       </div>
     </div>
   );
