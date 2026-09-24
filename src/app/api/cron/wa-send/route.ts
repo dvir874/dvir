@@ -5,6 +5,7 @@ import { smsProvider, smsSegments } from "@/lib/sms-gateway";
 import { smsInvite } from "@/lib/sms-invite";
 import { todayText, nextSendFor } from "@/lib/admin-console";
 import { waitingForYou, waitingLine, waitingHeader, isBroadcast, type ThreadView } from "@/lib/needs-you";
+import { dayOfAlertText, type WaitingGuest as DayOfWaiting } from "@/lib/day-of-alert";
 import { needsHuman } from "@/lib/needs-human";
 import { chunkBlocks } from "@/lib/wa-chunk";
 import { coupleName, looksLikeCouple } from "@/lib/couple-name";
@@ -734,7 +735,7 @@ async function notifyDayOf(
   sb: ReturnType<typeof createServerClient>,
   cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
   budget: number,
-): Promise<{ sent: number; event?: string; unreached?: number }> {
+): Promise<{ sent: number; event?: string; unreached?: number; waiting?: DayOfWaiting[] }> {
   /* BOTH template names, because the sender picks between them.
    *
    * This checked only dayOfTemplateName while sendDayOf reaches for
@@ -743,7 +744,24 @@ async function notifyDayOf(
    * the other would have opened the feature and then failed on precisely the
    * guests it was built for: the ones the eve could not reach, who are seated
    * and need their table. */
-  if (budget <= 0 || !cfg.dayOfTemplateName || !cfg.dayOfNoteTemplateName) return { sent: 0 };
+  /* Deliberately NOT `budget <= 0`.
+   *
+   * It was, and that is why nothing reached Dvir on 22/09. Two weddings shared
+   * a Tuesday, the eve filled the 250-recipient ceiling, two confirmed guests
+   * of תהל ואביב were never told when to arrive — and this returned here,
+   * before counting them. The alert below is gated on `unreached`, so the one
+   * message whose text reads "התקרה נגמרה — צריך להתקשר אליהם" could not be
+   * sent in the only situation that produces it.
+   *
+   * An exhausted budget is a reason to send nothing, never a reason to look at
+   * nothing. The loop below already handles it: `outOfBudget` is true from the
+   * first iteration, every target is counted, and no message goes out.
+   *
+   * The template names still return early. Without them nobody has EVER been
+   * sent this message, so every confirmed guest of every wedding today counts
+   * as unreached — an alert naming three hundred people, on repeat, which is
+   * noise and not information. Dark stays dark. */
+  if (!cfg.dayOfTemplateName || !cfg.dayOfNoteTemplateName) return { sent: 0 };
 
   const today = israelToday();
   const hour = Number(new Date().toLocaleString("en-GB", {
@@ -757,6 +775,7 @@ async function notifyDayOf(
   const nowMs = Date.now();
   let sentTotal = 0;
   let unreached = 0;
+  const waiting: DayOfWaiting[] = [];
   const names: string[] = [];
 
   for (const ev of evs ?? []) {
@@ -783,7 +802,7 @@ async function notifyDayOf(
     if (!couple || !venue || !rec || !chu) continue;
 
     const { data: guests } = await sb.from("guests")
-      .select("id, name, phone, status, category, do_not_contact")
+      .select("id, name, phone, status, category, do_not_contact, rsvp_token")
       .eq("event_id", ev.id).eq("status", "confirmed");
     if (!(guests ?? []).length) continue;
 
@@ -862,8 +881,19 @@ async function notifyDayOf(
     const byId = new Map((guests ?? []).map(g => [g.id as string, g]));
     const todo = outOfBudget ? [] : targetIds.slice(0, budget - sentTotal);
     /* Anyone the budget could not reach today needs a telephone, not a run —
-       reported so the number is never zero by silence. */
+       reported so the number is never zero by silence.
+
+       Named, not merely counted. A count with no way to act on it is the
+       failure this system has now produced three times in a week — שלמה's
+       sixteen, איילת's forty-one, and these two — so the missed guests travel
+       out with their number and their token, and the alert turns each one into
+       a link that opens a draft. */
     unreached += targetIds.length - todo.length;
+    for (const id of targetIds.slice(todo.length)) {
+      const g = byId.get(id);
+      if (g) waiting.push({ name: String(g.name ?? ""), phone: String(g.phone ?? ""),
+                            token: String(g.rsvp_token ?? "") });
+    }
     if (outOfBudget) continue;
 
     for (let i = 0; i < todo.length; i += SEND_CONCURRENCY) {
@@ -897,7 +927,52 @@ async function notifyDayOf(
     sent: sentTotal,
     event: names.join(" + ") || undefined,
     ...(unreached ? { unreached } : {}),
+    ...(waiting.length ? { waiting } : {}),
   };
+}
+
+/** Who still does not know when to arrive — counted, and reported, even when
+ *  there is no allowance left to tell them.
+ *
+ * This lived inline in runSend, BELOW the `usage.blocked` early return. So on
+ * 22/09, the day two weddings shared, all twenty-four runs stopped at
+ * window_full and the alert never ran — on the one day it existed for. The
+ * budget guard inside notifyDayOf was only half the bug; this was the other
+ * half, and removing the first without this would still have reported nothing.
+ *
+ * Sending to Dvir while the window is "full" works because Meta's ceiling
+ * counts distinct RECIPIENTS in 24 hours, not messages, and his own number is
+ * already inside that window every day — the morning brief puts it there. A
+ * further message to somebody already counted adds nobody.
+ *
+ * Once a day. notifyDayOf's own window is 08:00–15:00, which four runs fall
+ * inside, and the same list four times is how an alert stops being read.
+ */
+async function reportDayOfGaps(
+  sb: ReturnType<typeof createServerClient>,
+  cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+  budget: number,
+): Promise<{ sent: number; event?: string; unreached?: number; waiting?: DayOfWaiting[] }> {
+  const dayOf = await notifyDayOf(sb, cfg, budget);
+  if (!dayOf.unreached || !process.env.ADMIN_ALERT_PHONE) return dayOf;
+
+  const since = `${israelToday()}T00:00:00Z`;
+  const { data: already } = await sb.from("wa_runs")
+    .select("id").eq("reason", "day_of_gap_alert").gte("created_at", since).limit(1);
+  if ((already ?? []).length) return dayOf;
+
+  try {
+    await sendRunSummary(cfg, process.env.ADMIN_ALERT_PHONE, {
+      event: `📞 ${dayOf.event ?? "החתונה היום"}`,
+      sent: String(dayOf.sent), failed: "—", left: String(dayOf.unreached),
+      /* Names, numbers, and a tap that opens the draft — see day-of-alert.ts
+         for why the count on its own was never the deliverable. */
+      attention: dayOfAlertText(dayOf.unreached, dayOf.waiting ?? [], APP_URL),
+    });
+    await sb.from("wa_runs").insert({ sent: 0, reason: "day_of_gap_alert" })
+      .then(() => {}, () => {});
+  } catch { /* an alert must never cost a send */ }
+  return dayOf;
 }
 
 /* A send that Meta refused, written down.
@@ -2971,6 +3046,11 @@ async function runSend(req: NextRequest) {
 
 
   if (usage.blocked) {
+    /* No allowance left, which is a reason to send nothing and never a reason
+       to look at nothing. A guest who does not know when to arrive, on the day
+       itself, outranks the ceiling that stopped us telling them — and this is
+       the exact state that produced twenty-four silent runs on 22/09. */
+    await reportDayOfGaps(sb, cfg, 0).catch(() => {});
     return record(sb, {
       sent: 0, reason: "window_full", healed,
       recipients: usage.recipients, cap, quality: health.quality,
@@ -3028,21 +3108,9 @@ async function runSend(req: NextRequest) {
      everything else — see notifyDayOf. A guest who still does not know when to
      arrive on the day itself outranks every invitation and every reminder in
      the system, because for them the wedding is in a few hours. */
-  const dayOf = await notifyDayOf(sb, cfg, budget);
+  const dayOf = await reportDayOfGaps(sb, cfg, budget);
   budget = Math.max(0, budget - dayOf.sent);
 
-  /* Anyone the day-of could not reach needs a telephone, and there are hours
-     rather than days left to make the call. */
-  if (dayOf.unreached && process.env.ADMIN_ALERT_PHONE) {
-    try {
-      await sendRunSummary(cfg, process.env.ADMIN_ALERT_PHONE, {
-        event: `📞 ${dayOf.event ?? "החתונה היום"}`,
-        sent: String(dayOf.sent), failed: "—", left: String(dayOf.unreached),
-        attention: `${dayOf.unreached} אורחים עדיין לא יודעים מתי להגיע והחתונה היום. `
-          + `התקרה נגמרה — צריך להתקשר אליהם.`,
-      });
-    } catch { /* an alert must never cost a send */ }
-  }
 
   /** The guests WhatsApp cannot reach, reached by SMS instead.
  *

@@ -10,6 +10,9 @@
    here can break the existing send station. */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+/* Relative, like the other import-free helpers this file leans on, so the
+   node:test runner can resolve it — @/lib does not resolve under tsx. */
+import { splitAdminText } from "./admin-chunk.ts";
 
 export const API_VERSION = "v21.0";
 
@@ -1536,6 +1539,31 @@ export async function sendAdminText(
      sites keep compiling; every one of them passes it. */
   label?: string,
 ): Promise<SendResult> {
+  /* Long alerts are delivered as a short series, because a single long one is
+     not delivered at all — see admin-chunk.ts for the measurement. A message
+     that already fits takes the same path and comes back a one-element array,
+     so there is no second code path to keep correct.
+
+     The first part's id is returned: it is what the webhook marks delivered,
+     and an alert either started arriving or it did not. A part that fails
+     stops the rest — the remaining parts are a list continuing, and sending
+     "(3/4)" after "(2/4)" was refused would be worse than stopping. */
+  const parts = splitAdminText(body);
+  if (parts.length > 1) {
+    let first: SendResult | null = null;
+    for (const part of parts) {
+      const res = await sendOneAdminText(cfg, phone, part, label);
+      first ??= res;
+      if (!res.ok) return res;
+    }
+    return first ?? { ok: false, error: "ריק" };
+  }
+  return sendOneAdminText(cfg, phone, parts[0] ?? body, label);
+}
+
+async function sendOneAdminText(
+  cfg: WhatsAppConfig, phone: string, body: string, label?: string,
+): Promise<SendResult> {
   try {
     const res = await fetch(
       `https://graph.facebook.com/${API_VERSION}/${cfg.phoneNumberId}/messages`, {
@@ -1545,7 +1573,10 @@ export async function sendAdminText(
         body: JSON.stringify({
           messaging_product: "whatsapp", to: phone, type: "text",
           /* Previews turn a list of six short links into six stacked cards. */
-          text: { preview_url: false, body: body.slice(0, 4000) },
+          /* Already within the byte ceiling — splitAdminText saw to that. The
+             old `body.slice(0, 4000)` measured characters against a limit that
+             is in bytes, and bound nothing. */
+          text: { preview_url: false, body },
         }),
       });
     const json = await res.json().catch(() => ({}));

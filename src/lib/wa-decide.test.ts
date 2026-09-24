@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  decide, ASK_COUNT, ASK_DECLINE, ASK_CHANGE,
+  decide, ASK_COUNT, ASK_DECLINE, ASK_CHANGE, ASK_RIDE,
   type GuestView, type Parsers,
 } from "./wa-decide.ts";
 import { unpromptedCount, compositeCount, bareCount, changeIntent } from "./guest-count.ts";
@@ -125,7 +125,11 @@ test("a congratulation from a waiting guest is never a headcount", () => {
 });
 
 test("a refusal carrying a number is never an acceptance", () => {
-  assert.equal(decide(guest(), "לצערי לא נוכל להגיע, אנחנו 2 בחו\"ל", P).kind, "human");
+  /* Was "human", and that was the best this could do: the invariant the name
+     states — a refusal must never be read as a headcount — held only because
+     nothing claimed the message at all, so a person read it eventually.
+     REFUSAL claims it now, which keeps the invariant and adds the answer. */
+  assert.equal(decide(guest(), "לצערי לא נוכל להגיע, אנחנו 2 בחו\"ל", P).kind, "decline_free_text");
 });
 
 test("the answers this must not lose still get through", () => {
@@ -210,4 +214,89 @@ test("an expired question is no question at all", () => {
   /* liveState is null once the 48h TTL has passed, and the message then has to
      stand on its own. */
   assert.equal(decide(guest({ liveState: null }), "3", P).kind, "unprompted_count");
+});
+
+/* ── the four rules, each written against the guest it was written for ── */
+
+const P2: Parsers = {
+  promptedCount, unpromptedCount, composite: compositeCount, bare: bareCount, changeIntent, ride,
+  rideTopic: (s: string) =>
+    /(יש לי מקום|מציע|פנוי ברכב)/.test(s) ? "offer"
+      : /(טרמפ|הסעה|מחפש|בלי רכב)/.test(s) ? "seek" : null,
+};
+const G = (o: Partial<GuestView> = {}): GuestView =>
+  ({ status: "pending", guestCount: 1, liveState: null, hasToken: true, ...o });
+
+test("1 · a refusal in their own words wins after they already confirmed", () => {
+  /* אילת ועמית, 21/09 21:32 — one minute after "מחר מתחתנים". They stayed
+     recorded as attending, seat and meal held, until a person read it. */
+  const d = decide(G({ status: "confirmed", guestCount: 1 }), "מתנצלת לא אגיע", P2);
+  assert.equal(d.kind, "decline_free_text");
+});
+
+test("1 · and it beats a number in the same message", () => {
+  /* Otherwise "לא נוכל להגיע, סליחה על ה-2" proposes a headcount change. */
+  assert.equal(decide(G({ status: "confirmed", guestCount: 2 }), "לא נוכל להגיע, סליחה על ה-2", P2).kind,
+    "decline_free_text");
+});
+
+test("1 · but a broken link is not a refusal, and neither is uncertainty", () => {
+  /* Both contain לא. Neither may cancel anybody. */
+  assert.equal(decide(G({ status: "confirmed" }), "הקישור לא עובד", P2).kind, "link_resend");
+  assert.equal(decide(G({ status: "confirmed" }), "לא יודע אם אגיע, אעדכן", P2).kind, "human");
+});
+
+test("2 · «לא מגיע» is still double-checked, and the check is now reversible", () => {
+  /* The kind is unchanged — what changed is wa-conversation, which records the
+     decline at this point instead of waiting for an answer that never came.
+     נועה, זוזו and הודיה each said this once and sat at "pending" for weeks. */
+  assert.equal(decide(G(), "לא מגיע", P2).kind, "no_first_tap");
+  assert.equal(decide(G({ liveState: ASK_DECLINE, status: "declined" }), "כן, לא נוכל", P2).kind,
+    "decline_recorded");
+});
+
+test("3 · «טעיתי» reopens the decision with no question open", () => {
+  /* ענר זגורי wrote it three hours after the exchange closed, then "אגיע ב״ה",
+     and stayed declined through his own wedding day. */
+  assert.equal(decide(G({ status: "declined" }), "רגע, טעיתי", P2).kind, "correction_reopen");
+  assert.equal(decide(G({ status: "declined" }), "סליחה טעות", P2).kind, "correction_reopen");
+});
+
+test("3 · but it does not reopen somebody who never declined", () => {
+  /* "טעיתי" from a confirmed guest is about something else — a number, a name.
+     Guessing would cancel a guest who is coming. */
+  assert.equal(decide(G({ status: "confirmed" }), "רגע, טעיתי", P2).kind, "human");
+});
+
+test("4 · the ride question accepts its own answer, whatever the place", () => {
+  /* קדם פריד: "אני מברור חיל. מחפשת טרמפ" — asked four times, answered four
+     times, recorded never, because ברור חיל is not on the town list. */
+  const d = decide(G({ status: "confirmed", liveState: ASK_RIDE, rideRole: "seek" }),
+    "אני מברור חיל. מחפשת טרמפ", P2);
+  assert.equal(d.kind, "ride_area");
+  assert.match(d.ride!.area, /ברור חיל/);
+  assert.equal(d.ride!.role, "seek");
+});
+
+test("4 · a lift with no town we know is asked once, not forever", () => {
+  /* עמיחי אמויל: "יש קבוצת טרמפים?" then "מחפש טרמפ מצומת גולני". */
+  assert.equal(decide(G({ status: "confirmed" }), "יש קבוצת טרמפים?", P2).kind, "ride_ask_area");
+  assert.equal(decide(G({ status: "confirmed" }), "מחפש טרמפ מצומת גולני", P2).kind, "ride_ask_area");
+});
+
+test("4 · a town we DO know still skips the question entirely", () => {
+  const d = decide(G({ status: "confirmed" }), "מחפש טרמפ מירושלים", P2);
+  assert.equal(d.kind, "ride");
+  assert.equal(d.ride!.area, "ירושלים");
+});
+
+test("4 · someone who cancels mid-ride-question is cancelling, not naming a town", () => {
+  assert.equal(decide(G({ status: "confirmed", liveState: ASK_RIDE }), "לא נוכל להגיע בסוף", P2).kind,
+    "decline_free_text");
+});
+
+test("the rules do not disturb an open count question", () => {
+  /* Rule order: an open question of ours is still more specific than free text. */
+  assert.equal(decide(G({ liveState: ASK_COUNT }), "3", P2).kind, "count_recorded");
+  assert.equal(decide(G({ liveState: ASK_COUNT }), "לא מגיע", P2).kind, "decline_confirm_ask");
 });

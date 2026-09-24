@@ -58,3 +58,24 @@ test("empty in, empty out", () => {
     assert.equal(waPrefill(v as string), "");
   }
 });
+
+test("no leading space where a line's opening emoji was removed", () => {
+  /* Dvir pasted the day-of draft on 22/09 and every line under the greeting
+     began with a space, because the emoji that opened it was stripped and the
+     gap stayed. Five of those in a row read as a message pasted wrong. */
+  assert.equal(waPrefill("📍 גן האירועים ארץ"), "גן האירועים ארץ");
+  assert.equal(waPrefill("🥂 קבלת פנים 17:45"), "קבלת פנים 17:45");
+  assert.equal(
+    waPrefill("💍 משפחה וחברים יקרים!\n\n🚗 ניווט: https://a.co/x"),
+    "משפחה וחברים יקרים!\n\nניווט: https://a.co/x");
+});
+
+test("a line the author indented keeps its indent", () => {
+  /* The gap is closed only when the strip created it — what the line STARTED
+     with is the test, not what is left of it.
+     An interior line, deliberately: a lone indented line loses its indent to
+     the closing trim() no matter what happens here, so it would prove nothing. */
+  assert.equal(
+    waPrefill("כותרת\n  שורה מוזחת\n📍 מקום"),
+    "כותרת\n שורה מוזחת\nמקום");
+});
