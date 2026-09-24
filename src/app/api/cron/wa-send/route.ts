@@ -6,6 +6,7 @@ import { smsInvite } from "@/lib/sms-invite";
 import { todayText, nextSendFor } from "@/lib/admin-console";
 import { waitingForYou, waitingLine, waitingHeader, isBroadcast, type ThreadView } from "@/lib/needs-you";
 import { dayOfAlertText, type WaitingGuest as DayOfWaiting } from "@/lib/day-of-alert";
+import { decideIsLive, decideTallyLine, shutdownLine, DECIDE_FLAG } from "@/lib/decide-flag";
 import { needsHuman } from "@/lib/needs-human";
 import { chunkBlocks } from "@/lib/wa-chunk";
 import { coupleName, looksLikeCouple } from "@/lib/couple-name";
@@ -1656,6 +1657,31 @@ async function alertManualWork(
      * wedding where everybody was reached looks like. Both are worth one line
      * on the morning of, because the question he actually has at 08:15 is
      * "did the machine run", and silence has never answered it. */
+    /* The rollout, in the same message he already reads.
+     *
+     * Two numbers and never one: zero disagreements out of zero messages is
+     * what a broken pipe looks like, and on its own it reads as success. The
+     * 72-hour window is the one the three clean days are measured over, and
+     * only unresolved disagreements count — reviewed is not never happened.
+     *
+     * Scoped to the event the flag opened, because that is the only place the
+     * new branches can fire. */
+    let decideLine: string | null = null;
+    if (decideIsLive(ev.id as string, process.env[DECIDE_FLAG])) {
+      const since = new Date(Date.now() - 72 * 3_600_000).toISOString();
+      const [{ count: bad }, { count: seen }] = await Promise.all([
+        sb.from("wa_decide_log").select("id", { count: "exact", head: true })
+          .eq("event_id", ev.id as string).eq("agreed", false)
+          .is("resolved_at", null).gte("created_at", since),
+        sb.from("wa_decide_log").select("id", { count: "exact", head: true })
+          .eq("event_id", ev.id as string).eq("free_text", true).gte("created_at", since),
+      ]);
+      decideLine = decideTallyLine({ disagreements: bad ?? 0, freeText: seen ?? 0 });
+    }
+    /* Off on 05/10 whatever the numbers say — three days before שלמה marries,
+       so the highest-stakes week runs on the code we already trust. */
+    const offLine = shutdownLine(today, !!String(process.env[DECIDE_FLAG] ?? "").trim());
+
     const isWeddingDay = String(ev.date ?? "") === today;
     let dayOfLine = "";
     if (isWeddingDay) {
@@ -1672,7 +1698,7 @@ async function alertManualWork(
       6, APP_URL);
     /* The wedding-day line goes out even with no manual work at all — it is
        the one morning where "nothing to report" is itself the report. */
-    if (!body && !dayOfLine) continue;
+    if (!body && !dayOfLine && !decideLine && !offLine) continue;
 
     /* Free text first, template second, and the order is the feature.
      *
@@ -1688,7 +1714,7 @@ async function alertManualWork(
       const plain = manualWorkLines(
         coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name ?? ""),
         days, items, APP_URL);
-      const lines = [dayOfLine, plain].filter(Boolean).join("\n\n");
+      const lines = [offLine, dayOfLine, decideLine, plain].filter(Boolean).join("\n\n");
       const sentPlain = lines ? (await sendAdminText(cfg, to, lines, "manual_work")).ok : false;
       if (!sentPlain) {
         await sendRunSummary(cfg, to, {
@@ -1696,7 +1722,7 @@ async function alertManualWork(
           sent: String(items.length), failed: "—", left: String(days),
           /* One line, no newline — a template parameter with one fails the
              whole send with 132000. */
-          attention: [dayOfLine, body].filter(Boolean).join(" · "),
+          attention: [offLine, dayOfLine, decideLine, body].filter(Boolean).join(" · "),
         }, "manual_work");
       }
     } catch { /* an alert must never cost a send */ }

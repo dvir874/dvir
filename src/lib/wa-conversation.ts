@@ -4,7 +4,8 @@ import { sendButtons, sendList, sendText, parseGuestCount } from "@/lib/wa-inter
 import { detectRideIntent } from "@/lib/rides";
 import { stateIsLive } from "@/lib/chat-state";
 import { bareCount, changeIntent, unpromptedCount, compositeCount} from "@/lib/guest-count";
-import { decide, type Kind, type GuestView } from "@/lib/wa-decide";
+import { decide, type Kind, type GuestView, ASK_RIDE } from "@/lib/wa-decide";
+import { decideIsLive, DECIDE_FLAG } from "@/lib/decide-flag";
 import { needsHuman, saysNotComing, HUMAN_REASON_TEXT } from "@/lib/needs-human";
 import { optOutRequest, OPT_OUT_REPLY } from "@/lib/opt-out";
 import { answerQuestion, type FaqFacts } from "@/lib/guest-faq";
@@ -325,13 +326,105 @@ export async function handleGuestReply(
     promptedCount: parseGuestCount,
     unpromptedCount, composite: compositeCount,
     bare: bareCount, changeIntent, ride: detectRideIntent,
+    /* Role only, no town. detectRideIntent needs both and therefore read
+       "מחפש טרמפ מצומת גולני" as nothing at all — see wa-decide.ts. */
+    rideTopic: (t: string) =>
+      /(יש לי מקום|מציע|פנוי ברכב|נוסע ויש)/.test(t) ? "offer"
+        : /(טרמפ|הסעה|מצטרף לנסיעה|בלי רכב)/.test(t) ? "seek" : null,
   });
+
+  /* Is this the one wedding the flag opened? */
+  const eventId = (guest as { event_id?: string }).event_id ?? null;
+  const decideLive = decideIsLive(eventId, process.env[DECIDE_FLAG]);
+
+  /* A button id is a decision too, but it is not evidence about a parser:
+     "rsvp_yes" cannot be misread. Only free text counts toward the twenty. */
+  const isFreeText = !/^(rsvp_yes|rsvp_no|yes_decline|yes_change|count_\d{1,2})$/.test(said.trim());
+
+  /* Written down rather than warned about.
+   *
+   * This was console.warn — a stream nobody reads, on a platform where it is
+   * gone within the hour. Months of evidence about the one function that sees
+   * every inbound message were collected and discarded. The row carries the
+   * message itself, because without it nobody can judge who was right, and
+   * judging is the entire purpose of keeping it. */
+  const logDecision = (took: Kind): void => {
+    void sb.from("wa_decide_log").insert({
+      event_id: eventId, guest_id: guest.id,
+      said: said.slice(0, 500), free_text: isFreeText,
+      took, mirror: shadow.kind, agreed: shadow.kind === took,
+      live_state: view.liveState, guest_status: view.status, guest_count: view.guestCount,
+    }).then(() => {}, () => { /* a log must never cost a reply */ });
+  };
   const done = (took: Kind): boolean => {
-    if (shadow.kind !== took) {
-      console.warn(`[wa-decide:shadow] took=${took} mirror=${shadow.kind} said=${JSON.stringify(said.slice(0, 60))}`);
-    }
+    logDecision(took);
     return true;
   };
+  /* ── the four rules, on the one wedding the flag opened ──────────────
+   *
+   * Only branches the old code does not have. Everything it already handles
+   * it keeps handling, so nothing that works today can change — these can
+   * only claim messages that currently reach nobody but Dvir's inbox.
+   *
+   * Ordering is safe because decide() has already weighed the live state: a
+   * guest mid-headcount gets count_*, never decline_free_text. See the rule
+   * order at the top of wa-decide.ts. */
+  if (decideLive) {
+    /* 1 · אילת ועמית — "מתנצלת לא אגיע", one minute after "מחר מתחתנים",
+       and they stayed recorded as attending for thirteen hours. Recorded at
+       once, and reversible: ASK_DECLINE stays open so "רגע, טעיתי" undoes it
+       through the branch that already exists above. */
+    if (shadow.kind === "decline_free_text") {
+      if (!await record(sb, guest, "declined")) {
+        await sayText(cfg, to, RECORD_FAILED);
+        return true;
+      }
+      await setState(sb, guest.id, ASK_DECLINE);   /* after record(), which clears it */
+      await logOut("תודה שעדכנתם 🤍 נתגעגע!\nאם זו טעות — כתבו לנו כאן.");
+      await sayText(cfg, to, "תודה שעדכנתם 🤍 נתגעגע!\nאם זו טעות — כתבו לנו כאן.");
+      return done("decline_free_text");
+    }
+
+    /* 3 · ענר זגורי — wrote "רגע, טעיתי" three hours after the exchange had
+       closed, then "אגיע ב״ה", and stayed declined through his own wedding
+       day. Same two buttons decline_cancelled sends, because a correction
+       with no question open means exactly what one inside it means. */
+    if (shadow.kind === "correction_reopen") {
+      await setState(sb, guest.id, null);
+      await logOut("אין בעיה! אז מה נאמר?");
+      await sendButtons(cfg, to, "אין בעיה! אז מה נאמר?", [
+        { id: "rsvp_yes", title: "מגיע" },
+        { id: "rsvp_no",  title: "לא מגיע" },
+      ]);
+      return done("correction_reopen");
+    }
+
+    /* 4 · קדם פריד and עמיחי אמויל answered "מאיפה אתם" four times between
+       them and were asked again every time, because neither ברור חיל nor
+       צומת גולני is on the town list. Whatever they send now IS the place. */
+    if (shadow.kind === "ride_area" && shadow.ride) {
+      await sb.from("guests")
+        .update({ ride_from: shadow.ride.area.slice(0, 80), ride_role: shadow.ride.role })
+        .eq("id", guest.id);
+      await setState(sb, guest.id, null);
+      const line = shadow.ride.role === "offer"
+        ? "רשמנו שיש לכם מקום ברכב 🚗\nאם מישהו משם מחפש טרמפ — נחבר ביניכם."
+        : "רשמנו שאתם מחפשים טרמפ 🚗\nאם מישהו משם נוסע — נחבר ביניכם.";
+      await logOut(line);
+      await sayText(cfg, to, line);
+      return done("ride_area");
+    }
+
+    /* Asked ONCE, with the state set, so the answer has somewhere to land. */
+    if (shadow.kind === "ride_ask_area") {
+      await setState(sb, guest.id, ASK_RIDE);
+      const ask = "אפשר לכתוב לי מאיפה אתם ואם אתם מחפשים טרמפ או שיש לכם מקום ברכב, ואחבר ביניכם 🚗";
+      await logOut(ask);
+      await sayText(cfg, to, ask);
+      return done("ride_ask_area");
+    }
+  }
+
   if (live && guest.chat_state === ASK_COUNT) {
     /* Changing their mind while the headcount question is open.
        דור ענף tapped מגיע and לא מגיע in the same second on 12/08. The second
@@ -485,6 +578,13 @@ export async function handleGuestReply(
   }
 
   if (/^rsvp_no$/.test(said) || said === "לא מגיע") {
+    /* 2 · Recorded now, not only if they answer the check.
+     *
+     * נועה, זוזו and הודיה each said this once, were asked "רק לוודא", never
+     * answered, and sat at "pending" for weeks — counted as no-answer through
+     * two weddings. The check stays, and stays reversible; what changes is
+     * that silence now means what they said rather than nothing. */
+    if (decideLive) await record(sb, guest, "declined");
     await setState(sb, guest.id, ASK_DECLINE);
     await logOut("רק לוודא — לא תוכלו להגיע?");
     await sendButtons(cfg, to, "רק לוודא — לא תוכלו להגיע?", [
