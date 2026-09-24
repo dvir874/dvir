@@ -1644,10 +1644,35 @@ async function alertManualWork(
 
     const days = Math.max(0, Math.ceil((new Date(String(ev.date)).getTime() - nowMs) / 86_400_000));
     const items = classifyManualWork(real as Parameters<typeof classifyManualWork>[0], contact, days);
+
+    /* On the day itself, whether the gap alert fired — said out loud.
+     *
+     * reportDayOfGaps writes a wa_runs row the first time it alerts, and that
+     * row is the only evidence it ran at all. On 22/09 there was no row and no
+     * alert and no way to tell the two apart from a phone; Dvir found out by
+     * asking, hours later, after both weddings had started.
+     *
+     * "לא נשלחה" is not the same as "something is broken": it is also what a
+     * wedding where everybody was reached looks like. Both are worth one line
+     * on the morning of, because the question he actually has at 08:15 is
+     * "did the machine run", and silence has never answered it. */
+    const isWeddingDay = String(ev.date ?? "") === today;
+    let dayOfLine = "";
+    if (isWeddingDay) {
+      const { data: fired } = await sb.from("wa_runs")
+        .select("id").eq("reason", "day_of_gap_alert")
+        .gte("created_at", `${today}T00:00:00Z`).limit(1);
+      dayOfLine = (fired ?? []).length
+        ? "🔔 יום חתונה: התראת פערים נשלחה"
+        : "🔔 יום חתונה: התראת פערים לא נשלחה";
+    }
+
     const body = manualWorkMessage(
       coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name ?? ""), days, items,
       6, APP_URL);
-    if (!body) continue;
+    /* The wedding-day line goes out even with no manual work at all — it is
+       the one morning where "nothing to report" is itself the report. */
+    if (!body && !dayOfLine) continue;
 
     /* Free text first, template second, and the order is the feature.
      *
@@ -1660,15 +1685,18 @@ async function alertManualWork(
      * When the window is shut the paragraph still goes. Worse to read, and
      * infinitely better than silence. */
     try {
-      const lines = manualWorkLines(
+      const plain = manualWorkLines(
         coupleName(ev as Parameters<typeof coupleName>[0]) ?? String(ev.name ?? ""),
         days, items, APP_URL);
+      const lines = [dayOfLine, plain].filter(Boolean).join("\n\n");
       const sentPlain = lines ? (await sendAdminText(cfg, to, lines, "manual_work")).ok : false;
       if (!sentPlain) {
         await sendRunSummary(cfg, to, {
-          event: "🙋 מחכה לך",
+          event: isWeddingDay ? "🔔 יום חתונה" : "🙋 מחכה לך",
           sent: String(items.length), failed: "—", left: String(days),
-          attention: body,
+          /* One line, no newline — a template parameter with one fails the
+             whole send with 132000. */
+          attention: [dayOfLine, body].filter(Boolean).join(" · "),
         }, "manual_work");
       }
     } catch { /* an alert must never cost a send */ }
