@@ -92,6 +92,14 @@ export default function FooterWarm() {
 
       <div className="mx-auto mt-12 max-w-[1150px] border-t border-white/10 pt-6 text-center font-body text-[14px] text-white/55">
         © 2026 רגע לפני · ניהול חתונה יוקרתי
+        {/* The legal name as it appears on the verification application, and
+            the registration number. Meta's reviewer matches the document
+            against the site, and on 24/09 the site carried neither: the
+            Hebrew name nineteen times, the Latin "Rega Lifnei" and the עוסק
+            number not once. Verification had been "In Review" for three
+            weeks against a stated two business days. */}
+        <br />
+        <span className="text-white/40">רגע לפני · Rega Lifnei · עוסק פטור 212845523</span>
       </div>
     </footer>
   );

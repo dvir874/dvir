@@ -222,6 +222,10 @@ export default function Footer() {
             <a href="/privacy" className="hover:text-white/50 transition-colors" style={{ color: "inherit" }}>
               מדיניות פרטיות
             </a>
+            {/* Same reason as FooterWarm: the reviewer matches the legal name
+                and registration number on the document against the website. */}
+            <br />
+            <span className="opacity-70">רגע לפני · Rega Lifnei · עוסק פטור 212845523</span>
             {" · "}
             <a href="/contact" className="hover:text-white/50 transition-colors" style={{ color: "inherit" }}>
               צור קשר
