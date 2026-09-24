@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { handleGuestReply } from "@/lib/wa-conversation";
 import { isAdminPhone, handleAdminMessage, handleCoupleMessage } from "@/lib/admin-console";
-import { isRetryableFailure, nextRetryAt } from "@/lib/whatsapp";
+import { isRetryableFailure, nextRetryAt, getWhatsAppConfig, sendAdminText } from "@/lib/whatsapp";
+import { unmatchedLeadAlert, shouldAlert } from "@/lib/unmatched-lead";
 import { failureWriter, newRunId, recordFailure } from "@/lib/failures";
 import { isNewerStatus } from "@/lib/rsvp-contact";
 
@@ -481,6 +482,35 @@ export async function POST(req: NextRequest) {
         /* Answered from a number that is not on the list. Previously a silent
            `continue`: the reply sat in the inbox under the sender's WhatsApp
            profile name, indistinguishable from a guest who had been counted. */
+        /* Told, not just recorded.
+         *
+         * /api/admin/inbox requires an event_id and refuses without one, so a
+         * stranger's message appears on no screen at all — it sat in
+         * wa_messages with a null event_id and in wa_failures, a table nobody
+         * reads. Five already exist, every one of them תהל ואביב's own contact
+         * number writing in and getting nothing back.
+         *
+         * It became urgent on 24/09, when איילת asked to recommend the service
+         * in a group of brides. Enquiries nobody can see cost more than no
+         * recommendation: the business pays in reputation and never finds out.
+         *
+         * Cooldown off the previous unmatched row for this same number, which
+         * recordFailure below is about to write — so it is read first.
+         * Somebody asking three questions is one enquiry, not three alerts. */
+        try {
+          const admin = process.env.ADMIN_ALERT_PHONE;
+          const cfg = admin ? getWhatsAppConfig() : null;
+          if (cfg && admin) {
+            const { data: prior } = await sb.from("wa_failures")
+              .select("created_at").eq("scope", "webhook.unmatched").eq("ref", m.from)
+              .order("created_at", { ascending: false }).limit(1);
+            if (shouldAlert(prior?.[0]?.created_at as string | undefined, Date.now())) {
+              await sendAdminText(cfg, admin,
+                unmatchedLeadAlert(m.from ?? "", bodyOf(m)), "unmatched_lead");
+            }
+          }
+        } catch { /* an alert must never cost the message being stored */ }
+
         await recordFailure(w, {
           scope: "webhook.unmatched", runId, ref: m.from,
           error: "reply from a number that is not on any guest list",
