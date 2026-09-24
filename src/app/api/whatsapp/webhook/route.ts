@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { handleGuestReply } from "@/lib/wa-conversation";
 import { isAdminPhone, handleAdminMessage, handleCoupleMessage } from "@/lib/admin-console";
-import { isRetryableFailure, nextRetryAt, getWhatsAppConfig, sendAdminText } from "@/lib/whatsapp";
-import { unmatchedLeadAlert, shouldAlert } from "@/lib/unmatched-lead";
+import { isRetryableFailure, nextRetryAt, getWhatsAppConfig, sendAdminText, sendRunSummary } from "@/lib/whatsapp";
+import { unmatchedLeadAlert, shouldAlert, readablePhone } from "@/lib/unmatched-lead";
 import { failureWriter, newRunId, recordFailure } from "@/lib/failures";
 import { isNewerStatus } from "@/lib/rsvp-contact";
 
@@ -505,8 +505,25 @@ export async function POST(req: NextRequest) {
               .select("created_at").eq("scope", "webhook.unmatched").eq("ref", m.from)
               .order("created_at", { ascending: false }).limit(1);
             if (shouldAlert(prior?.[0]?.created_at as string | undefined, Date.now())) {
-              await sendAdminText(cfg, admin,
-                unmatchedLeadAlert(m.from ?? "", bodyOf(m)), "unmatched_lead");
+              const text = unmatchedLeadAlert(m.from ?? "", bodyOf(m));
+              /* Free text first, approved template second — and the second half
+                 is the point.
+                 sendAdminText is free text, which Meta allows only inside the
+                 24-hour window Dvir's own messages open. Nine of the sixty-three
+                 alerts sent to him since 22/09 died on exactly that (131047,
+                 "Re-engagement message"). An alert about a lead that only
+                 arrives when he happens to have written that day is the same
+                 lost lead wearing a different hat. The template carries it
+                 whenever the window is shut — the pattern alertManualWork
+                 already uses. */
+              const plain = await sendAdminText(cfg, admin, text, "unmatched_lead");
+              if (!plain.ok) {
+                await sendRunSummary(cfg, admin, {
+                  event: "📞 פנייה חדשה",
+                  sent: "0", failed: "—", left: readablePhone(m.from ?? ""),
+                  attention: text,
+                }, "unmatched_lead");
+              }
             }
           }
         } catch { /* an alert must never cost the message being stored */ }
