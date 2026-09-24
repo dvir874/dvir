@@ -96,6 +96,17 @@ const RIDES_GROUP_PER_RUN = 60;
 /* The thank-you: ceiling, and the room left behind it for invitations. */
 const GALLERY_PER_RUN = 150;
 const GALLERY_RESERVE = 30;
+/* And a ceiling per DAY, which the per-run one is not.
+ *
+ * Eight runs at 150 is twelve hundred, and only the rolling window stood
+ * between that and a day where photo requests crowded out the invitations for
+ * a wedding still ahead. On 24/09 a single run sent 111 — already past what a
+ * finished wedding should take from one that has not happened yet.
+ *
+ * The photos are not urgent. שלמה marries on 08/10 and ירון on 14/10; their
+ * guests still do not know where to stand. A gallery request that waits two
+ * days costs nobody anything. */
+const GALLERY_PER_DAY = 100;
 
 /* Israel is UTC+3 in August. Nothing goes out before 09:00 local — a wedding
    invitation arriving at 04:00 gets reported, and reports are what restricted
@@ -3353,7 +3364,17 @@ async function sendSmsFallback(
    * served first. שחר's 213 on 09/09 were sent on day two. */
   const galleryFresh = await freshGallery(sb);
   const reserve = galleryFresh ? GALLERY_RESERVE : await liveDemandNow(sb);
-  const galleryRoom = Math.min(GALLERY_PER_RUN, Math.max(0, budget - reserve));
+  /* What today has already spent on photos, so the daily ceiling is a ceiling
+     and not a per-run suggestion. Counted from the marker rather than from
+     wa_messages, because the marker is the one row a successful send always
+     writes — see markSent. */
+  const { count: galleryToday } = await sb.from("guest_events")
+    .select("id", { count: "exact", head: true })
+    .eq("event_type", "gallery_sent")
+    .gte("created_at", `${israelToday()}T00:00:00Z`);
+  const galleryLeftToday = Math.max(0, GALLERY_PER_DAY - (galleryToday ?? 0));
+  const galleryRoom = Math.min(
+    GALLERY_PER_RUN, galleryLeftToday, Math.max(0, budget - reserve));
   const gallery = galleryRoom > 0
     ? await notifyGallery(sb, cfg, galleryRoom)
     : { sent: 0 as number, event: undefined as string | undefined };
