@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "תנאי שירות — רגע לפני",
@@ -54,7 +55,8 @@ const SECTIONS: { title: string; body: string[] }[] = [
 
 export default function TermsPage() {
   return (
-    <div dir="rtl" style={{ minHeight: "100vh", background: "#FDFAF5", fontFamily: "Heebo, sans-serif", color: "#1C1008" }}>
+    <>
+      <div dir="rtl" style={{ minHeight: "100vh", background: "#FDFAF5", fontFamily: "Heebo, sans-serif", color: "#1C1008" }}>
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "48px 24px" }}>
         <Link href="/" style={{ color: "#8B6914", textDecoration: "none", fontSize: 14 }}>← חזרה לאתר</Link>
 
@@ -77,5 +79,7 @@ export default function TermsPage() {
         ))}
       </div>
     </div>
+      <Footer />
+    </>
   );
 }

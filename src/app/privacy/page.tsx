@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { APP_HOST } from "@/lib/app-url";
+import Footer from "@/components/Footer";
 
 /* Privacy policy — required by Meta before a developer app can be published,
    and publishing is what turns on production WhatsApp delivery webhooks.
@@ -73,7 +74,8 @@ const SECTIONS: { title: string; body: string[] }[] = [
 
 export default function PrivacyPage() {
   return (
-    <div dir="rtl" style={{ minHeight: "100vh", background: "#FDFAF5", fontFamily: "Heebo, sans-serif", color: "#1C1008" }}>
+    <>
+      <div dir="rtl" style={{ minHeight: "100vh", background: "#FDFAF5", fontFamily: "Heebo, sans-serif", color: "#1C1008" }}>
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "48px 24px" }}>
         <Link href="/" style={{ color: "#8B6914", textDecoration: "none", fontSize: 14 }}>← חזרה לאתר</Link>
 
@@ -100,5 +102,7 @@ export default function PrivacyPage() {
         </p>
       </div>
     </div>
+      <Footer />
+    </>
   );
 }

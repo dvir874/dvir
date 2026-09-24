@@ -83,6 +83,12 @@ export default function FooterWarm() {
           <h4 className="mb-4 font-display text-lg font-bold text-white">יצירת קשר</h4>
           <ul className="font-body text-[14px] text-white/60 [&_a]:inline-flex [&_a]:min-h-[44px] [&_a]:items-center">
             <li dir="ltr" className="text-right">053-331-8177</li>
+            {/* The number the service itself runs on, which the site never
+                carried. Meta's reviewer matches the business phone on the
+                verification application against the website, and on 24/09
+                this number appeared on none of the five public pages.
+                Beside the mobile, not instead of it — callers use that one. */}
+            <li dir="ltr" className="text-right">077-549-4850</li>
             <li>dvir@regalifnei.com</li>
             <li><a href={WA_URL_FOOTER} className="hover:text-primary-soft">וואטסאפ</a></li>
           </ul>
@@ -99,7 +105,7 @@ export default function FooterWarm() {
             number not once. Verification had been "In Review" for three
             weeks against a stated two business days. */}
         <br />
-        <span className="text-white/40">רגע לפני · Rega Lifnei · עוסק פטור 212845523</span>
+        <span className="text-white/40">רגע לפני · Rega Lifnei · עוסק פטור 212845523 · 077-549-4850</span>
       </div>
     </footer>
   );
