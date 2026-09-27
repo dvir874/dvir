@@ -1,7 +1,7 @@
 "use client";
 import { isPlausiblePhone } from "@/lib/phone-validate";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { inProgressLine, type CoupleDelivery } from "@/lib/guest-delivery";
 import { useParams, useRouter } from "next/navigation";
 import HelpButton from "@/components/HelpButton";
@@ -112,6 +112,9 @@ export default function GuestCenterPage() {
     }, new Map<string, number>()),
   ).sort((a, b) => b[1] - a[1]);
   const [detail, setDetail] = useState<Guest | null>(null);
+  /* Folded by default — see the card below. */
+  const [needOpen, setNeedOpen] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
   const [detailNotes, setDetailNotes] = useState("");
   const [detailSide, setDetailSide] = useState("");
   const [detailStatus, setDetailStatus] = useState("");
@@ -136,7 +139,17 @@ export default function GuestCenterPage() {
     setDetailCount(g.guest_count || 1);
   };
 
-  const saveDetail = async () => {
+  /* Saved as it is typed, with no button to press.
+   *
+   * ישורון asked the question this answers — "למה חייבים לשמר?" — and it had
+   * no good answer: every other control on this screen takes effect the moment
+   * it is touched, and only this sheet held the change hostage to a button at
+   * the bottom of a scroll. A couple who edits a guest and swipes the sheet
+   * away loses the edit and is not told.
+   *
+   * The sheet no longer closes itself either. Closing was how it confirmed the
+   * save, and with the save continuous there is nothing to confirm by leaving. */
+  const persist = useCallback(async () => {
     if (!detail) return;
     setSaving(true);
     const r = await fetch(`/api/couple/${token}/guests`, {
@@ -151,10 +164,22 @@ export default function GuestCenterPage() {
     if (r.ok) {
       const updated = await r.json();
       setGuests(gs => gs.map(g => g.id === updated.id ? updated : g));
-      setDetail(null);
+      setSavedAt(Date.now());
     }
     setSaving(false);
-  };
+  }, [detail, detailSide, detailNotes, detailStatus, detailGroup, detailCount, token]);
+
+  /* Debounced, because the notes field fires on every keystroke and a chip
+     fires once. One second covers both without a request per letter. The ref
+     skips the first run, which is openDetail populating the fields — saving
+     a guest to the values it already has is a write nobody asked for. */
+  const primed = useRef(false);
+  useEffect(() => {
+    if (!detail) { primed.current = false; return; }
+    if (!primed.current) { primed.current = true; return; }
+    const t = setTimeout(() => { void persist(); }, 1000);
+    return () => clearTimeout(t);
+  }, [detail, detailSide, detailNotes, detailStatus, detailGroup, detailCount, persist]);
 
   // Summary
   const [busyExport, setBusyExport] = useState<"confirmed" | "all" | null>(null);
@@ -289,10 +314,17 @@ export default function GuestCenterPage() {
        * the two questions are kept apart: names where a couple can act, a
        * sentence where they cannot. Guests who asked Meta to stop appear in
        * neither — a second number for them would route around a stop request. */}
+      {/* Folded, because the screen is called מרכז האורחים and this is not it.
+          Measured at 379px on a 720px Android — the guest list began 43% down
+          the page behind an explanation. ישורון, after the wedding: "מסך עמוס
+          מדי, אני רוצה לנהל אורחים, לא לקרוא הודעות."
+          The count stays visible, so nothing is hidden — only the paragraph
+          explaining it, which is worth reading once and not on every visit. */}
       {!loading && (needsYou > 0 || inProgressCount > 0) && (
         <div style={{ padding: "16px 20px 0" }}>
           <div style={{ background: "#FFFFFF", border: `1px solid ${needsYou ? "rgba(178,76,76,0.22)" : "rgba(197,164,109,0.25)"}`, borderRadius: 16, padding: "14px 16px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: needsYou ? 12 : 6 }}>
+            <button onClick={() => setNeedOpen(o => !o)} aria-expanded={needOpen}
+              style={{ all:"unset", boxSizing:"border-box", cursor:"pointer", width:"100%", display:"flex", alignItems:"center", gap:8, minHeight:44, marginBottom: needOpen ? (needsYou ? 12 : 6) : 0 }}>
               <h3 style={{ fontFamily: "Frank Ruhl Libre,serif", fontSize: 17, fontWeight: 700, color: C.dark, margin: 0 }}>
                 {needsYou ? "מה צריך אתכם" : "הכול מטופל"}
               </h3>
@@ -301,8 +333,12 @@ export default function GuestCenterPage() {
                   {needsYou}
                 </span>
               )}
-            </div>
+              <span style={{ marginInlineStart:"auto", fontSize:12, color:C.muted, fontFamily:"Heebo,sans-serif" }}>
+                {needOpen ? "סגור ▲" : "פתח ▼"}
+              </span>
+            </button>
 
+            <div style={{ display: needOpen ? "block" : "none" }}>
             {noPhoneList.length > 0 && (
               <GuestNeedGroup
                 title={`בלי מספר טלפון · ${noPhoneList.length}`}
@@ -336,6 +372,7 @@ export default function GuestCenterPage() {
                 הוא ייספר בדוח המנות וייכנס לסידור ההושבה האוטומטי, בדיוק כאילו אישר בעצמו.
               </p>
             )}
+            </div>
           </div>
         </div>
       )}
@@ -748,10 +785,11 @@ export default function GuestCenterPage() {
                   <a href={`https://wa.me/${detail.phone?.replace(/\D/g,"")}`} target="_blank" rel="noopener noreferrer" style={{ flex:1, padding:"0.6rem", borderRadius:12, background:"rgba(5,150,105,0.1)", border:"1px solid rgba(5,150,105,0.3)", color:"#065F46", fontSize:13, fontWeight:600, textAlign:"center", textDecoration:"none", minHeight:44, display:"flex", alignItems:"center", justifyContent:"center" }}>💬 WhatsApp</a>
                 </div>
               )}
-              <button onClick={saveDetail} disabled={saving}
-                style={{ width:"100%", background:saving?"rgba(197,164,109,0.5)":C.gold, color:"white", border:"none", borderRadius:14, padding:"0.9rem", fontSize:16, fontWeight:700, cursor:saving?"default":"pointer", fontFamily:"Heebo,sans-serif", minHeight:52 }}>
-                {saving ? "שומר..." : "שמור"}
-              </button>
+              {/* Where the save button was. It says what happened instead of
+                  asking for permission to make it happen. */}
+              <p style={{ textAlign:"center", fontFamily:"Heebo,sans-serif", fontSize:13, color:saving ? C.muted : "#1A9B4E", minHeight:20, margin:"4px 0 0" }}>
+                {saving ? "שומר…" : savedAt ? "✓ נשמר" : "כל שינוי נשמר מעצמו"}
+              </p>
             </div>
           </div>
         </div>
