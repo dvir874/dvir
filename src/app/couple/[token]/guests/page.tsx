@@ -40,6 +40,7 @@ interface Guest {
   status: string;
   side: string | null;
   source_group?: string | null;
+  sub_group?: string | null;
   table_number: number | null;
   notes: string | null;
   /* Attached by the API — see lib/guest-delivery.ts. */
@@ -114,11 +115,25 @@ export default function GuestCenterPage() {
   const [detail, setDetail] = useState<Guest | null>(null);
   /* Folded by default — see the card below. */
   const [needOpen, setNeedOpen] = useState(false);
+  /* The sub-groups already in use inside one group — the couple's own
+     vocabulary, not a fixed list. */
+  const subGroupsOf = useCallback((group: string) => {
+    const g = group.trim();
+    if (!g) return [] as string[];
+    const seen = new Set<string>();
+    for (const x of guests) {
+      if ((x.source_group ?? "").trim() !== g) continue;
+      const sg = (x.sub_group ?? "").trim();
+      if (sg) seen.add(sg);
+    }
+    return [...seen].sort();
+  }, [guests]);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [detailNotes, setDetailNotes] = useState("");
   const [detailSide, setDetailSide] = useState("");
   const [detailStatus, setDetailStatus] = useState("");
   const [detailGroup,  setDetailGroup]  = useState("");
+  const [detailSub,    setDetailSub]    = useState("");
   const [detailCount, setDetailCount]   = useState(1);
   const [saving, setSaving] = useState(false);
 
@@ -136,6 +151,7 @@ export default function GuestCenterPage() {
     setDetailSide(g.side ?? "");
     setDetailStatus(g.status ?? "pending");
     setDetailGroup(g.source_group ?? "");
+    setDetailSub(g.sub_group ?? "");
     setDetailCount(g.guest_count || 1);
   };
 
@@ -158,6 +174,7 @@ export default function GuestCenterPage() {
         id: detail.id, side: detailSide || null, notes: detailNotes || null,
         ...(detailStatus && detailStatus !== detail.status ? { status: detailStatus } : {}),
         ...(detailGroup !== (detail.source_group ?? "") ? { source_group: detailGroup } : {}),
+        ...(detailSub !== (detail.sub_group ?? "") ? { sub_group: detailSub } : {}),
         ...(detailStatus === "confirmed" && detailCount !== detail.guest_count ? { guest_count: detailCount } : {}),
       }),
     });
@@ -167,7 +184,7 @@ export default function GuestCenterPage() {
       setSavedAt(Date.now());
     }
     setSaving(false);
-  }, [detail, detailSide, detailNotes, detailStatus, detailGroup, detailCount, token]);
+  }, [detail, detailSide, detailNotes, detailStatus, detailGroup, detailSub, detailCount, token]);
 
   /* Debounced, because the notes field fires on every keystroke and a chip
      fires once. One second covers both without a request per letter. The ref
@@ -179,7 +196,7 @@ export default function GuestCenterPage() {
     if (!primed.current) { primed.current = true; return; }
     const t = setTimeout(() => { void persist(); }, 1000);
     return () => clearTimeout(t);
-  }, [detail, detailSide, detailNotes, detailStatus, detailGroup, detailCount, persist]);
+  }, [detail, detailSide, detailNotes, detailStatus, detailGroup, detailSub, detailCount, persist]);
 
   // Summary
   const [busyExport, setBusyExport] = useState<"confirmed" | "all" | null>(null);
@@ -773,6 +790,43 @@ export default function GuestCenterPage() {
                   placeholder="או כתבו קבוצה חדשה…"
                   style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:10, padding:"0.6rem 0.8rem", fontSize:14, fontFamily:"Heebo,sans-serif", background:"white", color:C.dark, outline:"none", boxSizing:"border-box", minHeight:44 }} />
               </div>
+
+              {/* One level under it, and only once a group is chosen.
+                  ישורון: "להוסיף אפשרות להוספת תת קבוצה". Free text for the
+                  same reason the group is: the three weddings that already do
+                  this by hand each do it differently — "משפחה קרובה/מורחבת",
+                  "חברים ישורון/מילואים ישורון", "שפירא/שפירא דודים" — and a
+                  fixed vocabulary would fit none of them.
+                  The chips are the sub-groups already used INSIDE this group,
+                  so the list stays short and relevant instead of offering
+                  every refinement on the wedding. */}
+              {detailGroup.trim() && (
+                <div>
+                  <label style={{ fontFamily:"Heebo,sans-serif", fontSize:12, color:C.muted, display:"block", marginBottom:6 }}>
+                    תת-קבוצה בתוך «{detailGroup.trim()}»
+                  </label>
+                  {subGroupsOf(detailGroup).length > 0 && (
+                    <div style={{ display:"flex", gap:"0.4rem", flexWrap:"wrap", marginBottom:8 }}>
+                      {subGroupsOf(detailGroup).map(sg => {
+                        const on = detailSub === sg;
+                        return (
+                          <button key={sg} type="button" onClick={() => setDetailSub(on ? "" : sg)}
+                            style={{ padding:"6px 12px", borderRadius:16, minHeight:36,
+                              border:`1px solid ${on?C.gold:C.border}`,
+                              background:on?"rgba(197,164,109,0.14)":C.cream,
+                              color:on?C.goldText:C.muted, fontSize:12,
+                              fontFamily:"Heebo,sans-serif", cursor:"pointer" }}>
+                            {sg}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <input value={detailSub} onChange={e => setDetailSub(e.target.value.slice(0, 60))}
+                    placeholder="לא חובה — למשל «מילואים», «דודים»"
+                    style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:10, padding:"0.6rem 0.8rem", fontSize:14, fontFamily:"Heebo,sans-serif", background:"white", color:C.dark, outline:"none", boxSizing:"border-box", minHeight:44 }} />
+                </div>
+              )}
 
               <div>
                 <label style={{ fontFamily:"Heebo,sans-serif", fontSize:12, color:C.muted, display:"block", marginBottom:4 }}>הערות</label>

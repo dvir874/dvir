@@ -144,7 +144,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ to
      and no way to delete a duplicate either. With 550 imported rows that is not
      a missing feature, it is a missing basic. */
   const body = await req.json();
-  const { id, side, notes, name, phone, guest_count, status, source_group } = body;
+  const { id, side, notes, name, phone, guest_count, status, source_group, sub_group } = body;
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
   const patch: Record<string, unknown> = {};
@@ -155,6 +155,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ to
      editable nowhere, so a guest filed under the wrong one stayed there. */
   if (source_group !== undefined) {
     patch.source_group = String(source_group ?? "").trim().slice(0, 60) || null;
+  }
+  /* One level of refinement under it — "מילואים" inside "חברים ישורון".
+     Same treatment as the group: trimmed, capped, and an empty string means
+     none rather than a row holding "". */
+  if (sub_group !== undefined) {
+    patch.sub_group = String(sub_group ?? "").trim().slice(0, 60) || null;
   }
 
   /* The couple answering on a guest's behalf.

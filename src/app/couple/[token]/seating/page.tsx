@@ -45,7 +45,7 @@ const TABLE_TYPES = [
 
 interface SeatingTable      { id: string; name: string; capacity: number; type: string; sort_order: number; zone?: string | null }
 interface SeatingAssignment { id: string; guest_id: string; table_id: string }
-interface Guest             { id: string; name: string; guest_count: number; status?: string; phone?: string | null; source_group?: string | null; side?: string | null }
+interface Guest             { id: string; name: string; guest_count: number; status?: string; phone?: string | null; source_group?: string | null; sub_group?: string | null; side?: string | null }
 interface EventInfo         { name?: string | null; couple_names?: string | null; date?: string | null; venue_name?: string | null }
 interface SeatingData { tables: SeatingTable[]; assignments: SeatingAssignment[]; guests: Guest[]; event: EventInfo | null }
 
@@ -132,6 +132,7 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
   const [search,        setSearch]        = useState("");
   const [selectedGuest, setSelectedGuest] = useState<string | null>(null);
   const [seatGroup, setSeatGroup] = useState<string>("__all__");
+  const [seatSub, setSeatSub] = useState<string>("__all__");
   const [showAddTable,   setShowAddTable]   = useState(false);
   const [newTable,       setNewTable]       = useState({ name: "", capacity: 10, type: "round" });
   const [showSimulator,  setShowSimulator]  = useState(false);
@@ -452,9 +453,23 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
       .sort((a, b) => b[1] - a[1])
       .map(([k, n]) => ({ k, label: k, n }));
   })();
-  const shownUnassigned = seatGroup === "__all__"
+  const inGroup = seatGroup === "__all__"
     ? unassigned
     : unassigned.filter(g => (g.source_group?.trim() || "ללא קבוצה") === seatGroup);
+  /* The second level, and only once a group narrows the list. Offered from the
+     guests still left in that group, so a sub-group that is fully seated stops
+     appearing rather than filtering to nothing. */
+  const seatSubGroups = (() => {
+    const m = new Map<string, number>();
+    for (const g of inGroup) {
+      const k = g.sub_group?.trim();
+      if (k) m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => ({ k, n }));
+  })();
+  const shownUnassigned = seatSub === "__all__"
+    ? inGroup
+    : inGroup.filter(g => (g.sub_group?.trim() || "") === seatSub);
 
   const hasRoom = data.tables.length > 0;
 
@@ -1021,13 +1036,32 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
                       <div className="flex flex-wrap gap-1.5 mb-3">
                         {[{ k: "__all__", label: "הכול", n: unassigned.length },
                           ...seatGroups].map(g => (
-                          <button key={g.k} onClick={() => setSeatGroup(g.k)}
+                          <button key={g.k} onClick={() => { setSeatGroup(g.k); setSeatSub("__all__"); }}
                             className={`h-9 px-3 rounded-pill text-[12px] leading-4 border transition ${
                               seatGroup === g.k
                                 ? "bg-gold text-white border-gold"
                                 : "bg-surface text-ink/60 border-line hover:border-primary"
                             }`}>
                             {g.label} ({g.n})
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* And one level in, when the group has refinements.
+                        ישורון asked for the filter by sub-group; this is the
+                        half of it that only makes sense after a group is
+                        chosen, which is why it is not a second flat row. */}
+                    {seatGroup !== "__all__" && seatSubGroups.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-3 ps-3">
+                        {[{ k: "__all__", n: inGroup.length }, ...seatSubGroups].map(sg => (
+                          <button key={sg.k} onClick={() => setSeatSub(sg.k)}
+                            className={`h-8 px-2.5 rounded-pill text-[12px] leading-4 border transition ${
+                              seatSub === sg.k
+                                ? "bg-ink text-white border-ink"
+                                : "bg-surface text-ink/55 border-line hover:border-primary"
+                            }`}>
+                            {sg.k === "__all__" ? "הכול בקבוצה" : sg.k} ({sg.n})
                           </button>
                         ))}
                       </div>

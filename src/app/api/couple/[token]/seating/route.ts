@@ -19,7 +19,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
   const [tablesRes, assignmentsRes, guestsRes, eventRes] = await Promise.all([
     sb.from("seating_tables").select("*").eq("event_id", eventId).order("sort_order"),
     sb.from("seating_assignments").select("*").eq("event_id", eventId),
-    sb.from("guests").select("id, name, guest_count, status, phone, source_group, side").eq("event_id", eventId).order("name"),
+    /* sub_group arrives with 20260927_guest_sub_group.sql. Asked for before
+       that migration runs, PostgREST rejects the whole select and the seating
+       screen goes blank for every couple — so it is requested, and dropped if
+       the column is not there yet. Same trade the webhook makes for the media
+       columns: keeping the screen matters more than keeping the field. */
+    sb.from("guests").select("id, name, guest_count, status, phone, source_group, sub_group, side")
+      .eq("event_id", eventId).order("name")
+      .then(r => r.error
+        ? sb.from("guests").select("id, name, guest_count, status, phone, source_group, side")
+            .eq("event_id", eventId).order("name")
+        : r),
     /* The screen addresses the couple by name and counts down to their date,
        and neither was ever sent here — the same gap that left the greeting off
        the guests screen. Selected narrowly: this endpoint answers to a token
