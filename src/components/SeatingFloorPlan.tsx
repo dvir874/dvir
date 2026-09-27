@@ -64,38 +64,59 @@ export default function SeatingFloorPlan({
   const guestById   = (id: string) => guests.find(g => g.id === id);
   const assignedAt  = (tableId: string) => assignments.filter(a => a.table_id === tableId);
 
-  function onMouseDown(e: React.MouseEvent, table: FPTable, index: number) {
-    // Only start drag on the table surface (not on buttons)
+  /* Pointer events, not mouse events.
+   *
+   * This listened for mousedown/mousemove/mouseup only, so on a touch screen
+   * nothing started a drag at all. ישורון ran his daughter's wedding from a
+   * phone: "אצלי בטלפון אין אפשרות להזיז". He was right, and the fix is not to
+   * add a second set of touch handlers — pointer events cover mouse, touch and
+   * stylus in one path, so there is one drag to keep correct rather than two.
+   *
+   * setPointerCapture is what makes a touch drag survive the finger leaving
+   * the table: without it the browser retargets the move to whatever is under
+   * the finger and the drag dies on the first pixel outside.
+   *
+   * touchAction: "none" on the element is required as well — otherwise the
+   * browser claims the gesture for scrolling before the first pointermove
+   * arrives, which is the usual reason a drag "works on desktop only". */
+  function onPointerDown(e: React.PointerEvent, table: FPTable, index: number) {
+    // Only start a drag on the table surface, never on its buttons.
     if ((e.target as HTMLElement).closest("button")) return;
     e.preventDefault();
+    const el = e.currentTarget as HTMLElement;
+    try { el.setPointerCapture(e.pointerId); } catch { /* not fatal */ }
+
     const pos = getPos(table, index);
     dragging.current = { tableId: table.id, startMouseX: e.clientX, startMouseY: e.clientY, startX: pos.x, startY: pos.y };
     setDragId(table.id);
 
-    function onMove(ev: MouseEvent) {
+    const clamp = (cx: number, cy: number) => ({
+      x: Math.max(20, Math.min(CANVAS_W - 80, dragging.current!.startX + (cx - dragging.current!.startMouseX))),
+      y: Math.max(20, Math.min(CANVAS_H - 80, dragging.current!.startY + (cy - dragging.current!.startMouseY))),
+    });
+
+    function onMove(ev: PointerEvent) {
       if (!dragging.current) return;
-      const dx = ev.clientX - dragging.current.startMouseX;
-      const dy = ev.clientY - dragging.current.startMouseY;
-      const newX = Math.max(20, Math.min(CANVAS_W - 80,  dragging.current.startX + dx));
-      const newY = Math.max(20, Math.min(CANVAS_H - 80,  dragging.current.startY + dy));
-      setPositions(p => ({ ...p, [dragging.current!.tableId]: { x: newX, y: newY } }));
+      const { x, y } = clamp(ev.clientX, ev.clientY);
+      setPositions(p => ({ ...p, [dragging.current!.tableId]: { x, y } }));
     }
 
-    function onUp(ev: MouseEvent) {
+    function finish(ev: PointerEvent) {
       if (!dragging.current) return;
-      const dx = ev.clientX - dragging.current.startMouseX;
-      const dy = ev.clientY - dragging.current.startMouseY;
-      const newX = Math.max(20, Math.min(CANVAS_W - 80, dragging.current.startX + dx));
-      const newY = Math.max(20, Math.min(CANVAS_H - 80, dragging.current.startY + dy));
-      onMoveTable(dragging.current.tableId, Math.round(newX), Math.round(newY));
+      const { x, y } = clamp(ev.clientX, ev.clientY);
+      onMoveTable(dragging.current.tableId, Math.round(x), Math.round(y));
       dragging.current = null;
       setDragId(null);
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", finish);
+      /* A cancel — the browser taking the gesture, a call arriving — must end
+         the drag too, or the table follows the next tap anywhere on screen. */
+      window.removeEventListener("pointercancel", finish);
     }
 
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", finish);
   }
 
   function handleCanvasDrop(e: React.DragEvent) {
@@ -164,7 +185,7 @@ export default function SeatingFloorPlan({
         return (
           <div
             key={table.id}
-            onMouseDown={e => onMouseDown(e, table, index)}
+            onPointerDown={e => onPointerDown(e, table, index)}
             onDragOver={e => e.preventDefault()}
             onDrop={e => {
               e.preventDefault();
@@ -177,6 +198,11 @@ export default function SeatingFloorPlan({
               left: pos.x - svgW / 2,
               top:  pos.y - svgH / 2,
               cursor: isDragging ? "grabbing" : "grab",
+              /* The browser claims a touch gesture for scrolling before the
+                 first pointermove arrives unless the element opts out. This
+                 one line is the difference between a drag that works on a
+                 desktop and one that works on the phone ישורון used. */
+              touchAction: "none",
               zIndex: isDragging ? 10 : 1,
               filter: isDragging ? "drop-shadow(0 8px 20px rgba(28,16,8,0.18))" : "drop-shadow(0 2px 6px rgba(28,16,8,0.08))",
               transition: isDragging ? "none" : "filter 0.2s",

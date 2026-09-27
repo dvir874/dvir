@@ -835,16 +835,17 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
             ) : showSimulator ? (
               <section className="bg-surface-raised rounded-card p-5 shadow-card border border-line">
                 <p className="text-[12px] leading-4 text-ink/45 mb-3">
-                  {/* What the screen can actually do.
-                      This read "גרור שולחנות לסידור האולם · גרור אורח לשולחן",
-                      and this file contains no drag handler of any kind — not
-                      onDragStart, not onTouchStart, not onPointerDown, not even
-                      onMouseDown. ישורון spent his daughter's wedding night
-                      trying to follow it: "אצלי בטלפון אין אפשרות להזיז, גם
-                      במחשב לא הצלחתי". There was nothing to succeed at.
-                      Dragging may be built later. Until it is, the instruction
-                      describes the tap-then-tap flow that exists. */}
-                  בחרו אורח ואז לחצו על שולחן כדי לשבץ · לחיצה על כיסא מלא מסירה
+                  {/* Both halves of what this screen does.
+                      The drag is real and lives in SeatingFloorPlan — I first
+                      grepped this file, found no handler, and wrongly concluded
+                      the feature had never been built. It had. What was missing
+                      was smaller and stranger: seating_tables had no pos_x or
+                      pos_y, so every position the drag saved was discarded, and
+                      on a phone the handlers were mouse-only so no drag started
+                      at all. ישורון reported exactly that — "אצלי בטלפון אין
+                      אפשרות להזיז, גם במחשב לא הצלחתי" — and both halves were
+                      true for different reasons. */}
+                  גררו שולחן כדי לסדר את האולם · בחרו אורח ואז לחצו על שולחן כדי לשבץ
                 </p>
                 <SeatingFloorPlan
                   tables={data.tables}
