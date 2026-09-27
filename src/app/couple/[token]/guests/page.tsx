@@ -576,19 +576,36 @@ export default function GuestCenterPage() {
         )}
       </div>
 
-      {/* ONE floating GoldCTA — spec: no header "+" button */}
-      <div style={{ position:"sticky", bottom:`calc(80px + env(safe-area-inset-bottom))`, padding:"0 16px", zIndex:5, display:"flex", flexDirection:"column", gap:10 }}>
-        {guests.length > 0 && (
+      {/* Four fixed layers used to stack here on a 720px Android — the bottom
+          nav, this gold button, the green banner and the help bubble — and
+          together they held about a third of the viewport permanently.
+          ישורון, after his daughter's wedding: "מסך עמוס מדי, אני רוצה לנהל
+          אורחים לא לקרוא הודעות", "הטיפ בירוק אסור שיסתיר כל כך הרבה",
+          "כפתור מוסתר ברובו". Three notes, one cause. It is also what made the
+          missing-phone card unreachable two days earlier.
+
+          The banner scrolls with the page now: it is a one-time prompt, not a
+          control, and a prompt does not deserve permanent screen. */}
+      {guests.length > 0 && (
+        <div style={{ padding:"0 16px 12px" }}>
           <a
             href={`https://wa.me/972533318177?text=${encodeURIComponent(`היי דביר! סיימנו לסדר את רשימת האורחים (${guests.length} אורחים) — אפשר לשלוח את ההזמנות 🎉`)}`}
             target="_blank" rel="noopener noreferrer"
             style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%", padding:"14px", borderRadius:16, background:"#fff", color:"#1A9B4E", fontFamily:"Heebo,sans-serif", fontSize:14, fontWeight:700, border:"1.5px solid rgba(37,211,102,0.4)", textDecoration:"none", boxShadow:"0 2px 12px rgba(28,16,8,0.08)" }}>
             סידרתם את הרשימה? בקשו מדביר לשלוח את ההזמנות 🚀
           </a>
-        )}
+        </div>
+      )}
+
+      {/* And the primary action shrinks to the size of the help bubble, which
+          ישורון singled out as the one that gets it right: "הוסף אורח, שיהיה
+          ICON קטן, כמו עזרה שקיים מצויין". Pushed to the opposite side so the
+          two never sit on each other. */}
+      <div style={{ position:"sticky", bottom:`calc(80px + env(safe-area-inset-bottom))`, padding:"0 16px", zIndex:5, display:"flex" }}>
         <button onClick={() => router.push(`/couple/${token}/guests/import`)}
-          style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%", padding:"16px", borderRadius:16, background:`linear-gradient(135deg,${C.gold},#B8935A)`, color:"white", fontFamily:"Heebo,sans-serif", fontSize:15, fontWeight:700, border:"none", cursor:"pointer", boxShadow:"0 4px 16px rgba(197,164,109,0.45)" }}>
-          + הוסיפו אורח
+          aria-label="הוסיפו אורח"
+          style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginInlineStart:"auto", minHeight:48, padding:"0 18px", borderRadius:9999, background:`linear-gradient(135deg,${C.gold},#B8935A)`, color:"white", fontFamily:"Heebo,sans-serif", fontSize:14, fontWeight:700, border:"none", cursor:"pointer", boxShadow:"0 4px 16px rgba(197,164,109,0.45)" }}>
+          <span style={{ fontSize:18, lineHeight:1 }}>+</span> אורח
         </button>
       </div>
 

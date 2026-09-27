@@ -131,6 +131,7 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
   const [saving,        setSaving]        = useState(false);
   const [search,        setSearch]        = useState("");
   const [selectedGuest, setSelectedGuest] = useState<string | null>(null);
+  const [seatGroup, setSeatGroup] = useState<string>("__all__");
   const [showAddTable,   setShowAddTable]   = useState(false);
   const [newTable,       setNewTable]       = useState({ name: "", capacity: 10, type: "round" });
   const [showSimulator,  setShowSimulator]  = useState(false);
@@ -439,6 +440,21 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
     }
     return order.map(z => ({ zone: z, tables: map.get(z ?? " ")! }));
   })();
+
+  /* Which group of the still-unseated list is being worked on. */
+  const seatGroups = (() => {
+    const m = new Map<string, number>();
+    for (const g of unassigned) {
+      const k = g.source_group?.trim() || "ללא קבוצה";
+      m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return [...m.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([k, n]) => ({ k, label: k, n }));
+  })();
+  const shownUnassigned = seatGroup === "__all__"
+    ? unassigned
+    : unassigned.filter(g => (g.source_group?.trim() || "ללא קבוצה") === seatGroup);
 
   const hasRoom = data.tables.length > 0;
 
@@ -819,7 +835,16 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
             ) : showSimulator ? (
               <section className="bg-surface-raised rounded-card p-5 shadow-card border border-line">
                 <p className="text-[12px] leading-4 text-ink/45 mb-3">
-                  גרור שולחנות לסידור האולם · גרור אורח לשולחן · לחץ על כיסא מלא להסרה
+                  {/* What the screen can actually do.
+                      This read "גרור שולחנות לסידור האולם · גרור אורח לשולחן",
+                      and this file contains no drag handler of any kind — not
+                      onDragStart, not onTouchStart, not onPointerDown, not even
+                      onMouseDown. ישורון spent his daughter's wedding night
+                      trying to follow it: "אצלי בטלפון אין אפשרות להזיז, גם
+                      במחשב לא הצלחתי". There was nothing to succeed at.
+                      Dragging may be built later. Until it is, the instruction
+                      describes the tap-then-tap flow that exists. */}
+                  בחרו אורח ואז לחצו על שולחן כדי לשבץ · לחיצה על כיסא מלא מסירה
                 </p>
                 <SeatingFloorPlan
                   tables={data.tables}
@@ -978,8 +1003,43 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
                     <p className="text-[12px] leading-4 text-ink/50 mb-2">
                       בחרו אורח ואז לחצו על שולחן כדי לשבץ.
                     </p>
+
+                    {/* Narrow the wall before reading it.
+                        Seventy-two names in one alphabetical block, and the
+                        groups the couple already sorted their list into —
+                        "מילואים ישורון", "חברות טל", "שפירא דודים" — were not
+                        offered as a way through it. ישורון asked for exactly
+                        this after the wedding: "להוסיף אפשרות לסינון לפי תת
+                        קבוצה". Seating happens one group at a time; the screen
+                        made him scan all of them at once.
+
+                        Groups come from the guests actually left to seat, so a
+                        group that is fully seated stops appearing rather than
+                        offering an empty filter. */}
+                    {seatGroups.length > 1 && (
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        {[{ k: "__all__", label: "הכול", n: unassigned.length },
+                          ...seatGroups].map(g => (
+                          <button key={g.k} onClick={() => setSeatGroup(g.k)}
+                            className={`h-9 px-3 rounded-pill text-[12px] leading-4 border transition ${
+                              seatGroup === g.k
+                                ? "bg-gold text-white border-gold"
+                                : "bg-surface text-ink/60 border-line hover:border-primary"
+                            }`}>
+                            {g.label} ({g.n})
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Every one of them.
+                        This showed sixty and then "ועוד 12" — a count with
+                        nowhere to go, the same shape as the missing-phone card
+                        that sent איילת looking for twenty-five names that
+                        appeared on no screen. The filter above is how the list
+                        gets short; hiding the tail is not. */}
                     <div className="flex flex-wrap gap-2">
-                      {unassigned.slice(0, 60).map(g => (
+                      {shownUnassigned.map(g => (
                         <button key={g.id}
                           onClick={() => setSelectedGuest(selectedGuest === g.id ? null : g.id)}
                           className={`h-11 px-4 rounded-pill text-[13px] leading-4 border transition ${
@@ -990,11 +1050,6 @@ export default function CoupleSeatingPage({ params }: { params: Promise<{ token:
                           {g.name}{(g.guest_count ?? 1) > 1 ? ` +${(g.guest_count ?? 1) - 1}` : ""}
                         </button>
                       ))}
-                      {unassigned.length > 60 && (
-                        <span className="text-[12px] leading-4 text-ink/45 self-center">
-                          ועוד {unassigned.length - 60}
-                        </span>
-                      )}
                     </div>
                   </>
                 )}
