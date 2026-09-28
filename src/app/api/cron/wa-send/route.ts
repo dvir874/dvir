@@ -572,9 +572,20 @@ async function notifyRidesGroup(
      * sending to the whole list "כדי שגם מי שעדיין מתלבט או שאין לו איך להגיע
      * יוכל להצטרף", and for somebody still deciding, a lift is part of the
      * decision. */
+    /* Confirmed only, not "everyone who has not refused".
+     *
+     * שלמה asked for it in those words on 28/09 — "לכל האורחים שאישרו הגעה" —
+     * and on his wedding that is 111 people rather than 185. The seventy-four
+     * who have not answered would each cost a slot of a 250-a-day ceiling that
+     * his reminders still need, to join a group for a journey they have not
+     * said they are making.
+     *
+     * Nobody is lost by waiting: this runs on every cron and the dedupe is per
+     * guest, so somebody who confirms next week is picked up then — which is
+     * also the moment the group starts being useful to them. */
     const eligible = (guests ?? []).filter(g =>
       g.category !== "demo" && String(g.phone ?? "").trim()
-      && g.rsvp_token && !g.do_not_contact && g.status !== "declined");
+      && g.rsvp_token && !g.do_not_contact && g.status === "confirmed");
     if (!eligible.length) continue;
 
     const ids = eligible.map(g => g.id as string);
