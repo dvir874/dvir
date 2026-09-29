@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { Trash2, AlertTriangle } from "lucide-react";
 
 const GOLD  = "#C5A46D";
@@ -38,6 +38,11 @@ function getInitials(name: string) {
 const CANVAS_W = 900;
 const CANVAS_H = 560;
 const DEFAULT_SPACING = 180;
+/* Above this many tables a full-size table no longer fits a real hall plan:
+   איילת's venue is 36 tables in nine columns, about 100px a column against a
+   120px table. Drawn smaller, the same stored positions stop overlapping. */
+const CROWDED_AT   = 20;
+const CROWDED_SIZE = 0.7;
 
 function defaultPos(index: number): { x: number; y: number } {
   const cols = Math.floor(CANVAS_W / DEFAULT_SPACING);
@@ -55,11 +60,38 @@ export default function SeatingFloorPlan({
   const dragging = useRef<{ tableId: string; startMouseX: number; startMouseY: number; startX: number; startY: number } | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
 
+  /* Positions are stored in a fixed 900px-wide room and the view is scaled to
+   * fit the screen.
+   *
+   * The canvas used to shrink to the screen while the tables kept their
+   * pixel positions, so on a 375px phone everything right of ~350px was cut
+   * off and could not be reached. And the height was a fixed 560 while the
+   * default grid runs five to a row 180px apart, so from table 16 onward
+   * tables sat below the bottom edge — invisible and undraggable. Scaling the
+   * view keeps every saved pos_x/pos_y exactly where it was. */
+  const [fit, setFit] = useState(1);
+  useEffect(() => {
+    const el = canvasRef.current?.parentElement;
+    if (!el) return;
+    const measure = () => setFit(Math.min(1, el.clientWidth / CANVAS_W) || 1);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const tableScale = tables.length > CROWDED_AT ? CROWDED_SIZE : 1;
+
   const getPos = useCallback((table: FPTable, index: number) => {
     if (positions[table.id]) return positions[table.id];
     if (table.pos_x != null && table.pos_y != null) return { x: table.pos_x, y: table.pos_y };
     return defaultPos(index);
   }, [positions]);
+
+  // Tall enough for the lowest table, never shorter than the old room.
+  const canvasH = Math.max(
+    CANVAS_H,
+    ...tables.map((t, i) => getPos(t, i).y + 80),
+  );
 
   const guestById   = (id: string) => guests.find(g => g.id === id);
   const assignedAt  = (tableId: string) => assignments.filter(a => a.table_id === tableId);
@@ -90,9 +122,13 @@ export default function SeatingFloorPlan({
     dragging.current = { tableId: table.id, startMouseX: e.clientX, startMouseY: e.clientY, startX: pos.x, startY: pos.y };
     setDragId(table.id);
 
+    /* The finger moves in screen pixels; the table moves in room pixels.
+       Dividing by the fit keeps the table under the finger on a phone. Room
+       to drag 120px below the current bottom lets the hall grow downward. */
+    const maxY = canvasH + 120;
     const clamp = (cx: number, cy: number) => ({
-      x: Math.max(20, Math.min(CANVAS_W - 80, dragging.current!.startX + (cx - dragging.current!.startMouseX))),
-      y: Math.max(20, Math.min(CANVAS_H - 80, dragging.current!.startY + (cy - dragging.current!.startMouseY))),
+      x: Math.max(20, Math.min(CANVAS_W - 20, dragging.current!.startX + (cx - dragging.current!.startMouseX) / fit)),
+      y: Math.max(20, Math.min(maxY, dragging.current!.startY + (cy - dragging.current!.startMouseY) / fit)),
     });
 
     function onMove(ev: PointerEvent) {
@@ -127,13 +163,18 @@ export default function SeatingFloorPlan({
   }
 
   return (
+    /* Pinned to the left with an explicit position: in an RTL page a 900px
+       child of a narrower box anchors to the right, and a top-left scale would
+       then push the room off screen. */
+    <div style={{ position: "relative", width: "100%", maxWidth: CANVAS_W, height: canvasH * fit, overflow: "hidden" }}>
     <div
       ref={canvasRef}
       onDragOver={e => e.preventDefault()}
       onDrop={handleCanvasDrop}
       style={{
-        position: "relative",
-        width: "100%", maxWidth: CANVAS_W, height: CANVAS_H,
+        position: "absolute", left: 0, top: 0,
+        width: CANVAS_W, height: canvasH,
+        transform: `scale(${fit})`, transformOrigin: "top left",
         background: "#FDFAF5",
         borderRadius: "1.25rem",
         border: "1.5px solid rgba(197,164,109,0.2)",
@@ -197,6 +238,7 @@ export default function SeatingFloorPlan({
               position: "absolute",
               left: pos.x - svgW / 2,
               top:  pos.y - svgH / 2,
+              transform: tableScale === 1 ? undefined : `scale(${tableScale})`,
               cursor: isDragging ? "grabbing" : "grab",
               /* The browser claims a touch gesture for scrolling before the
                  first pointermove arrives unless the element opts out. This
@@ -312,6 +354,7 @@ export default function SeatingFloorPlan({
           </div>
         );
       })}
+    </div>
     </div>
   );
 }
