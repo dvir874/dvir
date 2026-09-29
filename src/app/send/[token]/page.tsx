@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import { coupleName } from "@/lib/couple-name";
 import { eventTimes, eventDay } from "@/lib/event-times";
+import { waPrefill } from "@/lib/wa-prefill";
 
 /* The helper's screen — one guest at a time, from a phone.
  *
@@ -241,7 +242,7 @@ _(הודעה זו נשלחה באמצעות שירות רגע לפני)_`;
 
   function openWhatsApp(g: Guest) {
     const phone = g.phone.replace(/\D/g, "").replace(/^0/, "972");
-    const text = encodeURIComponent(message(g));
+    const text = encodeURIComponent(waPrefill(message(g)));
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     window.open(
       isMobile ? `https://wa.me/${phone}?text=${text}`
