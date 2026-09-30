@@ -9,9 +9,9 @@ export const metadata: Metadata = {
 
 import HeaderWarm from "@/components/HeaderWarm";
 import HeroWarm from "@/components/HeroWarm";
-import LiveSnapshot from "@/components/LiveSnapshot";
 import WhyUsWarm from "@/components/WhyUsWarm";
-import ShowcaseBand from "@/components/ShowcaseBand";
+import GuestJourney from "@/components/GuestJourney";
+import PackageWarm from "@/components/PackageWarm";
 import HowItWorksWarm from "@/components/HowItWorksWarm";
 import ComparisonWarm from "@/components/ComparisonWarm";
 import EmotionalBand from "@/components/EmotionalBand";
@@ -34,13 +34,10 @@ export default function Home() {
       <HeaderWarm />
       <HeroWarm />
 
-      {/* live countdown + RSVP snapshot — relocated out of the hero photo */}
-      <LiveSnapshot />
+      {/* the real guest experience, straight after the hero (Stitch 2ce3b8fb) */}
+      <GuestJourney />
 
       <FadeIn><WhyUsWarm /></FadeIn>
-
-      {/* dark full-bleed product showcase — the "wow" after the hero */}
-      <ShowcaseBand />
 
       <div id="how"><FadeIn><HowItWorksWarm /></FadeIn></div>
 
@@ -71,6 +68,7 @@ export default function Home() {
       <TrustWarm />
 
       <FadeIn><CTAWarm /></FadeIn>
+      <PackageWarm />
       <div id="faq"><FadeIn><FAQWarm /></FadeIn></div>
       <div id="contact"><FadeIn><ContactWarm /></FadeIn></div>
 
