@@ -17,7 +17,6 @@ import ComparisonWarm from "@/components/ComparisonWarm";
 import EmotionalBand from "@/components/EmotionalBand";
 import ToolsWarm from "@/components/ToolsWarm";
 import ProcessWarm from "@/components/ProcessWarm";
-import EventTypesWarm from "@/components/EventTypesWarm";
 import AboutWarm from "@/components/AboutWarm";
 import TrustWarm from "@/components/TrustWarm";
 import CTAWarm from "@/components/CTAWarm";
@@ -49,7 +48,7 @@ export default function Home() {
         sub="המערכת שולחת את התזכורות. אתם רק מקבלים את התשובות."
       />
 
-      <FadeIn><ToolsWarm /></FadeIn>
+      <div id="features"><FadeIn><ToolsWarm /></FadeIn></div>
       <FadeIn><ProcessWarm /></FadeIn>
 
       {/* emotional beat */}
@@ -59,7 +58,6 @@ export default function Home() {
         sub="אנחנו לוקחים את הלוגיסטיקה. לכם נשאר הרגע."
       />
 
-      <div id="features"><FadeIn><EventTypesWarm /></FadeIn></div>
       <FadeIn><AboutWarm /></FadeIn>
 
       {/* qualitative trust — the person behind the product */}

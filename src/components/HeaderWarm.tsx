@@ -14,7 +14,6 @@ import { Menu, X } from "lucide-react";
 const NAV = [
   { label: "✨ נסו בעצמכם", href: "/try" },
   { label: "פיצ'רים", href: "/features" },
-  { label: "מחשבון מחיר", href: "/pricing" },
   { label: "הזמנות", href: "/invitations" },
   { label: "שאלות", href: "/faq" },
   { label: "צור קשר", href: "/#contact" },
