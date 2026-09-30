@@ -10,7 +10,6 @@ import Link from "next/link";
 const NAV = [
   { label: "פיצ'רים", href: "#features" },
   { label: "איך זה עובד", href: "#how" },
-  { label: "מחשבון מחיר", href: "/pricing" },
   { label: "✨ נסו בעצמכם", href: "/try" }  /* was "דמו חי" — same page, two names */,
   { label: "צור קשר", href: "#contact" },
 ];
