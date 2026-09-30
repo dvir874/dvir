@@ -41,15 +41,15 @@ export default function ShowcaseBand() {
             כל האירוע במסך אחד
           </p>
           <h2 className="mt-4 font-display text-4xl lg:text-[56px] font-black leading-[1.05] text-white">
-            זה לא מוקאפ.
+            תמונת מצב אחת.
             <span className="block text-primary-soft">ככה נראה לנהל חתונה נכון.</span>
           </h2>
           <p className="mt-6 max-w-md font-body text-lg font-light text-white/60">
-            אורחים, אישורי הגעה, הושבה, תקציב ותזכורות — הכל מסונכרן, בזמן אמת, מכל מכשיר.
+            אורחים, אישורי הגעה, הושבה ותזכורות — הכל מסונכרן, בזמן אמת, מכל מכשיר.
             אתם רואים תמונת מצב אחת ברורה במקום עשרה קבצים.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            {["אישורי הגעה חיים", "הושבה חכמה", "מעקב תקציב", "תזכורות אוטומטיות"].map((t) => (
+            {["אישורי הגעה חיים", "הושבה חכמה", "דוח מנות לאולם", "תזכורות אוטומטיות"].map((t) => (
               <span key={t} className="rounded-pill border border-white/15 bg-white/5 px-4 py-2 font-body text-[13px] text-white/80">
                 {t}
               </span>
@@ -107,10 +107,10 @@ export default function ShowcaseBand() {
               <div className="sm:col-span-2 space-y-3">
                 <div className="rounded-2xl bg-white/[0.06] p-4">
                   <div className="mb-2 flex items-center gap-2 font-body text-[12px] text-white/40">
-                    <Wallet className="h-3.5 w-3.5 text-gold" /> תקציב ומתנות
+                    <Wallet className="h-3.5 w-3.5 text-gold" /> מנות לאולם
                   </div>
                   <div className="font-display text-xl font-black text-primary-soft">
-                    <CountUp value={48200} prefix="₪" />
+                    <CountUp value={398} />
                   </div>
                   <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
                     <div className="h-full w-[80%] rounded-full bg-primary-soft" />
