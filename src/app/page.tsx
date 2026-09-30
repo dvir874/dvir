@@ -18,7 +18,6 @@ import EmotionalBand from "@/components/EmotionalBand";
 import ToolsWarm from "@/components/ToolsWarm";
 import ProcessWarm from "@/components/ProcessWarm";
 import EventTypesWarm from "@/components/EventTypesWarm";
-import GalleryWarm from "@/components/GalleryWarm";
 import AboutWarm from "@/components/AboutWarm";
 import TrustWarm from "@/components/TrustWarm";
 import CTAWarm from "@/components/CTAWarm";
@@ -61,7 +60,6 @@ export default function Home() {
       />
 
       <div id="features"><FadeIn><EventTypesWarm /></FadeIn></div>
-      <FadeIn><GalleryWarm /></FadeIn>
       <FadeIn><AboutWarm /></FadeIn>
 
       {/* qualitative trust — the person behind the product */}

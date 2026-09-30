@@ -14,6 +14,7 @@ import { Check, Car, MessageCircle } from "lucide-react";
 import { WA_URL } from "@/lib/constants";
 
 const INCLUDED = [
+  "עזרה ביצירת ההזמנה הדיגיטלית שלכם",
   "הזמנה אישית בוואטסאפ לכל אורח",
   "עד 3 תזכורות אוטומטיות למי שלא ענה",
   "סידור הושבה + מספר שולחן לכל אורח ערב לפני",

@@ -30,7 +30,7 @@ export default function ProcessWarm() {
             מההזמנה הראשונה<span className="block text-gold">ועד ליום האירוע</span>
           </h2>
           <p className="mt-4 font-body text-lg font-light text-ink/55">
-            הצצה לפלטפורמה. ניהול אורחים, הושבה, תקציב, משימות ואישורי הגעה
+            הצצה לפלטפורמה. ניהול אורחים, הושבה ואישורי הגעה
           </p>
         </div>
 
