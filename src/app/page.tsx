@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 import HeaderWarm from "@/components/HeaderWarm";
 import HeroWarm from "@/components/HeroWarm";
-import WhyUsWarm from "@/components/WhyUsWarm";
+import WhyUsLive from "@/components/WhyUsLive";
 import GuestJourney from "@/components/GuestJourney";
 import PackageWarm from "@/components/PackageWarm";
 import HowItWorksWarm from "@/components/HowItWorksWarm";
@@ -35,7 +35,7 @@ export default function Home() {
       {/* the real guest experience, straight after the hero (Stitch 2ce3b8fb) */}
       <GuestJourney />
 
-      <FadeIn><WhyUsWarm /></FadeIn>
+      <WhyUsLive />
 
       <div id="how"><FadeIn><HowItWorksWarm /></FadeIn></div>
 
