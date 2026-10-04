@@ -1,3 +1,4 @@
+import { inviteButtonsFor, INVITE_BUTTONS_ENV } from "@/lib/invite-buttons";
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 import { shabbatBlock, eveningBeforeBlocked } from "@/lib/shabbat";
@@ -4500,6 +4501,8 @@ async function sendSmsFallback(
       const res = await sendInvitation(
         cfg, g.phone, g.rsvp_token, pack.image, pack.details,
         t.reminder ? "reminder" : "invitation",
+        /* Answer buttons, only for a wedding listed in INVITE_BUTTONS_EVENTS. */
+        inviteButtonsFor(g.event_id as string, process.env[INVITE_BUTTONS_ENV]),
       );
       return { t, g, res };
     }));

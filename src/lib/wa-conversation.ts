@@ -1,10 +1,11 @@
+import { inviteButtonsFor, INVITE_BUTTONS_ENV } from "@/lib/invite-buttons";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getWhatsAppConfig } from "@/lib/whatsapp";
 import { sendButtons, sendList, sendText, parseGuestCount } from "@/lib/wa-interactive";
 import { detectRideIntent } from "@/lib/rides";
 import { stateIsLive } from "@/lib/chat-state";
 import { bareCount, changeIntent, unpromptedCount, compositeCount} from "@/lib/guest-count";
-import { decide, type Kind, type GuestView, ASK_RIDE } from "@/lib/wa-decide";
+import { decide, type Kind, type GuestView, ASK_RIDE, MAYBE_LABEL } from "@/lib/wa-decide";
 import { decideIsLive, DECIDE_FLAG } from "@/lib/decide-flag";
 import { needsHuman, saysNotComing, HUMAN_REASON_TEXT } from "@/lib/needs-human";
 import { optOutRequest, OPT_OUT_REPLY } from "@/lib/opt-out";
@@ -112,6 +113,12 @@ async function record(
  * Never "רשמנו 2 🤍" — a guest who believes they answered stops answering, and
  * the couple's count is wrong with nothing anywhere to show it. Saying so
  * plainly costs one honest message and keeps them in the conversation. */
+const TAP_IDS: Record<string, string> = {
+  "כן, אגיע": "rsvp_yes", "לא אגיע": "rsvp_no", [MAYBE_LABEL]: "rsvp_maybe",
+};
+
+/** The answer to "עדיין לא יודע/ת". Says they are not counted yet. */
+const MAYBE_REPLY = "בסדר גמור 🤍 עוד לא רשמנו אתכם — נזכיר לכם קרוב לחתונה, ואפשר גם לכתוב לנו כאן בכל רגע.";
 const RECORD_FAILED = "משהו אצלנו נתקע ולא הצלחנו לשמור את התשובה 🙏\nתכתבו שוב בבקשה, ואם זה חוזר — נחזור אליכם.";
 
 /* What the bot may tell a guest about their own wedding.
@@ -164,7 +171,16 @@ export async function handleGuestReply(
 
   const guest = g as Guest;
   const to = phone.replace(/\D/g, "");
-  const said = (buttonId ?? text ?? "").trim();
+  /* The buttons invitation's quick replies arrive as their own text. Mapped
+     here, once, to the ids every branch below already answers to — so a tap
+     on "כן, אגיע" is handled exactly like a tap on the reminder's "מגיע". */
+  const raw = (buttonId ?? text ?? "").trim();
+  /* Only for a wedding that sent the buttons invitation — at every other
+     wedding "לא אגיע" stays free text and goes where it always went. The
+     inbound rollout rule: one wedding first. See invite-buttons.ts. */
+  const buttonsWedding = inviteButtonsFor(
+    (guest as { event_id?: string }).event_id, process.env[INVITE_BUTTONS_ENV]);
+  const said = (buttonsWedding ? TAP_IDS[raw] : undefined) ?? raw;
 
   /* Every automatic reply, written down.
    *
@@ -339,7 +355,7 @@ export async function handleGuestReply(
 
   /* A button id is a decision too, but it is not evidence about a parser:
      "rsvp_yes" cannot be misread. Only free text counts toward the twenty. */
-  const isFreeText = !/^(rsvp_yes|rsvp_no|yes_decline|yes_change|count_\d{1,2})$/.test(said.trim());
+  const isFreeText = !/^(rsvp_yes|rsvp_no|rsvp_maybe|yes_decline|yes_change|count_\d{1,2})$/.test(said.trim());
 
   /* Written down rather than warned about.
    *
@@ -550,6 +566,15 @@ export async function handleGuestReply(
       { id: "rsvp_no",  title: "לא מגיע" },
     ]);
     return done("decline_cancelled");
+  }
+
+  /* ── not sure yet ────────────────────────────────────────────── */
+  /* The third button of the buttons invitation. Nothing is recorded — they
+     have not answered — and the reply says so plainly, so that a guest who
+     tapped it does not think they were counted. See wa-decide.ts. */
+  if (said === "rsvp_maybe") {
+    await sayText(cfg, to, MAYBE_REPLY);
+    return done("maybe_tap");
   }
 
   /* ── first tap ───────────────────────────────────────────────── */

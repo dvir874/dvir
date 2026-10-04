@@ -170,6 +170,10 @@ async function pace() {
    fail together. Listed explicitly rather than inferred from the name: an
    unrecognised template falls back to the url shape, which is what every
    template before these two used. */
+/** The quick replies of the buttons invitation, in button order, exactly as
+    approved at Meta. A tap comes back as this text; wa-decide.ts reads it. */
+export const INVITE_BUTTON_LABELS = ["כן, אגיע", "לא אגיע", "עדיין לא יודע/ת"] as const;
+
 const QUICK_REPLY_TEMPLATES = new Set([
   "wedding_reminder_buttons_v1",
   "wedding_reminder_buttons_generic",
@@ -1110,6 +1114,11 @@ export interface WhatsAppConfig {
   headerImageUrl: string;
   /** Generic template whose body text is filled per couple */
   genericTemplateName: string;
+  /* The invitation with answer buttons — "כן, אגיע" / "לא אגיע" / "עדיין לא
+     יודע/ת" — and the full-invitation link as a fourth button. Null until Meta
+     approves it and WHATSAPP_TEMPLATE_INVITE_BUTTONS names it; see
+     docs/META-TEMPLATE-INVITE-BUTTONS.md and inviteButtonsFor(). */
+  buttonsInvitationTemplateName: string | null;
   /* Approved reminder for guests who already have the invitation and have not
      answered. Same shape as the invitation — image header, one token variable
      in the URL button — so it goes through the same send path. */
@@ -1170,6 +1179,8 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
        chasing them. WHATSAPP_TEMPLATE_GENERIC is not set in production, so
        this default is what actually sends. */
     genericTemplateName: tpl(process.env.WHATSAPP_TEMPLATE_GENERIC, "wedding_invitation_v3"),
+    /* Deliberately no default, like dayOfTemplateName: not approved yet. */
+    buttonsInvitationTemplateName: process.env.WHATSAPP_TEMPLATE_INVITE_BUTTONS?.trim() || null,
     /* The approved template with "מגיע" / "לא מגיע" quick replies.
 
        A tap answers the invitation without opening anything — which removes,
@@ -1258,6 +1269,9 @@ export async function sendInvitation(
      that lost track of them; sending it to someone who never received one is
      the whole job. The two must not share a template. */
   kind: "invitation" | "reminder" = "invitation",
+  /* Only the cron passes this, and only for a wedding inviteButtonsFor()
+     opened. Ignored for reminders and when no buttons template is set. */
+  buttons = false,
 ): Promise<SendResult> {
   const to = toE164(phone);
   if (!to) return { ok: false, error: "invalid phone" };
@@ -1272,7 +1286,7 @@ export async function sendInvitation(
   let last: SendResult = { ok: false, error: "unknown" };
   for (let attempt = 0; attempt <= BACKOFF_MS.length; attempt++) {
     await pace();
-    last = await sendOnce(cfg, to, token, image, details, kind);
+    last = await sendOnce(cfg, to, token, image, details, kind, buttons);
     if (last.ok) return attempt === 0 ? last : { ...last, retries: attempt };
     if (!isTransient(last.error ?? "")) return last;
     if (attempt < BACKOFF_MS.length) await sleep(BACKOFF_MS[attempt]);
@@ -1293,6 +1307,7 @@ export function invitationComponents(
   image: string,
   token: string,
   details?: EventDetails,
+  buttons = false,
 ): Record<string, unknown>[] {
   return [
 
@@ -1325,7 +1340,15 @@ export function invitationComponents(
        the run would fail. QUICK_REPLY_TEMPLATES is explicit rather than
        inferred from the name: an unrecognised template falls back to the url
        shape, which is what every template before those used. */
-    ...(QUICK_REPLY_TEMPLATES.has(templateName) ? [] : [{
+    /* The buttons invitation: three quick replies, then the link to the full
+       invitation as the fourth button. Quick replies are fixed at approval and
+       get no component — they come back as their own text, like the reminder's
+       "מגיע" (see INVITE_BUTTON_LABELS). Only the url button carries the token,
+       and it is the fourth button, so index 3. */
+    ...(buttons ? [
+      { type: "button", sub_type: "url", index: String(INVITE_BUTTON_LABELS.length),
+        parameters: [{ type: "text", text: token }] },
+    ] : QUICK_REPLY_TEMPLATES.has(templateName) ? [] : [{
       type: "button",
       sub_type: "url",
       index: "0",
@@ -1341,7 +1364,11 @@ async function sendOnce(
   image: string,
   details?: EventDetails,
   kind: "invitation" | "reminder" = "invitation",
+  buttons = false,
 ): Promise<SendResult> {
+
+  const withButtons = buttons && kind === "invitation" && !!details
+    && !!cfg.buttonsInvitationTemplateName;
 
   /* With details we use the generic template and fill its four variables;
      without them we fall back to the fixed template built for Dvir's own
@@ -1349,6 +1376,7 @@ async function sendOnce(
   const useGeneric = !!details;
   const templateName =
     kind === "reminder" ? cfg.reminderTemplateName
+    : withButtons       ? cfg.buttonsInvitationTemplateName!
     : useGeneric        ? cfg.genericTemplateName
     :                     cfg.templateName;
 
@@ -1359,7 +1387,7 @@ async function sendOnce(
     template: {
       name: templateName,
       language: { code: cfg.templateLang },
-      components: invitationComponents(templateName, image, token, details),
+      components: invitationComponents(templateName, image, token, details, withButtons),
     },
   };
 

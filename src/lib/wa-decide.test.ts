@@ -300,3 +300,9 @@ test("the rules do not disturb an open count question", () => {
   assert.equal(decide(G({ liveState: ASK_COUNT }), "3", P2).kind, "count_recorded");
   assert.equal(decide(G({ liveState: ASK_COUNT }), "לא מגיע", P2).kind, "decline_confirm_ask");
 });
+
+test("the third invitation button is not an answer", () => {
+  const pending = { status: "pending" as const, guestCount: 1, liveState: null, hasToken: true };
+  assert.equal(decide(pending, "rsvp_maybe", P).kind, "maybe_tap");
+  assert.equal(decide(pending, "rsvp_yes", P).kind, "yes_first_tap");
+});

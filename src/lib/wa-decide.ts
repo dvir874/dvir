@@ -38,6 +38,7 @@ export type Kind =
   | "decline_cancelled"      /* they took the decline back */
   | "yes_first_tap"          /* "coming" from a guest we had not asked */
   | "no_first_tap"           /* "not coming", which we always double-check */
+  | "maybe_tap"              /* "עדיין לא יודע/ת" — stays pending, reminded later */
   | "list_pick"              /* count_N, even with no state */
   | "unprompted_count"       /* a bare number from somebody still pending */
   | "unprompted_composite"   /* "1 + 2 ילדים" from somebody still pending */
@@ -126,6 +127,9 @@ const CORRECTION = /(^|\s)(רגע,?\s*טעיתי|טעיתי|בטעות|טעות\
 
 const YES = /^rsvp_yes$/;
 const NO = /^rsvp_no$/;
+const MAYBE = /^rsvp_maybe$/;
+/** The third button's text — how a tap on it arrives. */
+export const MAYBE_LABEL = "עדיין לא יודע/ת";
 const LIST_PICK = /^count_(\d{1,2})$/;
 /* "לא עובד" appears inside answers that are not about the link at all, so both
    halves must be present and this is checked last. */
@@ -196,6 +200,10 @@ export function decide(guest: GuestView, said: string, p: Parsers): Decision {
   }
 
   /* ── 2 · a first tap ────────────────────────────────────────────── */
+  /* The third button of the buttons invitation (04/10/2026). Not an answer,
+     so nothing is recorded: they stay pending and the reminders, which now
+     wait for the last two weeks, are exactly what they asked for. */
+  if (MAYBE.test(t)) return { kind: "maybe_tap" };
   if (YES.test(t) || t === "מגיע") return { kind: "yes_first_tap" };
   /* Always double-checked. A tap is instant and cannot be taken back, and a
      guest who declines by accident is removed from a wedding they meant to
