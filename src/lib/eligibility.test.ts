@@ -295,7 +295,10 @@ test("no wedding date, no first contact, past three: no window", () => {
   const old = { delivered: true, lastOutboundAt: hoursAgo(500) };
   assert.equal(isEligibleNow({ ...old, remindersSent: 0 }, NOW), true, "no eventDate keeps the old rule");
   assert.equal(isEligibleNow({ delivered: false, lastOutboundAt: null, eventDate: "2026-12-01" }, NOW), true, "invitations are never held");
-  assert.equal(isEligibleNow({ ...old, remindersSent: 3, maxReminders: 5, eventDate: "2026-12-01" }, NOW), true, "a raised ceiling has no window");
+  assert.equal(isEligibleNow({ ...old, remindersSent: 3, maxReminders: 5, eventDate: "2026-12-01" }, NOW), false, "a 4th waits for 8 days out");
+  assert.equal(isEligibleNow({ ...old, remindersSent: 3, maxReminders: 5, eventDate: "2026-08-26" }, NOW), true, "a 4th at 7 days");
+  assert.equal(isEligibleNow({ ...old, remindersSent: 4, maxReminders: 5, eventDate: "2026-08-25" }, NOW), false, "a 5th not at 6 days");
+  assert.equal(isEligibleNow({ ...old, remindersSent: 5, maxReminders: 9, eventDate: "2026-12-01" }, NOW), true, "a 6th has no window");
 });
 
 test("eligibleAt reports the window when it is later than the floor", () => {

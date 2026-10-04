@@ -75,9 +75,12 @@ export const MAX_REMINDERS_PER_GUEST = 3;
  * their plans. She was right to call it unacceptable. A reminder is worth most
  * when the wedding is close enough to decide about.
  *
- * A guest past the third reminder (a wedding with max_reminders raised) has no
- * window — the floor alone governs, as before. */
-export const REMINDER_DAYS_BEFORE: readonly number[] = [14, 7, 3];
+ * Past the third — only possible where a couple asked and max_reminders was
+ * raised — the extra rounds are the ones Dvir promised איילת on 04/10: one
+ * about a week before (8 days, the Tuesday before a Wednesday wedding) and a
+ * last one three days before. A sixth onward has no window; the floor alone
+ * governs, as before. */
+export const REMINDER_DAYS_BEFORE: readonly number[] = [14, 7, 3, 8, 3];
 
 const DAY_MS = 86_400_000;
 
