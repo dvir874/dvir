@@ -446,7 +446,7 @@ async function sendDailyDigest(
         }
         for (const [id, r] of byGuest) {
           if (r.got) gotByGuest.add(id);
-          states.push({ delivered: r.got, lastOutboundAt: r.last, remindersSent: r.rem });
+          states.push({ delivered: r.got, lastOutboundAt: r.last, remindersSent: r.rem, eventDate: (ev as { date?: string | null }).date ?? null });
         }
       }
       tomorrow = dueWithin(states, Date.now() + 24 * 3_600_000);
@@ -2654,7 +2654,7 @@ async function liveDemandNow(
 ): Promise<number> {
   const today = israelToday();
   const { data: evs } = await sb.from("events")
-    .select("id, send_paused_until, max_reminders, reminder_cooldown_h")
+    .select("id, date, send_paused_until, max_reminders, reminder_cooldown_h")
     .gte("date", today).limit(8);
 
   let due = 0;
@@ -4009,6 +4009,8 @@ async function sendSmsFallback(
        must stay uncapped. */
     remindersSent: remindersByGuest.get(id) ?? 0,
     attemptsAccepted: acceptedByGuest.get(id) ?? 0,
+    /* Each reminder waits for its window before the wedding — eligibility.ts. */
+    eventDate: (ev as { date?: string | null }).date ?? null,
   });
 
   /* ---- 1. no evidence the invitation ever arrived ---- */
@@ -4334,6 +4336,7 @@ async function sendSmsFallback(
             /* That wedding's own ceiling, not the selected one's. */
             maxReminders: otherMax,
             reminderCooldownH: otherCooldown,
+            eventDate: (other as { date?: string | null }).date ?? null,
           });
         })
         .sort((a, b) => (firstAt.get(a) ?? "9999").localeCompare(firstAt.get(b) ?? "9999"))

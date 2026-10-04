@@ -277,3 +277,28 @@ test("אורח שכל הניסיונות אליו נדחו — עדיין נית
     remindersSent: 0, attemptsAccepted: 0,
   }, now), true);
 });
+
+/* Reminder windows — REMINDER_DAYS_BEFORE, 04/10/2026. */
+test("a reminder waits for its window before the wedding", () => {
+  const old = { delivered: true, lastOutboundAt: hoursAgo(500) };
+  /* NOW is 19/08 00:00 Israel; a wedding on 10/09 is 22 days out. */
+  assert.equal(isEligibleNow({ ...old, remindersSent: 0, eventDate: "2026-09-10" }, NOW), false, "R1 not at 22 days");
+  /* 01/09 is 13 days out — inside R1's 14-day window. */
+  assert.equal(isEligibleNow({ ...old, remindersSent: 0, eventDate: "2026-09-01" }, NOW), true, "R1 at 13 days");
+  assert.equal(isEligibleNow({ ...old, remindersSent: 1, eventDate: "2026-09-01" }, NOW), false, "R2 not at 13 days");
+  assert.equal(isEligibleNow({ ...old, remindersSent: 1, eventDate: "2026-08-25" }, NOW), true, "R2 at 6 days");
+  assert.equal(isEligibleNow({ ...old, remindersSent: 2, eventDate: "2026-08-25" }, NOW), false, "R3 not at 6 days");
+  assert.equal(isEligibleNow({ ...old, remindersSent: 2, eventDate: "2026-08-21" }, NOW), true, "R3 at 2 days");
+});
+
+test("no wedding date, no first contact, past three: no window", () => {
+  const old = { delivered: true, lastOutboundAt: hoursAgo(500) };
+  assert.equal(isEligibleNow({ ...old, remindersSent: 0 }, NOW), true, "no eventDate keeps the old rule");
+  assert.equal(isEligibleNow({ delivered: false, lastOutboundAt: null, eventDate: "2026-12-01" }, NOW), true, "invitations are never held");
+  assert.equal(isEligibleNow({ ...old, remindersSent: 3, maxReminders: 5, eventDate: "2026-12-01" }, NOW), true, "a raised ceiling has no window");
+});
+
+test("eligibleAt reports the window when it is later than the floor", () => {
+  const at = eligibleAt({ delivered: true, lastOutboundAt: hoursAgo(500), remindersSent: 0, eventDate: "2026-09-10" });
+  assert.equal(at, Date.parse("2026-08-27T00:00:00+03:00"));
+});

@@ -706,7 +706,8 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
 export async function nextSendFor(
   sb: Sb,
   ev: { id: string; send_paused_until?: string | null;
-        max_reminders?: number | null; reminder_cooldown_h?: number | null },
+        max_reminders?: number | null; reminder_cooldown_h?: number | null;
+        date?: string | null },
 ): Promise<ReturnType<typeof nextSend>> {
   const { data: gs } = await sb.from("guests")
     .select("id, phone, rsvp_token, category, do_not_contact")
@@ -744,6 +745,7 @@ export async function nextSendFor(
     lastOutboundAt: last.get(g.id as string) ?? null,
     lastAcceptedAt: accepted.get(g.id as string) ?? null,
     remindersSent: reminders.get(g.id as string) ?? 0,
+    eventDate: (ev as { date?: string | null }).date ?? null,
   }));
 
   return nextSend(

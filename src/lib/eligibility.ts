@@ -61,6 +61,36 @@ export const REMINDER_COOLDOWN_H = 120;
  * sending a fourth identical template. */
 export const MAX_REMINDERS_PER_GUEST = 3;
 
+/** The earliest each reminder may go out, in days before the wedding.
+ *
+ * Reminder one no sooner than two weeks before, two no sooner than a week
+ * before, three no sooner than three days before. The five-day floor above
+ * still applies on top; this only ever holds a reminder back, never sends one
+ * sooner.
+ *
+ * Until 04/10/2026 the only clock was the five-day floor, counted from the
+ * invitation. So all three reminders landed within ten days of it — at איילת
+ * ויירון's wedding on 23/09, 28/09 and 03/10, three weeks to eleven days out,
+ * and nothing at all in the last week, which is exactly when guests settle
+ * their plans. She was right to call it unacceptable. A reminder is worth most
+ * when the wedding is close enough to decide about.
+ *
+ * A guest past the third reminder (a wedding with max_reminders raised) has no
+ * window — the floor alone governs, as before. */
+export const REMINDER_DAYS_BEFORE: readonly number[] = [14, 7, 3];
+
+const DAY_MS = 86_400_000;
+
+/** When the next reminder's window opens, or null when no window applies:
+    not a reminder, no wedding date passed, or past the scheduled three. */
+export function reminderWindowOpensAt(c: ContactState): number | null {
+  if (!c.delivered || !c.eventDate || c.remindersSent === undefined) return null;
+  const days = REMINDER_DAYS_BEFORE[c.remindersSent];
+  if (days === undefined) return null;
+  const wedding = Date.parse(`${c.eventDate.slice(0, 10)}T00:00:00+03:00`);
+  return Number.isNaN(wedding) ? null : wedding - days * DAY_MS;
+}
+
 /** How many times a first contact may be ACCEPTED by Meta before we stop.
  *
  * The reminder cap above only ever applied to guests marked delivered, and
@@ -137,6 +167,9 @@ export interface ContactState {
    * Undefined keeps the old behaviour, so no existing caller changes until it
    * starts supplying this. */
   lastAcceptedAt?: string | null;
+  /** The wedding's date, YYYY-MM-DD (Israel). Omitted means no reminder
+      windows — see REMINDER_DAYS_BEFORE — so existing callers are unchanged. */
+  eventDate?: string | null;
   /** Reminders already sent to this guest. Omitted means "not counted", and
       the cap is then not applied — every existing caller keeps its behaviour
       until it passes the number. */
@@ -189,6 +222,9 @@ export function isEligibleNow(c: ContactState, nowMs: number = Date.now()): bool
   /* …and the mirror of it, which was missing: a guest Meta kept accepting for
      and never reported on was exempt from every ceiling here. */
   if (!c.delivered && (c.attemptsAccepted ?? 0) >= MAX_FIRST_CONTACT_ATTEMPTS) return false;
+  /* Not before this reminder's window — see REMINDER_DAYS_BEFORE. */
+  const opens = reminderWindowOpensAt(c);
+  if (opens !== null && nowMs < opens) return false;
   /* Measured from what actually reached them — see lastAcceptedAt. */
   const since = c.lastAcceptedAt !== undefined ? c.lastAcceptedAt : c.lastOutboundAt;
   if (!since) return true;
@@ -214,8 +250,9 @@ export function eligibleAt(c: ContactState): number | null {
   /* The same clock isEligibleNow reads, or this screen and that decision
      disagree about the same guest — see lastAcceptedAt. */
   const since = c.lastAcceptedAt !== undefined ? c.lastAcceptedAt : c.lastOutboundAt;
-  if (!since) return 0;                          /* due now, and always has been */
-  return new Date(since).getTime() + cooldownHours(c) * 3_600_000;
+  const opens = reminderWindowOpensAt(c) ?? 0;
+  if (!since) return opens;                      /* due once the window opens */
+  return Math.max(opens, new Date(since).getTime() + cooldownHours(c) * 3_600_000);
 }
 
 /**

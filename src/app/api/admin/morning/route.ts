@@ -199,7 +199,7 @@ export async function GET() {
       if (/תזכורת|עוד לא קיבלנו/.test(String(m.body ?? ""))) row.rem++;
     }
     const states: ContactState[] = [...per.values()]
-      .map(r => ({ delivered: r.got, lastOutboundAt: r.last, remindersSent: r.rem }));
+      .map(r => ({ delivered: r.got, lastOutboundAt: r.last, remindersSent: r.rem, eventDate: String(ev.date) }));
     const due = dueWithin(states, now + DAY_MS, now);
 
     const date = String(ev.date);
