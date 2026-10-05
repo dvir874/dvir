@@ -51,6 +51,35 @@ function Dot() {
   return <span className="inline-block w-1.5 h-1.5 rounded-full bg-gold" aria-hidden />;
 }
 
+/* The real product, playing. Stitch b5ad0cb5 ("Hero מעודכן עם סמארטפון צף
+   ומערכת חיה"), approved 05/10/2026 — only the phone is taken from it: that
+   render also swapped the locked couple photograph and invented a "דביר כהן"
+   card, and neither belongs here. The video is a screen recording of the
+   demo wedding's dashboard (public/media), so the caption says so. */
+function LivePhone({ className }: { className: string }) {
+  return (
+    <div className={className}>
+      <div className="rounded-[44px] bg-[#1A1A1C] p-2.5 shadow-[0_30px_70px_rgba(28,16,8,0.35)] ring-1 ring-black/40">
+        <div className="relative overflow-hidden rounded-[36px] bg-ivory">
+          <div className="absolute left-1/2 top-2 z-10 h-5 w-20 -translate-x-1/2 rounded-full bg-black" aria-hidden />
+          <video
+            className="block aspect-[390/844] w-full object-cover"
+            src="/media/dashboard-demo.mp4"
+            poster="/media/dashboard-demo-poster.png"
+            autoPlay muted loop playsInline preload="metadata"
+            aria-label="הקלטת מסך של לוח הבקרה של הזוג, בחתונת דוגמה"
+          />
+        </div>
+      </div>
+      <div className="mt-3 flex justify-center">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 font-body text-[11px] font-semibold text-ivory">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#9FD3A8]" /> המערכת האמיתית · חתונת דוגמה
+        </span>
+      </div>
+    </div>
+  );
+}
+
 /** The headline, identical on both layouts and sized by the caller. */
 function Headline({ className }: { className: string }) {
   return (
@@ -154,6 +183,10 @@ export default function HeroWarm() {
             <span>תמיכה מלאה</span>
           </div>
         </div>
+
+        <div className="bg-cream/70 px-4 pb-12">
+          <LivePhone className="mx-auto w-[220px]" />
+        </div>
       </div>
 
       {/* ── Desktop 1440: content right, photograph left ──────────────────── */}
@@ -198,6 +231,7 @@ export default function HeroWarm() {
         </div>
 
         <div className="relative h-[92vh] w-full lg:w-[58%]">
+          <LivePhone className="absolute bottom-10 left-10 z-10 w-[200px] -rotate-[4deg] xl:w-[220px]" />
           <Image
             src="/redesign/hero-couple-chuppah.webp"
             alt={IMG_ALT}
