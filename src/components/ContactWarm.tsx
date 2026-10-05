@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { MessageCircle, Phone, Mail, Send } from "lucide-react";
 import { WA_PHONE } from "@/lib/constants";
+import { leadSourceOf, readUtm, trackEvent, withSourceLine } from "@/lib/track";
 
 const EVENT_TYPES = ["חתונה", "חינה", "בר מצווה", "בת מצווה", "ברית", "ברית בנות", "יום הולדת", "אחר"];
 
@@ -62,13 +63,14 @@ export default function ContactWarm() {
          * google | organic | unknown — and anything else returns 22P02, which
          * the silent catch below would swallow along with the whole lead. So
          * the enum is chosen here and the free-text code carries the detail. */
-        source: refCode ? "referral" : "organic",
+        source: refCode ? "referral" : leadSourceOf(readUtm()) ?? "organic",
         ref_code: refCode || "site:contact-form",
         notes: notes.trim() || null,
       }),
     }).catch(() => {});
 
-    window.open(`https://wa.me/${WA_PHONE}?text=${encodeURIComponent(raw)}`, "_blank", "noopener,noreferrer");
+    trackEvent("generate_lead", { method: "contact_form", link_location: "/#contact" });
+    window.open(withSourceLine(`https://wa.me/${WA_PHONE}?text=${encodeURIComponent(raw)}`), "_blank", "noopener,noreferrer");
   };
 
   /* Cookie first, then ?ref= — a browser that refused the cookie still carries

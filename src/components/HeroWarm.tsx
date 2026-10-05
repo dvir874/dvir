@@ -43,8 +43,8 @@ import Image from "next/image";
 import { MessageCircle, Phone, ShieldCheck, Sparkles, Clock, Heart } from "lucide-react";
 import { WA_URL, PHONE_DISPLAY } from "@/lib/constants";
 
-const EYEBROW = "ניהול חתונות · ליווי אישי";
-const DEK = "מהרגע שהתארסתם ועד הרבה אחרי האירוע — מערכת אחת במקום אקסלים וקבוצות וואטסאפ.";
+const EYEBROW = "אישורי הגעה בוואטסאפ · הושבה · ליווי אישי";
+const DEK = "כל אורח מאשר בלחיצה בוואטסאפ, מקבל תזכורות ואת מספר השולחן שלו, והאולם מקבל דוח מנות מסודר. ודביר מלווה אתכם אישית עד החתונה.";
 const IMG_ALT = "זוג מאורס עומד יחד באור שקיעה, הכלה בשמלה צנועה עם שרוולים ארוכים";
 
 function Dot() {
@@ -84,8 +84,8 @@ function LivePhone({ className }: { className: string }) {
 function Headline({ className }: { className: string }) {
   return (
     <h1 className={className}>
-      <span className="block">כל החתונה שלכם</span>
-      <span className="block font-black text-gold-large">במערכת אחת</span>
+      <span className="block">אתם מתחתנים.</span>
+      <span className="block font-black text-gold-large">אנחנו דואגים לאורחים.</span>
     </h1>
   );
 }

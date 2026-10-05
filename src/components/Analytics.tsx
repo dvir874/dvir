@@ -2,6 +2,8 @@
 
 import { usePathname } from "next/navigation";
 import Script from "next/script";
+import { useEffect } from "react";
+import { captureUtm, installClickTracking } from "@/lib/track";
 
 /* Analytics everywhere except the pages guests see.
  *
@@ -26,14 +28,23 @@ const GUEST_PREFIXES = [
      page added under them later starts out covered. */
   "/r", "/s", "/join", "/rides", "/shuttle", "/wall", "/status",
   "/survey", "/thanks", "/w", "/report", "/approval",
+  /* 05/10: the parents' read-only page, sent to the couple's parents. */
+  "/p",
 ];
 
 export default function Analytics() {
   const pathname = usePathname() ?? "";
   const gaId = process.env.NEXT_PUBLIC_GA_ID;
+  const isGuestPage = GUEST_PREFIXES.some(p => pathname === p || pathname.startsWith(p + "/"));
 
-  if (!gaId) return null;
-  if (GUEST_PREFIXES.some(p => pathname === p || pathname.startsWith(p + "/"))) return null;
+  /* UTM capture and click events — marketing pages only, same rule as GA. */
+  useEffect(() => {
+    if (!gaId || isGuestPage) return;
+    captureUtm();
+    return installClickTracking();
+  }, [gaId, isGuestPage]);
+
+  if (!gaId || isGuestPage) return null;
 
   return (
     <>
