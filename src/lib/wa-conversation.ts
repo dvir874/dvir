@@ -181,6 +181,13 @@ export async function handleGuestReply(
   const buttonsWedding = inviteButtonsFor(
     (guest as { event_id?: string }).event_id, process.env[INVITE_BUTTONS_ENV]);
   const said = (buttonsWedding ? TAP_IDS[raw] : undefined) ?? raw;
+  /* "Add to calendar", once they have told us how many — the buttons
+     weddings only, with the rest of that rollout. One link that picks the
+     right calendar for the phone: see api/rsvp/[token]/calendar. */
+  const rsvpToken = (guest as { rsvp_token?: string | null }).rsvp_token;
+  const calendarLine = buttonsWedding && rsvpToken
+    ? `\n\n📅 להוספה ליומן:\n${APP_URL}/api/rsvp/${rsvpToken}/calendar`
+    : "";
 
   /* Every automatic reply, written down.
    *
@@ -500,7 +507,7 @@ export async function handleGuestReply(
       }
       await sayText(cfg, to,
         `מעולה, רשמנו ${parts.total} 🤍 מתוכם ${parts.kids} ילדים.\n` +
-        `מחכים לראותכם בשמחה!\n\nרוצים לשנות? פשוט כתבו לנו כאן.`);
+        `מחכים לראותכם בשמחה!\n\nרוצים לשנות? פשוט כתבו לנו כאן.` + calendarLine);
       return done("count_with_kids");
     }
 
@@ -528,7 +535,7 @@ export async function handleGuestReply(
       return true;
     }
     await sayText(cfg, to, `מעולה, רשמנו ${n} 🤍\nמחכים לראותכם בשמחה!\n\n` +
-      `רוצים לשנות? פשוט כתבו לנו כאן.`);
+      `רוצים לשנות? פשוט כתבו לנו כאן.` + calendarLine);
     return done("count_recorded");
   }
 
@@ -627,7 +634,7 @@ export async function handleGuestReply(
       await sayText(cfg, to, RECORD_FAILED);
       return true;
     }
-    await sayText(cfg, to, `רשמנו ${m[1]} 🤍 מחכים לראותכם!`);
+    await sayText(cfg, to, `רשמנו ${m[1]} 🤍 מחכים לראותכם!` + calendarLine);
     return done("list_pick");
   }
 
