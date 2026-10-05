@@ -12,12 +12,11 @@ import HeroWarm from "@/components/HeroWarm";
 import WhyUsLive from "@/components/WhyUsLive";
 import GuestJourney from "@/components/GuestJourney";
 import PackageWarm from "@/components/PackageWarm";
-import HowItWorksWarm from "@/components/HowItWorksWarm";
+import FeatureTabs from "@/components/FeatureTabs";
 import ComparisonWarm from "@/components/ComparisonWarm";
 import EmotionalBand from "@/components/EmotionalBand";
 import ScatterToOne from "@/components/ScatterToOne";
 import PainCards from "@/components/PainCards";
-import ProcessWarm from "@/components/ProcessWarm";
 import AboutWarm from "@/components/AboutWarm";
 import TrustWarm from "@/components/TrustWarm";
 import CTAWarm from "@/components/CTAWarm";
@@ -41,7 +40,8 @@ export default function Home() {
 
       <WhyUsLive />
 
-      <div id="how"><FadeIn><HowItWorksWarm /></FadeIn></div>
+      {/* six subjects in one panel (Stitch b3a0ee4f) — replaces HowItWorks + Process */}
+      <FeatureTabs />
 
       <FadeIn><ComparisonWarm /></FadeIn>
 
@@ -53,7 +53,6 @@ export default function Home() {
       />
 
       <div id="features"><ScatterToOne /></div>
-      <FadeIn><ProcessWarm /></FadeIn>
 
       {/* emotional beat */}
       <EmotionalBand

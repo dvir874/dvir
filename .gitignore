@@ -40,3 +40,5 @@ next-env.d.ts
 # match it.
 .env.vercel
 .env.production
+.demo-event.json
+.media/
