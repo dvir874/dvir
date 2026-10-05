@@ -1,9 +1,10 @@
 "use client";
 
-/** HeaderWarm — Warm Romantic sticky nav (landing redesign).
- * Based on approved Stitch "Header - דסקטופ/מובייל (Warm Romantic)" (screens 9123df19 / a2a1828d).
- * Transparent over the hero, solid ivory + gold hairline on scroll. Links preserved from the
- * legacy Header. No pricing link. */
+/** HeaderWarm — the floating capsule nav.
+ * Stitch project 18431120483630512231, screen 3dc4929b ("סרגל צף וכרטיסי כאב"),
+ * approved 05/10/2026 (taken from goappie.co.il, which Dvir liked): a white pill
+ * floating 12px under the top edge instead of a full-width bar. Links are the
+ * design's four, each an anchor on this page. No pricing link. */
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -12,10 +13,9 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 
 const NAV = [
-  { label: "✨ נסו בעצמכם", href: "/try" },
-  { label: "פיצ'רים", href: "/features" },
-  { label: "הזמנות", href: "/invitations" },
-  { label: "שאלות", href: "/faq" },
+  { label: "איך זה עובד", href: "/#journey" },
+  { label: "מה כלול", href: "/#package" },
+  { label: "שאלות", href: "/#faq" },
   { label: "צור קשר", href: "/#contact" },
 ];
 
@@ -28,11 +28,11 @@ function Wordmark() {
         width={364}
         height={473}
         priority
-        className="h-12 w-auto"
+        className="h-10 w-auto"
       />
       <span className="flex flex-col items-start leading-none">
-        <span className="font-display text-2xl font-black text-ink">רגע לפני</span>
-        <span className="font-body text-[12px] tracking-wide text-ink/50">ניהול חתונה</span>
+        <span className="font-display text-xl font-black text-ink">רגע לפני</span>
+        <span className="font-body text-[11px] text-ink/60">ניהול אורחים לחתונה</span>
       </span>
     </Link>
   );
@@ -54,22 +54,17 @@ export default function HeaderWarm() {
     href !== "/#contact" && (pathname === href || (pathname.startsWith(href) && href !== "/"));
 
   return (
-    <header
-      dir="rtl"
-      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-        scrolled ? "bg-ivory/95 backdrop-blur-md shadow-[0_2px_20px_rgba(28,16,8,0.06)] border-b border-gold/20" : "bg-ivory/90 backdrop-blur-sm"
-      }`}
-    >
-      {/* subtle scrim for legibility over the bright hero photo on mobile (top state only) */}
-      {!scrolled && (
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-ivory/70 to-transparent md:hidden" aria-hidden />
-      )}
-      <div className="relative mx-auto flex max-w-[1440px] items-center justify-between px-5 lg:px-10 h-20">
+    <header dir="rtl" className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-4">
+      <div
+        className={`relative mx-auto flex h-16 max-w-5xl items-center justify-between rounded-full border border-[#E8E1D5] bg-white/95 px-4 backdrop-blur-md transition-shadow duration-300 sm:px-6 ${
+          scrolled ? "shadow-[0_8px_30px_rgba(28,16,8,0.10)]" : "shadow-[0_8px_30px_rgba(28,16,8,0.06)]"
+        }`}
+      >
         {/* right: logo */}
         <Wordmark />
 
         {/* center: nav (desktop) */}
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden md:flex items-center gap-7">
           {NAV.map((n) => {
             const active = isActive(n.href);
             return (
@@ -88,7 +83,7 @@ export default function HeaderWarm() {
         {/* left: CTA (desktop) */}
         <Link
           href="/#contact"
-          className="hidden md:inline-flex items-center rounded-pill bg-gold px-6 py-2.5 font-body text-[14px] font-semibold text-ink shadow-raised transition-colors hover:bg-primary-soft"
+          className="hidden md:inline-flex items-center rounded-pill bg-gold px-6 py-2.5 font-body text-[14px] font-semibold text-ink shadow-sm transition-colors hover:bg-primary-soft"
         >
           קבלו הצעת מחיר
         </Link>

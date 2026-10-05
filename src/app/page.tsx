@@ -15,7 +15,8 @@ import PackageWarm from "@/components/PackageWarm";
 import HowItWorksWarm from "@/components/HowItWorksWarm";
 import ComparisonWarm from "@/components/ComparisonWarm";
 import EmotionalBand from "@/components/EmotionalBand";
-import ToolsWarm from "@/components/ToolsWarm";
+import ScatterToOne from "@/components/ScatterToOne";
+import PainCards from "@/components/PainCards";
 import ProcessWarm from "@/components/ProcessWarm";
 import AboutWarm from "@/components/AboutWarm";
 import TrustWarm from "@/components/TrustWarm";
@@ -31,6 +32,9 @@ export default function Home() {
     <main className="relative">
       <HeaderWarm />
       <HeroWarm />
+
+      {/* the pains a couple recognises, then "זה לא חייב לעבוד ככה" (Stitch 3dc4929b) */}
+      <PainCards />
 
       {/* the real guest experience, straight after the hero (Stitch 2ce3b8fb) */}
       <GuestJourney />
@@ -48,7 +52,7 @@ export default function Home() {
         sub="המערכת שולחת את התזכורות. אתם רק מקבלים את התשובות."
       />
 
-      <div id="features"><FadeIn><ToolsWarm /></FadeIn></div>
+      <div id="features"><ScatterToOne /></div>
       <FadeIn><ProcessWarm /></FadeIn>
 
       {/* emotional beat */}

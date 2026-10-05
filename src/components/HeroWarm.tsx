@@ -86,7 +86,7 @@ export default function HeroWarm() {
 
       {/* ── Mobile: the whole argument inside 553px ───────────────────────── */}
       <div className="lg:hidden">
-        <div className="px-4 pt-1">
+        <div className="px-4 pt-[84px]">
           <div className="relative h-[190px] w-full overflow-hidden rounded-2xl border border-[#E9DFCF] bg-cream shadow-sm">
             <Image
               src="/redesign/hero-couple-chuppah.webp"
