@@ -41,7 +41,7 @@ export default function PackageWarm() {
           </p>
         </div>
 
-        <div className="mx-auto max-w-xl rounded-[24px] border-2 border-gold bg-cream p-7 shadow-raised sm:p-9">
+        <div className="rl-lift mx-auto max-w-xl rounded-[24px] border-2 border-gold bg-cream p-7 shadow-raised sm:p-9">
           <span className="inline-block rounded-full border border-[#E9DFCF] bg-ivory px-3 py-1 text-xs font-semibold text-gold-text">
             הכול כלול
           </span>

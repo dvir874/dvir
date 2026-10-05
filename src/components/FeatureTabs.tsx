@@ -201,7 +201,7 @@ export default function FeatureTabs() {
 
         <div className="mt-6 grid gap-6 md:grid-cols-2">
           {previews.map(t => (
-            <button key={t.id} onClick={() => setActive(t.id)} className="rounded-[24px] border border-[#E9E1D2] bg-white p-6 text-right transition-shadow hover:shadow-md">
+            <button key={t.id} onClick={() => setActive(t.id)} className="rl-lift rounded-[24px] border border-[#E9E1D2] bg-white p-6 text-right">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-ink/60">{t.tag}</span>
                 <span className="rounded-full border border-[#E9E1D2] px-2.5 py-0.5 text-xs font-semibold text-gold-text">{t.label}</span>

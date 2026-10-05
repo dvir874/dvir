@@ -20,7 +20,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, useInView, useReducedMotion, AnimatePresence } from "framer-motion";
 import CountUp from "@/components/CountUp";
 
-const card = "rounded-[24px] border border-[#E9DFCF] bg-cream/70 p-6 sm:p-7 shadow-[0_4px_24px_rgba(28,16,8,0.05)]";
+const card = "rl-lift rounded-[24px] border border-[#E9DFCF] bg-cream/70 p-6 sm:p-7 shadow-[0_4px_24px_rgba(28,16,8,0.05)]";
 const inner = "rounded-2xl border border-[#EFE7DA] bg-white";
 
 function useLoop(len: number, every: number, on: boolean) {

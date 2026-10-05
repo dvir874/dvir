@@ -33,15 +33,15 @@ export default function Home() {
       <HeroWarm />
 
       {/* the pains a couple recognises, then "זה לא חייב לעבוד ככה" (Stitch 3dc4929b) */}
-      <PainCards />
+      <FadeIn><PainCards /></FadeIn>
 
       {/* the real guest experience, straight after the hero (Stitch 2ce3b8fb) */}
-      <GuestJourney />
+      <FadeIn><GuestJourney /></FadeIn>
 
       <WhyUsLive />
 
       {/* six subjects in one panel (Stitch b3a0ee4f) — replaces HowItWorks + Process */}
-      <FeatureTabs />
+      <FadeIn><FeatureTabs /></FadeIn>
 
       <FadeIn><ComparisonWarm /></FadeIn>
 
@@ -67,7 +67,7 @@ export default function Home() {
       <TrustWarm />
 
       <FadeIn><CTAWarm /></FadeIn>
-      <PackageWarm />
+      <FadeIn><PackageWarm /></FadeIn>
       <div id="faq"><FadeIn><FAQWarm /></FadeIn></div>
       <div id="contact"><FadeIn><ContactWarm /></FadeIn></div>
 

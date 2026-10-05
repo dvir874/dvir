@@ -123,7 +123,7 @@ export default function HeroWarm() {
               fill
               priority
               sizes="100vw"
-              className="object-cover object-[50%_42%]"
+              className="rl-drift object-cover object-[50%_42%]"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-ink/30 via-transparent to-transparent" />
             {/* The one claim no competitor on mit4mit can make in the same
@@ -135,20 +135,20 @@ export default function HeroWarm() {
         </div>
 
         <div className="px-4 pt-6 text-right">
-          <p className="font-body text-[13px] font-semibold leading-none tracking-[0.04em] text-gold-text">
+          <p className="rl-rise rl-d1 font-body text-[13px] font-semibold leading-none tracking-[0.04em] text-gold-text">
             {EYEBROW}
           </p>
 
-          <Headline className="mt-1.5 font-display text-[27px] font-black leading-[1.18] text-ink" />
+          <Headline className="rl-rise rl-d2 mt-1.5 font-display text-[27px] font-black leading-[1.18] text-ink" />
 
-          <p className="mt-4 font-body text-[17px] font-normal leading-[1.38] text-ink/80">
+          <p className="rl-rise rl-d3 mt-4 font-body text-[17px] font-normal leading-[1.38] text-ink/80">
             {DEK}
           </p>
 
           {/* The fold ends here, and it ends on something you can press. */}
           <a
             href={WA_URL}
-            className="mt-5 flex h-[54px] w-full items-center justify-center gap-2 rounded-pill bg-gold font-body text-[17px] font-bold text-ink transition-colors hover:bg-primary-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="rl-breathe mt-5 flex h-[54px] w-full items-center justify-center gap-2 rounded-pill bg-gold font-body text-[17px] font-bold text-ink transition-colors hover:bg-primary-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             <MessageCircle className="h-5 w-5" />
             קבלו הצעת מחיר
@@ -185,22 +185,22 @@ export default function HeroWarm() {
         </div>
 
         <div className="bg-cream/70 px-4 pb-12">
-          <LivePhone className="mx-auto w-[220px]" />
+          <LivePhone className="rl-float-flat mx-auto w-[220px]" />
         </div>
       </div>
 
       {/* ── Desktop 1440: content right, photograph left ──────────────────── */}
       <div className="mx-auto hidden max-w-[1440px] lg:flex lg:flex-row lg:items-center">
         <div className="w-full space-y-8 px-6 py-24 lg:w-[42%] lg:px-12">
-          <p className="font-body text-[13px] font-semibold tracking-[0.04em] text-gold-text">
+          <p className="rl-rise rl-d1 font-body text-[13px] font-semibold tracking-[0.04em] text-gold-text">
             {EYEBROW}
           </p>
 
-          <Headline className="font-display text-6xl font-black leading-[1.08] text-ink" />
+          <div className="rl-rise rl-d2"><Headline className="font-display text-6xl font-black leading-[1.08] text-ink" /></div>
 
-          <p className="max-w-md font-body text-lg font-normal text-ink/80">{DEK}</p>
+          <p className="rl-rise rl-d3 max-w-md font-body text-lg font-normal text-ink/80">{DEK}</p>
 
-          <div className="flex items-center gap-3 border-r-2 border-gold pr-4 font-body text-sm font-medium text-ink/70">
+          <div className="rl-rise rl-d4 flex items-center gap-3 border-r-2 border-gold pr-4 font-body text-sm font-medium text-ink/70">
             <span>ללא התחייבות</span>
             <Dot />
             <span>שירות אישי</span>
@@ -208,10 +208,10 @@ export default function HeroWarm() {
             <span>תמיכה מלאה</span>
           </div>
 
-          <div className="flex flex-col gap-4 sm:flex-row">
+          <div className="rl-rise rl-d5 flex flex-col gap-4 sm:flex-row">
             <a
               href={WA_URL}
-              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-pill bg-gold px-8 py-4 font-body text-[15px] font-bold text-ink shadow-raised transition-colors hover:bg-primary-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="rl-breathe inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-pill bg-gold px-8 py-4 font-body text-[15px] font-bold text-ink shadow-raised transition-colors hover:bg-primary-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               <MessageCircle className="h-5 w-5" />
               קבלו הצעת מחיר
@@ -224,21 +224,21 @@ export default function HeroWarm() {
             </a>
           </div>
 
-          <div className="flex items-center gap-2 pt-2 font-body text-sm text-ink/70">
+          <div className="rl-rise rl-d6 flex items-center gap-2 pt-2 font-body text-sm text-ink/70">
             <Phone className="h-4 w-4 text-olive" />
             <span>{PHONE_DISPLAY} · זמין 07:00–22:00 · מענה תוך 24 שעות</span>
           </div>
         </div>
 
-        <div className="relative h-[92vh] w-full lg:w-[58%]">
-          <LivePhone className="absolute bottom-10 left-10 z-10 w-[200px] -rotate-[4deg] xl:w-[220px]" />
+        <div className="relative h-[92vh] w-full overflow-hidden rounded-bl-[100px] lg:w-[58%]">
+          <LivePhone className="rl-float absolute bottom-10 left-10 z-10 w-[200px] xl:w-[220px]" />
           <Image
             src="/redesign/hero-couple-chuppah.webp"
             alt={IMG_ALT}
             fill
             priority
             sizes="58vw"
-            className="rounded-bl-[100px] object-cover object-[50%_42%]"
+            className="rl-drift object-cover object-[50%_42%]"
           />
         </div>
       </div>

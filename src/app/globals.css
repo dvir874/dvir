@@ -366,3 +366,31 @@ body.modal-open {
 @media (prefers-reduced-motion: reduce) {
   .gold-shimmer-text { animation: none; }
 }
+
+/* ── Motion layer (05/10/2026) ───────────────────────────────────────────
+   Dvir: the site looked still. Gentle motion on approved designs only — no
+   layout changes: a staggered entrance for the hero, a slow Ken-Burns drift
+   on the photograph, a floating phone, a breathing primary button, and a
+   lift on cards. Everything here stops for prefers-reduced-motion. */
+@keyframes rl-rise   { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+@keyframes rl-drift  { from { transform: scale(1.0); } to { transform: scale(1.08) translate(-1.5%, -1%); } }
+@keyframes rl-float  { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-10px) rotate(-3deg); } }
+@keyframes rl-float-flat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes rl-breathe { 0%, 100% { box-shadow: 0 10px 24px rgba(197,164,109,.28), 0 0 0 0 rgba(197,164,109,.45); }
+                        50%      { box-shadow: 0 14px 30px rgba(197,164,109,.38), 0 0 0 10px rgba(197,164,109,0); } }
+
+.rl-rise    { opacity: 0; animation: rl-rise .8s cubic-bezier(.2,.7,.2,1) forwards; }
+.rl-d1 { animation-delay: .08s } .rl-d2 { animation-delay: .2s } .rl-d3 { animation-delay: .34s }
+.rl-d4 { animation-delay: .48s } .rl-d5 { animation-delay: .62s } .rl-d6 { animation-delay: .76s }
+.rl-drift   { animation: rl-drift 18s ease-in-out infinite alternate; transform-origin: 60% 40%; }
+.rl-float   { animation: rl-float 6s ease-in-out infinite; }
+.rl-float-flat { animation: rl-float-flat 6s ease-in-out infinite; }
+.rl-breathe { animation: rl-breathe 3.2s ease-in-out infinite; }
+.rl-lift    { transition: transform .25s ease, box-shadow .25s ease; }
+.rl-lift:hover { transform: translateY(-4px); box-shadow: 0 16px 36px rgba(28,16,8,.10); }
+
+@media (prefers-reduced-motion: reduce) {
+  .rl-rise { opacity: 1; animation: none; }
+  .rl-drift, .rl-float, .rl-float-flat, .rl-breathe { animation: none; }
+  .rl-lift, .rl-lift:hover { transition: none; transform: none; }
+}

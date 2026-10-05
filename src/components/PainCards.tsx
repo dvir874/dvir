@@ -37,7 +37,7 @@ export default function PainCards() {
           {PAINS.map((p) => (
             <div
               key={p.title}
-              className="flex flex-col rounded-3xl border border-[#E9E1D2] bg-cream p-6 shadow-sm transition-transform duration-200 hover:-translate-y-1"
+              className="rl-lift flex flex-col rounded-3xl border border-[#E9E1D2] bg-cream p-6 shadow-sm"
             >
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#EADFD4] font-bold text-[#B85C4B]" aria-hidden>
                 ✕
