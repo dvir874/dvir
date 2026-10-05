@@ -13,7 +13,9 @@ const ROWS: { feature: string; manual: boolean; ragah: boolean }[] = [
   { feature: "מעקב תקציב ומתנות", manual: false, ragah: true },
   { feature: "לוח בקרה זוגי משותף", manual: false, ragah: true },
   { feature: "ליווי אישי לאורך כל התהליך", manual: false, ragah: true },
-  { feature: "ניהול ידני ב-WhatsApp ואקסל", manual: true, ragah: false },
+  /* "ניהול ידני ב-WhatsApp ואקסל" was a last row with a tick for the manual
+     column and a cross for ours — read quickly, the table ended on something
+     רגע לפני cannot do. */
 ];
 
 function Mark({ ok }: { ok: boolean }) {
@@ -33,33 +35,33 @@ export default function ComparisonWarm() {
     <section dir="rtl" className="relative w-full bg-ivory py-16 lg:py-20 px-6 lg:px-12">
       <div className="mx-auto max-w-[1000px]">
         <div className="text-center mb-14">
-          <p className="font-body text-[13px] font-semibold uppercase tracking-[0.22em] text-gold">ההבדל</p>
+          <p className="font-body text-[13px] font-semibold tracking-[0.04em] text-gold-text">ההבדל</p>
           <h2 className="mt-4 font-display text-4xl lg:text-[52px] font-black leading-tight text-ink">
             ניהול חתונה בלי רגע לפני
-            <span className="block text-gold">לעומת ניהול עם רגע לפני</span>
+            <span className="block text-gold-large">לעומת ניהול עם רגע לפני</span>
           </h2>
-          <p className="mt-5 font-body text-lg font-light text-ink/55">
+          <p className="mt-5 font-body text-lg font-light text-ink/70">
             כל מה שצריך לניהול החתונה. בלוח בקרה אחד, עם ליווי אישי לאורך כל הדרך.
           </p>
         </div>
 
         <div className="overflow-hidden rounded-card bg-surface-raised shadow-card">
           {/* header */}
-          <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 border-b border-cream px-6 py-5 font-body text-sm">
+          <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2 sm:gap-4 border-b border-cream px-4 sm:px-6 py-5 font-body text-sm">
             <span className="font-semibold text-ink">תכונה</span>
-            <span className="w-24 text-center text-ink/50">ניהול עצמאי</span>
-            <span className="w-24 text-center font-semibold text-gold">רגע לפני ✦</span>
+            <span className="w-16 sm:w-24 text-center text-[13px] sm:text-sm text-ink/70">ניהול עצמאי</span>
+            <span className="w-16 sm:w-24 text-center text-[13px] sm:text-sm font-semibold text-gold-text">רגע לפני</span>
           </div>
           {ROWS.map((r, i) => (
             <div
               key={r.feature}
-              className={`grid grid-cols-[1fr_auto_auto] items-center gap-4 px-6 py-4 ${
+              className={`grid grid-cols-[1fr_auto_auto] items-center gap-2 sm:gap-4 px-4 sm:px-6 py-4 ${
                 i < ROWS.length - 1 ? "border-b border-cream/70" : ""
-              } ${i === ROWS.length - 1 ? "bg-cream/40" : ""}`}
+              }`}
             >
               <span className="font-body text-[15px] text-ink/80">{r.feature}</span>
-              <span className="flex w-24 justify-center"><Mark ok={r.manual} /></span>
-              <span className="flex w-24 justify-center"><Mark ok={r.ragah} /></span>
+              <span className="flex w-16 sm:w-24 justify-center"><Mark ok={r.manual} /></span>
+              <span className="flex w-16 sm:w-24 justify-center"><Mark ok={r.ragah} /></span>
             </div>
           ))}
         </div>

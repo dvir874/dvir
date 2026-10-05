@@ -15,7 +15,9 @@ export default function StickyMobileCTA() {
 
   return (
     <div
-      className={`fixed bottom-20 left-4 right-4 z-40 md:hidden transition-all duration-500 ${
+      /* bottom-20 left an 80px hole under the bar for a widget this page does
+         not have; it now sits on the safe area like every fixed element. */
+      className={`fixed left-4 right-4 z-40 md:hidden transition-all duration-500 bottom-[calc(12px+env(safe-area-inset-bottom))] ${
         visible ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-4 pointer-events-none"
       }`}
     >
@@ -23,10 +25,12 @@ export default function StickyMobileCTA() {
         href={WA_URL_BUTTON}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center justify-center gap-2.5 w-full py-3.5 rounded-2xl font-semibold text-sm shadow-2xl"
+        /* White on light gold measured ~2.3:1. Ink on gold is the hero's own
+           primary button (7.9:1), so the bar now reads as the same action. */
+        className="flex min-h-[52px] items-center justify-center gap-2.5 w-full py-3.5 rounded-pill font-bold text-[15px] shadow-2xl"
         style={{
-          background:  "linear-gradient(135deg,#C5A46D,#D4BC8A)",
-          color:       "white",
+          background:  "#C5A46D",
+          color:       "#1C1008",
           fontFamily:  "Heebo, sans-serif",
           boxShadow:   "0 8px 32px rgba(197,164,109,0.40)",
         }}

@@ -36,7 +36,10 @@ export async function POST(request: NextRequest) {
   const rawBody = await request.json();
   const { data: body, error: validationError } = parseBody(LeadCreateSchema, rawBody);
   if (validationError || !body) return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
-  const { name, phone, email, event_type, wedding_date, guest_count, source, ref_code, notes } = body;
+  const { name, phone, email, event_type, wedding_date, guest_count, source, ref_code, notes, attribution } = body;
+  const attrTag = attribution
+    ? [attribution.source, attribution.content ?? attribution.campaign].filter(Boolean).join('/')
+    : '';
 
   const supabase = createServerClient();
 
@@ -66,14 +69,14 @@ export async function POST(request: NextRequest) {
   await supabase.from('lead_activities').insert({
     lead_id: lead.id,
     type: 'form_submit',
-    content: `פנייה נכנסה דרך ${source || 'אתר'}`,
-    metadata: { event_type, wedding_date, guest_count, ref_code },
+    content: `פנייה נכנסה דרך ${source || 'אתר'}${attrTag ? ` (${attrTag})` : ''}`,
+    metadata: { event_type, wedding_date, guest_count, ref_code, attribution: attribution ?? null },
   });
 
   // Push notification via ntfy.sh (JSON format — supports Unicode/Hebrew correctly)
   withRetry(async () => {
     const dateStr   = wedding_date ? ` | חתונה: ${wedding_date}` : '';
-    const sourceStr = source && source !== 'unknown' ? ` | ${source}` : '';
+    const sourceStr = attrTag ? ` | ${attrTag}` : source && source !== 'unknown' ? ` | ${source}` : '';
     const ntfyTopic = process.env.NTFY_TOPIC ?? 'regalifnei-leads';
     const ntfyRes = await fetch('https://ntfy.sh', {
       method: 'POST',
@@ -114,6 +117,7 @@ export async function POST(request: NextRequest) {
       wedding_date ? `חתונה ${wedding_date}` : "",
       guest_count ? `${guest_count} אורחים` : "",
       ref_code && ref_code !== "site:contact-form" ? `הגיע מ-${ref_code}` : "",
+      attrTag ? `מקור: ${attrTag}` : "",
     ].filter(Boolean).join(" · ");
     try {
       await sendRunSummary(cfg, to, {

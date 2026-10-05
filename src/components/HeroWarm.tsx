@@ -43,8 +43,13 @@ import Image from "next/image";
 import { MessageCircle, Phone, ShieldCheck, Sparkles, Clock, Heart } from "lucide-react";
 import { WA_URL, PHONE_DISPLAY } from "@/lib/constants";
 
-const EYEBROW = "ניהול חתונות · ליווי אישי";
-const DEK = "מהרגע שהתארסתם ועד הרבה אחרי האירוע — מערכת אחת במקום אקסלים וקבוצות וואטסאפ.";
+/* Says what is being sold in the first thing read. Traffic from a 15-second
+   video lands here knowing nothing, and "ניהול חתונות" with "מערכת אחת" left
+   it to guess at the category — while the thing couples search for, compare
+   and pay for is אישורי הגעה. The headline stays as approved; the eyebrow
+   names the category and the dek names the three jobs and the person. */
+const EYEBROW = "אישורי הגעה · הושבה · ליווי אישי";
+const DEK = "אישורי הגעה בוואטסאפ, תזכורות למי שלא ענה והושבה — בלי אקסלים ובלי לרדוף אחרי דודים.";
 const IMG_ALT = "זוג מאורס עומד יחד באור שקיעה, הכלה בשמלה צנועה עם שרוולים ארוכים";
 
 function Dot() {

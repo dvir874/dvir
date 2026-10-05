@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { MessageCircle, Phone, Mail, Send } from "lucide-react";
 import { WA_PHONE } from "@/lib/constants";
+import { getAttribution, attributionTag, leadSourceEnum, track } from "@/lib/attribution";
 
 const EVENT_TYPES = ["חתונה", "חינה", "בר מצווה", "בת מצווה", "ברית", "ברית בנות", "יום הולדת", "אחר"];
 
@@ -19,7 +20,9 @@ export default function ContactWarm() {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const raw = `שלום דביר, הגעתי מהאתר רגע לפני.\n\nשם: ${name}\nטלפון: ${phone}\nסוג אירוע: ${type}\nתאריך: ${date}\nהערות: ${notes}`;
+    const tag = attributionTag();
+    const raw = `שלום דביר, הגעתי מהאתר רגע לפני.\n\nשם: ${name}\nטלפון: ${phone}\nסוג אירוע: ${type}\nתאריך: ${date || "עוד לא נקבע"}\nהערות: ${notes}${tag ? `\n\n[מקור: ${tag}]` : ""}`;
+    const attribution = getAttribution();
 
     /* Record before handing off to WhatsApp.
      *
@@ -62,11 +65,17 @@ export default function ContactWarm() {
          * google | organic | unknown — and anything else returns 22P02, which
          * the silent catch below would swallow along with the whole lead. So
          * the enum is chosen here and the free-text code carries the detail. */
-        source: refCode ? "referral" : "organic",
+        /* A referral code still wins; otherwise the first-touch tag picks the
+           enum member and travels whole in `attribution`. */
+        source: refCode ? "referral" : leadSourceEnum(attribution?.source),
         ref_code: refCode || "site:contact-form",
         notes: notes.trim() || null,
+        attribution: attribution
+          ? { source: attribution.source, medium: attribution.medium, campaign: attribution.campaign, content: attribution.content, landing: attribution.landing }
+          : null,
       }),
     }).catch(() => {});
+    track("generate_lead", { method: "contact_form", event_type: type });
 
     window.open(`https://wa.me/${WA_PHONE}?text=${encodeURIComponent(raw)}`, "_blank", "noopener,noreferrer");
   };
@@ -91,15 +100,22 @@ export default function ContactWarm() {
           <h3 className="text-center font-display text-2xl font-bold text-ink">שלחו לדביר פרטים</h3>
           <p className="mb-6 text-center font-body text-sm text-ink/50">ואחזור אליכם תוך 24 שעות</p>
           <div className="grid gap-4 sm:grid-cols-2">
-            <input className={field} placeholder="השם שלכם" value={name} onChange={(e) => setName(e.target.value)} required />
-            <input className={field} placeholder="053-331-8177" value={phone} onChange={(e) => setPhone(e.target.value)} required />
-            <select className={field} value={type} onChange={(e) => setType(e.target.value)} required>
+            <input className={field} autoComplete="name" aria-label="השם שלכם" placeholder="השם שלכם" value={name} onChange={(e) => setName(e.target.value)} required />
+            {/* The placeholder was Dvir's own number, so the field looked filled in
+                with somebody else's phone. */}
+            <input className={field} type="tel" inputMode="tel" autoComplete="tel" dir="rtl" aria-label="מספר טלפון" placeholder="מספר טלפון" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+            <select className={field} aria-label="סוג האירוע" value={type} onChange={(e) => setType(e.target.value)} required>
               <option value="">בחרו סוג אירוע</option>
               {EVENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
-            <input type="date" className={field} value={date} onChange={(e) => setDate(e.target.value)} />
+            {/* An empty date input shows "mm/dd/yyyy" and nothing else on a
+                phone — no one could tell what it was asking for. */}
+            <label className="block">
+              <span className="mb-1 block px-1 text-right font-body text-[13px] text-ink/70">תאריך האירוע (אם כבר נקבע)</span>
+              <input type="date" className={field} value={date} onChange={(e) => setDate(e.target.value)} />
+            </label>
           </div>
-          <textarea className={`${field} mt-4 min-h-28`} placeholder="ספרו לדביר על הסגנון, צבעים, מה חשוב לכם…" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <textarea className={`${field} mt-4 min-h-28`} aria-label="הערות" placeholder="בערך כמה מוזמנים? מה הכי חשוב לכם?" value={notes} onChange={(e) => setNotes(e.target.value)} />
           <button type="submit" className="mt-5 flex w-full items-center justify-center gap-2 rounded-pill bg-gold py-4 font-body text-[15px] font-semibold text-ink shadow-raised">
             <Send className="w-4 h-4" /> שלחו לוואטסאפ
           </button>
@@ -108,7 +124,7 @@ export default function ContactWarm() {
 
         {/* contact info */}
         <div className="lg:pt-4">
-          <p className="font-body text-[13px] font-semibold uppercase tracking-[0.22em] text-gold">בואו נדבר</p>
+          <p className="font-body text-[13px] font-semibold tracking-[0.04em] text-gold-text">בואו נדבר</p>
           <h2 className="mt-3 font-display text-4xl lg:text-5xl font-black text-ink">צרו קשר</h2>
           <p className="mt-4 font-body text-[15px] font-light leading-relaxed text-ink/60">
             מלאו את הטופס ואחזור אליכם בהקדם. לחלופין, דברו איתי ישירות בוואטסאפ, בטלפון או במייל.

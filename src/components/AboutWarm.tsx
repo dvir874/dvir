@@ -3,7 +3,7 @@
 /** AboutWarm — founder story, pull-quote, dark dashboard mockup, "what you get" + stats.
  * Based on approved Stitch "אודות - הפקה עורכית" (screen d8d9644f). */
 
-import { Check, Infinity as InfinityIcon, Star, HeartHandshake, RefreshCw, Heart } from "lucide-react";
+import { Check, Heart } from "lucide-react";
 import { WA_URL } from "@/lib/constants";
 import Link from "next/link";
 
@@ -14,13 +14,6 @@ const GET = [
   "אישורי הגעה אוטומטיים ועם מעקב",
   "מעקב תקציב ומתנות בזמן אמת",
   "ליווי אישי לאורך כל הדרך",
-];
-
-const STATS = [
-  { Icon: InfinityIcon, big: "∞", title: "רגעים מרגשים", sub: "שיצרנו יחד" },
-  { Icon: Star, big: "מותאם", title: "אישית", sub: "לכל אירוע" },
-  { Icon: HeartHandshake, big: "100%", title: "יחס אישי", sub: "לכל לקוח" },
-  { Icon: RefreshCw, big: "עדכון", title: "בזמן אמת", sub: "כל תגובת אורח מתעדכנת מיידית" },
 ];
 
 const KPI = [
@@ -36,7 +29,7 @@ export default function AboutWarm() {
         <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
           {/* text */}
           <div>
-            <p className="font-body text-[13px] font-semibold uppercase tracking-[0.22em] text-gold">מי מאחורי המערכת</p>
+            <p className="font-body text-[13px] font-semibold tracking-[0.04em] text-gold-text">מי מאחורי המערכת</p>
             <h2 className="mt-4 font-display text-4xl lg:text-6xl font-black leading-tight text-ink">
               תכנון חתונה —<br />בלי כאב ראש
             </h2>
@@ -122,17 +115,11 @@ export default function AboutWarm() {
           </div>
         </div>
 
-        {/* stats */}
-        <div className="mt-16 grid grid-cols-2 lg:grid-cols-4 gap-5">
-          {STATS.map(({ Icon, big, title, sub }) => (
-            <div key={title} className="rounded-card bg-surface-raised p-6 text-center shadow-card transition-transform duration-300 hover:-translate-y-1">
-              <Icon className="mx-auto mb-2 h-6 w-6 text-gold" />
-              <div className="font-display text-2xl font-black text-ink">{big}</div>
-              <div className="font-body text-sm font-semibold text-ink/80">{title}</div>
-              <div className="font-body text-[12px] text-ink/45">{sub}</div>
-            </div>
-          ))}
-        </div>
+        {/* The stats strip ("∞ רגעים מרגשים", "100% יחס אישי") was removed:
+            numbers set in the visual language of proof, with nothing behind
+            them. The founder's own promise in TrustWarm says the same thing
+            honestly. When real figures exist — weddings run, guests managed —
+            they go here, from the database, not from copy. */}
       </div>
     </section>
   );

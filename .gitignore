@@ -42,3 +42,7 @@ next-env.d.ts
 .env.production
 .demo-event.json
 .media/
+
+# Vercel env pulls — never commit (contained live secrets until 05/10/2026)
+prod.env
+*.env

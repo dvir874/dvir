@@ -26,6 +26,15 @@ export const LeadCreateSchema = z.object({
   source:       z.string().max(100).optional().nullable(),
   ref_code:     z.string().max(100).optional().nullable(),
   notes:        z.string().max(2000).optional().nullable(),
+  /* First-touch tag from the marketing site (lib/attribution.ts). Optional, so
+     every older caller of this route keeps working unchanged. */
+  attribution:  z.object({
+    source:   z.string().max(40),
+    medium:   z.string().max(40).optional(),
+    campaign: z.string().max(40).optional(),
+    content:  z.string().max(40).optional(),
+    landing:  z.string().max(200).optional(),
+  }).optional().nullable(),
 });
 export type LeadCreateInput = z.infer<typeof LeadCreateSchema>;
 

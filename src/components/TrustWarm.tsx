@@ -39,7 +39,7 @@ export default function TrustWarm() {
     <section dir="rtl" className="relative w-full bg-ivory px-6 lg:px-12 py-16 lg:py-24">
       <div className="mx-auto max-w-[1150px]">
         <FadeIn className="text-center mb-14">
-          <p className="font-body text-[13px] font-semibold uppercase tracking-[0.22em] text-gold">
+          <p className="font-body text-[13px] font-semibold tracking-[0.04em] text-gold-text">
             למה זוגות בוחרים בנו
           </p>
           <h2 className="mt-4 font-display text-4xl lg:text-[52px] font-black leading-tight text-ink">
