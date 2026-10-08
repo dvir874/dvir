@@ -1944,7 +1944,7 @@ async function nudgeAfterWedding(
 
   const win = nudgeWindow(israelToday());
   const { data: evs } = await sb.from("events")
-    .select("id, name, couple_names, date, client_phone")
+    .select("id, name, couple_names, date, client_phone, gallery_ready")
     .gte("date", win.from).lt("date", win.before).order("date").limit(10);
 
   for (const ev of evs ?? []) {
@@ -1953,7 +1953,7 @@ async function nudgeAfterWedding(
     if ((done ?? []).length) continue;
 
     const couple = String(ev.couple_names ?? ev.name ?? "").trim();
-    const draft = afterWeddingDraft(couple);
+    const draft = afterWeddingDraft(couple, { galleryReady: !!ev.gallery_ready });
     const link = draftLink(String(ev.client_phone ?? ""), draft);
     const head = `💍 אתמול התחתנו ${couple}.`;
     const body = link

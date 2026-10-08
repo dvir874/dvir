@@ -8,11 +8,16 @@ test("first names from full couple names", () => {
   assert.equal(firstNames("החתונה של דנה"), "החתונה של דנה");
 });
 
-test("the draft greets them by name and is signed by Dvir", () => {
+test("the draft is Dvir's note, by name", () => {
   const d = afterWeddingDraft("שלמה גור ואבישג בן שוהם");
-  assert.match(d, /^היי שלמה ואבישג/);
-  assert.match(d, /דביר, רגע לפני$/);
+  assert.match(d, /^היי שלמה ואבישג\nקודם כל מזל טוב/);
+  assert.match(d, /טבלאות ושיחות טלפון/);
   assert.ok(!d.includes("💒"));
+});
+
+test("the photos line appears only once the album is marked ready", () => {
+  assert.ok(!afterWeddingDraft("א ב").includes("להעלות תמונות"));
+  assert.ok(afterWeddingDraft("א ב", { galleryReady: true }).includes("להעלות תמונות"));
 });
 
 test("the link opens a chat with the couple, text prefilled", () => {

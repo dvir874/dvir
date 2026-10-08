@@ -15,15 +15,23 @@ export function firstNames(couple: string): string {
   return a && b ? `${a} ו${b}` : String(couple).trim();
 }
 
-export function afterWeddingDraft(couple: string): string {
-  return [
-    `היי ${firstNames(couple)}, מזל טוב ענק! 💍🤍`,
-    "מקווה שהיה ערב מושלם ושנהניתם מכל רגע.",
-    "היה לנו כבוד ללוות אתכם עד החופה.",
-    "אשמח לשמוע איך הייתה החוויה עם רגע לפני — מה עבד, ומה היה אפשר לעשות טוב יותר.",
-    "ואם נהניתם, המלצה לחברים שמתחתנים תעזור לנו מאוד 🙏",
-    "דביר, רגע לפני",
-  ].join("\n");
+/* Dvir's own words, 08/10 — the note he sends a couple the morning after.
+ * The line about the guests' photo message is only true once the album is
+ * marked ready (notifyGallery waits for gallery_ready), so it appears only
+ * then — the note must never promise a send that is not coming. */
+export function afterWeddingDraft(couple: string, opts: { galleryReady?: boolean } = {}): string {
+  const lines = [
+    `היי ${firstNames(couple)}`,
+    "קודם כל מזל טוב! 💍",
+    "מקווה שהיה אתמול בדיוק כמו שחלמתם וציפיתם, ואף טוב יותר מזה.",
+    "תודה שנתתם לי להיות חלק מהאירוע שלכם. מקווה שחסכתי לכם קצת כאב ראש — "
+      + "זה בדיוק מה שהעסק נבנה בשבילו, שלא תבזבזו את החודש שלפני על טבלאות ושיחות טלפון.",
+  ];
+  if (opts.galleryReady) {
+    lines.push("היום האורחים אמורים לקבל הודעה אחרונה שמזמינה אותם להעלות תמונות שצילמו, "
+      + "וכל מה שיעלה יגיע לאלבום שלכם.");
+  }
+  return lines.join("\n");
 }
 
 export function draftLink(phone: string, text: string): string | null {
