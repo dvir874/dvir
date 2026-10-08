@@ -7,6 +7,8 @@ import { unmatchedLeadAlert, shouldAlert, readablePhone } from "@/lib/unmatched-
 import { failureWriter, newRunId, recordFailure } from "@/lib/failures";
 import { isNewerStatus } from "@/lib/rsvp-contact";
 import { forwardEnabled, isTypedMessage, guestForwardText } from "@/lib/guest-forward";
+import { handleLeadMessage } from "@/lib/wa-lead";
+import type { WaReferral } from "@/lib/lead-source";
 
 export const dynamic = "force-dynamic";
 
@@ -106,6 +108,8 @@ interface WaMessage {
      only handle to a guest's own evidence. */
   image?: WaMedia; video?: WaMedia; audio?: WaMedia;
   document?: WaMedia; sticker?: WaMedia;
+  /* Click-to-WhatsApp ads and boosted posts only — see lead-source.ts. */
+  referral?: WaReferral;
 }
 
 /** The id behind a tap, or null when this was typed rather than tapped. */
@@ -175,11 +179,19 @@ export async function POST(req: NextRequest) {
     const values = (body?.entry ?? [])
       .flatMap((e: { changes?: { value?: unknown }[] }) => e?.changes ?? [])
       .map((c: { value?: unknown }) => c?.value)
-      .filter(Boolean) as { statuses?: WaStatus[]; messages?: WaMessage[] }[];
+      .filter(Boolean) as {
+        statuses?: WaStatus[]; messages?: WaMessage[];
+        contacts?: { wa_id?: string; profile?: { name?: string } }[];
+      }[];
     if (!values.length) return NextResponse.json({ ok: true });
 
     const statuses: WaStatus[] = values.flatMap(v => v.statuses ?? []);
     const messages: WaMessage[] = values.flatMap(v => v.messages ?? []);
+    /* The sender's WhatsApp profile name — the only name a new lead has. */
+    const profileName = new Map<string, string>();
+    for (const c of values.flatMap(v => v.contacts ?? [])) {
+      if (c?.wa_id && c.profile?.name) profileName.set(c.wa_id, c.profile.name);
+    }
     if (!statuses.length && !messages.length) return NextResponse.json({ ok: true });
 
     const sb = createServerClient();
@@ -478,6 +490,23 @@ export async function POST(req: NextRequest) {
             context: { body: bodyOf(m).slice(0, 120) },
           });
           continue;
+        }
+
+        /* A new lead on the sales channel — see wa-lead.ts. Behind
+           WA_LEADS_ENABLED; when it does not take the message (switch off,
+           migration not run, a failure before the lead exists) everything
+           below runs exactly as it did. */
+        try {
+          const media = mediaOf(m);
+          if (await handleLeadMessage(sb, {
+            from: m.from ?? "", body: media?.caption?.trim() || bodyOf(m),
+            profileName: profileName.get(m.from ?? "") ?? null, referral: m.referral ?? null,
+          })) continue;
+        } catch (e) {
+          await recordFailure(w, {
+            scope: "webhook.lead", runId, ref: m.from, error: e,
+            context: { body: bodyOf(m).slice(0, 120) },
+          });
         }
 
         /* Answered from a number that is not on the list. Previously a silent

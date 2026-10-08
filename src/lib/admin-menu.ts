@@ -39,6 +39,7 @@ export type MenuAction =
   | { screen: "waiting" }                 /* מחכים לי */
   | { screen: "pick_reply" }              /* choose whom to answer */
   | { screen: "reply_to"; id: string }    /* arm a reply to one guest */
+  | { screen: "reply_lead"; id: string }  /* arm a reply to one WhatsApp lead */
   | { screen: "mute"; id: string }        /* do_not_contact, by hand */
   | { screen: "unmute"; id: string }      /* and the way back */
   | { screen: "today" }                   /* מה יוצא היום */
@@ -63,6 +64,7 @@ export function menuId(a: MenuAction): string {
     case "waiting":    return `${PREFIX}wait`;
     case "pick_reply": return `${PREFIX}rep`;
     case "reply_to":   return `${PREFIX}rep:${a.id}`;
+    case "reply_lead": return `${PREFIX}lead:${a.id}`;
     case "mute":       return `${PREFIX}mute:${a.id}`;
     case "unmute":     return `${PREFIX}unmute:${a.id}`;
     case "today":      return `${PREFIX}today`;
@@ -104,6 +106,7 @@ export function parseMenuId(raw: string | null | undefined): MenuAction | null {
     case "noph":  return id ? { screen: "nophone", id } : { screen: "nophone" };
     case "wait":  return id ? null : { screen: "waiting" };
     case "rep":   return id ? { screen: "reply_to", id } : { screen: "pick_reply" };
+    case "lead":  return id ? { screen: "reply_lead", id } : null;
     case "mute":  return id ? { screen: "mute", id } : null;
     case "unmute": return id ? { screen: "unmute", id } : null;
     case "today": return id ? null : { screen: "today" };

@@ -43,6 +43,7 @@ export type FailureScope =
   | "webhook.reply"
   | "webhook.status"
   | "webhook.unmatched"
+  | "webhook.lead"
   /* The couple's own thread — see handleCoupleMessage. Reached only when
      answering them threw, which is the one case that must not be silent. */
   | "webhook.couple"

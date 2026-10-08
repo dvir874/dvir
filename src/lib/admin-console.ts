@@ -16,6 +16,7 @@ import { nextSend, nextSendText, type EligibleAt } from "./next-send";
 import { eligibleAt } from "./eligibility";
 import { CRON_UTC } from "./cron-schedule";
 import { isRsvpMessage as _isRsvp } from "./rsvp-contact";
+import { markLeadContacted } from "./wa-lead";
 
 /* Executing what the admin typed into his phone — see admin-command.ts for the
  * grammar and why it is deliberately small.
@@ -81,10 +82,28 @@ export async function handleAdminMessage(
       .select("guest_id, mode, mode_at").eq("admin_phone", to).maybeSingle();
     const ctx = data as { guest_id?: string; mode?: string | null; mode_at?: string | null } | null;
     const gid = ctx?.guest_id;
-    armed = ctx?.mode === "reply"
+    armed = (ctx?.mode === "reply" || ctx?.mode === "reply_lead")
       && !!ctx?.mode_at
       && Date.now() - new Date(ctx.mode_at).getTime() < 30 * 60_000;
-    if (gid) {
+    /* Lead context — see wa-lead.ts. Its own mode, so a stale guest_id left in
+       the row can never redirect a reply meant for a lead, and the guest path
+       above and below reads exactly what it always did. lead_id is read in a
+       second query: before 20261009_whatsapp_leads.sql it does not exist, and
+       folding it into the select above would cost every guest reply. */
+    if (ctx?.mode === "reply_lead") {
+      try {
+        const { data: lc } = await sb.from("admin_context")
+          .select("lead_id").eq("admin_phone", to).maybeSingle();
+        const lid = (lc as { lead_id?: string | null } | null)?.lead_id;
+        if (lid) {
+          const { data: l } = await sb.from("leads")
+            .select("id, name, wa_phone").eq("id", lid).maybeSingle();
+          const lw = l as { id: string; name?: string | null; wa_phone?: string | null } | null;
+          if (lw?.wa_phone) target = { id: lw.id, name: String(lw.name ?? ""), phone: lw.wa_phone };
+        }
+      } catch { /* no lead target — free text is refused below */ }
+    }
+    if (gid && ctx?.mode !== "reply_lead") {
       const { data: g } = await sb.from("guests")
         .select("id, name, phone, do_not_contact").eq("id", gid).maybeSingle();
       /* A guest who has asked us to stop is never a target.
@@ -185,6 +204,9 @@ export async function handleAdminMessage(
           wamid: res.messageId ?? null, status: "sent",
         });
       } catch { /* the message went out; the log is a nicety */ }
+
+      /* A lead answered for the first time leaves NEW. No-op for guests. */
+      await markLeadContacted(sb, dest, cmd.text);
 
       await say(`✓ נשלח${name ? ` ל${name}` : ` ל-${phone}`}`);
       return true;
@@ -623,6 +645,25 @@ async function renderScreen(sb: Sb, cfg: Cfg, to: string, a: MenuAction): Promis
       await sendButtons(cfg, to,
         `כתוב עכשיו את ההודעה ל${g.name} ${g.phone} — מה שתשלח בהודעה הבאה יגיע אליו.`,
         [{ id: menuId({ screen: "mute", id: g.id as string }), title: LABEL.mute }, back]);
+      return;
+    }
+
+    case "reply_lead": {
+      const { data: l } = await sb.from("leads")
+        .select("id, name, wa_phone").eq("id", a.id).maybeSingle();
+      const lead = l as { id: string; name?: string | null; wa_phone?: string | null } | null;
+      if (!lead?.wa_phone) { await say("לא מצאתי את הליד."); return; }
+      const { error } = await sb.from("admin_context").upsert(
+        { admin_phone: to, guest_id: null, lead_id: lead.id, mode: "reply_lead",
+          mode_at: new Date().toISOString(), set_at: new Date().toISOString() },
+        { onConflict: "admin_phone" });
+      if (error) {
+        await say("צריך להריץ את המיגרציה 20261009_whatsapp_leads.sql כדי לענות ללידים מכאן.");
+        return;
+      }
+      await sendButtons(cfg, to,
+        `כתוב עכשיו את ההודעה ל${lead.name ?? "ליד"} — מה שתשלח בהודעה הבאה יגיע אליו מה-077.`,
+        [back]);
       return;
     }
 

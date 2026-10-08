@@ -21,6 +21,8 @@ interface Lead {
   event_type: string | null; wedding_date: string | null; guest_count: number | null;
   source: string; status: PipelineStage; deal_value: number | null; ai_score: number;
   notes: string | null; ref_code: string | null; created_at: string; updated_at: string;
+  /* WhatsApp leads on the 077 sales number — 20261009_whatsapp_leads.sql. */
+  wa_phone?: string | null; first_message?: string | null; last_message_at?: string | null;
   lead_tasks?: LeadTask[]; lead_activities?: LeadActivity[];
 }
 
@@ -38,7 +40,7 @@ const STAGES: { key: PipelineStage; label: string; color: string; bg: string }[]
 const SOURCE_LABEL: Record<string, string> = {
   facebook: "פייסבוק", instagram: "אינסטגרם", google: "גוגל",
   organic: "אורגני", referral: "המלצה", whatsapp_direct: "וואטסאפ",
-  website_chat: "צ׳אט", unknown: "לא ידוע",
+  website_chat: "צ׳אט", unknown: "לא ידוע", tiktok: "טיקטוק",
   // Website CTA sources
   hero: "פנייה מהאתר — Hero", "demo-cta": "פנייה מהאתר — הדגמה",
   pricing: "פנייה מהאתר — מחירים", faq: "פנייה מהאתר — שאלות נפוצות",
@@ -52,6 +54,10 @@ function isWebsiteLead(source: string) { return WEBSITE_SOURCES.has(source); }
 function daysUntil(dateStr: string | null): number | null {
   if (!dateStr) return null;
   return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86_400_000);
+}
+
+function fmtWhen(iso: string | null | undefined): string {
+  return iso ? new Date(iso).toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" }) : "—";
 }
 
 function waLink(phone: string, name: string): string {
@@ -492,6 +498,11 @@ function LeadCard({ lead, onStatusChange, onSelect, onDelete, compact }: {
             </span>
           )}
         </div>
+        {lead.wa_phone && (
+          <div style={{ fontSize: 12, color: GOLD, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            💬 {SOURCE_LABEL[lead.source] ?? lead.source}{lead.first_message ? ` · ${lead.first_message}` : ""}
+          </div>
+        )}
         <div style={{ fontSize: 12, color: "rgba(51,51,51,0.5)", display: "flex", gap: 8, flexWrap: "wrap" }}>
           {lead.event_type && <span>{lead.event_type}</span>}
           {days !== null && (
@@ -719,12 +730,12 @@ function LeadPanel({ lead, onClose, onStatusChange, onRefresh }: {
         {/* Quick actions */}
         <div style={{ display: "flex", gap: 8, marginBottom: "1.25rem" }}>
           <a
-            href={waLink(detail.phone, detail.name)}
+            href={waLink(detail.wa_phone ?? detail.phone, detail.name)}
             target="_blank"
             rel="noopener noreferrer"
             style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "0.65rem", borderRadius: 10, background: "#22C55E", color: "white", fontWeight: 700, fontSize: 13, textDecoration: "none" }}
           >
-            <MessageCircle size={16} /> וואטסאפ
+            <MessageCircle size={16} /> פתח WhatsApp
           </a>
           <a
             href={`tel:${detail.phone}`}
@@ -755,6 +766,8 @@ function LeadPanel({ lead, onClose, onStatusChange, onRefresh }: {
             { label: "שווי עסקה", value: detail.deal_value ? `₪${detail.deal_value.toLocaleString()}` : "לא הוגדר" },
             { label: "ציון AI", value: `${detail.ai_score}/100` },
             { label: "המלצה מ", value: detail.ref_code ?? "—" },
+            { label: "נוצר", value: fmtWhen(detail.created_at) },
+            { label: "הודעה אחרונה", value: fmtWhen(detail.last_message_at) },
           ].map((item) => (
             <div key={item.label}>
               <p style={{ fontSize: 12, color: "rgba(51,51,51,0.45)", marginBottom: 1 }}>{item.label}</p>
@@ -762,6 +775,14 @@ function LeadPanel({ lead, onClose, onStatusChange, onRefresh }: {
             </div>
           ))}
         </div>
+
+        {/* The WhatsApp message that made this a lead */}
+        {detail.first_message && (
+          <div style={{ marginBottom: "1.25rem", background: "rgba(34,197,94,0.06)", borderRadius: 12, padding: "0.9rem" }}>
+            <p style={{ fontSize: 12, color: "rgba(51,51,51,0.45)", marginBottom: 4 }}>הודעה ראשונה בוואטסאפ</p>
+            <p style={{ fontSize: 13, color: DARK, whiteSpace: "pre-wrap" }}>{detail.first_message}</p>
+          </div>
+        )}
 
         {/* Tasks */}
         <div style={{ marginBottom: "1.25rem" }}>
@@ -836,7 +857,7 @@ function LeadPanel({ lead, onClose, onStatusChange, onRefresh }: {
                 <div key={a.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                   <div style={{ width: 6, height: 6, borderRadius: "50%", background: GOLD, flexShrink: 0, marginTop: 5 }} />
                   <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 12, color: DARK }}>{a.content}</p>
+                    <p style={{ fontSize: 12, color: DARK }}>{a.type === "whatsapp_in" ? "💬 " : a.type === "whatsapp_out" ? "↩️ " : ""}{a.content}</p>
                     <p style={{ fontSize: 12, color: "rgba(51,51,51,0.4)" }}>
                       {new Date(a.created_at).toLocaleString("he-IL", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </p>
