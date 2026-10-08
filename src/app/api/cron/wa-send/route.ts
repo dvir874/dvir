@@ -28,6 +28,7 @@ import { forecastDayBefore, pressingDays, forecastMessage, type ForecastEvent } 
 import { failureAlert } from "@/lib/send-failure";
 import { checkTemplate } from "@/lib/template-check";
 import { sendsDayBefore } from "@/lib/day-message";
+import { afterWeddingDraft, draftLink, nudgeWindow } from "@/lib/after-wedding-nudge";
 import { APP_URL } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
@@ -1926,6 +1927,58 @@ async function askAfterWedding(
   return { sent };
 }
 
+/* The morning after each wedding: a link for Dvir that opens WhatsApp to the
+ * couple with a personal note already written. Once per wedding — the
+ * wa_runs row is the record, written only after the alert was delivered. */
+async function nudgeAfterWedding(
+  sb: ReturnType<typeof createServerClient>,
+  cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
+): Promise<void> {
+  const to = process.env.ADMIN_ALERT_PHONE;
+  if (!to) return;
+  /* Not before 08:00 — the first run is at 09:00, but a manual run at night
+     should not wake him. */
+  const hour = Number(new Date().toLocaleString("en-GB", {
+    timeZone: "Asia/Jerusalem", hour: "2-digit", hour12: false }).slice(0, 2));
+  if (hour < 8) return;
+
+  const win = nudgeWindow(israelToday());
+  const { data: evs } = await sb.from("events")
+    .select("id, name, couple_names, date, client_phone")
+    .gte("date", win.from).lt("date", win.before).order("date").limit(10);
+
+  for (const ev of evs ?? []) {
+    const { data: done } = await sb.from("wa_runs").select("id")
+      .eq("reason", "after_wedding_nudge").eq("event_id", ev.id as string).limit(1);
+    if ((done ?? []).length) continue;
+
+    const couple = String(ev.couple_names ?? ev.name ?? "").trim();
+    const draft = afterWeddingDraft(couple);
+    const link = draftLink(String(ev.client_phone ?? ""), draft);
+    const head = `💍 אתמול התחתנו ${couple}.`;
+    const body = link
+      ? `${head}\nהודעה אישית מוכנה — לחיצה פותחת וואטסאפ אליהם, ערוך אם תרצה ושלח:\n${link}`
+      : `${head}\nאין מספר של הזוג במערכת — הנה ההודעה להעתקה:\n\n${draft}`;
+
+    const plain = await sendAdminText(cfg, toE164(to) ?? to, body, "after_wedding_nudge");
+    let ok = plain.ok;
+    if (!ok) {
+      /* Template fallback: the full prefilled link is too long for a template
+         parameter, so the draft travels as text with a bare link to the chat. */
+      const bare = draftLink(String(ev.client_phone ?? ""), "")?.replace(/\?text=$/, "") ?? "";
+      const res = await sendRunSummary(cfg, to, {
+        event: head, sent: "—", failed: "—", left: "—",
+        attention: `שלח לזוג${bare ? ` (${bare})` : ""}: ${draft.replace(/\n/g, " ")}`,
+      }, "after_wedding_nudge");
+      ok = res.ok;
+    }
+    if (ok) {
+      await sb.from("wa_runs").insert({ sent: 0, reason: "after_wedding_nudge", event_id: ev.id })
+        .then(() => {}, () => {});
+    }
+  }
+}
+
 async function alertCapacityAhead(
   sb: ReturnType<typeof createServerClient>,
   cfg: NonNullable<ReturnType<typeof getWhatsAppConfig>>,
@@ -3054,6 +3107,11 @@ async function runSend(req: NextRequest) {
     /* And what a finished wedding still owes — the money, then the
        recommendation. See askAfterWedding. */
     try { await askAfterWedding(sb, cfg); }
+    catch { /* a notification must never cost a send */ }
+
+    /* And the personal note — Dvir's own, one tap away. See
+       after-wedding-nudge.ts. */
+    try { await nudgeAfterWedding(sb, cfg); }
     catch { /* a notification must never cost a send */ }
 
     /* And the one thing a finished wedding still needs — see
