@@ -7,10 +7,10 @@ import {
   CheckCircle, Clock, XCircle, Users, Loader2, AlertCircle,
   Wallet, LayoutGrid, ListChecks, Gift, Plus, Trash2,
   ChevronDown, ChevronUp, Camera, Mic, Lock, Sparkles, Zap,
+  Check, X, Eye, Armchair, ChevronLeft, Share2,
 } from "lucide-react";
 import type { WeddingScore, SmartAlert } from "@/lib/wedding-score";
 import ChatWidget from "@/components/ChatWidget";
-import HelpButton from "@/components/HelpButton";
 import WeddingHealthCard from "@/components/WeddingHealthCard";
 // F7 — 50 daily quotes, deterministic by day (not random)
 const INSPIRATION_QUOTES = [
@@ -1074,55 +1074,53 @@ function SmartAlertStrip({ stats, seating, daysLeft, token, eventName }: { stats
   const unseated = Math.max(0, stats.attendees - seating.assignedSeats);
 
   let title: string; let cta: string; let href: string; let external = false;
+  /* Set only for the unanswered-invitations case. Reminders to them go out
+     automatically — the couple never sends them — so that card reassures
+     ("we're on it") instead of handing them a chore. Dvir, 09/10. */
+  let handled: string | null = null;
 
   if (daysLeft >= 0 && daysLeft <= 1) {
-    title = daysLeft === 0 ? "היום זה קורה! 🎉" : "מחר זה קורה! 🎉";
-    cta   = "למצב יום החתונה ←";
+    title = daysLeft === 0 ? "היום זה קורה!" : "מחר זה קורה!";
+    cta   = "למצב יום החתונה";
     href  = `/couple/${token}/day`;
   } else if (stats.total === 0) {
     title = "הצעד הראשון: רשימת האורחים";
-    cta   = "הוסיפו אורחים ←";
+    cta   = "הוסיפו אורחים";
     href  = `/couple/${token}/guests/import`;
   } else if (stats.responseRate === 0) {
     title = "סידרתם את רשימת האורחים?";
-    cta   = "בקשו מדביר לשלוח את ההזמנות 🚀";
+    cta   = "בקשו מדביר לשלוח את ההזמנות";
     href  = `${DVIR_WA}?text=${encodeURIComponent(`היי דביר! סיימנו לסדר את רשימת האורחים${eventName ? ` (${eventName})` : ""} — אפשר לשלוח את ההזמנות 🎉`)}`;
     external = true;
-  } else if (stats.pending > 0 && daysLeft < 14) {
-    title = `עדיין ממתינים ל-${stats.pending} אישורים`;
-    cta   = "צפו ברשימה ←";
-    href  = `/couple/${token}/guests`;
   } else if (unseated > 0 && daysLeft < 30) {
+    /* Seating first inside the last month: it is the one thing here only the
+       couple can do. Unanswered invitations are being chased for them. */
     title = `${unseated} אורחים עדיין לא שובצו לשולחן`;
-    cta   = "לסידורי הושבה ←";
+    cta   = "לסידורי הושבה";
     href  = `/couple/${token}/seating`;
+  } else if (stats.pending > 0) {
+    title   = `${stats.pending} הזמנות עדיין לא ענו`;
+    handled = "אנחנו שולחים להם תזכורת אוטומטית בוואטסאפ — אין צורך לעשות כלום";
+    cta     = "צפו ברשימה";
+    href    = `/couple/${token}/guests`;
   } else {
     return null;
   }
 
-  /* Stitch Direction B, approved 2026-08-12: this is the centre of gravity of
-     the screen, not a strip under four equally-sized tiles. The logic above is
-     unchanged — what changes is that the one thing worth doing now looks like
-     the one thing worth doing now. */
+  /* Stitch dashboard redesign, approved 09/10: a calm cream card — help, not
+     an alert. The stage logic above decides what it says. */
   return (
-    <a href={href} {...(external ? { target:"_blank", rel:"noopener noreferrer" } : {})} style={{ textDecoration:"none", display:"block", marginBottom:"20px" }}>
-      <div style={{ background:C.gold, borderRadius:"20px", padding:"20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:"12px", boxShadow:"0 8px 16px rgba(197,164,109,0.25)" }}>
-        <div style={{ minWidth:0 }}>
-          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"12px", fontWeight:600, color:"rgba(28,16,8,0.65)", letterSpacing:"0.08em", margin:"0 0 6px" }}>
-            הדבר הבא
-          </p>
-          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"16px", fontWeight:700, color:"#1C1008", margin:0, lineHeight:1.35 }}>
-            {title}
-          </p>
-          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"13px", fontWeight:500, color:"rgba(28,16,8,0.7)", margin:"6px 0 0" }}>
-            {cta}
-          </p>
-        </div>
-        <span aria-hidden="true" style={{ flexShrink:0, width:"40px", height:"40px", borderRadius:"50%", background:"rgba(255,255,255,0.35)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"20px", color:"#1C1008" }}>
-          ←
-        </span>
-      </div>
-    </a>
+    <div className="rl-card rl-next">
+      <p className="rl-eyebrow"><ListChecks size={16} strokeWidth={1.75} aria-hidden="true" /> הדבר הבא</p>
+      <p className="rl-next-title">{title}</p>
+      {handled && (
+        <p className="rl-next-handled"><CheckCircle size={18} strokeWidth={1.75} aria-hidden="true" /> {handled}</p>
+      )}
+      <a href={href} className={handled ? "rl-textlink" : "rl-btn"}
+        {...(external ? { target:"_blank", rel:"noopener noreferrer" } : {})}>
+        {cta} <span aria-hidden="true">←</span>
+      </a>
+    </div>
   );
 }
 
@@ -1195,17 +1193,20 @@ interface ActivityItem { type: "confirmed" | "declined" | "opened"; name: string
 
 function timeAgo(iso: string): string {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-  if (mins < 60) return `לפני ${Math.max(1, mins)} דק׳`;
+  if (mins < 2) return "זה עתה";
+  if (mins < 60) return `לפני ${mins} דק׳`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `לפני ${hrs} שע׳`;
   const days = Math.floor(hrs / 24);
   return days === 1 ? "אתמול" : `לפני ${days} ימים`;
 }
 
-const ACTIVITY_META: Record<ActivityItem["type"], { emoji: string; text: (i: ActivityItem) => string }> = {
-  confirmed: { emoji: "🎉", text: i => `${i.name} ${i.count > 1 ? `אישרו הגעה (${i.count})` : "אישר/ה הגעה"}` },
-  declined:  { emoji: "💛", text: i => `${i.name} לא יגיעו` },
-  opened:    { emoji: "👀", text: i => `${i.name} פתח/ה את ההזמנה` },
+/* Name on its own line, what happened beneath it — the shape Stitch drew so
+   a name is readable inside a 9:16 video. Line icons, never emoji. */
+const ACTIVITY_META: Record<ActivityItem["type"], { Icon: typeof Check; tone: "ok" | "muted" | "no"; text: (i: ActivityItem) => string }> = {
+  confirmed: { Icon: Check, tone: "ok",    text: i => i.count > 1 ? `${i.count} אורחים · אישרו הגעה` : "אישר/ה הגעה" },
+  declined:  { Icon: X,     tone: "no",    text: () => "לא יגיעו" },
+  opened:    { Icon: Eye,   tone: "muted", text: () => "פתח/ה את ההזמנה" },
 };
 
 function BenchmarkBadge({ token }: { token: string }) {
@@ -1246,48 +1247,52 @@ function ParentShareButton({ token }: { token: string }) {
     setBusy(false);
   }
   return (
-    <button onClick={share} disabled={busy}
-      style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%", marginBottom:12, padding:"12px", background:"#fff", border:"1.5px solid #E8E0D4", borderRadius:12, cursor:"pointer", fontFamily:"Heebo,sans-serif", fontSize:13, fontWeight:600, color:"#8B6914", opacity: busy ? 0.6 : 1 }}>
-      👨‍👩‍👧 שתפו קישור צפייה עם ההורים (מספרים בלבד, בלי עריכה)
+    <button onClick={share} disabled={busy} className="rl-share" style={{ opacity: busy ? 0.6 : 1 }}>
+      <Share2 size={16} strokeWidth={1.75} aria-hidden="true" /> שיתוף קישור צפייה להורים
     </button>
   );
 }
 
-function ActivityFeed({ token }: { token: string }) {
+function ActivityFeed({ token, refreshKey }: { token: string; refreshKey?: number }) {
   const [items, setItems] = useState<ActivityItem[]>([]);
 
   const afterPaint = useAfterPaint();
 
+  /* refreshKey is the confirmed count: when the live poll sees a new answer,
+     the feed fetches again so the new row arrives with the number. */
   useEffect(() => {
     if (!afterPaint) return;
     fetch(`/api/couple/${token}/activity`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (Array.isArray(d?.items)) setItems(d.items); })
       .catch(() => {});
-  }, [afterPaint, token]);
+  }, [afterPaint, token, refreshKey]);
 
   if (items.length === 0) return null;
 
   return (
-    <div style={{ background:"#fff", borderRadius:16, border:"1px solid #E8E0D4", padding:"16px", marginBottom:12 }}>
-      <p style={{ fontFamily:"Heebo,sans-serif", fontSize:12, fontWeight:600, color:"#8B6914", letterSpacing:"0.06em", margin:"0 0 10px" }}>
-        קורה עכשיו
-      </p>
-      <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-        {items.slice(0, 5).map((it, idx) => {
+    <section className="rl-feed-wrap" aria-label="קורה עכשיו">
+      <h2 className="rl-h2">קורה עכשיו</h2>
+      <div className="rl-card rl-feed">
+        {items.slice(0, 4).map((it, idx) => {
           const meta = ACTIVITY_META[it.type];
+          /* The newest row is always set apart; "חדש" only when it truly is. */
+          const newest = idx === 0;
+          const fresh  = newest && Date.now() - new Date(it.at).getTime() < 24 * 3_600_000;
           return (
-            <div key={idx} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
-              <p style={{ fontFamily:"Heebo,sans-serif", fontSize:13, color:"#1C1008", margin:0, display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
-                <span style={{ flexShrink:0 }}>{meta.emoji}</span>
-                <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{meta.text(it)}</span>
-              </p>
-              <span style={{ fontFamily:"Heebo,sans-serif", fontSize:12, color:"rgba(28,16,8,0.4)", flexShrink:0 }}>{timeAgo(it.at)}</span>
+            <div key={`${it.at}-${idx}`} className={`rl-row${newest ? " rl-row-new" : ""}`}>
+              <span className={`rl-dot rl-dot-${meta.tone}`} aria-hidden="true"><meta.Icon size={16} strokeWidth={2} /></span>
+              <div className="rl-row-text">
+                <p className="rl-row-name">{it.name}{fresh && <span className="rl-pill-new">חדש</span>}</p>
+                <p className="rl-row-sub">{meta.text(it)}</p>
+              </div>
+              <span className="rl-row-time">{timeAgo(it.at)}</span>
             </div>
           );
         })}
+        <a href={`/couple/${token}/guests`} className="rl-feed-more">לכל האורחים <span aria-hidden="true">←</span></a>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -1327,6 +1332,90 @@ function MilestoneList({ tasks, token }: { tasks:WeddingTask[]; token:string }) 
   );
 }
 
+/* Animate from wherever the number already is, not from zero: when the live
+   poll moves 167 to 169 the couple should see two people arrive, not the
+   whole count replay. The first render counts up from 0 once. */
+function useCountFrom(target: number, duration = 700): number {
+  const [value, setValue] = useState(0);
+  const fromRef = useRef(0);
+  useEffect(() => {
+    const from = fromRef.current;
+    if (from === target) { setValue(target); return; }
+    const start = Date.now();
+    let raf = 0;
+    const frame = () => {
+      const pct = Math.min((Date.now() - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - pct, 3);
+      const v = Math.round(from + (target - from) * eased);
+      setValue(v);
+      if (pct < 1) raf = requestAnimationFrame(frame);
+      else fromRef.current = target;
+    };
+    raf = requestAnimationFrame(frame);
+    return () => { cancelAnimationFrame(raf); fromRef.current = target; };
+  }, [target, duration]);
+  return value;
+}
+
+/* The hero. Two units, never mixed (see the note on שחר's "420 /335"):
+   PEOPLE in the big number, INVITATIONS in the bar and the chips. There is no
+   honest "people invited" denominator — an unanswered record carries no
+   headcount — so 169 never sits next to 250. */
+function RsvpHero({ stats, delta }: { stats: Stats; delta: number }) {
+  const people   = useCountFrom(stats.attendees);
+  const answered = stats.confirmed + stats.declined;
+  const pct      = stats.total > 0 ? Math.round((answered / stats.total) * 100) : 0;
+  return (
+    <section className="rl-card rl-hero" aria-label="אישורי הגעה">
+      <p className="rl-eyebrow rl-eyebrow-olive"><Users size={18} strokeWidth={1.75} aria-hidden="true" /> אישורי הגעה</p>
+      <div className="rl-hero-num-row">
+        <p className="rl-hero-num" aria-live="polite">{people.toLocaleString("he-IL")}</p>
+        {delta > 0 && <span className="rl-delta">+{delta}</span>}
+      </div>
+      <p className="rl-hero-label">אורחים אישרו הגעה</p>
+
+      <div className="rl-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}
+        aria-label="הזמנות שענו">
+        <div className="rl-bar-fill" style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} />
+      </div>
+      <p className="rl-bar-caption">
+        <span>{answered.toLocaleString("he-IL")} מתוך {stats.total.toLocaleString("he-IL")} הזמנות ענו</span>
+        <span className="rl-bar-pct">{pct}%</span>
+      </p>
+
+      <div className="rl-divider" />
+      <p className="rl-chips-label">סטטוס הזמנות</p>
+      <div className="rl-chips">
+        <div className="rl-chip rl-chip-ok"><span className="rl-chip-num"><Check size={16} strokeWidth={2.25} aria-hidden="true" /> {stats.confirmed}</span><span>אישרו</span></div>
+        <div className="rl-chip rl-chip-wait"><span className="rl-chip-num"><Clock size={16} strokeWidth={2} aria-hidden="true" /> {stats.pending}</span><span>טרם ענו</span></div>
+        <div className="rl-chip rl-chip-no"><span className="rl-chip-num"><X size={16} strokeWidth={2.25} aria-hidden="true" /> {stats.declined}</span><span>לא מגיעים</span></div>
+      </div>
+    </section>
+  );
+}
+
+/* Seating, budget and tasks stay one tap away — they simply stop competing
+   with the RSVP. Small values only, and never a bare "₪0" or "0". */
+function SecondaryLinks({ token, seating, attendees, openTasks }: {
+  token: string; seating: Seating; attendees: number; openTasks: number;
+}) {
+  const items = [
+    { href: `/couple/${token}/seating`,   Icon: Armchair,   label: "הושבה",  value: attendees > 0 ? `${seating.assignedSeats}/${attendees}` : "" },
+    { href: `/couple/${token}/budget`,    Icon: Wallet,     label: "תקציב",  value: "מעקב" },
+    { href: `/couple/${token}/checklist`, Icon: ListChecks, label: "משימות", value: openTasks > 0 ? `${openTasks} פתוחות` : "" },
+  ];
+  return (
+    <nav className="rl-secondary" aria-label="עוד במערכת">
+      {items.map(({ href, Icon, label, value }) => (
+        <a key={label} href={href} className="rl-mini">
+          <span className="rl-mini-top"><Icon size={20} strokeWidth={1.75} aria-hidden="true" /><span className="rl-mini-val">{value}</span></span>
+          <span className="rl-mini-label">{label}</span>
+        </a>
+      ))}
+    </nav>
+  );
+}
+
 function useCountUp(target: number, duration = 600): number {
   const [value, setValue] = useState(0);
   useEffect(() => {
@@ -1359,6 +1448,9 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
   const [actionDone,  setActionDone]  = useState<Set<string>>(new Set());
   useConfetti();
   const [rsvpToast,      setRsvpToast]      = useState("");
+  /* People who just arrived — the "+2" beside the hero for a few seconds. */
+  const [rsvpDelta,      setRsvpDelta]      = useState(0);
+  const prevAttendeesRef = useRef<number | null>(null);
   const [announcements,  setAnnouncements]  = useState<{ id: string; message: string; created_at: string }[]>([]);
   const [missingItems,   setMissingItems]   = useState<{ label: string; severity: "high" | "medium" | "low" }[]>([]);
   const [missingOpen,    setMissingOpen]    = useState(false);
@@ -1366,7 +1458,6 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
   const [showCalendar,   setShowCalendar]   = useState(false);
   const prevConfirmedRef = useRef<number | null>(null);
   const daysLeftTarget   = briefing?.daysUntilEvent ?? 0;
-  const animatedDays     = useCountUp(daysLeftTarget, 600);
 
   const load = useCallback(async () => {
     const [mainRes, briefRes, onboardRes] = await Promise.all([
@@ -1416,12 +1507,19 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
             osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.6);
           } catch { /* no audio permission */ }
-          const diff = nowConfirmed - prevConfirmedRef.current;
-          setRsvpToast(`🎉 ${diff === 1 ? "אורח חדש אישר הגעה!" : `${diff} אורחים חדשים אישרו!`}`);
+          /* People, not records: "2 אורחים אישרו הגעה" is what the hero
+             number just did. Falls back to records if the headcount moved
+             the other way at the same moment (someone else reduced theirs). */
+          const nowPeople: number = d.stats?.attendees ?? 0;
+          const people = prevAttendeesRef.current !== null ? nowPeople - prevAttendeesRef.current : 0;
+          const diff = people > 0 ? people : nowConfirmed - prevConfirmedRef.current;
+          setRsvpToast(diff === 1 ? "אורח חדש אישר הגעה" : `${diff} אורחים חדשים אישרו הגעה`);
           setTimeout(() => setRsvpToast(""), 4000);
+          if (people > 0) { setRsvpDelta(people); setTimeout(() => setRsvpDelta(0), 6000); }
           setData(d);
         }
         prevConfirmedRef.current = nowConfirmed;
+        prevAttendeesRef.current = d.stats?.attendees ?? prevAttendeesRef.current;
       } catch { /* ignore */ }
     }, 30_000);
     return () => clearInterval(id);
@@ -1560,138 +1658,132 @@ export default function CoupleDashboard({ params }: { params: Promise<{ token: s
   const urgents    = alerts.filter(a => a.severity === "urgent");
   const others     = alerts.filter(a => a.severity !== "urgent");
 
+  const weddingDateText = (() => {
+    const d = new Date(event.date);
+    return isNaN(d.getTime()) ? "" : d.toLocaleDateString("he-IL", { day: "numeric", month: "long" });
+  })();
+  const coupleNames = briefing?.event?.bride_name && briefing?.event?.groom_name
+    ? `${briefing.event.bride_name} ו${briefing.event.groom_name}`
+    : event.name;
+  const urgentAlerts = (briefing?.alerts ?? []).filter(a => a.severity === "urgent");
+
+  /* Stitch dashboard redesign — approved by Dvir 09/10/2026 (mobile 390,
+     desktop, and the "RSVP just arrived" variant). One hero (people who
+     confirmed), one bar (invitations answered), one calm next step, one live
+     feed; everything else one tap away. Readiness %, the benchmark badge,
+     milestones, the daily quote and the floating help bubble left the home
+     screen — help is still in "עוד" → "צריכים את דביר?". */
   const CSS_DASH = `
-    @import url('https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;700;900&family=Heebo:wght@300;400;500;600&display=swap');
-    @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-    @keyframes dotPulse{0%,80%,100%{transform:scale(.6);opacity:.35}40%{transform:scale(1);opacity:1}}
-    @keyframes slideCard{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
-    .loading-dot{width:10px;height:10px;border-radius:50%;background:#C5A46D;animation:dotPulse 1.2s ease-in-out infinite}
-    .loading-dot:nth-child(2){animation-delay:.2s}
-    .loading-dot:nth-child(3){animation-delay:.4s}
+    @import url('https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700;900&family=Heebo:wght@400;500;600;700&display=swap');
+    @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes slideCard{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes rowIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes popIn{0%{opacity:0;transform:scale(.6)}60%{opacity:1;transform:scale(1.08)}100%{transform:scale(1)}}
+    .rl-wrap{max-width:520px;margin:0 auto;padding:8px 16px 24px}
+    .rl-greet h1{font-family:'Frank Ruhl Libre',serif;font-size:28px;font-weight:700;color:#1C1008;margin:8px 0 4px;line-height:1.25}
+    .rl-greet p{font-family:Heebo,sans-serif;font-size:16px;font-weight:400;color:#6B5E52;margin:0 0 24px}
+    .rl-grid{display:flex;flex-direction:column;gap:16px}
+    .rl-col{display:flex;flex-direction:column;gap:16px;min-width:0}
+    .rl-card{background:#fff;border:1px solid #EFE7DA;border-radius:20px;box-shadow:0 2px 12px rgba(28,16,8,.04)}
+    .rl-eyebrow{display:flex;align-items:center;gap:6px;font-family:Heebo,sans-serif;font-size:15px;font-weight:600;color:#6B5E52;margin:0}
+    .rl-eyebrow-olive{color:#6B7B5A}
+    .rl-hero{padding:24px 24px 22px;border-top:3px solid #6B7B5A;animation:fadeUp .35s ease both}
+    .rl-hero-num-row{display:flex;align-items:center;gap:12px;margin-top:14px}
+    .rl-hero-num{font-family:'Frank Ruhl Libre',serif;font-size:88px;font-weight:900;line-height:.95;color:#1C1008;margin:0;font-variant-numeric:tabular-nums}
+    .rl-delta{font-family:Heebo,sans-serif;font-size:18px;font-weight:700;color:#6B7B5A;background:#EEF1E9;border-radius:999px;padding:4px 12px;animation:popIn .45s ease both;direction:ltr}
+    .rl-hero-label{font-family:Heebo,sans-serif;font-size:18px;font-weight:500;color:#1C1008;margin:10px 0 22px}
+    .rl-bar{height:12px;background:#F3EEE6;border-radius:999px;overflow:hidden}
+    .rl-bar-fill{height:100%;background:#6B7B5A;border-radius:999px;transition:width .8s cubic-bezier(.22,1,.36,1)}
+    .rl-bar-caption{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-family:Heebo,sans-serif;font-size:15px;color:#6B5E52;margin:10px 0 0}
+    .rl-bar-caption span:first-child{white-space:nowrap}
+    .rl-bar-pct{font-weight:700;color:#6B7B5A}
+    .rl-divider{height:1px;background:#EFE7DA;margin:20px 0 16px}
+    .rl-chips-label{font-family:Heebo,sans-serif;font-size:14px;font-weight:500;color:#6B5E52;margin:0 0 10px}
+    .rl-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .rl-chip{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;border-radius:14px;font-family:Heebo,sans-serif;font-size:14px;font-weight:500;white-space:nowrap}
+    .rl-chip-num{display:flex;align-items:center;gap:5px;font-size:20px;font-weight:700}
+    .rl-chip-ok{background:#EEF1E9;color:#56654A}
+    .rl-chip-wait{background:#F3EEE6;color:#7A6B5F}
+    .rl-chip-no{background:#F7ECE8;color:#A4553F}
+    .rl-next{background:#F6F1E8;border-color:#EDE4D3;box-shadow:none;padding:20px 22px;display:flex;flex-direction:column;gap:8px}
+    .rl-next-title{font-family:Heebo,sans-serif;font-size:19px;font-weight:700;color:#1C1008;margin:2px 0 0;line-height:1.35}
+    .rl-next-handled{display:flex;align-items:flex-start;gap:8px;font-family:Heebo,sans-serif;font-size:15px;color:#6B5E52;margin:0;line-height:1.5}
+    .rl-next-handled svg{color:#6B7B5A;flex-shrink:0;margin-top:2px}
+    .rl-btn{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px;min-height:48px;border-radius:14px;background:#6B7B5A;color:#fff;font-family:Heebo,sans-serif;font-size:16px;font-weight:600;text-decoration:none}
+    .rl-textlink{align-self:flex-start;margin-top:6px;min-height:44px;display:inline-flex;align-items:center;gap:6px;font-family:Heebo,sans-serif;font-size:16px;font-weight:600;color:#6B7B5A;text-decoration:none}
+    .rl-alert{display:flex;gap:10px;align-items:flex-start;padding:14px 16px;border-radius:16px;background:#F7ECE8;font-family:Heebo,sans-serif;font-size:15px;color:#1C1008;line-height:1.5}
+    .rl-alert svg{color:#A4553F;flex-shrink:0;margin-top:2px}
+    .rl-h2{font-family:'Frank Ruhl Libre',serif;font-size:22px;font-weight:700;color:#1C1008;margin:8px 0 12px}
+    .rl-feed{overflow:hidden}
+    .rl-row{display:flex;align-items:center;gap:12px;padding:14px 18px;min-height:64px;border-bottom:1px solid #F3EEE6}
+    .rl-row-new{background:#F3F6EF;animation:rowIn .4s ease both}
+    .rl-dot{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .rl-dot-ok{background:#EEF1E9;color:#6B7B5A}
+    .rl-dot-muted{background:#F3EEE6;color:#8C7B6E}
+    .rl-dot-no{background:#F7ECE8;color:#A4553F}
+    .rl-row-text{flex:1;min-width:0}
+    .rl-row-name{display:flex;align-items:center;gap:8px;font-family:Heebo,sans-serif;font-size:16px;font-weight:600;color:#1C1008;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .rl-pill-new{font-size:12px;font-weight:600;color:#fff;background:#6B7B5A;border-radius:999px;padding:1px 8px;flex-shrink:0}
+    .rl-row-sub{font-family:Heebo,sans-serif;font-size:14px;color:#6B5E52;margin:2px 0 0}
+    .rl-row-time{font-family:Heebo,sans-serif;font-size:13px;color:#8C7B6E;flex-shrink:0;white-space:nowrap}
+    .rl-feed-more{display:flex;justify-content:center;align-items:center;gap:6px;min-height:52px;font-family:Heebo,sans-serif;font-size:15px;font-weight:600;color:#6B7B5A;text-decoration:none}
+    .rl-secondary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .rl-mini{display:flex;flex-direction:column;justify-content:space-between;gap:14px;min-height:76px;padding:14px;background:#fff;border:1px solid #EFE7DA;border-radius:16px;text-decoration:none;color:#1C1008}
+    .rl-mini-top{display:flex;justify-content:space-between;align-items:center;color:#6B5E52}
+    .rl-mini-val{font-family:Heebo,sans-serif;font-size:13px;font-weight:600;color:#6B5E52;white-space:nowrap}
+    .rl-mini-label{font-family:Heebo,sans-serif;font-size:15px;font-weight:600}
+    .rl-share{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;background:none;border:none;cursor:pointer;font-family:Heebo,sans-serif;font-size:14px;font-weight:500;color:#6B5E52;align-self:center}
+    .rl-toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;align-items:center;gap:8px;background:#6B7B5A;color:#fff;padding:10px 18px;border-radius:999px;font-family:Heebo,sans-serif;font-size:15px;font-weight:600;box-shadow:0 6px 20px rgba(107,123,90,.35);animation:slideCard .3s ease;white-space:nowrap;max-width:calc(100vw - 32px)}
+    @media (min-width:900px){
+      .rl-wrap{max-width:1080px;padding:16px 32px 32px}
+      .rl-greet h1{font-size:34px}
+      .rl-grid{display:grid;grid-template-columns:3fr 2fr;gap:24px;align-items:start}
+      .rl-hero{padding:32px}
+      .rl-hero-num{font-size:104px}
+      .rl-h2{margin-top:0}
+    }
   `;
 
   return (
-    <div dir="rtl" style={{ minHeight:"100dvh", background:"#FDFAF5", fontFamily:"Heebo,sans-serif", paddingBottom:"80px" }}>
+    <div dir="rtl" style={{ minHeight:"100dvh", background:"#FDFAF5", fontFamily:"Heebo,sans-serif", paddingBottom:"88px" }}>
       <style>{CSS_DASH}</style>
 
       {/* Splash + RSVP toast */}
       {data && <SplashScreen name={event.name} />}
       {rsvpToast && (
-        <div style={{ position:"fixed", top:20, left:"50%", transform:"translateX(-50%)", zIndex:9999, background:C.olive, color:"white", padding:"0.65rem 1.5rem", borderRadius:30, fontSize:14, fontFamily:"Heebo,sans-serif", fontWeight:600, boxShadow:"0 4px 20px rgba(107,123,90,0.4)", animation:"slideCard .3s ease", whiteSpace:"nowrap" }}>
-          {rsvpToast}
-        </div>
+        <div className="rl-toast" role="status"><Check size={18} strokeWidth={2.25} aria-hidden="true" /> {rsvpToast}</div>
       )}
 
-      {/* ── E3-S6: Header bar ── */}
-      <header style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", maxWidth:520, margin:"0 auto", position:"sticky", top:0, background:"rgba(253,250,245,0.96)", zIndex:10, backdropFilter:"blur(8px)", borderBottom:"1px solid rgba(197,164,109,0.15)" }}>
-        <p style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"18px", fontWeight:700, color:C.gold, margin:0, letterSpacing:".05em" }}>רגע לפני</p>
-        {/* This was a <button aria-label="תפריט"> with no handler: it looked
-            tappable, announced itself as a menu, and did nothing. The bottom
-            nav already carries "עוד". Removed rather than wired to a second
-            menu the design does not have. */}
+      <header style={{ display:"flex", alignItems:"center", padding:"16px 20px", maxWidth:1080, margin:"0 auto", position:"sticky", top:0, background:"rgba(253,250,245,0.96)", zIndex:10, backdropFilter:"blur(8px)" }}>
+        <p style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"19px", fontWeight:700, color:C.gold, margin:0, letterSpacing:".03em" }}>רגע לפני</p>
       </header>
 
-      {/* ── E3-S6 — Stitch Direction B (Modern Minimal), approved 2026-08-12 ──
+      <div className="rl-wrap">
+        <div className="rl-greet" style={{ animation:"fadeUp .3s ease both" }}>
+          <h1>שלום {coupleNames} 👋</h1>
+          <p>{daysLeft > 1 ? `החתונה בעוד ${daysLeft} ימים` : ""}{weddingDateText ? ` · ${weddingDateText}` : ""}</p>
+        </div>
 
-         The order carries the argument: who you are, how long is left and
-         whether that is comfortable, what is wrong, the one thing to do, and
-         only then the numbers. What it replaces put four equally-weighted tiles
-         first and left the couple to do the prioritising the product was bought
-         to do — while the alerts the API had been returning all along were
-         displayed nowhere. */}
-      {/* Stitch designed this screen at 390px and it is opened on a phone by
-          almost every couple. Without a ceiling a desktop browser stretched the
-          two-card grid across the full window and left half of each card empty —
-          the same design, five times too wide. */}
-      <section style={{ padding:"20px 16px 0", maxWidth:520, margin:"0 auto", animation:"fadeUp .35s ease both" }}>
-        <h1 style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"24px", fontWeight:700, color:C.dark, margin:"0 0 4px", lineHeight:1.25 }}>
-          {briefing?.greeting ? `${briefing.greeting} ` : ""}
-          {briefing?.event?.bride_name && briefing?.event?.groom_name
-            ? `${briefing.event.bride_name} ו${briefing.event.groom_name}`
-            : event.name}
-        </h1>
-        {briefing?.phaseMessage && (
-          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"14px", fontWeight:300, color:C.muted, margin:"0 0 24px", lineHeight:1.5 }}>
-            {briefing.phaseMessage}
-          </p>
-        )}
+        <div className="rl-grid">
+          <div className="rl-col">
+            <RsvpHero stats={stats} delta={rsvpDelta} />
+            <SmartAlertStrip stats={stats} seating={seating} daysLeft={daysLeft} token={token} eventName={event.name} />
+            {urgentAlerts.slice(0, 1).map((a, i) => (
+              <div key={i} className="rl-alert" role="status">
+                <AlertCircle size={18} strokeWidth={1.75} aria-hidden="true" />
+                <p style={{ margin:0 }}><strong style={{ fontWeight:600 }}>{a.title}</strong>{a.body ? ` · ${a.body}` : ""}</p>
+              </div>
+            ))}
+          </div>
 
-        {/* Countdown + readiness, together: a number alone never says whether
-            it is comfortable. */}
-        <div style={{ textAlign:"center", marginBottom:"28px" }}>
-          <p role="timer" aria-label={`${daysLeft} ימים עד ליום החתונה`}
-            style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"64px", fontWeight:900, color:"#8B6914", lineHeight:1, margin:0 }}>
-            {animatedDays}
-          </p>
-          <p style={{ fontFamily:"Heebo,sans-serif", fontSize:"13px", fontWeight:600, letterSpacing:"0.14em", color:C.muted, margin:"6px 0 0" }}>
-            ימים נותרו
-          </p>
-
-          <div style={{ maxWidth:"320px", margin:"24px auto 0" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:"8px" }}>
-              <span style={{ fontFamily:"Heebo,sans-serif", fontSize:"13px", fontWeight:600, color:C.dark }}>
-                {briefing?.readinessPct ?? 0}% מוכנות לחתונה
-              </span>
-              <span style={{ fontFamily:"Heebo,sans-serif", fontSize:"13px", fontWeight:300, color:C.muted }}>
-                {readinessWord(briefing?.readinessPct ?? 0)}
-              </span>
-            </div>
-            <div
-              role="progressbar" aria-valuenow={briefing?.readinessPct ?? 0} aria-valuemin={0} aria-valuemax={100}
-              aria-label="מוכנות לחתונה"
-              style={{ width:"100%", height:"12px", background:C.cream, borderRadius:"999px", overflow:"hidden" }}
-            >
-              <div style={{ height:"100%", width:`${Math.min(100, Math.max(0, briefing?.readinessPct ?? 0))}%`, background:C.olive, borderRadius:"999px", transition:"width .6s ease" }} />
-            </div>
+          <div className="rl-col">
+            <ActivityFeed token={token} refreshKey={stats.confirmed} />
+            <SecondaryLinks token={token} seating={seating} attendees={stats.attendees}
+              openTasks={tasks.filter(t => !t.completed).length} />
+            <ParentShareButton token={token} />
           </div>
         </div>
-      </section>
-
-      <section style={{ padding:"0 16px", maxWidth:520, margin:"0 auto", animation:"fadeUp .4s ease .1s both" }}>
-        <AlertRow alerts={briefing?.alerts} />
-
-        {/* The one thing worth doing now, and it looks like it. */}
-        <SmartAlertStrip stats={stats} seating={seating} daysLeft={daysLeft} token={token} eventName={event.name} />
-
-        {/* The numbers, quieter — a ratio where there is one, because "245"
-            answers nothing without "of 300". */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"16px" }}>
-          {/* People, with no denominator — deliberately.
-              It read "420 /335" for שחר: attendees over records, people over phone
-              numbers, more confirmed than exist on the list. She quoted 420 to
-              Dvir, he quoted 335 back, and both were reading this one card.
-              There is no honest denominator here: a record nobody has answered
-              carries no headcount, so the total number of people is not a number
-              we hold. The ratio that IS true — answered out of records, and the
-              headcount beside it — is in the counter directly below. */}
-          <StatCard icon="👥" label="אורחים שאישרו" value={stats.attendees} href={`/couple/${token}/guests`} />
-          <StatCard icon="🪑" label="הושבו"      value={seating.assignedSeats} of={stats.attendees} href={`/couple/${token}/seating`} />
-          <StatCard icon="💰" label="נותר בתקציב" value={`₪${(budget.remaining > 0 ? budget.remaining : 0).toLocaleString("he-IL")}`} href={`/couple/${token}/budget`} />
-          <StatCard icon="📋" label="משימות פתוחות" value={tasks.filter(t => !t.completed).length} href={`/couple/${token}/checklist`} />
-        </div>
-
-        {/* Benchmark badge (only shows when above median) */}
-        <BenchmarkBadge token={token} />
-
-        {/* Live activity feed */}
-        <ActivityFeed token={token} />
-
-        {/* Parent read-only share */}
-        <ParentShareButton token={token} />
-
-        {/* Milestone Cards */}
-        <MilestoneList tasks={tasks} token={token} />
-
-        {/* Daily inspiration */}
-        <p style={{ fontFamily:"Frank Ruhl Libre,serif", fontSize:"14px", fontWeight:400, color:C.muted, fontStyle:"italic", textAlign:"center", padding:"20px 8px 32px", lineHeight:1.7 }}>
-          &ldquo;{INSPIRATION_QUOTES[Math.floor(Date.now() / 86_400_000) % INSPIRATION_QUOTES.length]}&rdquo;
-        </p>
-      </section>
-
-
-      {/* F9 — floating help button */}
-      <HelpButton token={token} />
-      {/* E3-S7: Bottom navigation */}
+      </div>
     </div>
   );
 }

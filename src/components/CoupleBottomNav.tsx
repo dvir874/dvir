@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { X } from "lucide-react";
+import { X, Home, Users, ListChecks, Armchair, MoreHorizontal } from "lucide-react";
 
 const C = {
   gold:   "#C5A46D",
@@ -27,17 +27,20 @@ interface SheetItem {
 /* ─── Main 5 tab items ─── */
 interface TabItem {
   emoji: string;
+  /* The mobile tab bar draws line icons (Stitch dashboard redesign, 09/10);
+     emoji stays for the desktop bar and the sheet. */
+  Icon:  typeof Home;
   label: string;
   href:  string | null;  // null = opens sheet
 }
 
 function getNavTabs(token: string): TabItem[] {
   return [
-    { emoji: "🏠", label: "בית",     href: `/couple/${token}`           },
-    { emoji: "👥", label: "אורחים",  href: `/couple/${token}/guests`    },
-    { emoji: "📋", label: "משימות",  href: `/couple/${token}/checklist` },
-    { emoji: "🪑", label: "הושבה",   href: `/couple/${token}/seating`   },
-    { emoji: "☰",  label: "עוד",     href: null                         },
+    { emoji: "🏠", Icon: Home,           label: "בית",     href: `/couple/${token}`           },
+    { emoji: "👥", Icon: Users,          label: "אורחים",  href: `/couple/${token}/guests`    },
+    { emoji: "📋", Icon: ListChecks,     label: "משימות",  href: `/couple/${token}/checklist` },
+    { emoji: "🪑", Icon: Armchair,       label: "הושבה",   href: `/couple/${token}/seating`   },
+    { emoji: "☰",  Icon: MoreHorizontal, label: "עוד",     href: null                         },
   ];
 }
 
@@ -260,25 +263,21 @@ export default function CoupleBottomNav({ token }: NavProps) {
                       width:        20,
                       height:       3,
                       borderRadius: 2,
-                      background:   C.gold,
+                      background:   "#6B7B5A",
                     }}
                   />
                 )}
-                <span
-                  style={{
-                    fontSize:   20,
-                    lineHeight: 1,
-                    filter:     active || (sheetTab && sheetOpen) ? "none" : "grayscale(0.6) opacity(0.6)",
-                    transition: "filter 0.2s",
-                  }}
-                >
-                  {tab.emoji}
-                </span>
+                <tab.Icon
+                  size={22}
+                  strokeWidth={active || (sheetTab && sheetOpen) ? 2 : 1.75}
+                  aria-hidden="true"
+                  style={{ color: active || (sheetTab && sheetOpen) ? "#6B7B5A" : "#8C7B6E", transition: "color 0.2s" }}
+                />
                 <span
                   style={{
                     fontSize:   12,
-                    fontWeight: active || (sheetTab && sheetOpen) ? 700 : 400,
-                    color:      active || (sheetTab && sheetOpen) ? C.gold : C.muted,
+                    fontWeight: active || (sheetTab && sheetOpen) ? 700 : 500,
+                    color:      active || (sheetTab && sheetOpen) ? "#6B7B5A" : "#6B5E52",
                     fontFamily: "Heebo, sans-serif",
                     transition: "color 0.2s, font-weight 0.2s",
                     whiteSpace: "nowrap",
