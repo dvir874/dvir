@@ -1,7 +1,7 @@
 import { inviteButtonsFor, INVITE_BUTTONS_ENV } from "@/lib/invite-buttons";
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
-import { shabbatBlock, eveningBeforeBlocked } from "@/lib/shabbat";
+import { shabbatBlock } from "@/lib/shabbat";
 import { smsProvider, smsSegments } from "@/lib/sms-gateway";
 import { smsInvite } from "@/lib/sms-invite";
 import { todayText, nextSendFor } from "@/lib/admin-console";
@@ -27,7 +27,7 @@ import { afterWeddingAsks, referralCodeFor, ASK_UNTIL_DAYS } from "@/lib/after-w
 import { forecastDayBefore, pressingDays, forecastMessage, type ForecastEvent } from "@/lib/send-forecast";
 import { failureAlert } from "@/lib/send-failure";
 import { checkTemplate } from "@/lib/template-check";
-import { sendsDayBefore, sendsDayOf } from "@/lib/day-message";
+import { sendsDayBefore } from "@/lib/day-message";
 import { APP_URL } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
@@ -850,35 +850,18 @@ async function notifyDayOf(
       (guests ?? []) as Parameters<typeof dayOfTargets>[0], gotDayBefore, gotDayOf);
     if (!targetIds.length) continue;
 
-    /* The other half of the same choice. A wedding that took the evening
-       before does not also get the morning of. */
-    /* `known` is the whole safety of this pair.
-     *
-     * Written the night before שחר's wedding, when the choice she had just
-     * made was "the morning of". Had the gate read a missing column as "no",
-     * deploying this file before running the migration would have silenced the
-     * one message she asked for, on the morning it was due, with nothing
-     * anywhere saying why — the deploy would have looked clean.
-     *
-     * So an unmigrated database is not a decision. It leaves both messages
-     * exactly as they behaved before this file changed, and only a column that
-     * actually answers is allowed to stop anything. */
-    const choice = await dayMessageOf(sb, ev.id as string);
+    /* No gate on the couple's choice here, and that is deliberate.
 
-    /* …unless last night was חג or שבת, in which case this send is the only
-       one there is.
-     *
-     * A wedding that chose "the evening before" and whose eve falls on יום
-     * כיפור used to get nothing at all: the guard blocked the eve run, and
-     * this gate then declined to cover for it. Both 22/09 weddings sit exactly
-     * there — 361 confirmed guests, and the silence would have looked like a
-     * clean night in the logs.
-     *
-     * Nobody hears it twice: the targets below already exclude everyone with a
-     * day_before_sent row, so on a normal week this branch selects nobody even
-     * when it is entered. See eveningBeforeBlocked. */
-    const eve = eveningBeforeBlocked(String(ev.date ?? ""));
-    if (choice.known && !sendsDayOf(choice.value) && !eve.blocked) continue;
+       There was one: a wedding that chose "the evening before" skipped this
+       whole function. But the targets above already exclude every guest with
+       a day_before_sent row, so for such a wedding this only ever selects the
+       guests the eve message missed — and those are exactly the people the
+       gate silenced. On 08/10 (שלמה גור ואבישג בן שוהם) a guest who confirmed
+       at 13:30 on the day got nothing, and because the skip came before the
+       count, no alert said so either.
+
+       The choice still decides what goes out: "day_of" means no eve message,
+       so everyone is a target here; "before" means only the gaps are. */
 
     const lineFor = await guestLineFactory(sb, ev.id as string);
 
