@@ -6,6 +6,7 @@ import { isRetryableFailure, nextRetryAt, getWhatsAppConfig, sendAdminText, send
 import { unmatchedLeadAlert, shouldAlert, readablePhone } from "@/lib/unmatched-lead";
 import { failureWriter, newRunId, recordFailure } from "@/lib/failures";
 import { isNewerStatus } from "@/lib/rsvp-contact";
+import { forwardEnabled, isTypedMessage, guestForwardText } from "@/lib/guest-forward";
 
 export const dynamic = "force-dynamic";
 
@@ -535,6 +536,37 @@ export async function POST(req: NextRequest) {
         });
         continue;
       }
+      /* Straight to Dvir's phone — see guest-forward.ts. Before the reply is
+         handled, and never allowed to cost it. */
+      try {
+        const admin = process.env.ADMIN_ALERT_PHONE;
+        const cfg = admin ? getWhatsAppConfig() : null;
+        if (cfg && admin && isTypedMessage(m.type)
+            && forwardEnabled(process.env.ADMIN_FORWARD_INBOUND, g.event_id as string | null)) {
+          const [{ data: gr }, { data: ev }] = await Promise.all([
+            sb.from("guests").select("name").eq("id", g.id).maybeSingle(),
+            sb.from("events").select("couple_names, name").eq("id", g.event_id).maybeSingle(),
+          ]);
+          const media = mediaOf(m);
+          const text = guestForwardText({
+            guestName: String(gr?.name ?? ""),
+            couple: String(ev?.couple_names ?? ev?.name ?? ""),
+            phone: m.from ?? "",
+            body: media?.caption?.trim() || bodyOf(m),
+          });
+          /* Free text first, the approved template when Meta's 24-hour window
+             to his number is shut — the same pair the unmatched alert uses. */
+          const plain = await sendAdminText(cfg, admin, text, "guest_forward");
+          if (!plain.ok) {
+            await sendRunSummary(cfg, admin, {
+              event: `💬 ${String(gr?.name ?? "אורח")}`,
+              sent: "0", failed: "—", left: readablePhone(m.from ?? ""),
+              attention: text,
+            }, "guest_forward");
+          }
+        }
+      } catch { /* a forward must never cost the guest their reply */ }
+
       try {
         await handleGuestReply(sb, g.id, m.from, bodyOf(m), m.button?.payload);
       } catch (e1) {
