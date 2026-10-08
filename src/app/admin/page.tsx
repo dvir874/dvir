@@ -1342,6 +1342,13 @@ export default function AdminPage() {
             📣 ערכת שיווק
           </a>
           <a
+            href="/admin/content"
+            className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
+            style={{ background: "rgba(197,164,109,0.15)", color: "#8B6914" }}
+          >
+            🎬 Content Hub
+          </a>
+          <a
             href="/admin/tips"
             className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-medium transition-all hover:opacity-80"
             style={{ background: "rgba(197,164,109,0.12)", color: C.olive }}
