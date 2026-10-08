@@ -105,9 +105,31 @@ const clip = (s: string, n: number) => {
   return t.length <= n ? t : `${t.slice(0, n - 1)}…`;
 };
 
+/** A comparison key for a phone number, never a display value.
+ *
+ *  Israeli numbers in any common spelling — "054-111-2222", "0541112222",
+ *  "+972541112222", "972 54 111 2222", "00972541112222" — collapse to the
+ *  same E.164 digits. Anything else (a foreign number) keeps its own digits,
+ *  minus an international "00" prefix, so it can only ever equal itself.
+ *  Returns null when there are too few digits to be a phone number at all. */
+export function phoneKey(raw: string | null | undefined): string | null {
+  let d = String(raw ?? "").replace(/\D/g, "");
+  if (d.startsWith("00")) d = d.slice(2);
+  if (d.startsWith("9720")) d = `972${d.slice(4)}`;          // "+972 (0)54…"
+  else if (/^0\d{8,9}$/.test(d)) d = `972${d.slice(1)}`;     // local 0XX…
+  return d.length >= 8 && d.length <= 15 ? d : null;
+}
+
 export function readableLocal(phone: string): string {
   const d = String(phone ?? "").replace(/\D/g, "");
   return d.startsWith("972") ? `0${d.slice(3)}` : d;
+}
+
+/** Every later message from an existing lead — short, and never throttled:
+ *  five messages are five alerts, so none of them is only in the CRM. */
+export function leadFollowupText(v: { name?: string | null; phone: string; body: string }): string {
+  const who = String(v.name ?? "").trim() || `+${String(v.phone ?? "").replace(/\D/g, "")}`;
+  return `💬 הודעה חדשה מליד: ${clip(who, 40)}\n${String(v.body ?? "").trim().slice(0, 900) || "(ללא טקסט)"}`;
 }
 
 export function leadAlertText(v: {

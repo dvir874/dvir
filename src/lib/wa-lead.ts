@@ -3,7 +3,7 @@ import { getWhatsAppConfig, toE164, sendRunSummary } from "./whatsapp";
 import { sendText, sendButtons } from "./wa-interactive";
 import { menuId } from "./admin-menu";
 import {
-  detectLeadSource, leadAlertText, LEAD_WELCOME, readableLocal, shouldRealert,
+  detectLeadSource, leadAlertText, leadFollowupText, LEAD_WELCOME, readableLocal, phoneKey,
   type WaReferral, type WaLeadSource,
 } from "./lead-source";
 
@@ -39,6 +39,20 @@ export async function handleLeadMessage(sb: Sb, m: {
 
   const nowIso = new Date().toISOString();
   const name = String(m.profileName ?? "").trim() || null;
+  const key = phoneKey(wa);
+  if (!key) return false;
+
+  /* A couple is never a lead — by NUMBER, whatever the date of their wedding.
+     handleCoupleMessage only recognises couples whose wedding is still ahead,
+     so a couple writing the day after would otherwise reach here and be
+     welcomed as a stranger. Not taking the message leaves it on the existing
+     unmatched-number path, exactly as before this file existed. */
+  {
+    const { data: evs, error } = await sb.from("events")
+      .select("client_phone").not("client_phone", "is", null).limit(5000);
+    if (error) return false;
+    if ((evs ?? []).some(e => phoneKey(String(e.client_phone ?? "")) === key)) return false;
+  }
 
   /* Existing lead by WhatsApp number. An error here means the migration has
      not run — not this handler's message. */
@@ -50,14 +64,18 @@ export async function handleLeadMessage(sb: Sb, m: {
 
   if (!lead) {
     /* A web-form lead writing on WhatsApp for the first time is the same
-       person, not a new lead: attach the number, keep its source. */
-    const local = readableLocal(wa);
-    const web = await sb.from("leads").select(LEAD_COLS)
-      .eq("phone", local).is("wa_phone", null).limit(1).maybeSingle();
-    if (web.data) {
+       person, not a new lead: attach the number, keep its source. Matched on
+       a normalised key, because the form stores the number as typed: "054-111-2222" and "+972541112222" are one person. The stored
+       phone is left exactly as it was; only wa_phone is added. Oldest first,
+       so a person who filled the form twice joins their first lead. */
+    const web = await sb.from("leads").select(`${LEAD_COLS}, phone, created_at`)
+      .is("wa_phone", null).order("created_at", { ascending: true }).limit(5000);
+    const hit = ((web.data ?? []) as (LeadRow & { phone?: string | null })[])
+      .find(l => phoneKey(l.phone) === key);
+    if (hit) {
       await sb.from("leads").update({ wa_phone: wa, first_message: m.body.slice(0, 2000) })
-        .eq("id", (web.data as LeadRow).id);
-      lead = web.data as LeadRow;
+        .eq("id", hit.id).is("wa_phone", null);
+      lead = hit;
     }
   }
 
@@ -75,12 +93,19 @@ export async function handleLeadMessage(sb: Sb, m: {
     }).select(LEAD_COLS).single();
 
     if (ins.error) {
-      /* 23505: a parallel delivery created it a moment ago. That one is the
-         new lead; this message is its second line. */
+      /* 23505: another delivery created the lead between our read and our
+         insert; that run welcomes and sends the full alert. */
       if ((ins.error as { code?: string }).code !== "23505") return false;
-      const again = await sb.from("leads").select(LEAD_COLS).eq("wa_phone", wa).maybeSingle();
+      const again = await sb.from("leads").select(`${LEAD_COLS}, first_message`)
+        .eq("wa_phone", wa).maybeSingle();
       if (!again.data) return false;
       lead = again.data as LeadRow;
+      /* The same first message delivered twice at once is one message: the
+         other run owns it, this one stays silent. A DIFFERENT message that
+         merely arrived at the same moment falls through and is a follow-up
+         like any other — every message he is sent must reach him. */
+      if ((again.data as { first_message?: string | null }).first_message === m.body.slice(0, 2000))
+        return true;
     } else {
       lead = ins.data as LeadRow;
       isNew = true;
@@ -93,7 +118,6 @@ export async function handleLeadMessage(sb: Sb, m: {
   }
 
   source = lead.source;
-  const prevLast = isNew ? null : lead.last_message_at;
 
   if (!isNew) {
     await sb.from("leads").update({ last_message_at: nowIso, updated_at: nowIso })
@@ -120,21 +144,26 @@ export async function handleLeadMessage(sb: Sb, m: {
     } catch { /* a welcome must never cost the owner his alert */ }
   }
 
-  /* The owner. Free text with a reply button first; when Meta's window to his
-     own number is shut, the approved run-summary template carries it. */
+  /* The owner.
+     A new lead: the full alert. Every later message: a short one, never
+     throttled — five messages are five alerts, or an answer to the question
+     he just asked would exist only in the CRM. Free text with a reply button
+     first; when Meta's window to his own number is shut, the approved
+     run-summary template carries it. Nothing is ever sent to the lead here. */
   const admin = process.env.ADMIN_ALERT_PHONE;
-  if (admin && (isNew || shouldRealert(prevLast, Date.now()))) {
+  if (admin) {
     try {
-      const text = leadAlertText({
-        isNew, source: source as WaLeadSource, name: name ?? lead.name, phone: wa, body: m.body,
-        status: lead.status === "new_lead" ? "NEW" : lead.status,
-      });
+      const who = name ?? lead.name;
+      const text = isNew
+        ? leadAlertText({ isNew: true, source: source as WaLeadSource, name: who, phone: wa,
+            body: m.body, status: "NEW" })
+        : leadFollowupText({ name: who, phone: wa, body: m.body });
       const adminTo = toE164(admin) ?? admin;
       const btn = await sendButtons(cfg, adminTo, text.slice(0, 1000),
         [{ id: menuId({ screen: "reply_lead", id: lead.id }), title: "✉️ לענות מכאן" }]);
       if (!btn.ok) {
         await sendRunSummary(cfg, admin, {
-          event: isNew ? "💍 ליד חדש" : "💬 הודעה מליד",
+          event: isNew ? "💍 ליד חדש" : `💬 ${String(who ?? "ליד")}`,
           sent: "—", failed: "—", left: readableLocal(wa),
           attention: text.replace(/\n+/g, " · "),
         }, "wa_lead");

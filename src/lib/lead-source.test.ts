@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   detectLeadSource, channelFromPath, channelLink, LEAD_CHANNELS, LEAD_WELCOME,
-  leadAlertText, shouldRealert, LEAD_REALERT_MS, SALES_WA_PHONE,
+  leadAlertText, shouldRealert, LEAD_REALERT_MS, SALES_WA_PHONE, phoneKey, leadFollowupText,
 } from "./lead-source.ts";
 
 test("the prefilled line of each channel is recognised as that channel", () => {
@@ -66,4 +66,32 @@ test("an existing lead re-alerts only after a quiet hour", () => {
   assert.equal(shouldRealert(null, now), true);
   assert.equal(shouldRealert(new Date(now - 5 * 60_000).toISOString(), now), false);
   assert.equal(shouldRealert(new Date(now - LEAD_REALERT_MS).toISOString(), now), true);
+});
+
+test("one Israeli number in every spelling has one key", () => {
+  const k = "972541112222";
+  for (const v of ["054-111-2222", "0541112222", "+972541112222", "972 54 111 2222",
+                   "00972541112222", "+972 (0)54-111-2222", " 054 1112222 "]) {
+    assert.equal(phoneKey(v), k, v);
+  }
+  assert.equal(phoneKey("04-6123456"), "97246123456"); // landline
+});
+
+test("foreign numbers keep their own digits and match only themselves", () => {
+  assert.equal(phoneKey("+1 (555) 123-4567"), "15551234567");
+  assert.equal(phoneKey("0015551234567"), "15551234567");
+  assert.equal(phoneKey("+44 20 7946 0958"), "442079460958");
+  assert.notEqual(phoneKey("+1 555 123 4567"), phoneKey("0541112222"));
+});
+
+test("too short or empty is no key", () => {
+  assert.equal(phoneKey(""), null);
+  assert.equal(phoneKey(null), null);
+  assert.equal(phoneKey("12345"), null);
+});
+
+test("a follow-up alert is short and carries the whole message", () => {
+  const t = leadFollowupText({ name: "מירב", phone: "972541112222", body: "החתונה ב-3.3\nבערך 300 איש" });
+  assert.equal(t, "💬 הודעה חדשה מליד: מירב\nהחתונה ב-3.3\nבערך 300 איש");
+  assert.match(leadFollowupText({ phone: "972541112222", body: "x" }), /^💬 הודעה חדשה מליד: \+972541112222/);
 });
